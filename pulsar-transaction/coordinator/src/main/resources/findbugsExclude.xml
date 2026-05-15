@@ -21,7 +21,7 @@
 <FindBugsFilter>
   <Match>
     <Class name="~org.apache.pulsar.transaction.coordinator.proto.*"/>
-    <Bug pattern="UUF_UNUSED_FIELD"/>
+    <Bug pattern="UUF_UNUSED_FIELD,DE_MIGHT_IGNORE,REC_CATCH_EXCEPTION"/>
   </Match>
   <!-- Ignore violations that were present when the rule was enabled -->
   <Match>

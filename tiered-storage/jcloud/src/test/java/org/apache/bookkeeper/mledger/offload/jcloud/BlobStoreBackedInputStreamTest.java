@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
@@ -41,7 +41,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
     class RandomInputStream extends InputStream {
@@ -113,7 +113,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
@@ -136,7 +137,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
@@ -177,7 +179,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
@@ -202,7 +205,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         //BlobStore spiedBlobStore = spy(blobStore);
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
@@ -253,7 +257,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,

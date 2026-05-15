@@ -38,6 +38,7 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/resourcegroups", description = "ResourceGroups admin apis", tags = "resourcegroups")
+@SuppressWarnings("deprecation")
 public class ResourceGroups extends ResourceGroupsBase {
 
     @GET

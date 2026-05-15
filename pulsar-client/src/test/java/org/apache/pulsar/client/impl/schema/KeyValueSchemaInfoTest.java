@@ -27,7 +27,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
@@ -43,10 +43,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link KeyValueSchemaInfoTest}.
  */
-@Slf4j
+@CustomLog
 public class KeyValueSchemaInfoTest {
 
-    private static final Map<String, String> FOO_PROPERTIES = new HashMap() {
+    private static final Map<String, String> FOO_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 
@@ -58,7 +58,7 @@ public class KeyValueSchemaInfoTest {
 
     };
 
-    private static final Map<String, String> BAR_PROPERTIES = new HashMap() {
+    private static final Map<String, String> BAR_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 

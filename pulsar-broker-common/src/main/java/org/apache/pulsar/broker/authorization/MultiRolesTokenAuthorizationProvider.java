@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.RequiredTypeException;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -48,12 +52,10 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
+@CustomLog
 public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MultiRolesTokenAuthorizationProvider.class);
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -64,12 +66,16 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     // The token's claim that corresponds to the "role" string
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
+    static final String DEFAULT_ROLE_CLAIM = "roles";
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     private final JwtParser parser;
     private String roleClaim;
 
     public MultiRolesTokenAuthorizationProvider() {
-        this.roleClaim = Claims.SUBJECT;
-        this.parser = Jwts.parserBuilder().build();
+        this.roleClaim = DEFAULT_ROLE_CLAIM;
+        this.parser = Jwts.parser().unsecured().build();
     }
 
     @Override
@@ -135,15 +141,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                             }).exceptionally(ex -> {
                                 Throwable cause = ex.getCause();
                                 if (cause instanceof MetadataStoreException.NotFoundException) {
-                                    log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                                    log.warn()
+                                            .attr("tenant", tenantName)
+                                            .log("Failed to get tenant info data for non existing tenant");
                                     throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                                 }
-                                log.error("Failed to get tenant {}", tenantName, cause);
+                                log.error().attr("tenant", tenantName).exception(cause).log("Failed to get tenant");
                                 throw new RestException(cause);
                             });
                 });
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private Set<String> getRoles(String role, AuthenticationDataSource authData) {
         if (authData == null || (authData instanceof AuthenticationDataSubscription
                 && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {
@@ -179,30 +188,26 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             log.warn("Unable to extract additional roles from JWT token");
             return Collections.emptySet();
         }
-        String unsignedToken = splitToken[0] + "." + splitToken[1] + ".";
-
-        Jwt<?, Claims> jwt = parser.parseClaimsJwt(unsignedToken);
-        try {
-            final String jwtRole = jwt.getBody().get(roleClaim, String.class);
-            if (jwtRole == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Do not have corresponding claim in jwt token. claim={}", roleClaim);
-                }
-                return Collections.emptySet();
-            }
-            return new HashSet<>(Collections.singletonList(jwtRole));
-        } catch (RequiredTypeException requiredTypeException) {
-            try {
-                List list = jwt.getBody().get(roleClaim, List.class);
-                if (list != null) {
-                    return new HashSet<String>(list);
-                }
-            } catch (RequiredTypeException requiredTypeException1) {
-                return Collections.emptySet();
-            }
+        String unsignedToken = replaceAlgWithNoneInHeader(splitToken[0]) + "." + splitToken[1] + ".";
+        Object jwtRole = parser.parseUnsecuredClaims(unsignedToken).getBody().get(roleClaim);
+        if (jwtRole instanceof String) {
+            return new HashSet<String>(Collections.singletonList((String) jwtRole));
+        } else if (jwtRole instanceof Collection) {
+            return new HashSet<>((Collection<String>) jwtRole);
+        } else {
+            return Collections.emptySet();
         }
+    }
 
-        return Collections.emptySet();
+    // replace alg with none in header so that it can be parsed in unsecured mode
+    private static String replaceAlgWithNoneInHeader(String header) {
+        try {
+            JsonNode jsonNode = mapper.readTree(Base64.getDecoder().decode(header));
+            ((ObjectNode) jsonNode).put("alg", "none");
+            return Base64.getEncoder().withoutPadding().encodeToString(mapper.writeValueAsBytes(jsonNode));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
@@ -217,7 +222,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                         return CompletableFuture.completedFuture(false);
                     }
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
-                    roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
+                    if (roles.size() == 1) {
+                        roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
+                    } else {
+                        roles.forEach(r -> futures.add(authorizeFunc.apply(r).exceptionally(ex -> false)));
+                    }
                     return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
                 });
     }

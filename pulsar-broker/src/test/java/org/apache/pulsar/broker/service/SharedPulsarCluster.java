@@ -1,0 +1,244 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.service;
+
+import java.util.Optional;
+import java.util.Set;
+import lombok.CustomLog;
+import lombok.Getter;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.apache.pulsar.tests.ThreadLeakDetectorListener;
+
+/**
+ * JVM-wide singleton that manages a lightweight Pulsar cluster for integration tests.
+ *
+ * <p>The cluster consists of a single bookie (with minimal memory/thread configuration and no journal
+ * sync) and a single Pulsar broker, both backed by in-memory metadata stores. A default cluster
+ * ({@value CLUSTER_NAME}) and tenant ({@value TENANT_NAME}) are created at startup.
+ *
+ * <p>The singleton is lazily initialized on first call to {@link #get()} and shut down via a JVM
+ * shutdown hook, which also deletes all temporary bookie data directories.
+ *
+ * @see SharedPulsarBaseTest
+ */
+@CustomLog
+public class SharedPulsarCluster {
+
+    private static final String METADATA_STORE_URL = "memory:shared-test-cluster";
+    public static final String CLUSTER_NAME = "test-cluster";
+    public static final String TENANT_NAME = "test-tenant";
+
+    private static volatile SharedPulsarCluster instance;
+
+    private BKCluster bkCluster;
+    @Getter
+    private PulsarService pulsarService;
+    @Getter
+    private PulsarAdmin admin;
+    @Getter
+    private PulsarClient client;
+
+    /**
+     * Returns the singleton instance, starting the cluster on first invocation.
+     * Thread-safe via double-checked locking.
+     */
+    public static SharedPulsarCluster get() throws Exception {
+        if (instance == null) {
+            synchronized (SharedPulsarCluster.class) {
+                if (instance == null) {
+                    SharedPulsarCluster cluster = new SharedPulsarCluster();
+                    cluster.start();
+                    instance = cluster;
+                    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                        try {
+                            instance.close();
+                        } catch (Exception e) {
+                            log.error().exception(e).log("Failed to close SharedPulsarCluster");
+                        }
+                    }));
+                }
+            }
+        }
+        return instance;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void start() throws Exception {
+        log.info("Starting SharedPulsarCluster");
+
+        // Start a single bookie with minimal configuration
+        ServerConfiguration bkConf = new ServerConfiguration();
+        bkConf.setProperty("dbStorage_writeCacheMaxSizeMb", 32);
+        bkConf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
+        bkConf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 4);
+        bkConf.setProperty("dbStorage_rocksDB_blockCacheSize", 4 * 1024 * 1024);
+        bkConf.setJournalSyncData(false);
+        bkConf.setJournalWriteData(false);
+        bkConf.setProperty("journalMaxGroupWaitMSec", 0L);
+        bkConf.setProperty("journalPreAllocSizeMB", 1);
+        bkConf.setFlushInterval(60000);
+        bkConf.setGcWaitTime(60000);
+        bkConf.setAllowLoopback(true);
+        bkConf.setAdvertisedAddress("127.0.0.1");
+        bkConf.setAllowEphemeralPorts(true);
+        bkConf.setNumAddWorkerThreads(0);
+        bkConf.setNumReadWorkerThreads(0);
+        bkConf.setNumHighPriorityWorkerThreads(0);
+        bkConf.setNumJournalCallbackThreads(0);
+        bkConf.setServerNumIOThreads(1);
+        bkConf.setNumLongPollWorkerThreads(1);
+        bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+        bkConf.setLedgerStorageClass("org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage");
+        bkConf.setDiskUsageThreshold(0.999F);
+        bkConf.setDiskUsageWarnThreshold(0.99F);
+
+        bkCluster = BKCluster.builder()
+                .baseServerConfiguration(bkConf)
+                .metadataServiceUri(METADATA_STORE_URL)
+                .numBookies(1)
+                .clearOldData(true)
+                .build();
+
+        // Configure and start the Pulsar broker
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setMetadataStoreUrl(METADATA_STORE_URL);
+        config.setConfigurationMetadataStoreUrl(METADATA_STORE_URL);
+        config.setClusterName(CLUSTER_NAME);
+        config.setAdvertisedAddress("localhost");
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
+        config.setDefaultNumberOfNamespaceBundles(1);
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config.setNumExecutorThreadPoolSize(5);
+        config.setManagedLedgerCacheSizeMB(8);
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
+        config.setAllowAutoTopicCreationType(
+                org.apache.pulsar.common.policies.data.TopicType.NON_PARTITIONED);
+        config.setBookkeeperNumberOfChannelsPerBookie(1);
+        config.setBookkeeperClientExposeStatsToPrometheus(false);
+        config.setDispatcherRetryBackoffInitialTimeInMs(0);
+        config.setDispatcherRetryBackoffMaxTimeInMs(0);
+        config.setForceDeleteNamespaceAllowed(true);
+        config.setForceDeleteTenantAllowed(true);
+        config.setBrokerDeleteInactiveTopicsEnabled(false);
+        config.setBrokerDeduplicationEnabled(true);
+        // Tests rely on aggressive eviction of disconnected scalable-topic consumer
+        // sessions so reassignment-after-disconnect can be exercised in a few seconds
+        // instead of the production default of 60s.
+        config.setScalableTopicConsumerSessionGracePeriodSeconds(2);
+
+        // Reduce thread pool sizes for faster startup (fewer threads to create)
+        config.setNumIOThreads(2);
+        config.setNumOrderedExecutorThreads(2);
+        config.setNumHttpServerThreads(4);
+        config.setBookkeeperClientNumWorkerThreads(2);
+        config.setBookkeeperClientNumIoThreads(2);
+        config.setNumCacheExecutorThreadPoolSize(1);
+        config.setManagedLedgerNumSchedulerThreads(2);
+        config.setTopicOrderedExecutorThreadNum(4);
+
+        // Disable the load balancer — single-broker cluster doesn't need it
+        config.setLoadBalancerEnabled(false);
+
+        // Enable the transaction coordinator so V5 transaction tests can run on the
+        // shared cluster. Other tests don't pay any meaningful cost — the coordinator
+        // only does work when a client opts in via enableTransaction=true.
+        config.setTransactionCoordinatorEnabled(true);
+        config.setTransactionBufferSnapshotMaxTransactionCount(2);
+        config.setTransactionBufferSnapshotMinTimeInMillis(2000);
+
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        // Create admin and client
+        admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress())
+                .build();
+
+        client = PulsarClient.builder()
+                .serviceUrl(pulsarService.getBrokerServiceUrl())
+                .build();
+
+        // Set up default cluster and tenant
+        admin.clusters().createCluster(CLUSTER_NAME,
+                ClusterData.builder()
+                        .serviceUrl(pulsarService.getWebServiceAddress())
+                        .brokerServiceUrl(pulsarService.getBrokerServiceUrl())
+                        .build());
+
+        admin.tenants().createTenant(TENANT_NAME,
+                TenantInfo.builder()
+                        .allowedClusters(Set.of(CLUSTER_NAME))
+                        .build());
+
+        // Set up the system namespace + transaction-coordinator partitioned topic so
+        // the broker can serve transaction requests from V5 (and v4) clients. The
+        // coordinator topic lives in pulsar/system, which the public admin API rejects
+        // (system-topic format), so we go through pulsarResources directly — same path
+        // TransactionTestBase uses.
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                TenantInfo.builder()
+                        .allowedClusters(Set.of(CLUSTER_NAME))
+                        .build());
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        pulsarService.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(1));
+
+        log.info().attr("startedBroker", pulsarService.getBrokerServiceUrl())
+                .attr("web", pulsarService.getWebServiceAddress()).log("SharedPulsarCluster started. broker= web");
+
+        // Reset the thread leak detector baseline so that threads created by
+        // this shared cluster are not reported as leaks of the first test class
+        ThreadLeakDetectorListener.resetCapturedThreads();
+    }
+
+    private void close() throws Exception {
+        log.info("Closing SharedPulsarCluster");
+        if (client != null) {
+            client.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+        if (pulsarService != null) {
+            pulsarService.close();
+        }
+        if (bkCluster != null) {
+            bkCluster.close();
+        }
+    }
+}

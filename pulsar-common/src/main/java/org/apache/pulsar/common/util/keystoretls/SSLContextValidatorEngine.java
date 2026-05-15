@@ -24,12 +24,12 @@ import java.util.Arrays;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * SSLContextValidatorEngine to validate 2 SSlContext.
  */
-@Slf4j
+@CustomLog
 public class SSLContextValidatorEngine {
     @FunctionalInterface
     public interface SSLEngineProvider {

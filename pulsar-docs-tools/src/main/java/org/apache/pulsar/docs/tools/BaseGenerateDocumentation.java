@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -39,7 +39,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
-@Slf4j
+@CustomLog
 @Command(name = "gen-doc", showDefaultValues = true, scope = ScopeType.INHERIT)
 public abstract class BaseGenerateDocumentation implements Callable<Integer> {
 
@@ -109,8 +109,8 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
         }
 
         @SneakyThrows
-        Class type() {
-            return (Class) MethodUtils.invokeMethod(fieldContext, "type");
+        Class<?> type() {
+            return (Class<?>) MethodUtils.invokeMethod(fieldContext, "type");
         }
 
         @SneakyThrows
@@ -164,6 +164,8 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
     }
 
     protected static class CategoryComparator implements Comparator<Pair<Field, FieldContextWrapper>>, Serializable {
+        private static final long serialVersionUID = 1L;
+
         @Override
         public int compare(Pair<Field, FieldContextWrapper> o1, Pair<Field, FieldContextWrapper> o2) {
             FieldContextWrapper o1Context = o1.getValue();

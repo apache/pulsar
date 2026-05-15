@@ -33,6 +33,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
@@ -43,8 +44,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -53,8 +52,8 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class KeySharedSubscriptionBrokerCacheTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionBrokerCacheTest.class);
     private static final String SUBSCRIPTION_NAME = "key_shared";
     private final KeySharedImplementationType implementationType;
 
@@ -196,8 +195,8 @@ public class KeySharedSubscriptionBrokerCacheTest extends ProducerConsumerBase {
         };
 
         pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
-            log.error("Attempting to read from BK when cache should be used. {}:{} to {}:{}", ledgerId, firstEntry,
-                    ledgerId, lastEntry);
+            log.error().attr("used", ledgerId).attr("firstEntry", firstEntry).attr("to", ledgerId)
+                    .attr("lastEntry", lastEntry).log("Attempting to read from BK when cache should be used.: to");
             return CompletableFuture.failedFuture(
                     new ManagedLedgerException.NonRecoverableLedgerException(
                             "Should not read from BK since cache should be used."));
@@ -250,7 +249,7 @@ public class KeySharedSubscriptionBrokerCacheTest extends ProducerConsumerBase {
         // produce messages with random keys
         for (int i = 0; i < 1000; i++) {
             String key = String.valueOf(random.nextInt(numberOfKeys));
-            //log.info("Producing message with key: {} value: {}", key, i);
+            //log.info().attr("key", key).attr("value", i).log("Producing message");
             remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)
@@ -278,7 +277,7 @@ public class KeySharedSubscriptionBrokerCacheTest extends ProducerConsumerBase {
         // produce more messages with random keys
         for (int i = 0; i < 1000; i++) {
             String key = String.valueOf(random.nextInt(numberOfKeys));
-            //log.info("Producing message with key: {} value: {}", key, i);
+            //log.info().attr("key", key).attr("value", i).log("Producing message");
             remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)

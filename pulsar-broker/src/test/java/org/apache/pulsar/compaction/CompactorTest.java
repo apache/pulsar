@@ -90,11 +90,11 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
+        admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
@@ -170,7 +170,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         final int numMessages = 1000;
         final int maxKeys = 10;
 
@@ -198,7 +198,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAllCompactedOut() throws Exception {
-        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/use/my-ns/testAllCompactedOut");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testAllCompactedOut");
         // set retain null key to true
         boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
@@ -223,7 +223,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -275,7 +275,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactAddCompact() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -313,7 +313,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactedInOrder() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -345,7 +345,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactEmptyTopic() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         // trigger creation of topic on server side
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
@@ -367,7 +367,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactedWithConcurrentSend() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactedWithConcurrentSend";
+        String topic = "persistent://my-property/my-ns/testCompactedWithConcurrentSend";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)

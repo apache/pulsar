@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.Any;
+import com.google.protobuf.StringValue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.ArrayList;
@@ -32,14 +34,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProtobufSchemaTest {
 
     private static final String NAME = "foo";
@@ -110,15 +111,28 @@ public class ProtobufSchemaTest {
 
     @Test
     public void testEncodeAndDecode() {
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setName(NAME).build();
+        org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage =
+                org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder().setStringField(NAME).build();
 
-        ProtobufSchema<Function.FunctionDetails> protobufSchema = ProtobufSchema.of(Function.FunctionDetails.class);
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
-        byte[] bytes = protobufSchema.encode(functionDetails);
+        byte[] bytes = protobufSchema.encode(testMessage);
 
-        Function.FunctionDetails message = protobufSchema.decode(bytes);
+        org.apache.pulsar.client.schema.proto.Test.TestMessage message = protobufSchema.decode(bytes);
 
-        Assert.assertEquals(message.getName(), NAME);
+        Assert.assertEquals(message.getStringField(), NAME);
+    }
+
+    @Test
+    public void testSchemaApiSupportsMessageBound() {
+        Any any = Any.pack(StringValue.newBuilder().setValue(NAME).build());
+        org.apache.pulsar.client.api.Schema<Any> protobufSchema =
+                org.apache.pulsar.client.api.Schema.PROTOBUF(Any.class);
+
+        byte[] bytes = protobufSchema.encode(any);
+        Any message = protobufSchema.decode(bytes);
+        Assert.assertEquals(message, any);
     }
 
     @Test
@@ -136,6 +150,7 @@ public class ProtobufSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericOf() {
         try {
             ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =

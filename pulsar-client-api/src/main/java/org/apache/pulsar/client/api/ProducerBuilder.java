@@ -410,7 +410,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the producer builder instance
      */
-    ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.

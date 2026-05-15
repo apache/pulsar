@@ -22,25 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ProducerQueueSizeTest extends ProducerConsumerBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "matrix")
     public Object[][] matrix() {
@@ -51,6 +37,7 @@ public class ProducerQueueSizeTest extends ProducerConsumerBase {
                 {Boolean.TRUE, Boolean.TRUE},
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "matrix")
     public void testRemoveMaxQueueLimit(boolean blockIfQueueFull, boolean partitioned) throws Exception {
@@ -62,7 +49,7 @@ public class ProducerQueueSizeTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(brokerUrl.toString())
+                .serviceUrl(getWebServiceUrl())
                 .memoryLimit(10, SizeUnit.KILO_BYTES)
                 .build();
 

@@ -28,7 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.utils.SimpleCache;
@@ -38,7 +38,7 @@ import org.apache.pulsar.utils.SimpleCache;
  * - Provides just a single public method that reads the latest value synchronously.
  * - Maintains multiple long-lived readers that will be expired after some time (1 minute by default).
  */
-@Slf4j
+@CustomLog
 public class TableView<T> {
 
     // Remove the cached reader and snapshots if there is no refresh request in 1 minute
@@ -96,7 +96,7 @@ public class TableView<T> {
                 throw new RuntimeException(e);
             }
         }, __ -> __.closeAsync().exceptionally(e -> {
-            log.warn("Failed to close reader {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Failed to close reader");
             return null;
         }));
     }

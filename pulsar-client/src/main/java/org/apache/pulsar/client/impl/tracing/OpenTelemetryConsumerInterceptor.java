@@ -1,0 +1,337 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl.tracing;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import lombok.CustomLog;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerInterceptor;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.TraceableMessageId;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+
+/**
+ * OpenTelemetry consumer interceptor that creates spans for message consumption.
+ * <p>
+ * This interceptor automatically retrieves the Tracer from the client's InstrumentProvider,
+ * ensuring consistent OpenTelemetry configuration across the client.
+ * <p>
+ * <b>Span Storage Strategy:</b>
+ * <ul>
+ *   <li><b>Shared/Key_Shared subscriptions:</b> Spans are attached directly to {@link TraceableMessageId}
+ *       instances with zero map overhead.</li>
+ *   <li><b>Failover/Exclusive subscriptions:</b> A nested map is initialized eagerly to track message IDs
+ *       and their spans in sorted order. This is necessary because cumulative ack must end spans
+ *       for all messages up to the acked position.</li>
+ * </ul>
+ * <p>
+ * <b>Multi-Topic Consumer Support:</b><br>
+ * For {@link org.apache.pulsar.client.impl.MultiTopicsConsumerImpl} and pattern-based consumers, cumulative
+ * acknowledgment only affects messages from the same topic partition. The interceptor uses a nested
+ * map structure (topic partition → message IDs) and {@link TopicMessageId#getOwnerTopic()} to ensure
+ * spans are only ended for messages from the acknowledged topic partition.
+ */
+@CustomLog
+public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<T> {
+
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
+    private String topic;
+    private String subscription;
+
+    /**
+     * Used for cumulative acknowledgment support (Failover/Exclusive subscriptions).
+     * Outer map: topic partition -> (message ID -> span)
+     * Inner ConcurrentSkipListMap maintains sorted order for efficient range operations.
+     * Initialized eagerly for Failover/Exclusive subscriptions.
+     * <p>
+     * The nested structure is necessary for multi-topic consumers where a single interceptor
+     * instance handles messages from multiple topic partitions. Cumulative ack only affects
+     * messages from the same topic partition.
+     */
+    private final Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
+
+    public OpenTelemetryConsumerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+        this.messageSpansByTopic = new ConcurrentHashMap<>();
+    }
+
+    /**
+     * Get the topic key for a message ID.
+     * For TopicMessageId, returns the owner topic. Otherwise returns the consumer's topic.
+     */
+    private String getTopicKey(MessageId messageId) {
+        if (messageId instanceof TopicMessageId) {
+            return ((TopicMessageId) messageId).getOwnerTopic();
+        }
+        return topic != null ? topic : "";
+    }
+
+    @Override
+    public void close() {
+        // Clean up any remaining spans for Failover/Exclusive subscriptions
+        messageSpansByTopic.values().forEach(topicSpans ->
+            topicSpans.values().forEach(TracingContext::endSpan)
+        );
+        messageSpansByTopic.clear();
+    }
+
+    @Override
+    public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
+        if (tracer == null || propagator == null) {
+            return message;
+        }
+
+        try {
+            if (topic == null) {
+                topic = consumer.getTopic();
+            }
+            if (subscription == null) {
+                subscription = consumer.getSubscription();
+            }
+
+            // Create a consumer span for this message
+            Span span = TracingContext.createConsumerSpan(tracer, topic, subscription, message, propagator);
+
+            if (TracingContext.isValid(span)) {
+                MessageId messageId = message.getMessageId();
+
+                // Store in map for cumulative ack support (Failover/Exclusive)
+                if (messageId instanceof MessageIdAdv) {
+                    String topicKey = getTopicKey(messageId);
+                    messageSpansByTopic.computeIfAbsent(topicKey,
+                            k -> new ConcurrentSkipListMap<>()).put((MessageIdAdv) messageId, span);
+                }
+
+                // Always attach span to message ID for individual ack/nack
+                if (messageId instanceof TraceableMessageId) {
+                    ((TraceableMessageId) messageId).setTracingSpan(span);
+                }
+
+                log.debug().attr("messageId", messageId)
+                        .attr("topic", topic)
+                        .log("Created consumer span");
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Error creating consumer span");
+        }
+
+        return message;
+    }
+
+    @Override
+    public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
+        if (!(messageId instanceof TraceableMessageId)) {
+            return;
+        }
+
+        Span span = ((TraceableMessageId) messageId).getTracingSpan();
+        if (span != null) {
+            try {
+                if (exception != null) {
+                    TracingContext.endSpan(span, exception);
+                } else {
+                    // Add attribute to indicate acknowledgment type
+                    span.setAttribute("messaging.pulsar.acknowledgment.type", "acknowledge");
+                    TracingContext.endSpan(span);
+                }
+                // Clear the span from the message ID
+                ((TraceableMessageId) messageId).setTracingSpan(null);
+
+                // Remove from map if it exists (Failover/Exclusive)
+                if (messageId instanceof MessageIdAdv) {
+                    String topicKey = getTopicKey(messageId);
+                    ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
+                    if (topicSpans != null) {
+                        topicSpans.remove((MessageIdAdv) messageId);
+                    }
+                }
+            } catch (Exception e) {
+                log.error().exception(e).log("Error ending consumer span on acknowledge");
+            }
+        }
+    }
+
+    @Override
+    public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
+        if (!(messageId instanceof MessageIdAdv cumulativeAckPos)) {
+            // Fallback to simple ack for non-adv message IDs
+            if (messageId instanceof TraceableMessageId) {
+                Span span = ((TraceableMessageId) messageId).getTracingSpan();
+                if (span != null) {
+                    try {
+                        if (exception != null) {
+                            TracingContext.endSpan(span, exception);
+                        } else {
+                            // Add attribute to indicate acknowledgment type
+                            span.setAttribute("messaging.pulsar.acknowledgment.type", "cumulative_acknowledge");
+                            TracingContext.endSpan(span);
+                        }
+                        ((TraceableMessageId) messageId).setTracingSpan(null);
+                    } catch (Exception e) {
+                        log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
+                    }
+                }
+            }
+            return;
+        }
+
+        String topicKey = getTopicKey(messageId);
+
+        // Get the topic-specific map
+        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
+
+        // First, try to get the span for the cumulative ack position itself
+        Span currentSpan = null;
+        if (messageId instanceof TraceableMessageId) {
+            currentSpan = ((TraceableMessageId) messageId).getTracingSpan();
+        }
+
+        // End spans for all messages in the topic-specific map up to the cumulative ack position
+        if (topicSpans != null) {
+            Iterator<Map.Entry<MessageIdAdv, Span>> iterator = topicSpans.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<MessageIdAdv, Span> entry = iterator.next();
+                MessageIdAdv msgId = entry.getKey();
+
+                // End spans for all messages <= cumulative ack position
+                if (msgId.compareTo(cumulativeAckPos) <= 0) {
+                    Span span = entry.getValue();
+                    try {
+                        if (exception != null) {
+                            TracingContext.endSpan(span, exception);
+                        } else {
+                            // Add attribute to indicate acknowledgment type
+                            span.setAttribute("messaging.pulsar.acknowledgment.type", "cumulative_acknowledge");
+                            TracingContext.endSpan(span);
+                        }
+
+                        // Clear the span from the message ID
+                        if (msgId instanceof TraceableMessageId) {
+                            ((TraceableMessageId) msgId).setTracingSpan(null);
+                        }
+                    } catch (Exception e) {
+                        log.error().attr("messageId", msgId)
+                                .exception(e)
+                                .log("Error ending consumer span on cumulative acknowledge");
+                    }
+                    iterator.remove();
+                } else {
+                    // Since the map is sorted, we can break early
+                    break;
+                }
+            }
+
+            // Clean up empty topic map
+            if (topicSpans.isEmpty()) {
+                messageSpansByTopic.remove(topicKey);
+            }
+        }
+
+        // If the cumulative ack position span wasn't in the map, end it directly
+        if (currentSpan != null) {
+            try {
+                if (exception != null) {
+                    TracingContext.endSpan(currentSpan, exception);
+                } else {
+                    TracingContext.endSpan(currentSpan);
+                }
+                ((TraceableMessageId) messageId).setTracingSpan(null);
+            } catch (Exception e) {
+                log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
+            }
+        }
+    }
+
+    @Override
+    public void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds) {
+        for (MessageId messageId : messageIds) {
+            if (!(messageId instanceof TraceableMessageId)) {
+                continue;
+            }
+
+            Span span = ((TraceableMessageId) messageId).getTracingSpan();
+            if (span != null) {
+                try {
+                    // Add attribute to indicate negative acknowledgment (not an error, but normal flow)
+                    span.setAttribute("messaging.pulsar.acknowledgment.type", "negative_acknowledge");
+                    // End span normally - negative ack is expected behavior, not an error
+                    TracingContext.endSpan(span);
+                    // Clear the span from the message ID
+                    ((TraceableMessageId) messageId).setTracingSpan(null);
+
+                    // Remove from map if it exists (Failover/Exclusive)
+                    if (messageId instanceof MessageIdAdv) {
+                        String topicKey = getTopicKey(messageId);
+                        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
+                        if (topicSpans != null) {
+                            topicSpans.remove((MessageIdAdv) messageId);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error().exception(e).log("Error ending consumer span on negative acknowledge");
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds) {
+        for (MessageId messageId : messageIds) {
+            if (!(messageId instanceof TraceableMessageId)) {
+                continue;
+            }
+
+            Span span = ((TraceableMessageId) messageId).getTracingSpan();
+            if (span != null) {
+                try {
+                    // Add attribute to indicate ack timeout (not an error, but expected behavior)
+                    span.setAttribute("messaging.pulsar.acknowledgment.type", "ack_timeout");
+                    // End span normally - ack timeout is expected behavior, not an error
+                    TracingContext.endSpan(span);
+                    // Clear the span from the message ID
+                    ((TraceableMessageId) messageId).setTracingSpan(null);
+
+                    // Remove from map if it exists (Failover/Exclusive)
+                    if (messageId instanceof MessageIdAdv) {
+                        String topicKey = getTopicKey(messageId);
+                        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
+                        if (topicSpans != null) {
+                            topicSpans.remove((MessageIdAdv) messageId);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error().exception(e).log("Error ending consumer span on ack timeout");
+                }
+            }
+        }
+    }
+}

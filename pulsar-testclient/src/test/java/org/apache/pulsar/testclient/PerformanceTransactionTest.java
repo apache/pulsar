@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,7 +48,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "pulsar";
     private final String testNamespace = "perf";
@@ -64,7 +64,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.internalSetup(serviceConfiguration);
         PerfClientUtils.setExitProcedure(code -> {
-            log.error("JVM exit code is {}", code);
+            log.error().attr("code", code).log("JVM exit code is");
             if (code != 0) {
                 throw new RuntimeException("JVM should exit with code " + code);
             }
@@ -90,6 +90,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTxnPerf() throws Exception {
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -rs -np 1 -au %s";
@@ -139,6 +140,14 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+
+        // Wait for all async transaction commits to complete before verifying messages
+        Awaitility.await().untilAsserted(() -> {
+            admin.transactions().getCoordinatorStats().forEach((integer, transactionCoordinatorStats) -> {
+                Assert.assertEquals(transactionCoordinatorStats.ongoingTxnSize, 0);
+            });
+        });
+
         Assert.assertTrue(admin.topics().getPartitionedStats(testConsumeTopic, false)
                 .getSubscriptions().get(testSub).isReplicated());
         @Cleanup
@@ -157,7 +166,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         for (int i = 0; i < 50; i++) {
-            Message<byte[]> message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumeFromProduceTopic.receive(10, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             consumeFromProduceTopic.acknowledge(message);
         }

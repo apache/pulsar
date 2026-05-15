@@ -47,10 +47,6 @@ public class TestCmdRead {
         startMessageIdField.setAccessible(true);
         startMessageIdField.set(cmdRead, msgId);
 
-        String topicNameV1 = "persistent://public/cluster/default/t1";
-        assertEquals(cmdRead.getWebSocketReadUri(topicNameV1),
-                "ws://localhost:8080/ws/reader/persistent/public/cluster/default/t1?messageId=" + msgIdQueryParam);
-
         String topicNameV2 = "persistent://public/default/t2";
         assertEquals(cmdRead.getWebSocketReadUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/reader/persistent/public/default/t2?messageId=" + msgIdQueryParam);

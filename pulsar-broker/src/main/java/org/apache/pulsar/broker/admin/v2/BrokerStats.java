@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 @Path("/broker-stats")
 @Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats")
 @Produces(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class BrokerStats extends BrokerStatsBase {
 
     @GET

@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -55,7 +55,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
 
     private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
@@ -122,6 +122,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
+    @SuppressWarnings("deprecation")
     public int filterEntriesForConsumer(@Nullable MessageMetadata[] metadataArray, int startOffset,
                                         List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         SendMessageInfo sendMessageInfo,
@@ -328,7 +329,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {
         if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(positions, AckType.Individual, properties);
+            subscription.acknowledgeMessageAsync(positions, AckType.Individual, properties);
         }
     }
 
@@ -368,7 +369,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(headersAndPayload);
             subscription.processReplicatedSubscriptionSnapshot(snapshot);
         } catch (Throwable t) {
-            log.warn("Failed to process replicated subscription snapshot at {} -- {}", pos, t.getMessage(), t);
+            log.warn()
+                    .attr("pos", pos)
+
+                    .exception(t)
+                    .log("Failed to process replicated subscription snapshot at");
             return;
         }
     }
@@ -442,12 +447,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
         }
         if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] message-read exceeded {} message-rate {}/{}, schedule after {}ms", getName(),
-                        limiterType.name().toLowerCase(),
-                        rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
-                        MESSAGE_RATE_BACKOFF_MS);
-            }
+            log.debug()
+                    .attr("name", getName())
+                    .attr("limiterType", limiterType.name().toLowerCase())
+                    .attr("dispatchRateOnMsg", rateLimiter.getDispatchRateOnMsg())
+                    .attr("dispatchRateOnByte", rateLimiter.getDispatchRateOnByte())
+                    .attr("backoffMs", MESSAGE_RATE_BACKOFF_MS)
+                    .log("message-read exceeded message-rate, scheduling after backoff");
             reScheduleRead();
             readLimits.setLeft(-1);
             readLimits.setRight(-1L);

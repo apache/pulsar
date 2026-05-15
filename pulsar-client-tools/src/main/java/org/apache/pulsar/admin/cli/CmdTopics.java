@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
@@ -91,6 +92,7 @@ import picocli.CommandLine.Parameters;
 
 @Getter
 @Command(description = "Operations on persistent topics")
+@SuppressWarnings("deprecation")
 public class CmdTopics extends CmdBase {
     private final CmdTopics.PartitionedLookup partitionedLookup;
     private final CmdTopics.DeleteCmd deleteCmd;
@@ -296,12 +298,18 @@ public class CmdTopics extends CmdBase {
                 "--include-system-topic" }, description = "Include system topic")
         private boolean includeSystemTopic;
 
+        @Option(names = {"--property", "-p"},
+            description = "key value pair properties(-p a=b -p c=d) for customized topic listing plugin",
+            required = false)
+        private Map<String, String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             ListTopicsOptions options = ListTopicsOptions.builder()
                     .bundle(bundle)
                     .includeSystemTopic(includeSystemTopic)
+                    .properties(properties)
                     .build();
             print(getTopics().getList(namespace, topicDomain, options));
         }
@@ -1142,8 +1150,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            MessageImpl message =
-                    (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
+            MessageImpl<?> message =
+                    (MessageImpl<?>) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
             if (message.getMessageId() instanceof BatchMessageIdImpl) {
                 BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
@@ -1199,7 +1207,7 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
 
-            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl<?> message = (MessageImpl<?>) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
@@ -1344,7 +1352,7 @@ public class CmdTopics extends CmdBase {
         }
         int position = 0;
         for (Message<byte[]> msg : messages) {
-            MessageImpl message = (MessageImpl) msg;
+            MessageImpl<?> message = (MessageImpl<?>) msg;
             if (++position != 1) {
                 System.out.println("-------------------------------------------------------------------------\n");
             }
@@ -1407,7 +1415,7 @@ public class CmdTopics extends CmdBase {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
 
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList<>(stats.ledgers);
             ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
             MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
 
@@ -2995,24 +3003,52 @@ public class CmdTopics extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        @Option(names = {"-s", "--subscription"}, description = "Subscription to be analyzed", required = true)
         private String subName;
 
-        @Option(names = { "--position",
-                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        @Option(names = {"--position",
+                "-p"}, description = "Message position to start the scan from (ledgerId:entryId)", required = false)
         private String messagePosition;
 
+        @Option(names = {"--backlog-scan-max-entries",
+                "-b"}, description = "The maximum number of backlog entries the client will scan before terminating "
+                + "its loop", required = false)
+        private Long backlogScanMaxEntries;
+
+        @Option(names = {"--quiet", "-q"}, description = "Disable analyze-backlog progress reporting", required = false)
+        private boolean quiet = false;
+
+        @Option(names = {"--plain"}, description = "Plain(Non-pretty) print backlog results as NDJSON",
+                required = false)
+        private boolean plainPrint = false;
+
         @Override
-        void run() throws PulsarAdminException {
+        void run() throws Exception {
             String persistentTopic = validatePersistentTopic(topicName);
             Optional<MessageId> startPosition = Optional.empty();
+            int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
             if (isNotBlank(messagePosition)) {
-                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
                 MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
                 startPosition = Optional.of(messageId);
             }
-            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
+            AnalyzeSubscriptionBacklogResult backlogResult;
+            if (backlogScanMaxEntries == null) {
+                backlogResult = getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition);
+            } else {
+                if (backlogScanMaxEntries <= 0) {
+                    throw new ParameterException("--backlog-scan-max-entries must be greater than 0");
+                }
+                backlogResult = getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition,
+                        result -> {
+                            boolean terminate = result.getEntries() >= backlogScanMaxEntries;
+                            if (!quiet && !terminate) {
+                                print(result, !plainPrint);
+                            }
+                            return terminate;
+                        });
+            }
+            print(backlogResult, !plainPrint);
         }
     }
 

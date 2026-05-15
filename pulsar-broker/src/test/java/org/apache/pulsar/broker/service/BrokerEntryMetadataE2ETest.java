@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +29,7 @@ import javax.ws.rs.NotFoundException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -149,6 +149,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
@@ -214,6 +215,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();

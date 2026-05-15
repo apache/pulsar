@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
@@ -47,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -96,7 +95,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PendingAckPersistentTest extends TransactionTestBase {
 
@@ -113,7 +112,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     protected void cleanup() {
         super.internalCleanup();
     }
-
 
     @DataProvider(name = "retryableErrors")
     public Object[][] retryableErrors() {
@@ -305,6 +303,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
                 (CompletableFuture<PendingAckStore>) field.get(pendingAckHandle);
         pendingAckStoreCompletableFuture.get();
@@ -504,6 +503,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
                 (CompletableFuture<PendingAckStore>) field.get(pendingAckHandle);
         pendingAckStoreCompletableFuture.get();
@@ -621,7 +621,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
         Field field1 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field1.setAccessible(true);
-        PendingAckStore pendingAckStore = ((CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle)).get();
+        @SuppressWarnings("unchecked")
+        CompletableFuture<PendingAckStore> storeFuture =
+                (CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle);
+        PendingAckStore pendingAckStore = storeFuture.get();
 
         Field field3 = MLPendingAckStore.class.getDeclaredField("pendingAckLogIndex");
         Field field4 = MLPendingAckStore.class.getDeclaredField("maxIndexLag");
@@ -629,6 +632,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         field3.setAccessible(true);
         field4.setAccessible(true);
 
+        @SuppressWarnings("unchecked")
         ConcurrentSkipListMap<Position, Position> pendingAckLogIndex =
                 (ConcurrentSkipListMap<Position, Position>) field3.get(pendingAckStore);
         long maxIndexLag = (long) field4.get(pendingAckStore);
@@ -714,7 +718,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message1.getMessageId(), transaction1);
         transaction1.commit().get();
 
-
         Transaction transaction2 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
@@ -756,7 +759,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message5.getMessageId(), transaction3);
         transaction3.commit().get();
 
-
         PersistentTopic persistentTopic =
                 (PersistentTopic) getPulsarServiceList()
                         .get(0)
@@ -771,6 +773,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckHandleImpl oldPendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
         Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
         field2.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> oldIndividualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(oldPendingAckHandle);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(oldIndividualAckOfTransaction.size(), 0));
@@ -785,13 +788,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         field3.setAccessible(true);
 
         Awaitility.await().until(() -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<PendingAckStore> completableFuture =
                     (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
             completableFuture.get();
             return true;
         });
 
-
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(pendingAckHandle);
 

@@ -26,7 +26,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -37,7 +36,6 @@ import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 
-@Slf4j
 public class PackagesBase extends AdminResource {
 
     private PackagesManagement getPackagesManagement() {
@@ -68,7 +66,7 @@ public class PackagesBase extends AdminResource {
         } else if (throwable instanceof FileAlreadyExistsException) {
             asyncResponse.resume(new RestException(Response.Status.CONFLICT, throwable.getMessage()));
         } else {
-            log.error("Encountered unexpected error", throwable);
+            log.error().exception(throwable).log("Encountered unexpected error");
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
         }
         return null;

@@ -22,20 +22,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.Backoff;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class RetryUtil {
-    private static final Logger log = LoggerFactory.getLogger(RetryUtil.class);
 
     public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                                ScheduledExecutorService scheduledExecutorService,
                                                CompletableFuture<T> callback) {
-        if (backoff.getMax() <= 0) {
+        if (backoff.getMax().isZero() || backoff.getMax().isNegative()) {
             throw new IllegalArgumentException("Illegal max retry time");
         }
-        if (backoff.getInitial() <= 0) {
+        if (backoff.getInitial().isZero() || backoff.getInitial().isNegative()) {
             throw new IllegalArgumentException("Illegal initial time");
         }
         scheduledExecutorService.execute(() ->
@@ -47,12 +46,14 @@ public class RetryUtil {
                                              CompletableFuture<T> callback) {
         supplier.get().whenComplete((result, e) -> {
             if (e != null) {
-                long next = backoff.next();
+                long next = backoff.next().toMillis();
                 boolean isMandatoryStop = backoff.isMandatoryStopMade();
                 if (isMandatoryStop) {
                     callback.completeExceptionally(e);
                 } else {
-                    log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    log.warn().exceptionMessage(e)
+                            .attr("nextMs", next)
+                            .log("Execution with retry failed, will retry");
                     scheduledExecutorService.schedule(() ->
                                     executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
                             next, TimeUnit.MILLISECONDS);

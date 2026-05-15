@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -46,17 +47,14 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class TopicOwnerTest {
-
-    private static final Logger log = LoggerFactory.getLogger(TopicOwnerTest.class);
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -73,7 +71,7 @@ public class TopicOwnerTest {
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         // start brokers
@@ -133,7 +131,7 @@ public class TopicOwnerTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @SneakyThrows(IllegalAccessException.class)
     private MutableObject<PulsarService> spyLeaderNamespaceServiceForAuthorizedBroker() {
         // Spy leader namespace service to inject authorized broker for namespace-bundle from leader,
@@ -141,6 +139,7 @@ public class TopicOwnerTest {
         // currently. Namespace-bundle ownership contention is an atomic operation through zookeeper.
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceService spyLeaderNamespaceService = spy(leaderNamespaceService);
+        @SuppressWarnings("deprecation")
         final MutableObject<PulsarService> leaderAuthorizedBroker = new MutableObject<>();
         Answer<CompletableFuture<Optional<LookupResult>>> answer = invocation -> {
             PulsarService pulsarService = leaderAuthorizedBroker.getValue();

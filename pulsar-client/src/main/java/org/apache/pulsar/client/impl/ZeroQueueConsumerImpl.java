@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -38,7 +37,6 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
-@Slf4j
 public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     private final Lock zeroQueueLock = new ReentrantLock();
@@ -168,10 +166,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         externalPinnedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
-                            message.getMessageId());
-                }
+                    log.debug().attr("messageId", message.getMessageId())
+                            .log("Calling message listener for unqueued message");
                 waitingOnListenerForZeroQueueSize = true;
                 trackMessage(message);
                 unAckedMessageTracker.add(
@@ -185,8 +181,9 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                     listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
                 }
             } catch (Throwable t) {
-                log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
-                        message.getMessageId(), t);
+                log.error().attr("messageId", message.getMessageId())
+                        .exception(t)
+                        .log("Message listener error in processing unqueued message");
             }
             increaseAvailablePermits(cnx());
             waitingOnListenerForZeroQueueSize = false;
@@ -229,9 +226,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId) {
-        log.warn(
-            "Closing consumer [{}]-[{}] due to unsupported received batch-message: {} with zero receiver queue size",
-            subscription, consumerName, messageId);
+        log.warn().attr("messageId", messageId)
+                .log("Closing consumer - due to unsupported received batch-message with zero receiver queue size");
         // close connection
         closeAsync().handle((ok, e) -> {
             // notify callback with failure result

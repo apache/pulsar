@@ -32,7 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
@@ -56,7 +56,7 @@ import picocli.CommandLine;
 /**
  * Unit test of {@link CmdFunctions}.
  */
-@Slf4j
+@CustomLog
 public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";

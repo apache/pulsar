@@ -31,7 +31,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
@@ -51,7 +51,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class JettySslContextFactoryWithKeyStoreTest {
     static final String BROKEN_KEY_STORE_PATH =
             Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
@@ -245,7 +245,7 @@ public class JettySslContextFactoryWithKeyStoreTest {
             sslContext.init(keyManagers, trustManagerFactory.getTrustManagers(), new SecureRandom());
             return sslContext;
         } catch (Exception e) {
-            log.error("load ssl context error ", e);
+            log.error().exception(e).log("load ssl context error");
             return null;
         }
     }

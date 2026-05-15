@@ -64,6 +64,7 @@ public class ClientCnxRequestTimeoutQueueTest {
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         when(ctx.writeAndFlush(any())).thenAnswer(args -> mock(ChannelFuture.class));
+        when(ctx.write(any())).thenAnswer(args -> mock(ChannelFuture.class));
         when(ctx.channel()).thenReturn(channel);
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress(1234));
         cnx.channelActive(ctx);

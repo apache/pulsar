@@ -23,7 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
-import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +35,7 @@ import java.util.function.Supplier;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -50,8 +49,10 @@ import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.PackageLocationMetaData;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionFilePackage;
@@ -66,11 +67,11 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-@Slf4j
+@CustomLog
 public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
 
     public FunctionsImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
+        super(workerServiceSupplier, FunctionDetails.ComponentType.FUNCTION);
     }
 
     @Override
@@ -112,32 +113,42 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 String qualifiedNamespaceWithCluster = String.format("%s/%s/%s", tenant,
                         worker().getWorkerConfig().getPulsarFunctionsCluster(), namespace);
                 if (!namespaces.contains(qualifiedNamespaceWithCluster)) {
-                    log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace, functionName, namespace);
+                    log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                            .attr("namespace3", namespace).log("/ / Namespace does not exist");
                     throw new RestException(Response.Status.BAD_REQUEST, "Namespace does not exist");
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client is not authorized to operate {} on tenant", tenant, namespace,
-                    functionName, ComponentTypeUtils.toString(componentType));
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                    .attr("componentType", ComponentTypeUtils.toString(componentType))
+
+                    .log("/ / Client is not authorized to operate on tenant");
             throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
-            log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, functionName, tenant);
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                    .attr("tenant3", tenant).log("/ / Tenant does not exist");
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant does not exist");
         } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Issues getting tenant data", tenant, namespace, functionName, e);
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                    .exception(e).log("/ / Issues getting tenant data");
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("{} {}/{}/{} already exists",
-                    ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+            log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                    .attr("namespace", namespace).attr("componentName", functionName).log("/ / already exists");
             throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s already exists",
                     ComponentTypeUtils.toString(componentType), functionName));
         }
 
-        Function.FunctionDetails functionDetails;
+        FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
@@ -160,29 +171,35 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                     }
                 }
             } catch (Exception e) {
-                log.error("Invalid register {} request @ /{}/{}/{}",
-                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                        .attr("namespace", namespace).attr("componentName", functionName).exception(e)
+
+                        .log("Invalid register request @ / / /");
                 throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
             }
 
             try {
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
-                log.error("{} {}/{}/{} cannot be admitted by the runtime factory",
-                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                        .attr("namespace", namespace).attr("componentName", functionName).exception(e)
+
+                        .log("/ / cannot be admitted by the runtime factory");
                 throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
                         ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
             }
 
             // function state
-            Function.FunctionMetaData.Builder functionMetaDataBuilder = Function.FunctionMetaData.newBuilder()
-                    .setFunctionDetails(functionDetails)
-                    .setCreateTime(System.currentTimeMillis())
-                    .setVersion(0);
+            FunctionMetaData functionMetaDataObj = new FunctionMetaData();
+            functionMetaDataObj.setFunctionDetails().copyFrom(functionDetails);
+            functionMetaDataObj.setCreateTime(System.currentTimeMillis());
+            functionMetaDataObj.setVersion(0);
 
             // cache auth if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
-                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -193,13 +210,17 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                     .cacheAuthData(finalFunctionDetails,
                                             authParams.getClientAuthenticationDataSource());
 
-                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
-                                    Function.FunctionAuthenticationSpec.newBuilder()
-                                            .setData(ByteString.copyFrom(authData.getData()))
-                                            .build()));
+                            functionAuthData.ifPresent(authData ->
+                                    functionMetaDataObj.setFunctionAuthSpec()
+                                            .setData(authData.getData()));
                         } catch (Exception e) {
-                            log.error("Error caching authentication data for {} {}/{}/{}",
-                                    ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                            log.error().attr("componentType", ComponentTypeUtils.toString(componentType))
+
+                                    .attr("tenant", tenant).attr("namespace", namespace)
+
+                                    .attr("componentName", functionName).exception(e)
+
+                                    .log("Error caching authentication data for / /");
 
 
                             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
@@ -210,18 +231,21 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 });
             }
 
-            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            PackageLocationMetaData packageLocationMetaData;
             try {
-                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                packageLocationMetaData = getFunctionPackageLocation(functionMetaDataObj,
                         functionPkgUrl, fileDetail, componentPackageFile);
             } catch (Exception e) {
-                log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
-                        tenant, namespace, functionName, e);
+                log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                        .attr("namespace", namespace).attr("componentName", functionName).exception(e)
+
+                        .log("Failed process /{/ package");
                 throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
 
-            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(null, functionMetaDataBuilder.build());
+            functionMetaDataObj.setPackageLocation().copyFrom(packageLocationMetaData);
+            updateRequest(null, functionMetaDataObj);
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (functionPkgUrl == null || !functionPkgUrl.startsWith(Utils.FILE)) {
@@ -269,12 +293,13 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                     ComponentTypeUtils.toString(componentType), functionName));
         }
 
-        Function.FunctionMetaData existingComponent = functionMetaDataManager
+        FunctionMetaData existingComponent = functionMetaDataManager
                 .getFunctionMetaData(tenant, namespace, functionName);
 
         if (!InstanceUtils.calculateSubjectType(existingComponent.getFunctionDetails()).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, functionName,
-                    ComponentTypeUtils.toString(componentType));
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                    .attr("componentType", ComponentTypeUtils.toString(componentType)).log("/ / is not a");
             throw new RestException(Response.Status.NOT_FOUND, String.format("%s %s doesn't exist",
                     ComponentTypeUtils.toString(componentType), functionName));
         }
@@ -294,11 +319,13 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         if (existingFunctionConfig.equals(mergedConfig) && isBlank(functionPkgUrl) && uploadedInputStream == null
                 && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
-            log.error("{}/{}/{} Update contains no changes", tenant, namespace, functionName);
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                    .log("/ / Update contains no changes");
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails;
+        FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
@@ -318,28 +345,34 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                             + " Package is not provided");
                 }
             } catch (Exception e) {
-                log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType),
-                        tenant, namespace, functionName, e);
+                log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                        .attr("namespace", namespace).attr("componentName", functionName).exception(e)
+
+                        .log("Invalid update request @ / / /");
                 throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
             }
 
             try {
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
-                log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory",
-                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                log.error().attr("componentType", ComponentTypeUtils.toString(componentType)).attr("tenant", tenant)
+
+                        .attr("namespace", namespace).attr("componentName", functionName).exception(e)
+
+                        .log("Updated / / cannot be submitted to runtime factory");
                 throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
                         ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
             }
 
             // merge from existing metadata
-            Function.FunctionMetaData.Builder functionMetaDataBuilder =
-                    Function.FunctionMetaData.newBuilder().mergeFrom(existingComponent)
-                            .setFunctionDetails(functionDetails);
+            FunctionMetaData functionMetaDataObj = new FunctionMetaData();
+            functionMetaDataObj.copyFrom(existingComponent);
+            functionMetaDataObj.setFunctionDetails().copyFrom(functionDetails);
 
             // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
-                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -347,9 +380,9 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                             != null && updateOptions.isUpdateAuthData()) {
                         // get existing auth data if it exists
                         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-                        if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
+                        if (functionMetaDataObj.hasFunctionAuthSpec()) {
                             existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(Optional
-                                    .ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                                    .ofNullable(functionMetaDataObj.getFunctionAuthSpec())));
                         }
 
                                 try {
@@ -358,16 +391,20 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                                     authParams.getClientAuthenticationDataSource());
 
                             if (newFunctionAuthData.isPresent()) {
-                                functionMetaDataBuilder.setFunctionAuthSpec(
-                                        Function.FunctionAuthenticationSpec.newBuilder()
-                                                .setData(ByteString.copyFrom(
-                                                        newFunctionAuthData.get().getData())).build());
+                                functionMetaDataObj.setFunctionAuthSpec()
+                                        .setData(newFunctionAuthData.get().getData());
                             } else {
-                                functionMetaDataBuilder.clearFunctionAuthSpec();
+                                functionMetaDataObj.clearFunctionAuthSpec();
                             }
                         } catch (Exception e) {
-                            log.error("Error updating authentication data for {} {}/{}/{}", ComponentTypeUtils
-                                    .toString(componentType), tenant, namespace, functionName, e);
+                            log.error().attr("componentType",
+                                    ComponentTypeUtils.toString(componentType))
+                                    .attr("tenant", tenant)
+                                    .attr("namespace", namespace)
+
+                                    .attr("componentName", functionName).exception(e)
+
+                                    .log("Error updating authentication data for / /");
                             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
                                     String.format("Error caching authentication data for %s %s:- %s",
                                             ComponentTypeUtils.toString(componentType), functionName,
@@ -377,26 +414,29 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 });
             }
 
-            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            PackageLocationMetaData packageLocationMetaData;
             if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {
-                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
-                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
+                FunctionMetaData metaData = FunctionMetaDataUtils.incrMetadataVersion(functionMetaDataObj,
+                        functionMetaDataObj);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
+                    packageLocationMetaData = getFunctionPackageLocation(metaData,
                             functionPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
-                    log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
-                            tenant, namespace, functionName, e);
+                    log.error().attr("componentType", ComponentTypeUtils.toString(componentType))
+
+                            .attr("tenant", tenant).attr("namespace", namespace).attr("componentName", functionName)
+
+                            .exception(e).log("Failed process / / package");
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {
-                packageLocationMetaDataBuilder = Function.PackageLocationMetaData.newBuilder()
-                        .mergeFrom(existingComponent.getPackageLocation());
+                packageLocationMetaData = new PackageLocationMetaData();
+                packageLocationMetaData.copyFrom(existingComponent.getPackageLocation());
             }
 
-            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+            functionMetaDataObj.setPackageLocation().copyFrom(packageLocationMetaData);
 
-            updateRequest(existingComponent, functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataObj);
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((functionPkgUrl != null && !functionPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
@@ -420,11 +460,11 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         @Override
         public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData fromFunctionStatusProto(
-                InstanceCommunication.FunctionStatus status,
+                org.apache.pulsar.functions.proto.FunctionStatus status,
                 String assignedWorkerId) {
             FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData =
                     new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
-            functionInstanceStatusData.setRunning(status.getRunning());
+            functionInstanceStatusData.setRunning(status.isRunning());
             functionInstanceStatusData.setError(status.getFailureException());
             functionInstanceStatusData.setNumRestarts(status.getNumRestarts());
             functionInstanceStatusData.setNumReceived(status.getNumReceived());
@@ -432,9 +472,9 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             functionInstanceStatusData.setNumUserExceptions(status.getNumUserExceptions());
 
             List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status
-                    .getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestUserExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestUserExceptionAt(i));
                 userExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
@@ -443,19 +483,19 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
                     + status.getNumSourceExceptions() + status.getNumSinkExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status
-                    .getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSystemExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSystemExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status
-                    .getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSourceExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSourceExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status
-                    .getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSinkExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSinkExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
@@ -482,10 +522,10 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
 
         @Override
-        public FunctionStatus getStatus(String tenant, String namespace, String name, Collection<Function.Assignment>
+        public FunctionStatus getStatus(String tenant, String namespace, String name, Collection<Assignment>
                 assignments, URI uri) throws PulsarAdminException {
             FunctionStatus functionStatus = new FunctionStatus();
-            for (Function.Assignment assignment : assignments) {
+            for (Assignment assignment : assignments) {
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
                 if (isOwner) {
@@ -562,7 +602,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
     }
 
     private ExceptionInformation getExceptionInformation(
-            InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry) {
+            org.apache.pulsar.functions.proto.FunctionStatus.ExceptionInformation exceptionEntry) {
         ExceptionInformation exceptionInformation =
                 new ExceptionInformation();
         exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
@@ -599,7 +639,9 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
-            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+
+                    .exception(e).log("/ / Got Exception Getting Status");
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
@@ -630,7 +672,9 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
-            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            log.error().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+
+                    .exception(e).log("/ / Got Exception Getting Status");
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
 
@@ -652,10 +696,15 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             if (!isSuperUser(authParams)) {
-                log.error("{}/{}/{} Client with role [{}] and originalPrincipal [{}] is not superuser to update on"
-                                + " worker leader {}", tenant, namespace, functionName, authParams.getClientRole(),
-                        authParams.getClientAuthenticationDataSource(),
-                        ComponentTypeUtils.toString(componentType));
+                log.error().attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("componentName", functionName)
+                        .attr("clientRole", authParams.getClientRole())
+                        .attr("originalPrincipal",
+                                authParams.getOriginalPrincipal())
+                        .attr("componentType",
+                                ComponentTypeUtils.toString(componentType))
+                        .log("Client is not superuser to update on worker leader");
                 throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         }
@@ -669,9 +718,11 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         if (functionName == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
         }
-        Function.FunctionMetaData functionMetaData;
+        FunctionMetaData functionMetaData;
         try {
-            functionMetaData = Function.FunctionMetaData.parseFrom(uploadedInputStream);
+            byte[] data = uploadedInputStream.readAllBytes();
+            functionMetaData = new FunctionMetaData();
+            functionMetaData.parseFrom(data);
         } catch (IOException e) {
             throw new RestException(Response.Status.BAD_REQUEST, "Corrupt Function MetaData");
         }
@@ -725,7 +776,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         return this.worker().getFunctionsManager().getFunctionDefinitions();
     }
 
-    private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
+    private FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String componentName,
                                                                  final FunctionConfig functionConfig,
@@ -783,7 +834,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 try {
                     ((AutoCloseable) functionPackage).close();
                 } catch (Exception e) {
-                    log.error("Failed to close function file", e);
+                    log.error().exception(e).log("Failed to close function file");
                 }
             }
         }

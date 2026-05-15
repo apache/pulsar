@@ -52,6 +52,7 @@ import org.testng.annotations.Test;
 public class WorkerUtilsTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCreateExclusiveProducerWithRetry() {
         Producer<byte[]> producer = mock(Producer.class);
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
@@ -79,6 +80,7 @@ public class WorkerUtilsTest {
         verify(builder, times(1)).producerName(eq("test-producer"));
         verify(builder, times(1)).accessMode(eq(ProducerAccessMode.Exclusive));
 
+        @SuppressWarnings("rawtypes")
         CompletableFuture completableFuture = new CompletableFuture();
         completableFuture.completeExceptionally(new PulsarClientException.ProducerFencedException("test"));
         when(builder.createAsync()).thenReturn(completableFuture);

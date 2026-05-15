@@ -54,8 +54,7 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public CompletableFuture<String> lookupTopicAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
+        WebTarget path = v2lookup.path("/topic").path(topicName.getLookupName());
 
         return asyncGetRequest(path, new FutureCallback<LookupData>() {})
                 .thenApply(lookupData -> useTls && StringUtils.isNotBlank(lookupData.getBrokerUrlTls())
@@ -117,8 +116,7 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public CompletableFuture<String> getBundleRangeAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+        WebTarget path = v2lookup.path("/topic").path(topicName.getLookupName()).path("bundle");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 

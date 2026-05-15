@@ -19,14 +19,14 @@
 package org.apache.pulsar.broker.intercept;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,7 +43,7 @@ import org.apache.pulsar.common.intercept.InterceptException;
 /**
  * A collection of broker interceptor.
  */
-@Slf4j
+@CustomLog
 public class BrokerInterceptors implements BrokerInterceptor {
 
     private final Map<String, BrokerInterceptorWithClassLoader> interceptors;
@@ -66,7 +66,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
                 BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
                         conf.getNarExtractionDirectory());
 
-        ImmutableMap.Builder<String, BrokerInterceptorWithClassLoader> builder = ImmutableMap.builder();
+        // Use LinkedHashMap as a temporary container to ensure insertion order
+        Map<String, BrokerInterceptorWithClassLoader> orderedInterceptorMap = new LinkedHashMap<>();
 
         conf.getBrokerInterceptors().forEach(interceptorName -> {
 
@@ -80,18 +81,20 @@ public class BrokerInterceptors implements BrokerInterceptor {
             try {
                 interceptor = BrokerInterceptorUtils.load(definition, conf.getNarExtractionDirectory());
                 if (interceptor != null) {
-                    builder.put(interceptorName, interceptor);
+                    orderedInterceptorMap.put(interceptorName, interceptor);
                 }
-                log.info("Successfully loaded broker interceptor for name `{}`", interceptorName);
+                log.info().attr("interceptorName", interceptorName).log("Successfully loaded broker interceptor");
             } catch (IOException e) {
-                log.error("Failed to load the broker interceptor for name `" + interceptorName + "`", e);
+                log.error()
+                        .attr("interceptorName", interceptorName)
+                        .exception(e)
+                        .log("Failed to load the broker interceptor");
                 throw new RuntimeException("Failed to load the broker interceptor for name `" + interceptorName + "`");
             }
         });
 
-        Map<String, BrokerInterceptorWithClassLoader> interceptors = builder.build();
-        if (!interceptors.isEmpty()) {
-            return new BrokerInterceptors(interceptors);
+        if (!orderedInterceptorMap.isEmpty()) {
+            return new BrokerInterceptors(Map.copyOf(orderedInterceptorMap));
         } else {
             return null;
         }
@@ -109,6 +112,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,
@@ -226,7 +230,6 @@ public class BrokerInterceptors implements BrokerInterceptor {
             }
         }
     }
-
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {

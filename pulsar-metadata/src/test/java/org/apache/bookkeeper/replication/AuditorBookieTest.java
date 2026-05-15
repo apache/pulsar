@@ -27,14 +27,13 @@ import static org.testng.AssertJUnit.assertTrue;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerAuditorManager;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -43,12 +42,8 @@ import org.testng.annotations.Test;
  * This test verifies the auditor bookie scenarios which will be monitoring the
  * bookie failures.
  */
+@CustomLog
 public class AuditorBookieTest extends BookKeeperClusterTestCase {
-    // Depending on the taste, select the amount of logging
-    // by decommenting one of the two lines below
-    // private static final Logger LOG = Logger.getRootLogger();
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorBookieTest.class);
     private String electionPath;
     private HashMap<String, AuditorElector> auditorElectors = new HashMap<String, AuditorElector>();
     private List<ZooKeeper> zkClients = new LinkedList<ZooKeeper>();
@@ -193,9 +188,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         startBookie(serverConfiguration);
         // starting corresponding auditor elector
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Performing Auditor Election:" + addr);
-        }
+        log.debug("Performing Auditor Election:" + addr);
         startAuditorElector(addr);
 
         // waiting for new auditor to come
@@ -212,9 +205,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
                 baseConf);
         auditorElectors.put(addr, auditorElector);
         auditorElector.start();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Starting Auditor Elector");
-        }
+        log.debug("Starting Auditor Elector");
     }
 
     private void startAuditorElectors() throws Exception {
@@ -226,9 +217,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
     private void stopAuditorElectors() throws Exception {
         for (AuditorElector auditorElector : auditorElectors.values()) {
             auditorElector.shutdown();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Stopping Auditor Elector!");
-            }
+            log.debug("Stopping Auditor Elector!");
         }
     }
 
@@ -236,9 +225,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         List<BookieServer> auditors = getAuditorBookie();
         assertEquals("Multiple Bookies acting as Auditor!", 1, auditors
                 .size());
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Bookie running as Auditor:" + auditors.get(0));
-        }
+        log.debug("Bookie running as Auditor:" + auditors.get(0));
         return auditors.get(0);
     }
 
@@ -258,9 +245,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
     private ServerConfiguration shutdownBookie(BookieServer bkServer) throws Exception {
         int index = indexOfServer(bkServer);
         String addr = addressByIndex(index).toString();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Shutting down bookie:" + addr);
-        }
+        log.debug("Shutting down bookie:" + addr);
 
         // shutdown bookie which is an auditor
         ServerConfiguration conf = killBookie(index);

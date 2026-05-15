@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -56,7 +56,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,7 +83,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) {
@@ -355,7 +355,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Thread.sleep(100);
         long timeAfterBrokerTimestamp = System.currentTimeMillis();
 
-
         CompletableFuture<Void> publishTimeFuture = findMessage(result, cursorNew, timeAfterPublishTime);
         publishTimeFuture.get();
         assertNull(result.exception);
@@ -548,19 +547,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         bkc.deleteLedger(ledgers.get(9).getLedgerId());
 
         MessageId messageId = findMessageIdByPublishTime(initTimeMillis + 17, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(3).getLedgerId(), 2, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 27, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(4).getLedgerId(), 0, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 43, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(8).getLedgerId(), 3, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 48, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(9).getLedgerId(), 0, -1));
 
         ledger.close();
@@ -612,19 +611,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Result result = new Result();
 
         findMessage(result, cursor, initTimeMillis + 17, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 1));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 27, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 4));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 43, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(8).getLedgerId(), 2));
 
@@ -638,7 +637,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
-                log.error("Error deserializing message for message position find", e);
+                log.error().exception(e).log("Error deserializing message for message position find");
             } finally {
                 entry.release();
             }
@@ -878,8 +877,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_AllTimestampsLessThanTarget() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -895,9 +894,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_LastTimestampIsZero() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(3, 5);
 
         long targetTimestamp = 2000;
@@ -913,9 +912,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_LastTimestampIsZeroWithNoEntries() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -932,8 +931,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_AllTimestampsGreaterThanTarget() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(4000));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -949,9 +948,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_MixedTimestamps() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
         Position lastConfirmedEntry = PositionFactory.create(3, 9);
 
         long targetTimestamp = 2500;
@@ -968,10 +967,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_TimestampAtBoundary() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
         Position lastConfirmedEntry = PositionFactory.create(4, 9);
 
         long targetTimestamp = 3000;
@@ -990,11 +989,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkew() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(2010).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(2010));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2009;
@@ -1011,11 +1010,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkewCase2() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2995;
@@ -1032,11 +1031,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkewCase3() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 3005;
@@ -1053,11 +1052,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_FeatureDisabledWithNegativeClockSkew() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(2010).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(2010));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2009;
@@ -1072,7 +1071,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_SingleLedger() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(1, 5);
 
         long targetTimestamp = 2500;
@@ -1087,7 +1086,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_SingleClosedLedger() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
         Position lastConfirmedEntry = PositionFactory.create(1, 9);
 
         long targetTimestamp = 2500;

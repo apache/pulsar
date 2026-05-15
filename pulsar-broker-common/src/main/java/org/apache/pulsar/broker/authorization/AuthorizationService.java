@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,15 +50,13 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
  *
  */
+@CustomLog
 public class AuthorizationService {
-    private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
 
     private final PulsarResources resources;
     private final AuthorizationProvider provider;
@@ -73,7 +72,7 @@ public class AuthorizationService {
                         .getDeclaredConstructor().newInstance();
                 provider.initialize(conf, pulsarResources);
                 this.resources = pulsarResources;
-                log.info("{} has been loaded.", providerClassname);
+                log.info().attr("providerClassname", providerClassname).log("Loaded authorization provider");
             } else {
                 throw new PulsarServerException("No authorization providers are present.");
             }
@@ -259,12 +258,17 @@ public class AuthorizationService {
             return canProduceAsync(topicName, role, authenticationData).get(
                     conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
+            log.warn()
+                    .attr("timeoutSeconds", conf.getMetadataStoreOperationTimeoutSeconds())
+                    .attr("topic", topicName)
+                    .log("Time-out while checking authorization");
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", role)
+                    .attr("topic", topicName)
+                    .exceptionMessage(e)
+                    .log("Producer-client with Role - failed to get permissions for topic");
             throw e;
         }
     }
@@ -275,12 +279,17 @@ public class AuthorizationService {
             return canConsumeAsync(topicName, role, authenticationData, subscription)
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
+            log.warn()
+                    .attr("timeoutSeconds", conf.getMetadataStoreOperationTimeoutSeconds())
+                    .attr("topic", topicName)
+                    .log("Time-out while checking authorization");
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", role)
+                    .attr("topic", topicName)
+                    .exceptionMessage(e)
+                    .log("Consumer-client with Role - failed to get permissions for topic");
             throw e;
         }
     }
@@ -301,12 +310,17 @@ public class AuthorizationService {
             return canLookupAsync(topicName, role, authenticationData)
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
+            log.warn()
+                    .attr("out", conf.getMetadataStoreOperationTimeoutSeconds())
+                    .attr("authorization", topicName)
+                    .log("Time-out sec while checking authorization on");
             throw e;
         } catch (Exception e) {
-            log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", role)
+                    .attr("topic", topicName)
+                    .attr("message", e.getMessage())
+                    .log("Role - failed to get lookup permissions for topic");
             throw e;
         }
     }
@@ -494,8 +508,12 @@ public class AuthorizationService {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
-            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress,
-                    authenticatedPrincipal, originalPrincipal, errorMsg);
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("role", authenticatedPrincipal)
+                    .attr("originalPrincipal", originalPrincipal)
+                    .attr("errorMsg", errorMsg)
+                    .log("Illegal combination of role and originalPrincipal");
             return false;
         } else {
             return true;
@@ -825,35 +843,32 @@ public class AuthorizationService {
                                                                TopicOperation operation,
                                                                String role,
                                                                AuthenticationDataSource authData) {
-        if (log.isDebugEnabled()) {
-            log.debug("Check if role {} is allowed to execute topic operation {} on topic {}",
-                    role, operation, topicName);
-        }
+        log.debug()
+                .attr("role", role)
+                .attr("operation", operation)
+                .attr("topic", topicName)
+                .log("Check if role is allowed to execute topic operation on topic");
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
 
         CompletableFuture<Boolean> allowFuture =
                 provider.allowTopicOperationAsync(topicName, role, operation, authData);
-        if (log.isDebugEnabled()) {
-            return allowFuture.whenComplete((allowed, exception) -> {
-                if (exception == null) {
-                    if (allowed) {
-                        log.debug("Topic operation {} on topic {} is allowed: role = {}",
-                                operation, topicName, role);
-                    } else {
-                        log.debug("Topic operation {} on topic {} is NOT allowed: role = {}",
-                                operation, topicName, role);
-                    }
+        return allowFuture.whenComplete((allowed, exception) -> {
+            if (exception == null) {
+                if (allowed) {
+                    log.debug().attr("operation", operation).attr("topic", topicName)
+                            .attr("role", role).log("Topic operation is allowed");
                 } else {
-                    log.debug("Failed to check if topic operation {} on topic {} is allowed:"
-                                    + " role = {}",
-                            operation, topicName, role, exception);
+                    log.debug().attr("operation", operation).attr("topic", topicName)
+                            .attr("role", role).log("Topic operation is NOT allowed");
                 }
-            });
-        } else {
-            return allowFuture;
-        }
+            } else {
+                log.debug().attr("operation", operation).attr("topic", topicName)
+                        .attr("role", role).exception(exception)
+                        .log("Failed to check if topic operation is allowed");
+            }
+        });
     }
 
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,

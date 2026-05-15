@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -204,21 +205,14 @@ public class CmdRead extends AbstractCmdConsume {
 
     }
 
-    @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketReadUri(String topic) {
         String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
                 serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
-        String wsTopic;
-        if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
-        } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
-        }
+        String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                topicName.getNamespacePortion(), topicName.getLocalName());
 
         String msgIdQueryParam;
         if ("latest".equals(startMessageId) || "earliest".equals(startMessageId)) {
@@ -228,8 +222,8 @@ public class CmdRead extends AbstractCmdConsume {
             msgIdQueryParam = Base64.getEncoder().encodeToString(msgId.toByteArray());
         }
 
-        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "reader/%s?messageId=%s";
-        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, msgIdQueryParam);
+        return String.format("%s/ws/v2/reader/%s?messageId=%s", serviceURLWithoutTrailingSlash, wsTopic,
+                msgIdQueryParam);
     }
 
     @SuppressWarnings("deprecation")
@@ -239,8 +233,10 @@ public class CmdRead extends AbstractCmdConsume {
 
         URI readerUri = URI.create(getWebSocketReadUri(topic));
 
-        WebSocketClient readClient = new WebSocketClient(new SslContextFactory(true));
-        ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
+        HttpClient httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
+        WebSocketClient readClient = new WebSocketClient(httpClient);
+        ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readerUri);
         try {
             if (authentication != null) {
                 authentication.start();
@@ -266,7 +262,7 @@ public class CmdRead extends AbstractCmdConsume {
 
         try {
             LOG.info("Trying to create websocket session..{}", readerUri);
-            readClient.connect(readerSocket, readerUri, readRequest);
+            readClient.connect(readerSocket, readRequest);
             connected.get();
         } catch (Exception e) {
             LOG.error("Failed to create web-socket session", e);
@@ -299,6 +295,17 @@ public class CmdRead extends AbstractCmdConsume {
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully read", numMessagesRead);
+        }
+
+        try {
+            readClient.stop();
+        } catch (Exception e) {
+            LOG.error("Failed to stop websocket-client", e);
+        }
+        try {
+            httpClient.stop();
+        } catch (Exception e) {
+            LOG.error("Failed to stop http-client", e);
         }
 
         return returnCode;

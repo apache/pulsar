@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
@@ -40,15 +41,12 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Transaction coordinator client based topic assigned.
  */
+@CustomLog
 public class TransactionCoordinatorClientImpl implements TransactionCoordinatorClient {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionCoordinatorClientImpl.class);
 
     private final PulsarClientImpl pulsarClient;
     private TransactionMetaStoreHandler[] handlers;
@@ -83,9 +81,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                             SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName(), true, false)
                 .thenCompose(partitionMeta -> {
                     List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
-                    }
+                        log.debug().attr("partitions", partitionMeta.partitions)
+                                .log("Transaction meta store assign partition is.");
                     if (partitionMeta.partitions > 0) {
                         handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
                         for (int i = 0; i < partitionMeta.partitions; i++) {
@@ -131,7 +128,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (getState() == State.CLOSING || getState() == State.CLOSED) {
-            LOG.warn("The transaction meta store is closing or closed, doing nothing.");
+            log.warn("The transaction meta store is closing or closed, doing nothing.");
             result.complete(null);
         } else {
             if (handlers != null) {
@@ -139,7 +136,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                     try {
                         handler.close();
                     } catch (IOException e) {
-                        LOG.warn("Close transaction meta store handler error", e);
+                        log.warn().exception(e).log("Close transaction meta store handler error");
                     }
                 }
             }

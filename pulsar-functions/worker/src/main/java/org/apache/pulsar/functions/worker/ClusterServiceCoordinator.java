@@ -26,12 +26,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.util.ExecutorProvider;
 
-@Slf4j
+@CustomLog
 public class ClusterServiceCoordinator implements AutoCloseable {
 
     @Getter
@@ -84,7 +84,8 @@ public class ClusterServiceCoordinator implements AutoCloseable {
                     try {
                         timerTaskInfo.getTask().run();
                     } catch (Exception e) {
-                        log.error("Cluster timer task {} failed with exception.", taskName, e);
+                        log.error().attr("taskName", taskName)
+                            .exception(e).log("Cluster timer task failed");
                     }
                 }
             }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
@@ -93,8 +94,10 @@ public class ClusterServiceCoordinator implements AutoCloseable {
 
     @Override
     public void close() {
-        log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
+        log.info().attr("workerId", this.workerId)
+                .log("Stopping Cluster Service Coordinator");
         this.executor.shutdown();
-        log.info("Stopped Cluster Service Coordinator for worker {}", this.workerId);
+        log.info().attr("workerId", this.workerId)
+                .log("Stopped Cluster Service Coordinator");
     }
 }

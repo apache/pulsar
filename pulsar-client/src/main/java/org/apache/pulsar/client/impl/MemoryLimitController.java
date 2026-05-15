@@ -18,33 +18,36 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class MemoryLimitController {
 
     private final long memoryLimit;
     private final long triggerThreshold;
-    private final Runnable trigger;
+    private final CopyOnWriteArraySet<Runnable> triggers = new CopyOnWriteArraySet<>();
     private final AtomicLong currentUsage = new AtomicLong();
     private final ReentrantLock mutex = new ReentrantLock(false);
     private final Condition condition = mutex.newCondition();
     private final AtomicBoolean triggerRunning = new AtomicBoolean(false);
 
     public MemoryLimitController(long memoryLimitBytes) {
+        this(memoryLimitBytes, 0);
+    }
+
+    public MemoryLimitController(long memoryLimitBytes, long triggerThreshold) {
         this.memoryLimit = memoryLimitBytes;
-        triggerThreshold = 0;
-        trigger = null;
+        this.triggerThreshold = triggerThreshold;
     }
 
     public MemoryLimitController(long memoryLimitBytes, long triggerThreshold, Runnable trigger) {
-        this.memoryLimit = memoryLimitBytes;
-        this.triggerThreshold = triggerThreshold;
-        this.trigger = trigger;
+        this(memoryLimitBytes, triggerThreshold);
+        this.triggers.add(trigger);
     }
 
     public void forceReserveMemory(long size) {
@@ -88,10 +91,12 @@ public class MemoryLimitController {
     }
 
     private void checkTrigger(long prevUsage, long newUsage) {
-        if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && trigger != null) {
+        if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && !triggers.isEmpty()) {
             if (triggerRunning.compareAndSet(false, true)) {
                 try {
-                    trigger.run();
+                    for (Runnable trigger : triggers) {
+                        trigger.run();
+                    }
                 } finally {
                     triggerRunning.set(false);
                 }
@@ -151,5 +156,13 @@ public class MemoryLimitController {
 
     public long memoryLimit() {
         return memoryLimit;
+    }
+
+    public void registerTrigger(Runnable trigger) {
+        triggers.add(trigger);
+    }
+
+    public void deregisterTrigger(Runnable trigger) {
+        triggers.remove(trigger);
     }
 }

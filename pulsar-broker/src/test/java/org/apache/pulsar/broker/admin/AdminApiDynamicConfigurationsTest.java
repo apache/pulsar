@@ -28,7 +28,7 @@ import static org.testng.Assert.fail;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,7 +37,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod

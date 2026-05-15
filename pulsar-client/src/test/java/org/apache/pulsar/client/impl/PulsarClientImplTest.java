@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +48,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
@@ -98,16 +100,18 @@ public class PulsarClientImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testConsumerIsClosed() throws Exception {
         // mock client connection
         LookupService lookup = mock(LookupService.class);
-        when(lookup.getTopicsUnderNamespace(
+        doReturn(CompletableFuture.completedFuture(
+                        new GetTopicsResult(Collections.emptyList(), null, false, true)))
+                .when(lookup).getTopicsUnderNamespace(
                 any(NamespaceName.class),
                 any(CommandGetTopicsOfNamespace.Mode.class),
                 nullable(String.class),
-                nullable(String.class)))
-                .thenReturn(CompletableFuture.completedFuture(
-                        new GetTopicsResult(Collections.emptyList(), null, false, true)));
+                nullable(String.class),
+                nullable(Map.class));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))
@@ -257,5 +261,85 @@ public class PulsarClientImplTest {
                 .conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .build();
+    }
+
+    @Test
+    public void testRejectScalableDomainOnProducer() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+
+        // topic:// domain should be rejected
+        var topicFuture = client.newProducer().topic("topic://tenant/ns/my-topic").createAsync();
+        var ex = topicFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
+
+        // segment:// domain should be rejected
+        var segFuture = client.newProducer()
+                .topic("segment://tenant/ns/my-topic/0000-ffff-0").createAsync();
+        ex = segFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
+    }
+
+    @Test
+    public void testRejectScalableDomainOnConsumer() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+
+        // topic:// domain should be rejected
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
+        consConf.getTopicNames().add("topic://tenant/ns/my-topic");
+        consConf.setSubscriptionName("sub");
+        var topicFuture = client.subscribeAsync(consConf);
+        var ex = topicFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException,
+                "Expected InvalidTopicNameException but got: " + ex);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
+
+        // segment:// domain should be rejected
+        ConsumerConfigurationData<byte[]> segConf = new ConsumerConfigurationData<>();
+        segConf.getTopicNames().add("segment://tenant/ns/my-topic/0000-ffff-0");
+        segConf.setSubscriptionName("sub");
+        var segFuture = client.subscribeAsync(segConf);
+        ex = segFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
+    }
+
+    @Test
+    public void testRejectScalableDomainOnReader() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+
+        // topic:// domain should be rejected
+        org.apache.pulsar.client.impl.conf.ReaderConfigurationData<byte[]> readerConf =
+                new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<>();
+        readerConf.getTopicNames().add("topic://tenant/ns/my-topic");
+        readerConf.setStartMessageId(org.apache.pulsar.client.api.MessageId.earliest);
+        var topicFuture = client.createReaderAsync(readerConf, org.apache.pulsar.client.api.Schema.BYTES);
+        var ex = topicFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException,
+                "Expected InvalidTopicNameException but got: " + ex);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
+
+        // segment:// domain should be rejected
+        org.apache.pulsar.client.impl.conf.ReaderConfigurationData<byte[]> segReaderConf =
+                new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<>();
+        segReaderConf.getTopicNames().add("segment://tenant/ns/my-topic/0000-ffff-0");
+        segReaderConf.setStartMessageId(org.apache.pulsar.client.api.MessageId.earliest);
+        var segFuture = client.createReaderAsync(segReaderConf, org.apache.pulsar.client.api.Schema.BYTES);
+        ex = segFuture.handle((v, t) -> t).join();
+        assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
+        assertTrue(ex.getMessage().contains("V5 client SDK"));
     }
 }

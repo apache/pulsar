@@ -67,19 +67,15 @@ set -e
 
 if [[ "$GIT_BRANCH" == "master" ]]; then
   docker tag apachepulsar/pulsar:${IMAGE_TAG} ${docker_registry_org}/pulsar:latest
-  docker tag apachepulsar/pulsar-all:${IMAGE_TAG} ${docker_registry_org}/pulsar-all:latest
 fi
 
 docker tag apachepulsar/pulsar:${IMAGE_TAG} ${docker_registry_org}/pulsar:$MVN_VERSION
-docker tag apachepulsar/pulsar-all:${IMAGE_TAG} ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
 # Push all images and tags
 if [[ "$GIT_BRANCH" == "master" ]]; then
   docker push ${docker_registry_org}/pulsar:latest
-  docker push ${docker_registry_org}/pulsar-all:latest
 fi
 
 docker push ${docker_registry_org}/pulsar:$MVN_VERSION
-docker push ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
 echo "Finished pushing images to ${docker_registry_org}"

@@ -33,7 +33,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -51,7 +50,6 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
      * messages per connection.
      **/
-    @Getter
     public double msgDropRate;
 
     @JsonIgnore
@@ -73,11 +71,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     @JsonProperty("subscriptions")
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentSubscriptionStats
     public Map<String, NonPersistentSubscriptionStats> getNonPersistentSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
     @JsonProperty("replication")
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentReplicatorStats
     public Map<String, NonPersistentReplicatorStats> getNonPersistentReplicators() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }
@@ -117,10 +117,12 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         }
     }
 
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentSubscriptionStats
     public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentReplicatorStats
     public Map<String, NonPersistentReplicatorStats> getReplication() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }

@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -51,8 +52,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -61,8 +60,8 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionDisabledBrokerCacheTest.class);
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
     private static final String SUBSCRIPTION_NAME = "key_shared";
     private final KeySharedImplementationType implementationType;
@@ -226,12 +225,13 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
                     boolean removed = remainingMessageValues.remove(msg.getValue());
                     if (!removed) {
                         // duplicates are possible during reconnects, this is not an error
-                        log.warn("Duplicate message: {} value: {}", msg.getMessageId(), msg.getValue());
+                        log.warn().attr("duplicateMessage", msg.getMessageId()).attr("value", msg.getValue())
+                                .log("Duplicate message: value");
                     }
                 } catch (Throwable t) {
                     exceptionsInHandler.add(t);
                     if (!(t instanceof AssertionError)) {
-                        log.error("Error in message handler", t);
+                        log.error().exception(t).log("Error in message handler");
                     }
                 }
             }
@@ -284,7 +284,7 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         // produce messages with random keys
         for (int i = 0; i < 1000; i++) {
             String key = String.valueOf(random.nextInt(numberOfKeys));
-            //log.info("Producing message with key: {} value: {}", key, i);
+            //log.info().attr("key", key).attr("value", i).log("Producing message");
             remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)
@@ -308,7 +308,7 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         List<String> keysForC2List = new ArrayList<>(keysForC2);
         for (int i = 1000; i < 1100; i++) {
             String key = keysForC2List.get(random.nextInt(keysForC2List.size()));
-            log.info("Producing message with key: {} value: {}", key, i);
+            log.info().attr("withKey", key).attr("value", i).log("Producing message with key: value");
             remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)

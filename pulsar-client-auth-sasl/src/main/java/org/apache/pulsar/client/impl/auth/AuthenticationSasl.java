@@ -52,8 +52,8 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -70,7 +70,7 @@ import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
  *   a jaas.conf, which is set by `-Djava.security.auth.login.config=/dir/jaas.conf`
  *   for Kerberos a krb5.conf, which is set by `-Djava.security.krb5.conf=/dir/krb5.conf`
  */
-@Slf4j
+@CustomLog
 public class AuthenticationSasl implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
     // this is a static object that shares amongst client.
@@ -97,7 +97,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                     jaasCredentialsContainer.getSubject());
             return new SaslAuthenticationDataProvider(saslClient);
         } catch (Throwable t) {
-            log.error("Failed create sasl client", t);
+            log.error().exception(t).log("Failed create sasl client");
             throw new PulsarClientException(t);
         }
     }
@@ -105,8 +105,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     @Override
     public void configure(String encodedAuthParamString) {
         if (isBlank(encodedAuthParamString)) {
-            log.info("authParams for SASL is be empty, will use default JAAS client section name: {}",
-                JAAS_DEFAULT_CLIENT_SECTION_NAME);
+            log.info().attr("defaultSectionName", JAAS_DEFAULT_CLIENT_SECTION_NAME)
+                    .log("authParams for SASL is empty, will use default JAAS client section name");
         }
 
         try {
@@ -140,7 +140,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
         if (!initializedJAAS) {
             synchronized (this) {
                 if (jaasCredentialsContainer == null) {
-                    log.info("JAAS loginContext is: {}.", loginContextName);
+                    log.info().attr("loginContext", loginContextName).log("JAAS loginContext");
                     try {
                         jaasCredentialsContainer = new JAASCredentialsContainer(
                             loginContextName,
@@ -148,7 +148,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                             configuration);
                         initializedJAAS = true;
                     } catch (LoginException e) {
-                        log.error("JAAS login in client failed", e);
+                        log.error().exception(e).log("JAAS login in client failed");
                         throw new PulsarClientException(e);
                     }
                 }
@@ -238,20 +238,14 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             headers.put(SASL_AUTH_ROLE_TOKEN, saslRoleToken);
             if (previousRespHeaders == null) {
                 // first time auth, ask server to check the role token expired or not.
-                if (log.isDebugEnabled()) {
-                    log.debug("request builder add token: Check token");
-                }
+                log.debug("request builder add token: Check token");
                 headers.put(SASL_HEADER_STATE, SASL_STATE_SERVER_CHECK_TOKEN);
             } else if (previousRespHeaders.get(SASL_HEADER_STATE).equalsIgnoreCase(SASL_STATE_COMPLETE)) {
                 headers.put(SASL_HEADER_STATE, SASL_STATE_COMPLETE);
-                if (log.isDebugEnabled()) {
-                    log.debug("request builder add token. role verified by server");
-                }
+                log.debug("request builder add token. role verified by server");
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("request builder add token. NOT complete. state: {}",
-                        previousRespHeaders.get(SASL_HEADER_STATE));
-                }
+                log.debug().attr("state", previousRespHeaders.get(SASL_HEADER_STATE))
+                        .log("request builder add token. NOT complete");
                 headers.put(SASL_HEADER_STATE, SASL_STATE_NEGOTIATE);
             }
             return headers.entrySet();
@@ -259,9 +253,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
         // role token is null, need do auth.
         if (previousRespHeaders == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Init authn in client side");
-            }
+            log.debug("Init authn in client side");
             // first time init
             headers.put(SASL_HEADER_STATE, SASL_STATE_CLIENT_INIT);
             AuthData initData = authData.authenticate(AuthData.INIT_AUTH_DATA);
@@ -318,7 +310,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                 }
 
                 if (response.getStatus() != HttpURLConnection.HTTP_OK) {
-                    log.warn("HTTP get request failed: {}", response.getStatusInfo());
+                    log.warn().attr("status", response.getStatusInfo())
+                            .log("HTTP get request failed");
                     authFuture.completeExceptionally(new PulsarClientException("Sasl Auth request failed: "
                             + response.getStatus()));
                     return;
@@ -327,9 +320,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                         saslRoleToken = response.getHeaderString(SASL_AUTH_ROLE_TOKEN);
                     }
 
-                    if (log.isDebugEnabled()) {
-                        log.debug("Complete auth with saslRoleToken: {}", saslRoleToken);
-                    }
+                    log.debug().attr("saslRoleToken", saslRoleToken)
+                            .log("Complete auth with saslRoleToken");
                     authFuture.complete(getHeaders(response));
                     return;
                 }
@@ -337,7 +329,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
             @Override
             public void failed(Throwable throwable) {
-                log.warn("Failed to perform http request", throwable);
+                log.warn().exception(throwable).log("Failed to perform http request");
                 authFuture.completeExceptionally(new PulsarClientException(throwable));
                 return;
             }

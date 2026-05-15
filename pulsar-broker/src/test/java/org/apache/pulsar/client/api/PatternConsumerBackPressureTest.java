@@ -23,7 +23,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -35,7 +36,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 // This test is disabled because it's really flaky, https://github.com/apache/pulsar/issues/24827
 @Test(groups = "broker-impl", enabled = false)
 public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest {
@@ -70,6 +71,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
         final int requests = 2048;
         final String topicName = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, topicCount);
+        @Cleanup("shutdownNow")
         final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
                 .availableProcessors());
 
@@ -85,9 +87,10 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
                         if (ex == null) {
                             success.incrementAndGet();
                         } else {
-                            log.error("Failed to get topic list.", ex);
+                            log.error().exception(ex).log("Failed to get topic list.");
                         }
-                        log.info("latch-count: {}, succeed: {}", latch.getCount(), success.get());
+                        log.info().attr("latchCount", latch.getCount()).attr("succeed", success.get())
+                                .log("latch-count, succeed");
                         latch.countDown();
                     });
             });

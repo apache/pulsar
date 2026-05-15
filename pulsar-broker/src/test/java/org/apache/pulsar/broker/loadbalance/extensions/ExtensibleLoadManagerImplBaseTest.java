@@ -47,7 +47,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -86,7 +85,28 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         return conf;
     }
 
-    protected ArrayList<PulsarClient> clients = new ArrayList<>();
+    /**
+     * Create fresh PulsarClient instances for use within a single test method.
+     * Each test creates and closes its own clients to avoid shared mutable state
+     * that causes "Client already closed" flakiness.
+     */
+    protected List<PulsarClient> createTestClients(int count) throws Exception {
+        List<PulsarClient> testClients = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            testClients.add(pulsarClient(lookupUrl.toString(), 100));
+        }
+        return testClients;
+    }
+
+    protected static void closeTestClients(List<PulsarClient> testClients) {
+        for (PulsarClient client : testClients) {
+            try {
+                client.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
@@ -144,18 +164,15 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
                         Sets.newHashSet(this.conf.getClusterName())));
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default",
-                Sets.newHashSet(this.conf.getClusterName()));
+                Sets.newHashSet(this.conf.getClusterName()), false);
 
         admin.namespaces().createNamespace(defaultTestNamespace, 128);
         admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
-                Sets.newHashSet(this.conf.getClusterName()));
+                Sets.newHashSet(this.conf.getClusterName()), false);
         lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
-
-        for (int i = 0; i < 4; i++) {
-            clients.add(pulsarClient(lookupUrl.toString(), 100));
-        }
     }
 
+    @SuppressWarnings("deprecation")
     private static PulsarClient pulsarClient(String url, int intervalInMillis) throws PulsarClientException {
         return
                 PulsarClient.builder()
@@ -167,27 +184,15 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (PulsarClient client : clients) {
-            futures.add(client.closeAsync());
-        }
-        futures.add(pulsar2.closeAsync());
-
         if (additionalPulsarTestContext != null) {
             additionalPulsarTestContext.close();
             additionalPulsarTestContext = null;
         }
         super.internalCleanup();
-        try {
-            FutureUtil.waitForAll(futures).join();
-        } catch (Throwable e) {
-            // skip error
-        }
         pulsar1 = pulsar2 = null;
         primaryLoadManager = secondaryLoadManager = null;
         channel1 = channel2 = null;
         lookupService = null;
-
     }
 
     @BeforeMethod(alwaysRun = true)

@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.admin.internal.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.testng.Assert.assertEquals;
@@ -280,6 +282,60 @@ public class AsyncHttpConnectorTest {
 
         Response response = connector.executeRequest(request).get();
         assertEquals(response.getResponseBody(), "OK");
+    }
+
+    /**
+     * Locks in that AsyncHttpConnector forwards the {@code Authorization} header across a cross-origin
+     * HTTP redirect (different host:port — serverA → serverB). The admin connector disables AHC's
+     * built-in follow-redirect and runs its own redirect loop that copies the original request headers,
+     * so it must remain unaffected by the async-http-client &gt;= 2.14.5 {@code Authorization} stripping
+     * on cross-origin redirects (CVE-2026-40490 fix). Regressing {@code setFollowRedirect(true)} would
+     * break this test.
+     */
+    @Test
+    void testAuthorizationHeaderOnCrossOriginRedirect() throws ExecutionException, InterruptedException {
+        WireMockServer serverB = new WireMockServer(WireMockConfiguration.wireMockConfig().port(0));
+        serverB.start();
+        try {
+            server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .willReturn(aResponse()
+                            .withStatus(307)
+                            .withHeader("Location",
+                                    "http://127.0.0.1:" + serverB.port() + "/admin/v2/clusters")));
+
+            serverB.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .atPriority(2)
+                    .willReturn(aResponse().withStatus(401).withBody("missing auth")));
+            serverB.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .atPriority(1)
+                    .withHeader("Authorization", equalTo("Bearer test-token"))
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("[\"test-cluster\"]")));
+
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("http://127.0.0.1:" + server.port());
+
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                    5000, 0, conf, false, null);
+
+            Request request = new RequestBuilder("GET")
+                    .setUrl("http://127.0.0.1:" + server.port() + "/admin/v2/clusters")
+                    .addHeader("Authorization", "Bearer test-token")
+                    .build();
+
+            Response response = connector.executeRequest(request).get();
+
+            assertEquals(response.getStatusCode(), 200,
+                    "cross-origin redirect should forward Authorization and return the stubbed body");
+            assertEquals(response.getResponseBody(), "[\"test-cluster\"]");
+            serverB.verify(getRequestedFor(urlEqualTo("/admin/v2/clusters"))
+                    .withHeader("Authorization", equalTo("Bearer test-token")));
+        } finally {
+            serverB.stop();
+        }
     }
 
     @Test

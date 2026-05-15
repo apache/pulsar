@@ -42,6 +42,7 @@ import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
@@ -428,6 +429,16 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String socks5ProxyPassword;
 
     @ApiModelProperty(
+            name = "socks5ProxyScope",
+            value = "Selector that controls which connections go through the SOCKS5 proxy. "
+                    + "BINARY_ONLY (default for PulsarClient) only routes Pulsar binary protocol connections; "
+                    + "HTTP_ONLY only routes HTTP/HTTPS traffic (HTTP lookups, failover HTTP clients, admin REST); "
+                    + "BOTH routes both. This preserves backward compatibility with the pre-existing behavior "
+                    + "where the SOCKS5 proxy on PulsarClient only applied to the binary protocol."
+    )
+    private Socks5ProxyScope socks5ProxyScope = Socks5ProxyScope.BINARY_ONLY;
+
+    @ApiModelProperty(
             name = "description",
             value = "The extra description of the client version. The length cannot exceed 64."
     )
@@ -436,6 +447,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Map<String, String> lookupProperties;
 
     private transient OpenTelemetry openTelemetry;
+
+    @ApiModelProperty(
+            name = "tracingEnabled",
+            value = "Whether to enable OpenTelemetry distributed tracing. When enabled, "
+                    + "tracing interceptors are automatically added to producers and consumers."
+    )
+    private boolean tracingEnabled = false;
 
     /**
      * Gets the authentication settings for the client.

@@ -27,12 +27,13 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
+@CustomLog
 public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
@@ -102,10 +103,11 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
-            log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
+            log.info().attr("config", w.writeValueAsString(conf)).log("Starting Pulsar producer perf with config");
+            log.info().attr("config", w.writeValueAsString(pulsarClient.getConfiguration()))
+                    .log("Pulsar client config");
         } catch (IOException e) {
-            log.error("Failed to dump config info", e);
+            log.error().exception(e).log("Failed to dump config info");
         }
 
         stat = (timeout) -> {
@@ -117,7 +119,10 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             try {
                 updateStats();
             } catch (Exception e) {
-                log.error("[{}] [{}]: {}", producer.getTopic(), producer.getProducerName(), e.getMessage());
+                log.error().attr("topic", producer.getTopic())
+                        .attr("producerName", producer.getProducerName())
+                        .exception(e)
+                        .log("Failed to update producer stats");
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
@@ -175,27 +180,29 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 }
             }
 
-            log.info("[{}] [{}] --- Publish throughput: {} msg/s --- {} Mbit/s --- "
-                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
-                            + "BatchSize: med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - max: {} --- "
-                            + "MsgSize: med: {} bytes - 95pct: {} bytes - 99pct: {} bytes - 99.9pct: {} bytes "
-                            + "- max: {} bytes --- "
-                            + "Ack received rate: {} ack/s --- Failed messages: {} --- Pending messages: {}",
-                    producer.getTopic(),
-                    producer.getProducerName(),
-                    THROUGHPUT_FORMAT.format(sendMsgsRate),
-                    THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
-                    DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
-                    DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
-                    DEC.format(latencyPctValues[5]),
-                    DEC.format(batchSizePctValues[0]), DEC.format(batchSizePctValues[2]),
-                    DEC.format(batchSizePctValues[3]), DEC.format(batchSizePctValues[4]),
-                    DEC.format(batchSizePctValues[5]),
-                    DEC.format(msgSizePctValues[0]), DEC.format(msgSizePctValues[2]),
-                    DEC.format(msgSizePctValues[3]), DEC.format(msgSizePctValues[4]),
-                    DEC.format(msgSizePctValues[5]),
-                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs,
-                    getPendingQueueSize());
+            log.info().attr("topic", producer.getTopic())
+                    .attr("producerName", producer.getProducerName())
+                    .attr("sendMsgRate", THROUGHPUT_FORMAT.format(sendMsgsRate))
+                    .attr("sendBytesRateMbps", THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8))
+                    .attr("latencyMedMs", DEC.format(latencyPctValues[0]))
+                    .attr("latency95pctMs", DEC.format(latencyPctValues[2]))
+                    .attr("latency99pctMs", DEC.format(latencyPctValues[3]))
+                    .attr("latency999pctMs", DEC.format(latencyPctValues[4]))
+                    .attr("latencyMaxMs", DEC.format(latencyPctValues[5]))
+                    .attr("batchSizeMed", DEC.format(batchSizePctValues[0]))
+                    .attr("batchSize95pct", DEC.format(batchSizePctValues[2]))
+                    .attr("batchSize99pct", DEC.format(batchSizePctValues[3]))
+                    .attr("batchSize999pct", DEC.format(batchSizePctValues[4]))
+                    .attr("batchSizeMax", DEC.format(batchSizePctValues[5]))
+                    .attr("msgSizeMedBytes", DEC.format(msgSizePctValues[0]))
+                    .attr("msgSize95pctBytes", DEC.format(msgSizePctValues[2]))
+                    .attr("msgSize99pctBytes", DEC.format(msgSizePctValues[3]))
+                    .attr("msgSize999pctBytes", DEC.format(msgSizePctValues[4]))
+                    .attr("msgSizeMaxBytes", DEC.format(msgSizePctValues[5]))
+                    .attr("ackReceivedRate", THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed))
+                    .attr("failedMessages", currentNumSendFailedMsgs)
+                    .attr("pendingMessages", getPendingQueueSize())
+                    .log("Publish stats");
         }
     }
 
@@ -342,6 +349,4 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             statTimeout = null;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProducerStatsRecorderImpl.class);
 }

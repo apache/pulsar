@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -62,10 +63,8 @@ import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.service.WSSDummyMessageCryptoImpl;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
-import org.eclipse.jetty.websocket.api.WriteCallback;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.ee8.websocket.api.WriteCallback;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 
 /**
  * Websocket end-point url handler to handle incoming message coming from client. Websocket end-point url handler to
@@ -76,6 +75,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 
+@CustomLog
 public class ProducerHandler extends AbstractWebSocketHandler {
 
     private WebSocketService service;
@@ -94,7 +94,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private final ObjectReader producerMessageReader =
             ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
-    public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+    public ProducerHandler(WebSocketService service, HttpServletRequest request, JettyServerUpgradeResponse response) {
         super(service, request, response);
         this.numMsgsSent = new LongAdder();
         this.numBytesSent = new LongAdder();
@@ -109,31 +109,53 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         try {
             this.producer = getProducerBuilder(service.getPulsarClient()).topic(topic.toString()).create();
             if (clientSideEncrypt) {
-                log.info("[{}] [{}] The producer session is created with param encryptionKeyValues, which means that"
-                                + " message encryption will be done on the client side, then the server will skip "
-                                + "batch message processing, message compression processing, and message encryption"
-                                + " processing", producer.getTopic(), producer.getProducerName());
+                log.info()
+                        .attr("topic", producer.getTopic())
+                        .attr("producerName", producer.getProducerName())
+                        .log("[] [] The producer session is created with param"
+                                + " encryptionKeyValues, which means that message"
+                                + " encryption will be done on the client side,"
+                                + " then the server will skip batch message"
+                                + " processing, message compression processing,"
+                                + " and message encryption processing");
             }
             if (!this.service.addProducer(this)) {
-                log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("topic", topic)
+                        .log("Failed to add producer handler for topic");
             }
+            allowConnect = true;
         } catch (Exception e) {
             int errorCode = getErrorCode(e);
             boolean isKnownError = errorCode != HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
             if (isKnownError) {
-                log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic, e.getMessage());
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("topic", topic)
+                        .attr("message", e.getMessage())
+                        .log("Failed in creating producer on topic");
             } else {
-                log.error("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic, e.getMessage(), e);
+                log.error()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("topic", topic)
+                        .attr("message", e.getMessage())
+                        .exception(e)
+                        .log("Failed in creating producer on topic");
             }
 
             try {
                 response.sendError(errorCode, getErrorMessage(e));
             } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .exceptionMessage(e1)
+                        .exception(e1)
+                        .log("Failed to send error");
             }
         }
     }
@@ -142,14 +164,12 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (producer != null) {
             if (!this.service.removeProducer(this)) {
-                log.warn("[{}] Failed to remove producer handler", producer.getTopic());
+                log.warn().attr("topic", producer.getTopic()).log("Failed to remove producer handler");
             }
             producer.closeAsync().thenAccept(x -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closed producer asynchronously", producer.getTopic());
-                }
+                log.debug().attr("topic", producer.getTopic()).log("Closed producer asynchronously");
             }).exceptionally(exception -> {
-                log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
+                log.warn().attr("topic", producer.getTopic()).exception(exception).log("Failed to close producer");
                 return null;
             });
         }
@@ -157,10 +177,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     public void onWebSocketText(String message) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Received new message from producer {} ", producer.getTopic(),
-                    getRemote().getInetSocketAddress().toString());
-        }
+        log.debug(e -> e.attr("topic", producer.getTopic())
+                .attr("producer", getRemote().getRemoteAddress().toString())
+                .log("Received new message from producer"));
         ProducerMessage sendRequest;
         byte[] rawPayload = null;
         String requestContext = null;
@@ -249,18 +268,21 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         final long now = System.nanoTime();
 
         builder.sendAsync().thenAccept(msgId -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Success fully write the message to broker with returned message ID {} from producer {}",
-                        producer.getTopic(), msgId, getRemote().getInetSocketAddress().toString());
-            }
+            log.debug(e -> e.attr("topic", producer.getTopic())
+                    .attr("iD", msgId)
+                    .attr("producer", getRemote().getRemoteAddress().toString())
+                    .log("Success fully write the message to broker with returned message ID from producer"));
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
-            log.warn("[{}] Error occurred while producer handler was sending msg from {}", producer.getTopic(),
-                    getRemote().getInetSocketAddress().toString(), exception);
+            log.warn()
+                    .attr("topic", producer.getTopic())
+                    .attr("msg", getRemote().getRemoteAddress().toString())
+                    .exception(exception)
+                    .log("Error occurred while producer handler was sending msg from");
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
@@ -304,12 +326,17 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                     .allowTopicOperationAsync(topic, TopicOperation.PRODUCE, authRole, authenticationData)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn()
+                    .attr("out", service.getConfig().getMetadataStoreOperationTimeoutSeconds())
+                    .attr("authorization", topic)
+                    .log("Time-out sec while checking authorization on");
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", authRole)
+                    .attr("topic", topic)
+                    .attr("message", e.getMessage())
+                    .log("Producer-client with Role - failed to get permissions for topic");
             throw e;
         }
     }
@@ -320,21 +347,27 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {
-                    log.warn("[{}] Failed to send ack: {}", producer.getTopic(), th.getMessage());
+                    log.warn()
+                            .attr("topic", producer.getTopic())
+                            .attr("ack", th.getMessage())
+                            .log("Failed to send ack");
                 }
 
                 @Override
                 public void writeSuccess() {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Ack was sent successfully to {}", producer.getTopic(),
-                                getRemote().getInetSocketAddress().toString());
-                    }
+                    log.debug()
+                            .attr("topic", producer.getTopic())
+                            .attr("successfully", getRemote().getRemoteAddress().toString())
+                            .log("Ack was sent successfully to");
                 }
             });
         } catch (JsonProcessingException e) {
-            log.warn("[{}] Failed to generate ack json-response: {}", producer.getTopic(), e.getMessage());
+            log.warn()
+                    .attr("topic", producer.getTopic())
+                    .attr("response", e.getMessage())
+                    .log("Failed to generate ack json-response");
         } catch (Exception e) {
-            log.warn("[{}] Failed to send ack: {}", producer.getTopic(), e.getMessage());
+            log.warn().attr("topic", producer.getTopic()).attr("ack", e.getMessage()).log("Failed to send ack");
         }
     }
 
@@ -420,6 +453,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         int keysLen = encryptionKeyMap.size();
         final String[] keyNameArray = new String[keysLen];
         final byte[][] keyValueArray = new byte[keysLen][];
+        @SuppressWarnings({"unchecked", "rawtypes"})
         final List<KeyValue>[] keyMetadataArray = new List[keysLen];
         // Format keys.
         int index = 0;
@@ -529,7 +563,5 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             log.info("Since clientSideEncrypt is true, the param compressionType of producer will be ignored");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProducerHandler.class);
 
 }

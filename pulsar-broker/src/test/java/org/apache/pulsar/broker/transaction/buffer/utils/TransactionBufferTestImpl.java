@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.utils;
 
+import io.netty.buffer.ByteBuf;
+import java.util.concurrent.CompletableFuture;
 import lombok.Setter;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     @Setter
     public State state = null;
+
+    @Setter
+    private boolean followingInternalAppendBufferToTxnFail;
 
     public TransactionBufferTestImpl(PersistentTopic topic) {
         super(topic);
@@ -33,5 +40,13 @@ public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     @Override
     public State getState() {
         return state == null ? super.getState() : state;
+    }
+
+    @Override
+    protected CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, ByteBuf buffer, long seq) {
+        if (followingInternalAppendBufferToTxnFail) {
+            return CompletableFuture.failedFuture(new RuntimeException("failed because an injected error for test"));
+        }
+        return super.internalAppendBufferToTxn(txnId, buffer, seq);
     }
 }

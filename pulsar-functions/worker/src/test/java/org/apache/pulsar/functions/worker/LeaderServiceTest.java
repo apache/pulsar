@@ -52,16 +52,18 @@ public class LeaderServiceTest {
     AtomicReference<ConsumerEventListener> listenerHolder;
     private LeaderService leaderService;
     private PulsarClientImpl mockClient;
+    @SuppressWarnings("rawtypes")
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private SchedulerManager schedulerManager;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetadataManager;
-    private CompletableFuture metadataManagerInitFuture;
-    private CompletableFuture runtimeManagerInitFuture;
-    private CompletableFuture readToTheEndAndExitFuture;
+    private CompletableFuture<Void> metadataManagerInitFuture;
+    private CompletableFuture<Void> runtimeManagerInitFuture;
+    private CompletableFuture<Void> readToTheEndAndExitFuture;
     private MembershipManager membershipManager;
 
+    @SuppressWarnings("unchecked")
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -75,6 +77,7 @@ public class LeaderServiceTest {
     }
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);

@@ -38,6 +38,7 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
     private static final String clusterNamePrefix = "file-system-packages-service";
     private PulsarCluster pulsarCluster;
 
+    @SuppressWarnings("deprecation")
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {
         incrementSetupNumber();
@@ -66,6 +67,7 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
         return envs;
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackagesUsingFileSystemStorageProvider() throws Exception {
         BrokerContainer container = pulsarCluster.getBroker(0);

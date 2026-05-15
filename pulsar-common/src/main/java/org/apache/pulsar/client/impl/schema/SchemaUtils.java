@@ -64,7 +64,7 @@ public final class SchemaUtils {
     /**
      * Keeps a map between {@link SchemaType} to a list of java classes that can be used to represent them.
      */
-    private static final Map<SchemaType, List<Class>> SCHEMA_TYPE_CLASSES = new HashMap<>();
+    private static final Map<SchemaType, List<Class<?>>> SCHEMA_TYPE_CLASSES = new HashMap<>();
 
     /**
      * Maps the java classes to the corresponding {@link SchemaType}.
@@ -109,8 +109,8 @@ public final class SchemaUtils {
                 SchemaType.BYTES,
                 Arrays.asList(byte[].class, ByteBuffer.class, ByteBuf.class));
         // build the reverse mapping
-        SCHEMA_TYPE_CLASSES.forEach(
-                (type, classes) -> classes.forEach(clz -> JAVA_CLASS_SCHEMA_TYPES.put(clz, type)));
+        SCHEMA_TYPE_CLASSES
+                .forEach((type, classes) -> classes.forEach(clz -> JAVA_CLASS_SCHEMA_TYPES.put(clz, type)));
     }
 
     public static void validateFieldSchema(String name,
@@ -120,7 +120,7 @@ public final class SchemaUtils {
             return;
         }
 
-        List<Class> expectedClasses = SCHEMA_TYPE_CLASSES.get(type);
+        List<Class<?>> expectedClasses = SCHEMA_TYPE_CLASSES.get(type);
 
         if (null == expectedClasses) {
             throw new RuntimeException("Invalid Java object for schema type " + type
@@ -392,6 +392,7 @@ public final class SchemaUtils {
      * @param serializedProperties serialized properties
      * @return the deserialized properties
      */
+    @SuppressWarnings("unchecked") // Gson deserializer returns Map<String, String> via SCHEMA_PROPERTIES_DESERIALIZER
     public static Map<String, String> deserializeSchemaProperties(String serializedProperties) {
         GsonBuilder gsonBuilder = new GsonBuilder()
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_DESERIALIZER);

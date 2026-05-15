@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 /**
  * Geo replication test.
  */
-@Slf4j
+@CustomLog
 public class GeoReplicationTest extends PulsarGeoClusterTestBase {
 
     @BeforeClass(alwaysRun = true)
@@ -84,12 +84,12 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
             try {
                 admin.topics().createPartitionedTopic(topic, 10);
             } catch (Exception e) {
-                log.error("Failed to create partitioned topic {}.", topic, e);
+                log.error().attr("topic", topic).exception(e).log("Failed to create partitioned topic .");
                 Assert.fail("Failed to create partitioned topic " + topic);
             }
             Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topic).partitions, 10);
         });
-        log.info("Test geo-replication produce and consume for topic {}.", topic);
+        log.info().attr("topic", topic).log("Test geo-replication produce and consume for topic .");
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
@@ -105,24 +105,36 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         Producer<byte[]> p = client1.newProducer()
                 .topic(topic)
                 .create();
-        log.info("Successfully create producer in cluster {} for topic {}.", cluster1, topic);
+        log.info()
+                .attr("cluster", cluster1)
+                .attr("topic", topic)
+                .log("Successfully create producer in cluster for topic .");
 
         @Cleanup
         Consumer<byte[]> c = client2.newConsumer()
                 .topic(topic)
                 .subscriptionName("geo-sub")
                 .subscribe();
-        log.info("Successfully create consumer in cluster {} for topic {}.", cluster2, topic);
+        log.info()
+                .attr("cluster", cluster2)
+                .attr("topic", topic)
+                .log("Successfully create consumer in cluster for topic .");
 
         for (int i = 0; i < 10; i++) {
             p.send(String.format("Message [%d]", i).getBytes(StandardCharsets.UTF_8));
         }
-        log.info("Successfully produce message to cluster {} for topic {}.", cluster1, topic);
+        log.info()
+                .attr("cluster", cluster1)
+                .attr("topic", topic)
+                .log("Successfully produce message to cluster for topic .");
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = c.receive(10, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        log.info("Successfully consume message from cluster {} for topic {}.", cluster2, topic);
+        log.info()
+                .attr("cluster", cluster2)
+                .attr("topic", topic)
+                .log("Successfully consume message from cluster for topic .");
     }
 }

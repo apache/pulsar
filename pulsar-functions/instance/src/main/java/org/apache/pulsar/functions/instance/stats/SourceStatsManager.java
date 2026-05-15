@@ -24,8 +24,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.Getter;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 public class SourceStatsManager extends ComponentStatsManager {
 
@@ -82,11 +81,9 @@ public class SourceStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalSourceExceptionsChild1min;
     private Counter.Child statTotalWrittenChild1min;
 
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSourceExceptions =
             EvictingQueue.create(10);
 
     protected final RateLimiter sysExceptionRateLimiter;
@@ -232,7 +229,7 @@ public class SourceStatsManager extends ComponentStatsManager {
         statTotalSysExceptions1minChild.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
 
         // report exception throw prometheus
@@ -253,7 +250,7 @@ public class SourceStatsManager extends ComponentStatsManager {
         statTotalSourceExceptionsChild1min.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSourceExceptions.add(info);
 
         // report exception throw prometheus
@@ -341,22 +338,22 @@ public class SourceStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
         return EvictingQueue.create(0);
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
         return latestSystemExceptions;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
         return latestSourceExceptions;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
         return EvictingQueue.create(0);
     }
 }

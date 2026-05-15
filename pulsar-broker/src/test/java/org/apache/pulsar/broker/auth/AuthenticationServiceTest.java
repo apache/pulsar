@@ -54,6 +54,7 @@ public class AuthenticationServiceTest {
 
     private static final String s_authentication_success = "authenticated";
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
@@ -70,6 +71,7 @@ public class AuthenticationServiceTest {
         service.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testAuthenticationHttpWithMultipleProviders() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
@@ -178,6 +180,7 @@ public class AuthenticationServiceTest {
         service.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testHttpRequestWithMultipleProviders() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
@@ -221,11 +224,42 @@ public class AuthenticationServiceTest {
                 (AuthenticationDataSource) null)).isEqualTo("role2");
     }
 
+    @Test(timeOut = 10000)
+    public void testStrictAuthMethodEnforcement() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        config.setAuthenticationEnabled(true);
+        config.setStrictAuthMethod(true);
+        @Cleanup
+        AuthenticationService service = new AuthenticationService(config);
+
+        // Test: Request without auth method header should fail when strictAuthMethod is enabled
+        HttpServletRequest requestWithoutAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithoutAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithoutAuthMethod.getRemotePort()).thenReturn(8080);
+        // No X-Pulsar-Auth-Method-Name header set
+
+        assertThatThrownBy(() -> service.authenticateHttpRequest(requestWithoutAuthMethod, (HttpServletResponse) null))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Authentication method missing");
+
+        // Test: Request with auth method header should still succeed
+        HttpServletRequest requestWithAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithAuthMethod.getRemotePort()).thenReturn(8080);
+        when(requestWithAuthMethod.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("auth");
+
+        boolean result = service.authenticateHttpRequest(requestWithAuthMethod, (HttpServletResponse) null);
+        assertTrue(result, "Authentication should succeed when auth method is provided");
+    }
+
     public static class MockHttpAuthenticationProvider implements AuthenticationProvider {
         @Override
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -246,6 +280,7 @@ public class AuthenticationServiceTest {
             return null;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) {
             String role = getRole(request);
@@ -255,11 +290,13 @@ public class AuthenticationServiceTest {
             throw new RuntimeException("test authentication failed");
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return authData.getCommandData();
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
             String role = getRole(request);
@@ -270,6 +307,7 @@ public class AuthenticationServiceTest {
                         return role;
                     }
 
+                    @SuppressWarnings("deprecation")
                     @Override
                     public AuthData authenticate(AuthData authData) throws AuthenticationException {
                         return null;
@@ -280,6 +318,7 @@ public class AuthenticationServiceTest {
                         return new AuthenticationDataCommand(role);
                     }
 
+                    @SuppressWarnings("deprecation")
                     @Override
                     public boolean isComplete() {
                         return true;
@@ -301,6 +340,7 @@ public class AuthenticationServiceTest {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -310,6 +350,7 @@ public class AuthenticationServiceTest {
             return "auth";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return s_authentication_success;
@@ -322,6 +363,7 @@ public class AuthenticationServiceTest {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -331,6 +373,7 @@ public class AuthenticationServiceTest {
             return "customAuthProvider";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return s_authentication_success;
@@ -343,6 +386,7 @@ public class AuthenticationServiceTest {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -352,6 +396,7 @@ public class AuthenticationServiceTest {
             return "auth";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             throw new AuthenticationException("I failed");

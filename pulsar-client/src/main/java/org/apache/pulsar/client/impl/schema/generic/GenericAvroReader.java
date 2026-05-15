@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.io.BinaryEncoder;
@@ -34,10 +35,9 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
+@CustomLog
 public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     private final GenericDatumReader<GenericAvroRecord> reader;
@@ -107,7 +107,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("GenericAvroReader close inputStream close error", e);
+                log.error().exception(e).log("GenericAvroReader close inputStream close error");
             }
         }
     }
@@ -120,6 +120,4 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     public Optional<Object> getNativeSchema() {
         return Optional.of(schema);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);
 }

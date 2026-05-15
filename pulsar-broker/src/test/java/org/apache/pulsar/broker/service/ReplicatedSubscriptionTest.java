@@ -39,9 +39,11 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -70,9 +72,8 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -83,8 +84,8 @@ import org.testng.annotations.Test;
  * Tests replicated subscriptions (PIP-33).
  */
 @Test(groups = "broker-replication")
+@CustomLog
 public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
-    private static final Logger log = LoggerFactory.getLogger(ReplicatedSubscriptionTest.class);
 
     @Override
     @BeforeClass(timeOut = 300000)
@@ -101,20 +102,17 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions across two regions.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegions() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/mytopic";
         String subscriptionName = "cluster-subscription";
-        // Subscription replication produces duplicates, https://github.com/apache/pulsar/issues/10054
-        // TODO: duplications shouldn't be allowed, change to "false" when fixing the issue
-        boolean allowDuplicates = true;
-        // this setting can be used to manually run the test with subscription replication disabled
-        // it shows that subscription replication has no impact in behavior for this test case
+        boolean allowDuplicates = false;
         boolean replicateSubscriptionState = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -134,7 +132,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         Set<String> sentMessages = new LinkedHashSet<>();
 
-        // send messages in r1
+        log.info("Send messages in r1");
+
         {
             @Cleanup
             Producer<byte[]> producer = client1.newProducer().topic(topicName)
@@ -144,32 +143,41 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             int numMessages = 6;
             for (int i = 0; i < numMessages; i++) {
                 String body = "message" + i;
-                producer.send(body.getBytes(StandardCharsets.UTF_8));
+                MessageId messageId = producer.send(body.getBytes(StandardCharsets.UTF_8));
+                log.info().attr("sentMessage", body).attr("withMsgId", messageId).log("Sent message: with msgId");
                 sentMessages.add(body);
+                if (i == 2) {
+                    // wait for subscription snapshot to be created
+                    Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+                }
             }
         }
 
         Set<String> receivedMessages = new LinkedHashSet<>();
 
+        log.info("Consuming 3 messages in r1");
+
         // consume 3 messages in r1
         try (Consumer<byte[]> consumer1 = client1.newConsumer()
                 .topic(topicName)
+                .receiverQueueSize(2)
                 .subscriptionName(subscriptionName)
                 .replicateSubscriptionState(replicateSubscriptionState)
                 .subscribe()) {
             readMessages(consumer1, receivedMessages, 3, allowDuplicates);
+            log.info("Waiting after reading 3 messages in r1.");
+            Thread.sleep(config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
         }
 
-        // wait for subscription to be replicated
-        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
-
-        // consume remaining messages in r2
+        log.info("Consume remaining messages in r2");
         try (Consumer<byte[]> consumer2 = client2.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .replicateSubscriptionState(replicateSubscriptionState)
                 .subscribe()) {
             readMessages(consumer2, receivedMessages, -1, allowDuplicates);
+        } finally {
+            printStats(topicName);
         }
 
         // assert that all messages have been received
@@ -188,9 +196,15 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                                 histogramPoint -> histogramPoint.hasSumGreaterThan(0.0))));
     }
 
+    private void printStats(String topicName) throws PulsarAdminException {
+        BrokerTestUtil.logTopicStats(log, admin1, topicName, "admin1");
+        BrokerTestUtil.logTopicStats(log, admin2, topicName, "admin2");
+    }
+
     /**
      * Tests replicated subscriptions across two regions and can read successful.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegionsGetLastMessage() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscriptionlastmessage");
@@ -201,7 +215,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         boolean replicateSubscriptionState = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -235,7 +249,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         }
         producer.close();
 
-
         // consume 3 messages in r1
         Set<String> receivedMessages = new LinkedHashSet<>();
         try (Consumer<byte[]> consumer1 = client1.newConsumer()
@@ -258,7 +271,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         while (reader.hasMessageAvailable()) {
             Message<byte[]> message = reader.readNext(10, TimeUnit.SECONDS);
             assertNotNull(message);
-            log.info("Receive message: " + new String(message.getValue()) + " msgId: " + message.getMessageId());
+            log.info().attr("value", new String(message.getValue())).attr("messageId", message.getMessageId())
+                    .log("Receive message: msgId");
             readNum++;
         }
         assertEquals(readNum, numMessages);
@@ -274,7 +288,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final LinkedHashSet<String> sentMessages = new LinkedHashSet<>();
         final Set<String> receivedMessages = Collections.synchronizedSet(new LinkedHashSet<>());
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest, isReplicatedSubscription);
         final PersistentTopic topic1 =
@@ -328,13 +342,13 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         // Since the cluster1 was not crash, all messages will be replicated to the cluster2.
         consumer1.close();
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
-        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+        final Consumer<?> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
 
         // Verify all messages will be consumed.
         Awaitility.await().untilAsserted(() -> {
             while (true) {
-                Message message = consumer2.receive(2, TimeUnit.SECONDS);
+                Message<?> message = consumer2.receive(2, TimeUnit.SECONDS);
                 if (message != null) {
                     receivedMessages.add(message.getValue().toString());
                     consumer2.acknowledge(message);
@@ -354,6 +368,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * If there's no traffic, the snapshot creation should stop and then resume when traffic comes back.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicationSnapshotStopWhenNoTraffic() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -361,7 +376,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         String subscriptionName = "cluster-subscription";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
@@ -422,7 +437,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         assertEquals(t2.getLastPosition(), p2);
         assertEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
 
-
         @Cleanup
         Producer<String> producer2 = client2.newProducer(Schema.STRING)
                 .topic(topicName)
@@ -441,6 +455,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         assertNotEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi1() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -451,7 +466,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final boolean allowDuplicates = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -552,6 +567,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetReplicatedSubscriptionStatus() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -613,6 +629,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi2() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -623,7 +640,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final boolean allowDuplicates = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
@@ -727,6 +744,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi3() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("geo/replicatedsubscription");
@@ -735,7 +753,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         admin4.tenants().createTenant("geo",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin4.namespaces().createNamespace(namespace);
-        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4), false);
         admin4.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
@@ -767,6 +785,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions when replicator producer is closed.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionWhenReplicatorProducerIsClosed() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -774,7 +793,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         String subscriptionName = "sub";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -879,6 +898,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
      *  </p>
      */
     // TODO: this test causes OOME in the CI, need to investigate
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "isTopicPolicyEnabled", enabled = false)
     public void testWriteMarkerTaskOfReplicateSubscriptions(boolean isTopicPolicyEnabled) throws Exception {
         // 1. Prepare resource and use proper configuration.
@@ -917,7 +937,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             admin1.topics().createNonPartitionedTopic(topic2);
             admin1.topics().setReplicationClusters(topic2, List.of("r1", "r2"));
         } else {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         }
         @Cleanup
         Consumer<byte[]> consumer2 = client1.newConsumer()
@@ -937,7 +957,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         if (isTopicPolicyEnabled) {
             admin1.topics().setReplicationClusters(topic2, List.of("r1"));
         } else {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"), false);
         }
         testReplicatedSubscriptionWhenDisableReplication(producer2, consumer2, topic2);
         // 4. Clear resource.
@@ -946,6 +966,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionWithCompaction() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -953,7 +974,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final String subName = "sub";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topicPolicies().setCompactionThreshold(topicName, 100 * 1024 * 1024L);
 
@@ -1010,6 +1031,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         Assert.assertEquals(result, List.of("V2"));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionOneWay() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar-r4/replicatedsubscription");
@@ -1023,7 +1045,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         admin1.tenants().createTenant("pulsar-r4",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4), false);
 
         String subscriptionName = "cluster-subscription";
         boolean replicateSubscriptionState = true;
@@ -1078,6 +1100,12 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             }
         }
         Assert.assertEquals(numSnapshotRequest, 1);
+
+        // Assert analyze backlog total messages and marker messages.
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin4.topics().analyzeSubscriptionBacklog(topicName, subscriptionName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMarkerMessages(), numSnapshotRequest);
 
         // Wait pending snapshot timeout
         Thread.sleep(config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds() * 1000);

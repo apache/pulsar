@@ -35,7 +35,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
@@ -68,9 +68,6 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
@@ -80,6 +77,7 @@ import picocli.CommandLine.TypeConversionException;
  * A client program to test pulsar producer performance.
  */
 @Command(name = "produce", description = "Test pulsar producer performance.")
+@CustomLog
 public class PerformanceProducer extends PerformanceTopicListArguments{
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder messagesFailed = new LongAdder();
@@ -248,11 +246,25 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
     @Override
     public void run() throws Exception {
+        // Reset static counters to avoid stale state from previous runs in the same JVM
+        messagesSent.reset();
+        messagesFailed.reset();
+        bytesSent.reset();
+        totalNumTxnOpenTxnFail.reset();
+        totalNumTxnOpenTxnSuccess.reset();
+        totalMessagesSent.reset();
+        totalBytesSent.reset();
+        totalEndTxnOpSuccessNum.reset();
+        totalEndTxnOpFailNum.reset();
+        numTxnOpSuccess.reset();
+        recorder.reset();
+        cumulativeRecorder.reset();
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(this));
+        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar perf producer with config");
 
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[msgSize];
@@ -267,8 +279,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             String delimiter = this.payloadDelimiter.equals("\\n") ? "\n" : this.payloadDelimiter;
             String[] payloadList = new String(Files.readAllBytes(payloadFilePath),
                     StandardCharsets.UTF_8).split(delimiter);
-            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(),
-                    payloadList.length);
+            log.info()
+                    .attr("payloads", payloadFilePath.toAbsolutePath())
+                    .attr("length", payloadList.length)
+                    .log("Reading payloads from and records read");
             for (String payload : payloadList) {
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
@@ -298,19 +312,22 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
             try (PulsarAdmin adminClient = adminBuilder.build()) {
                 for (String topic : this.topics) {
-                    log.info("Creating partitioned topic {} with {} partitions", topic, this.partitions);
+                    log.info()
+                            .attr("topic", topic)
+                            .attr("partitions", this.partitions)
+                            .log("Creating partitioned topic with partitions");
                     try {
                         adminClient.topics().createPartitionedTopic(topic, this.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Topic {} already exists: {}", topic, alreadyExists);
-                        }
+                        log.debug().attr("topic", topic).attr("exists", alreadyExists).log("Topic already exists");
                         PartitionedTopicMetadata partitionedTopicMetadata = adminClient.topics()
                                 .getPartitionedTopicMetadata(topic);
                         if (partitionedTopicMetadata.partitions != this.partitions) {
-                            log.error("Topic {} already exists but it has a wrong number of partitions: {}, "
-                                            + "expecting {}",
-                                    topic, partitionedTopicMetadata.partitions, this.partitions);
+                            log.error()
+                                    .attr("topic", topic)
+                                    .attr("partitions", partitionedTopicMetadata.partitions)
+                                    .attr("expecting", this.partitions)
+                                    .log("Topic  already exists but it has a wrong number of partitions: , expecting");
                             PerfClientUtils.exit(1);
                         }
                     }
@@ -326,7 +343,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         for (int i = 0; i < this.numTestThreads; i++) {
             final int threadIdx = i;
             executor.submit(() -> {
-                log.info("Started performance test thread {}", threadIdx);
+                log.info().attr("thread", threadIdx).log("Started performance test thread");
                 runProducer(
                         threadIdx,
                         this,
@@ -347,7 +364,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
         if (this.histogramFile != null) {
             String statsFileName = this.histogramFile;
-            log.info("Dumping latency stats to {}", statsFileName);
+            log.info().attr("stats", statsFileName).log("Dumping latency stats to");
 
             PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
             histogramLogWriter = new HistogramLogWriter(histogramLog);
@@ -385,24 +402,23 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                 totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFail = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
-                log.info("--- Transaction : {} transaction end successfully --- {} transaction end failed "
-                                + "--- {} Txn/s",
-                        totalTxnOpSuccess, totalTxnOpFail, TOTALFORMAT.format(rateOpenTxn));
+                log.infof("--- Transaction: %d transaction end successfully"
+                                + " --- %d transaction end failed --- %.3f Txn/s",
+                        totalTxnOpSuccess, totalTxnOpFail, rateOpenTxn);
             }
-            log.info(
-                    "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  --- failure {} msg/s "
-                            + "--- Latency: mean: "
-                            + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    INTFORMAT.format(total),
-                    THROUGHPUTFORMAT.format(rate), THROUGHPUTFORMAT.format(throughput),
-                    THROUGHPUTFORMAT.format(failureRate),
-                    DEC.format(reportHistogram.getMean() / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    DEC.format(reportHistogram.getMaxValue() / 1000.0));
+            log.infof("Throughput produced: %7d msg --- %8.1f msg/s --- %8.1f Mbit/s"
+                            + " --- failure %8.1f msg/s"
+                            + " --- Latency: mean: %7.3f ms - med: %7.3f"
+                            + " - 95pct: %7.3f - 99pct: %7.3f"
+                            + " - 99.9pct: %7.3f - 99.99pct: %7.3f - Max: %7.3f",
+                    total, rate, throughput, failureRate,
+                    reportHistogram.getMean() / 1000.0,
+                    reportHistogram.getValueAtPercentile(50) / 1000.0,
+                    reportHistogram.getValueAtPercentile(95) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99.9) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99.99) / 1000.0,
+                    reportHistogram.getMaxValue() / 1000.0);
 
             if (histogramLogWriter != null) {
                 histogramLogWriter.outputIntervalHistogram(reportHistogram);
@@ -433,6 +449,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("unchecked")
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
@@ -446,6 +463,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("deprecation")
     ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, int producerId) {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
                 .sendTimeout(this.sendTimeout, TimeUnit.SECONDS) //
@@ -522,7 +540,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             for (int i = 0; i < this.numTopics; i++) {
 
                 String topic = this.topics.get(i);
-                log.info("Adding {} publishers on topic {}", this.numProducers, topic);
+                log.info().attr("adding", this.numProducers).attr("topic", topic).log("Adding publishers on topic");
 
                 for (int j = 0; j < this.numProducers; j++) {
                     ProducerBuilder<byte[]> prodBuilder = producerBuilder.clone().topic(topic);
@@ -540,7 +558,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             }
             Collections.shuffle(producers);
 
-            log.info("Created {} producers", producers.size());
+            log.info().attr("created", producers.size()).log("Created producers");
 
             RateLimiter rateLimiter = RateLimiter.create(msgRate);
 
@@ -566,8 +584,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                 for (Producer<byte[]> producer : producers) {
                     if (this.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
-                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
-                                    + "--------------", this.testTime);
+                            log.info()
+                                    .attr("duration", this.testTime)
+                                    .log("------------- DONE (reached the maximum duration:"
+                                            + " [ seconds] of production) --------------");
                             doneLatch.countDown();
                             produceEnough = true;
                             break;
@@ -576,8 +596,9 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
                     if (numMessages > 0) {
                         if (totalSent.get() >= numMessages) {
-                            log.info("------------- DONE (reached the maximum number: {} of production) --------------"
-                                    , numMessages);
+                            log.info()
+                                    .attr("number", numMessages)
+                                    .log("DONE (reached the maximum number: of production");
                             doneLatch.countDown();
                             produceEnough = true;
                             break;
@@ -607,7 +628,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                             try {
                                 numMsgPerTxnLimit.acquire();
                             } catch (InterruptedException exception){
-                                log.error("Get exception: ", exception);
+                                log.error().exception(exception).log("Get exception");
                                 Thread.currentThread().interrupt();
                             }
                         }
@@ -662,7 +683,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                             Thread.currentThread().interrupt();
                             return null;
                         }
-                        log.warn("Write message error with exception", ex);
+                        log.warn().exception(ex).log("Write message error with exception");
                         messagesFailed.increment();
                         if (this.exitOnFailure) {
                             PerfClientUtils.exit(1);
@@ -674,10 +695,9 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                         if (!this.isAbortTransaction) {
                             transaction.commit()
                                     .thenRun(() -> {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("Committed transaction {}",
-                                                    transaction.getTxnID().toString());
-                                        }
+                                        log.debug()
+                                                .attr("transaction", transaction.getTxnID().toString())
+                                                .log("Committed transaction");
                                         totalEndTxnOpSuccessNum.increment();
                                         numTxnOpSuccess.increment();
                                     })
@@ -686,16 +706,17 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                             Thread.currentThread().interrupt();
                                             return null;
                                         }
-                                        log.error("Commit transaction failed with exception : ",
-                                                exception);
+                                        log.error()
+                                                .exception(exception)
+                                                .log("Commit transaction failed with exception");
                                         totalEndTxnOpFailNum.increment();
                                         return null;
                                     });
                         } else {
                             transaction.abort().thenRun(() -> {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Abort transaction {}", transaction.getTxnID().toString());
-                                }
+                                log.debug()
+                                        .attr("transaction", transaction.getTxnID().toString())
+                                        .log("Abort transaction");
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
@@ -703,9 +724,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                     Thread.currentThread().interrupt();
                                     return null;
                                 }
-                                log.error("Abort transaction {} failed with exception",
-                                        transaction.getTxnID().toString(),
-                                        exception);
+                                log.error()
+                                        .attr("transaction", transaction.getTxnID().toString())
+                                        .exception(exception)
+                                        .log("Abort transaction failed with exception");
                                 totalEndTxnOpFailNum.increment();
                                 return null;
                             });
@@ -725,7 +747,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                     Thread.currentThread().interrupt();
                                 } else {
                                     totalNumTxnOpenTxnFail.increment();
-                                    log.error("Failed to new transaction with exception: ", e);
+                                    log.error().exception(e).log("Failed to new transaction with exception");
                                 }
                             }
                         }
@@ -736,7 +758,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             if (PerfClientUtils.hasInterruptedException(t)) {
                 Thread.currentThread().interrupt();
             } else {
-                log.error("Got error", t);
+                log.error().exception(t).log("Got error");
             }
         } finally {
             if (!produceEnough) {
@@ -762,43 +784,33 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);
             numTransactionOpenFailed = totalNumTxnOpenTxnFail.sum();
             numTransactionOpenSuccess = totalNumTxnOpenTxnSuccess.sum();
-            log.info("--- Transaction : {} transaction end successfully --- {} transaction end failed "
-                            + "--- {} transaction open successfully --- {} transaction open failed "
-                            + "--- {} Txn/s",
-                    totalTxnSuccess,
-                    totalTxnFail,
-                    numTransactionOpenSuccess,
-                    numTransactionOpenFailed,
-                    TOTALFORMAT.format(rateOpenTxn));
+            log.infof("--- Transaction: %d transaction end successfully"
+                            + " --- %d transaction end failed"
+                            + " --- %d transaction open successfully"
+                            + " --- %d transaction open failed --- %.3f Txn/s",
+                    totalTxnSuccess, totalTxnFail,
+                    numTransactionOpenSuccess, numTransactionOpenFailed, rateOpenTxn);
         }
-        log.info(
-            "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s ",
-            totalMessagesSent.sum(),
-            TOTALFORMAT.format(rate),
-            TOTALFORMAT.format(throughput));
+        log.infof("Aggregated throughput stats --- %d records sent --- %.3f msg/s --- %.3f Mbit/s",
+                totalMessagesSent.sum(), rate, throughput);
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                DEC.format(reportHistogram.getMean() / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
-                DEC.format(reportHistogram.getMaxValue() / 1000.0));
+        log.infof("Aggregated latency stats --- Latency: mean: %7.3f ms"
+                        + " - med: %7.3f - 95pct: %7.3f - 99pct: %7.3f"
+                        + " - 99.9pct: %7.3f - 99.99pct: %7.3f"
+                        + " - 99.999pct: %7.3f - Max: %7.3f",
+                reportHistogram.getMean() / 1000.0,
+                reportHistogram.getValueAtPercentile(50) / 1000.0,
+                reportHistogram.getValueAtPercentile(95) / 1000.0,
+                reportHistogram.getValueAtPercentile(99) / 1000.0,
+                reportHistogram.getValueAtPercentile(99.9) / 1000.0,
+                reportHistogram.getValueAtPercentile(99.99) / 1000.0,
+                reportHistogram.getValueAtPercentile(99.999) / 1000.0,
+                reportHistogram.getMaxValue() / 1000.0);
     }
-
-    static final DecimalFormat THROUGHPUTFORMAT = new PaddingDecimalFormat("0.0", 8);
-    static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
-    static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
-    static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
-    private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 
     public enum MessageKeyGenerationMode {
         autoIncrement, random

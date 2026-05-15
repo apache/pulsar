@@ -24,8 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Key based batch message container.
@@ -36,16 +35,17 @@ import org.slf4j.LoggerFactory;
  * batched into multiple batch messages:
  * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
  */
+@CustomLog
 class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private final Map<String, BatchMessageContainerImpl> batches = new HashMap<>();
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName,
-                    producer.getProducerName(), numMessagesInBatch);
-        }
+            log.debug().attr("topic", topicName)
+                    .attr("producerName", producer.getProducerName())
+                    .attr("numMessagesInBatch", numMessagesInBatch)
+                    .log("add message to batch");
         String key = getKey(msg);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
                 __ -> new BatchMessageContainerImpl(producer));
@@ -147,7 +147,5 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         }
         return msg.getKey();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(BatchMessageKeyBasedContainer.class);
 
 }

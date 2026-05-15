@@ -24,6 +24,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,7 +39,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
@@ -55,8 +55,6 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.common.naming.Constants;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -85,7 +83,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 
-@Slf4j
 public abstract class AdminResource extends PulsarWebResource {
 
     protected NamespaceName namespaceName;
@@ -116,15 +113,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     // This is a stub method for Mockito
     @Override
-    protected void validateAdminAccessForTenant(String property) {
-        super.validateAdminAccessForTenant(property);
-    }
-
-    // This is a stub method for Mockito
-    @Override
-    protected void validateBundleOwnership(String property, String cluster, String namespace, boolean authoritative,
-            boolean readOnly, NamespaceBundle bundle) {
-        super.validateBundleOwnership(property, cluster, namespace, authoritative, readOnly, bundle);
+    protected void validateAdminAccessForTenant(String tenant) {
+        super.validateAdminAccessForTenant(tenant);
     }
 
     // This is a stub method for Mockito
@@ -154,16 +144,13 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources().getPoliciesReadOnlyAsync()
                 .thenAccept(arePoliciesReadOnly -> {
                     if (arePoliciesReadOnly) {
-                        if (log.isDebugEnabled()) {
                             log.debug("Policies are read-only. Broker cannot do read-write operations");
-                        }
-                        throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+                                                throw new RestException(Status.FORBIDDEN,
+                                                        "Broker is forbidden to do read-write operations");
                     } else {
                         // Do nothing, just log the message.
-                        if (log.isDebugEnabled()) {
                             log.debug("Broker is allowed to make read-write operations");
-                        }
-                    }
+                                            }
                 });
     }
 
@@ -186,24 +173,28 @@ public abstract class AdminResource extends PulsarWebResource {
         CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Topic partition {} created.", clientAppId(), topicName.getPartition(partition));
-                    }
-                    result.complete(null);
+                        log.debug()
+                                .attr("partition", topicName.getPartition(partition))
+                                .log("Topic partition created.");
+                                        result.complete(null);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof AlreadyExistsException) {
-                        log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
-                                topicName.getPartition(partition));
+                        log.info()
+                                .attr("partition", topicName.getPartition(partition))
+                                .log("Topic partition is exists, doing nothing.");
                         result.complete(null);
                     } else if (ex.getCause() instanceof BadVersionException) {
-                        log.warn("[{}] Partitioned topic {} is already created.", clientAppId(),
-                                topicName.getPartition(partition));
+                        log.warn()
+                                .attr("topic", topicName.getPartition(partition))
+                                .log("Partitioned topic is already created.");
                         // metadata-store api returns BadVersionException if node already exists while creating the
                         // resource
                         result.complete(null);
                     } else {
-                        log.error("[{}] Fail to create topic partition {}", clientAppId(),
-                                topicName.getPartition(partition), ex.getCause());
+                        log.error()
+                                .attr("partition", topicName.getPartition(partition))
+                                .exception(ex.getCause())
+                                .log("Fail to create topic partition");
                         result.completeExceptionally(ex.getCause());
                     }
                     return null;
@@ -213,11 +204,14 @@ public abstract class AdminResource extends PulsarWebResource {
         return result;
     }
 
-    protected void validateNamespaceName(String property, String namespace) {
+    protected void validateNamespaceName(String tenant, String namespace) {
         try {
-            this.namespaceName = NamespaceName.get(property, namespace);
+            this.namespaceName = NamespaceName.get(tenant, namespace);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Invalid namespace name [{}/{}]", clientAppId(), property, namespace);
+            log.warn()
+                    .attr("tenant", tenant)
+                    .attr("namespace", namespace)
+                    .log("Invalid namespace name");
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
@@ -230,33 +224,31 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
-            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespaceName, e.getMessage());
+            log.warn()
+                    .attr("namespace", namespaceName)
+                    .exceptionMessage(e)
+                    .log("Failed to validate global cluster configuration");
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
         }
     }
-    @Deprecated
-    protected void validateNamespaceName(String property, String cluster, String namespace) {
-        try {
-            this.namespaceName = NamespaceName.get(property, cluster, namespace);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Invalid namespace name [{}/{}/{}]", clientAppId(), property, cluster, namespace);
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
-        }
-    }
-
-    protected void validateTopicName(String property, String namespace, String encodedTopic) {
+    protected void validateTopicName(String tenant, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
-            this.namespaceName = NamespaceName.get(property, namespace);
+            this.namespaceName = NamespaceName.get(tenant, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Invalid topic name [{}://{}/{}/{}]", clientAppId(), domain(), property, namespace, topic);
+            log.warn()
+                    .attr("domain", domain())
+                    .attr("tenant", tenant)
+                    .attr("namespace", namespace)
+                    .attr("topic", topic)
+                    .log("Invalid topic name");
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
 
-    protected void validatePersistentTopicName(String property, String namespace, String encodedTopic) {
-        validateTopicName(property, namespace, encodedTopic);
+    protected void validatePersistentTopicName(String tenant, String namespace, String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
         if (topicName.getDomain() != TopicDomain.persistent) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
         }
@@ -279,27 +271,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
                     }
                 });
-    }
-
-    @Deprecated
-    protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
-        String topic = Codec.decode(encodedTopic);
-        try {
-            this.namespaceName = NamespaceName.get(property, cluster, namespace);
-            this.topicName = TopicName.get(domain(), namespaceName, topic);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Invalid topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
-                    namespace, topic);
-            throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
-        }
-    }
-
-    @Deprecated
-    protected void validatePersistentTopicName(String property, String cluster, String namespace, String encodedTopic) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        if (topicName.getDomain() != TopicDomain.persistent) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
-        }
     }
 
     protected WorkerService validateAndGetWorkerService() {
@@ -333,7 +304,10 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
-            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
+            log.error()
+                    .attr("namespace", namespaceName)
+                    .exception(e)
+                    .log("Failed to get namespace policies");
             throw new RestException(e);
         }
 
@@ -452,10 +426,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            // Remove "global" cluster from returned list
-            Set<String> clusters = clusterResources().list().stream()
-                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
-            return clusters;
+            return new HashSet<>(clusterResources().list());
         } catch (Exception e) {
             throw new RestException(e);
         }
@@ -463,11 +434,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Set<String>> clustersAsync() {
         return clusterResources().listAsync()
-                .thenApply(list ->
-                        list.stream()
-                                .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
-                                .collect(Collectors.toSet())
-                );
+                .thenApply(HashSet::new);
     }
 
     protected void setServletContext(ServletContext servletContext) {
@@ -486,7 +453,6 @@ public abstract class AdminResource extends PulsarWebResource {
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
         return validateTopicOperationAsync(topicName, TopicOperation.LOOKUP)
-                .thenCompose(__ -> validateClusterOwnershipAsync(topicName.getCluster()))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
@@ -498,20 +464,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-   protected void validateClusterExists(String cluster) {
-        try {
-            if (!clusterResources().getCluster(cluster).isPresent()) {
+    protected CompletableFuture<Void> validateClusterExistsAsync(String cluster) {
+        return clusterResources().clusterExistsAsync(cluster).thenAccept(clusterExist -> {
+            if (!clusterExist) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
-    }
-
-    protected Policies getNamespacePolicies(String tenant, String cluster, String namespace) {
-        NamespaceName ns = NamespaceName.get(tenant, cluster, namespace);
-
-        return getNamespacePolicies(ns);
+        });
     }
 
     /**
@@ -534,8 +492,10 @@ public abstract class AdminResource extends PulsarWebResource {
                     .listPartitionedTopicsAsync(namespaceName, topicDomain)
                     .join();
         } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
+            log.error()
+                    .attr("namespace", namespaceName.toString())
+                    .exception(e)
+                    .log("Failed to get partitioned topic list for namespace");
             throw new RestException(e);
         }
     }
@@ -554,8 +514,10 @@ public abstract class AdminResource extends PulsarWebResource {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
                     .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
+            log.error()
+                    .attr("namespace", namespaceName.toString())
+                    .exception(e)
+                    .log("Failed to get topic partition list for namespace");
             throw new RestException(e);
         }
     }
@@ -604,9 +566,10 @@ public abstract class AdminResource extends PulsarWebResource {
                                     .filter(t -> !pulsar().getBrokerService().isSystemTopic(TopicName.get(t)))
                                     .count();
                             if (topicsCount + numPartitions > maxTopicsPerNamespace) {
-                                log.error("[{}] Failed to create partitioned topic {}, "
-                                                + "exceed maximum number of topics in namespace", clientAppId(),
-                                        topicName);
+                                log.error()
+                                        .attr("topic", topicName)
+                                        .log("Failed to create partitioned topic , exceed maximum number of topics"
+                                                + " in namespace");
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Exceed maximum number of topics in namespace.");
                             }
@@ -621,7 +584,9 @@ public abstract class AdminResource extends PulsarWebResource {
                             if (topicExistsInfo.getTopicType().equals(TopicType.NON_PARTITIONED)
                                     || (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)
                                     && !createLocalTopicOnly)) {
-                                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .log("Failed to create already existing topic");
                                 throw new RestException(Status.CONFLICT, "This topic already exists");
                             }
                         }
@@ -651,23 +616,30 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
                 .thenRun(() -> {
-                    if (!createLocalTopicOnly && topicName.isGlobal()
+                    if (!createLocalTopicOnly
                             && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
                         internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
-                        log.info("[{}] Successfully created partitioned for topic {} for the remote clusters",
-                                clientAppId(), topicName);
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Successfully created partitioned for topic for the remote clusters");
                     } else {
-                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters",
-                                clientAppId(), topicName);
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Skip creating partitioned for topic for the remote clusters");
                     }
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     if (AdminResource.isConflictException(ex)) {
-                        log.info("[{}] Failed to create partitioned topic {}: {}", clientAppId(), topicName,
-                                ex.getMessage());
+                        log.info()
+                                .attr("topic", topicName)
+                                .exceptionMessage(ex)
+                                .log("Failed to create partitioned topic");
                     } else {
-                        log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to create partitioned topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -716,8 +688,11 @@ public abstract class AdminResource extends PulsarWebResource {
             clusterResources.getClusterAsync(cluster).whenComplete((clusterData, ex1) -> {
                 if (ex1 != null) {
                     // Unexpected error, such as NPE. Catch all error to avoid the "createRemoteTopicFuture" stuck.
-                    log.error("[{}] An un-expected error occurs when trying to create partitioned topic {} in cluster"
-                                    + " {}.", clientAppId(), topicName, cluster, ex1);
+                    log.error()
+                            .attr("topic", topicName)
+                            .attr("cluster", cluster)
+                            .exception(ex1)
+                            .log("An un-expected error occurs when trying to create partitioned topic in cluster .");
                     createRemoteTopicFuture.completeExceptionally(new RestException(ex1));
                     return;
                 }
@@ -725,8 +700,11 @@ public abstract class AdminResource extends PulsarWebResource {
                 try {
                     remotePulsarAdmin = pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData);
                 } catch (Exception ex) {
-                    log.error("[{}] [{}] An un-expected error occurs when trying to create remote pulsar admin for"
-                            + " cluster {}", clientAppId(), topicName, cluster, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("An un-expected error occurs when trying to create remote pulsar admin for cluster");
                     createRemoteTopicFuture.completeExceptionally(new RestException(ex));
                     return;
                 }
@@ -736,8 +714,10 @@ public abstract class AdminResource extends PulsarWebResource {
                         .whenComplete((ignore, ex2) -> {
                     if (ex2 == null) {
                         // Create success.
-                        log.info("[{}] Successfully created partitioned topic {} in cluster {}",
-                                clientAppId(), topicName, cluster);
+                        log.info()
+                                .attr("topic", topicName)
+                                .attr("cluster", cluster)
+                                .log("Successfully created partitioned topic in cluster");
                         createRemoteTopicFuture.complete(null);
                         return;
                     }
@@ -749,15 +729,21 @@ public abstract class AdminResource extends PulsarWebResource {
                             if (ex3 != null) {
                                 // Unexpected error, such as NPE. Catch all error to avoid the
                                 // "createRemoteTopicFuture" stuck.
-                                log.error("[{}] Failed to check remote-cluster's topic metadata when creating"
-                                                + " partitioned topic {} in cluster {}.",
-                                        clientAppId(), topicName, cluster, ex3);
+                                log.error()
+                                        .attr("topic", topicName)
+                                        .attr("cluster", cluster)
+                                        .exception(ex3)
+                                        .log("Failed to check remote-cluster's topic metadata when creating"
+                                                + " partitioned topic in cluster .");
                                 createRemoteTopicFuture.completeExceptionally(new RestException(ex3));
                             }
                             // Call get partitioned metadata of remote cluster success.
                             if (topicMeta.partitions == numPartitions) {
-                                log.info("[{}] Skip created partitioned topic {} in cluster {},  because that {}",
-                                        clientAppId(), topicName, cluster, unwrapEx2.getMessage());
+                                log.info()
+                                        .attr("topic", topicName)
+                                        .attr("cluster", cluster)
+                                        .exceptionMessage(unwrapEx2)
+                                        .log("Skip created partitioned topic in cluster , because that");
                                 createRemoteTopicFuture.complete(null);
                             } else {
                                 String errorMsg = String.format("[%s] There is an exists topic %s with different"
@@ -772,8 +758,11 @@ public abstract class AdminResource extends PulsarWebResource {
                         });
                     } else {
                         // An HTTP error was responded from the remote cluster.
-                        log.error("[{}] Failed to create partitioned topic {} in cluster {}.",
-                                clientAppId(), topicName, cluster, ex2);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("cluster", cluster)
+                                .exception(ex2)
+                                .log("Failed to create partitioned topic in cluster .");
                         createRemoteTopicFuture.completeExceptionally(new RestException(unwrapEx2));
                     }
                 });
@@ -810,22 +799,29 @@ public abstract class AdminResource extends PulsarWebResource {
                                 future.complete(null);
                                 return;
                             }
-                            log.warn("[{}] Failed to create already existing partitioned topic {}",
-                                    clientAppId(), topicName);
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .log("Failed to create already existing partitioned topic");
                             future.completeExceptionally(
                                     new RestException(Status.CONFLICT, "Partitioned topic already exists"));
                         } else if (ex instanceof BadVersionException) {
-                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification",
-                                    clientAppId(), topicName);
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .log("Failed to create partitioned topic : concurrent modification");
                             future.completeExceptionally(
                                     new RestException(Status.CONFLICT, "Concurrent modification"));
                         } else {
-                            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to create partitioned topic");
                             future.completeExceptionally(new RestException(ex.getCause()));
                         }
                         return;
                     }
-                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                    log.info()
+                            .attr("topic", topicName)
+                            .log("Successfully created partitioned topic");
                     future.complete(null);
                 });
         return future;
@@ -834,12 +830,15 @@ public abstract class AdminResource extends PulsarWebResource {
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
         return getSchemaCompatibilityStrategyAsyncWithoutAuth().whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
-                                clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exceptionMessage(ex)
+                                .log("Failed to get schema compatibility strategy of topic");
                     }
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
         CompletableFuture<SchemaCompatibilityStrategy> future = getTopicPoliciesAsyncWithRetry(topicName)
                 .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
@@ -1021,21 +1020,25 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
-                    clientAppId(), namespaceName);
+            log.warn()
+                    .attr("namespace", namespaceName)
+                    .log("Failed to update offload configuration for namespace : offloadPolicies is null");
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The offloadPolicies must be specified for namespace offload.");
         }
         if (!offloadPolicies.driverSupported()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: "
-                            + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
+            log.warn()
+                    .attr("namespace", namespaceName)
+                    .attr("value", OffloadPoliciesImpl.getSupportedDriverNames())
+                    .log("Failed to update offload configuration for namespace: driver is not supported, support"
+                            + " value");
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
         }
         if (!offloadPolicies.bucketValid()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
-                    clientAppId(), namespaceName);
+            log.warn()
+                    .attr("namespace", namespaceName)
+                    .log("Failed to update offload configuration for namespace : bucket must be specified");
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The bucket must be specified for namespace offload.");
         }

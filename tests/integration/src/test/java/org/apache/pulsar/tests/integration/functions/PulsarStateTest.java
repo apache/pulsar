@@ -31,7 +31,7 @@ import com.google.common.base.Utf8;
 import com.google.gson.Gson;
 import java.util.Base64;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
 /**
  * State related test cases.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     protected String stateStoreProvider;
@@ -375,7 +375,7 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),
@@ -394,7 +394,7 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

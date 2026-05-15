@@ -45,11 +45,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 public class SchemasImpl extends BaseResource implements Schemas {
 
     private final WebTarget adminV2;
-    private final WebTarget adminV1;
 
     public SchemasImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        this.adminV1 = web.path("/admin/schemas");
         this.adminV2 = web.path("/admin/v2/schemas");
     }
 
@@ -311,8 +309,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2 : adminV1;
-        WebTarget topicPath = base.path(topic.getRestPath(false));
+        WebTarget topicPath = adminV2.path(topic.getRestPath(false));
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;
     }

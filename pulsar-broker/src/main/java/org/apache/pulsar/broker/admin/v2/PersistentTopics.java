@@ -25,6 +25,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -92,14 +94,13 @@ import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
+@SuppressWarnings("deprecation")
 public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
@@ -121,13 +122,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle,
             @ApiParam(value = "Include system topic")
-            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic,
+            @ApiParam(value = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
+            @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
-                    log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(ex)
+                            .log("Failed to get topic list");
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
@@ -158,7 +164,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
+                        log.error()
+                                .attr("namespace", namespaceName)
+                                .exception(ex)
+                                .log("Failed to get partitioned topic list");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -192,12 +201,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             internalGetPermissionsOnTopic().thenAccept(permissions -> asyncResponse.resume(permissions))
                     .exceptionally(ex -> {
-                        log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get permissions for topic");
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
                     });
         } catch (Exception e) {
-            log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to validate topic name");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -309,7 +324,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to create partitioned topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -350,7 +368,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex) && !isConflictException(ex)) {
-                        log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to create non-partitioned topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -720,8 +741,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             });
     }
 
-
-
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Delete max unacked messages per subscription config on a topic.")
@@ -801,8 +820,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             });
     }
 
-
-
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Set delayed delivery messages config on a topic.")
@@ -873,19 +890,24 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
                 .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
                 .thenAccept(__ -> {
-                    log.info("[{}][{}] Updated topic partition to {}.", clientAppId(), topicName, numPartitions);
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("numPartitions", numPartitions)
+                            .log("Updated topic partitions");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex) && !isConflictException(ex)) {
-                        log.error("[{}][{}] Failed to update partition to {}",
-                                clientAppId(), topicName, numPartitions, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("numPartitions", numPartitions)
+                                .exception(ex)
+                                .log("Failed to update partitions");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
-
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/createMissedPartitions")
@@ -949,11 +971,15 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
                         if (AdminResource.isNotFoundException(t)) {
-                            log.info("[{}] Failed to get partitioned metadata topic {}: {}",
-                                    clientAppId(), topicName, ex.getMessage());
+                            log.info()
+                                    .attr("topic", topicName)
+                                    .exceptionMessage(ex)
+                                    .log("Failed to get partitioned metadata topic");
                         } else {
-                            log.error("[{}] Failed to get partitioned metadata topic {}",
-                                    clientAppId(), topicName, t);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(t)
+                                    .log("Failed to get partitioned metadata topic");
                         }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -988,7 +1014,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get topic {} properties", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get topic properties");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1025,7 +1054,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
-                    log.error("[{}] Failed to update topic {} properties", clientAppId(), topicName, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to update topic properties");
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
@@ -1060,8 +1092,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to remove key {} in properties on topic {}",
-                                clientAppId(), key, topicName, ex);
+                        log.error()
+                                .attr("key", key)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to remove key in properties on topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1194,7 +1229,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(t)
+                                .log("Failed to delete topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1232,7 +1270,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                     if (t instanceof IllegalStateException){
                         ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
                     } else if (isNot307And4xxException(ex)) {
-                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(t)
+                                .log("Failed to delete topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1316,7 +1357,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get stats");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1350,7 +1394,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get internal stats for topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1505,8 +1552,11 @@ public class PersistentTopics extends PersistentTopicsBase {
 
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(cause)) {
-                        log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
-                                topicName, cause);
+                        log.error()
+                                .attr("subscription", subName)
+                                .attr("topic", topicName)
+                                .exception(cause)
+                                .log("Failed to delete subscription from topic");
                     }
 
                     if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
@@ -1813,8 +1863,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .exceptionally(ex -> {
                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                 if (!isRedirectException(t)) {
-                    log.error("[{}][{}] Failed to reset cursor on subscription {} to time {}",
-                        clientAppId(), topicName, encodedSubName, timestamp, t);
+                    log.error()
+                            .attr("topic", topicName)
+                            .attr("subscription", encodedSubName)
+                            .attr("time", timestamp)
+                            .exception(t)
+                            .log("Failed to reset cursor on subscription to time");
                 }
                 if (t instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
                     t = new RestException(Response.Status.PRECONDITION_FAILED,
@@ -2029,8 +2083,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get peek nth message for topic {} subscription {}", clientAppId(),
-                                topicName, decode(encodedSubName), ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("subscription", decode(encodedSubName))
+                                .exception(ex)
+                                .log("Failed to get peek nth message for topic subscription");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2078,8 +2135,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
-                    log.error("[{}] Failed to examine a specific message on the topic {}", clientAppId(), topicName,
-                            ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to examine a specific message on the topic");
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
@@ -2127,8 +2186,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
-                                clientAppId(), ledgerId, entryId, topicName, ex);
+                        log.error()
+                                .attr("ledgerId", ledgerId)
+                                .attr("entryId", entryId)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get message");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2172,8 +2235,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                 })
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
-                            clientAppId(), timestamp, topicName, ex);
+                        log.error()
+                                .attr("timestamp", timestamp)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get message ID by timestamp");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2204,11 +2270,15 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .exceptionally(ex -> {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (t instanceof MetadataStoreException.NotFoundException) {
-                        log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
-                                namespaceName);
+                        log.warn()
+                                .attr("backlog", namespaceName)
+                                .log("Failed to get topic backlog : Namespace does not exist");
                         ex = new RestException(Response.Status.NOT_FOUND, "Namespace does not exist");
                     } else if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get estimated backlog for topic {}", clientAppId(), encodedTopic, ex);
+                        log.error()
+                                .attr("topic", encodedTopic)
+                                .exception(ex)
+                                .log("Failed to get estimated backlog for topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2451,12 +2521,97 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Get subscription expiration time in minutes for a topic", response = Integer.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public void getSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalGetSubscriptionExpirationTime(applied, isGlobal))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Set subscription expiration time in minutes for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void setSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription expiration time in minutes", required = true)
+            @QueryParam("subscriptionExpirationTime") Integer subscriptionExpirationTime,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(subscriptionExpirationTime, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Remove subscription expiration time for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void removeSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(null, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
     @ApiOperation(value = "Get message TTL in seconds for a topic", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
+    @SuppressWarnings("deprecation")
     public void getMessageTTL(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -2682,11 +2837,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetRetention(retention, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
-                            clientAppId(),
-                            namespaceName,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(retention));
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("retention", objectWriter().writeValueAsString(retention))
+                            .log("Successfully updated retention");
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -2720,10 +2875,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveRetention(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove retention: namespace={}, topic={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove retention");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2755,8 +2910,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetDispatcherPauseOnAckStatePersistent(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully enabled dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
-                    clientAppId(), namespaceName, topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully enabled dispatcherPauseOnAckStatePersistent");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2788,8 +2945,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveDispatcherPauseOnAckStatePersistent(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
-                        clientAppId(), namespaceName, topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove dispatcherPauseOnAckStatePersistent");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2879,12 +3038,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetPersistence(persistencePolicies, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully updated persistence policies: "
-                                    + "namespace={}, topic={}, persistencePolicies={}",
-                            clientAppId(),
-                            namespaceName,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(persistencePolicies));
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("persistencePolicies", objectWriter().writeValueAsString(persistencePolicies))
+                            .log("Successfully updated persistence policies");
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -2917,10 +3075,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemovePersistence(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove persistence policies: namespace={}, topic={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove persistence policies");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2980,9 +3138,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}"
-                                + ", maxSubscriptions={}, isGlobal={}"
-                        , clientAppId(), namespaceName, topicName.getLocalName(), maxSubscriptionsPerTopic, isGlobal);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("maxSubscriptions", maxSubscriptionsPerTopic)
+                        .attr("isGlobal", isGlobal)
+                        .log("Successfully updated maxSubscriptionsPerTopic");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3013,8 +3174,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(null, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove maxSubscriptionsPerTopic: namespace={}, topic={}",
-                        clientAppId(), namespaceName, topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove maxSubscriptionsPerTopic");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3074,9 +3237,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetReplicatorDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
-                                + ", replicatorDispatchRate={}, isGlobal={}",
-                        clientAppId(), namespaceName, topicName.getLocalName(), dispatchRate, isGlobal);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("replicatorDispatchRate", dispatchRate)
+                        .attr("isGlobal", isGlobal)
+                        .log("Successfully updated replicatorDispatchRate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3107,8 +3273,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetReplicatorDispatchRate(null, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
-                        clientAppId(), namespaceName, topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove replicatorDispatchRate limit");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3168,11 +3336,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxProducers(maxProducers, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully updated max producers: namespace={}, topic={}, maxProducers={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName(),
-                        maxProducers);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("maxProducers", maxProducers)
+                        .log("Successfully updated max producers");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3203,10 +3371,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveMaxProducers(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove max producers: namespace={}, topic={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully removed max producers");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3266,11 +3434,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxConsumers(maxConsumers, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully updated max consumers: namespace={}, topic={}, maxConsumers={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName(),
-                        maxConsumers);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("maxConsumers", maxConsumers)
+                        .log("Successfully updated max consumers");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3301,10 +3469,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveMaxConsumers(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove max consumers: namespace={}, topic={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove max consumers");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3365,13 +3533,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxMessageSize(maxMessageSize, isGlobal))
             .thenRun(() -> {
-                log.info(
-                        "[{}] Successfully set max message size: namespace={}, topic={}, maxMessageSiz={}, isGlobal={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName(),
-                        maxMessageSize,
-                        isGlobal);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("maxMessageSize", maxMessageSize)
+                        .attr("isGlobal", isGlobal)
+                        .log("Successfully set max message size");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3402,10 +3569,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxMessageSize(null, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove max message size: namespace={}, topic={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove max message size");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3413,7 +3580,6 @@ public class PersistentTopics extends PersistentTopicsBase {
                 return null;
             });
     }
-
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/terminate")
@@ -3451,7 +3617,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to terminated topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -3550,8 +3719,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get the status of a compaction operation for the topic {}",
-                                clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get the status of a compaction operation for the topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -3691,7 +3862,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             internalTrimTopic(asyncResponse, authoritative).exceptionally(ex -> {
                 // If the exception is not redirect exception we need to log it.
                 if (isNot307And404Exception(ex)) {
-                    log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to trim topic");
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
@@ -3752,13 +3926,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic dispatch rate:"
-                                    + " tenant={}, namespace={}, topic={}, dispatchRate={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(dispatchRate));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("dispatchRate", objectWriter().writeValueAsString(dispatchRate))
+                            .log("Successfully set topic dispatch rate");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3790,11 +3963,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveDispatchRate(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic dispatch rate: tenant={}, namespace={}, topic={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove topic dispatch rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3859,13 +4032,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetSubscriptionDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic subscription dispatch rate:"
-                                    + " tenant={}, namespace={}, topic={}, dispatchRate={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(dispatchRate));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("dispatchRate", objectWriter().writeValueAsString(dispatchRate))
+                            .log("Successfully set topic subscription dispatch rate");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3897,11 +4069,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveSubscriptionDispatchRate(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic subscription dispatch rate: tenant={}, namespace={}, topic={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove topic subscription dispatch rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3967,14 +4139,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetSubscriptionLevelDispatchRate(
                     Codec.decode(encodedSubscriptionName), dispatchRate, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully set subscription level dispatch rate:"
-                                + " tenant={}, namespace={}, topic={}, sub={}, dispatchRate={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName(),
-                        encodedSubscriptionName,
-                        dispatchRate);
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("subscription", encodedSubscriptionName)
+                        .attr("dispatchRate", dispatchRate)
+                        .log("Successfully set subscription level dispatch rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4008,9 +4179,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalRemoveSubscriptionLevelDispatchRate(
                     Codec.decode(encodedSubscriptionName), isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove subscription level dispatch rate: "
-                                + "tenant={}, namespace={}, topic={}, sub={}",
-                        clientAppId(), tenant, namespace, topicName.getLocalName(), encodedSubscriptionName);
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("subscription", encodedSubscriptionName)
+                        .log("Successfully remove subscription level dispatch rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4070,13 +4244,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetCompactionThreshold(compactionThreshold, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic compaction threshold:"
-                                    + " tenant={}, namespace={}, topic={}, compactionThreshold={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(compactionThreshold));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("compactionThreshold", objectWriter().writeValueAsString(compactionThreshold))
+                            .log("Successfully set topic compaction threshold");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4108,11 +4281,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveCompactionThreshold(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic compaction threshold: tenant={}, namespace={}, topic={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove topic compaction threshold");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4176,13 +4349,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic max consumers per subscription:"
-                                    + " tenant={}, namespace={}, topic={}, maxConsumersPerSubscription={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(maxConsumersPerSubscription));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("maxConsumersPerSubscription",
+                                    objectWriter().writeValueAsString(maxConsumersPerSubscription))
+                            .log("Successfully set topic max consumers per subscription");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4214,12 +4387,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveMaxConsumersPerSubscription(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic max consumers per subscription:"
-                                + " tenant={}, namespace={}, topic={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName());
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .log("Successfully remove topic max consumers per subscription");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4279,14 +4451,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetPublishRate(publishRate, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic publish rate:"
-                                    + " tenant={}, namespace={}, topic={}, isGlobal={}, publishRate={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            isGlobal,
-                            objectWriter().writeValueAsString(publishRate));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("isGlobal", isGlobal)
+                            .attr("publishRate", objectWriter().writeValueAsString(publishRate))
+                            .log("Successfully set topic publish rate");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4318,12 +4489,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemovePublishRate(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic publish rate: tenant={}, namespace={}, topic={}, isGlobal={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName(),
-                        isGlobal);
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("isGlobal", isGlobal)
+                        .log("Successfully remove topic publish rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4390,13 +4561,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic is enabled sub types :"
-                                    + " tenant={}, namespace={}, topic={}, subscriptionTypesEnabled={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            objectWriter().writeValueAsString(subscriptionTypesEnabled));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("subscriptionTypesEnabled",
+                                    objectWriter().writeValueAsString(subscriptionTypesEnabled))
+                            .log("Successfully set topic is enabled sub types");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4428,10 +4599,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveSubscriptionTypesEnabled(isGlobal))
                 .thenRun(() -> {
-                    log.info("[{}] Successfully remove subscription types enabled: namespace={}, topic={}",
-                            clientAppId(),
-                            namespaceName,
-                            topicName.getLocalName());
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .log("Successfully remove subscription types enabled");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -4491,14 +4662,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> internalSetSubscribeRate(subscribeRate, isGlobal))
             .thenRun(() -> {
                 try {
-                    log.info("[{}] Successfully set topic subscribe rate:"
-                                    + " tenant={}, namespace={}, topic={}, isGlobal={} subscribeRate={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            isGlobal,
-                            objectWriter().writeValueAsString(subscribeRate));
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("isGlobal", isGlobal)
+                            .attr("subscribeRate", objectWriter().writeValueAsString(subscribeRate))
+                            .log("Successfully set topic subscribe rate");
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4531,13 +4701,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalRemoveSubscribeRate(isGlobal))
             .thenRun(() -> {
-                log.info(
-                        "[{}] Successfully remove topic subscribe rate: tenant={}, namespace={}, topic={}, isGlobal={}",
-                        clientAppId(),
-                        tenant,
-                        namespace,
-                        topicName.getLocalName(),
-                        isGlobal);
+                log.info()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("topic", topicName.getLocalName())
+                        .attr("isGlobal", isGlobal)
+                        .log("Successfully remove topic subscribe rate");
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -4574,7 +4743,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             .exceptionally(ex -> {
                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                 if (!isRedirectException(t)) {
-                    log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(t)
+                            .log("Failed to truncate topic");
                 }
                 if (t instanceof PulsarAdminException.NotFoundException) {
                     t = new RestException(Response.Status.NOT_FOUND, t.getMessage());
@@ -4707,14 +4879,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(strategy))
                 .thenRun(() -> {
-                    log.info(
-                            "[{}] Successfully set topic schema compatibility strategy: tenant={}, namespace={}, "
-                                    + "topic={}, schemaCompatibilityStrategy={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            strategy);
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("schemaCompatibilityStrategy", strategy)
+                            .log("Successfully set topic schema compatibility strategy");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     handleTopicPolicyException("setSchemaCompatibilityStrategy", ex, asyncResponse);
@@ -4748,13 +4918,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(null))
                 .thenRun(() -> {
-                    log.info(
-                            "[{}] Successfully remove topic schema compatibility strategy: tenant={}, namespace={}, "
-                                    + "topic={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName());
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .log("Successfully remove topic schema compatibility strategy");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -4902,13 +5070,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
                 .thenRun(() -> {
-                    log.info(
-                            "[{}] Successfully remove entry filters: tenant={}, namespace={}, topic={}, isGlobal={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            isGlobal);
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("isGlobal", isGlobal)
+                            .log("Successfully remove entry filters");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -5082,14 +5249,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetAutoSubscriptionCreation(null, isGlobal))
                 .thenRun(() -> {
-                    log.info(
-                            "[{}] Successfully remove topic removeAutoSubscriptionCreation: "
-                                    + "tenant={}, namespace={}, topic={}, isGlobal={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            isGlobal);
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("isGlobal", isGlobal)
+                            .log("Successfully remove topic removeAutoSubscriptionCreation");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -5123,13 +5288,37 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get message id by index for topic {}, index {}",
-                                clientAppId(), topicName, index, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("index", index)
+                                .exception(ex)
+                                .log("Failed to get message id by index");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
+    private Map<String, String> parseProperties(String propertiesStr) {
+        if (propertiesStr == null || propertiesStr.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new HashMap<>();
+        String[] pairs = propertiesStr.split(",");
+        for (String pair : pairs) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2) {
+                try {
+                    String key = Codec.decode(parts[0].trim());
+                    String value = Codec.decode(parts[1].trim());
+                    if (!key.isEmpty()) {
+                        map.put(key, value);
+                    }
+                } catch (Exception e) {
+                    log.warn().attr("property", pair).exception(e).log("Failed to decode property");
+                }
+            }
+        }
+        return map;
+    }
 }

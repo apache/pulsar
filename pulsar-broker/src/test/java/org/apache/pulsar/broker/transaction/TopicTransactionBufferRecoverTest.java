@@ -43,7 +43,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -51,7 +52,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -100,7 +101,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
@@ -176,10 +177,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             String msg = content + i;
             if (i % 2 == 0) {
                 MessageId messageId = producer.newMessage(tnx1).value(msg).send();
-                log.info("Txn1 send message : {}, messageId : {}", msg, messageId);
+                log.info().attr("sendMessage", msg).attr("messageid", messageId).log("Txn1 send message , messageId");
             } else {
                 MessageId messageId = producer.newMessage(tnx2).value(msg).send();
-                log.info("Txn2 send message : {}, messageId : {}", msg, messageId);
+                log.info().attr("sendMessage", msg).attr("messageid", messageId).log("Txn2 send message , messageId");
             }
         }
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -190,7 +191,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // only can receive message 1
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNotNull(message);
-        log.info("Txn1 commit receive message : {}, messageId : {}", message.getValue(), message.getMessageId());
+        log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                .log("Txn1 commit receive message , messageId");
         consumer.acknowledge(message);
 
         // can't receive message
@@ -224,8 +226,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
             for (int i = messageCnt; i > 1; i--) {
                 message = consumer.receive();
-                log.info("Txn2 commit receive message : {}, messageId : {}",
-                        message.getValue(), message.getMessageId());
+                log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                        .log("Txn2 commit receive message , messageId");
                 consumer.acknowledge(message);
             }
 
@@ -237,8 +239,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
             for (int i = messageCnt / 2; i > 1; i--) {
                 message = consumer.receive();
-                log.info("Txn2 commit receive message : {}, messageId : {}",
-                        message.getValue(), message.getMessageId());
+                log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                        .log("Txn2 commit receive message , messageId");
                 consumer.acknowledge(message);
             }
 
@@ -253,7 +255,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     private void makeTBSnapshotReaderTimeoutIfFirstRead(TopicName topicName) throws Exception {
-        SystemTopicClient.Reader mockReader = mock(SystemTopicClient.Reader.class);
+        SystemTopicClient.Reader<?> mockReader = mock(SystemTopicClient.Reader.class);
         AtomicBoolean isFirstCallOfMethodHasMoreEvents = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNext = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
@@ -275,7 +277,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }).when(mockReader).readNext();
 
         doAnswer(invocation -> {
-            CompletableFuture<Message> future = new CompletableFuture<>();
+            CompletableFuture<Message<?>> future = new CompletableFuture<>();
             new Thread(() -> {
                 if (isFirstCallOfMethodHasReadNextAsync.compareAndSet(false, true)){
                     // Just stuck the thread.
@@ -295,9 +297,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         for (PulsarService pulsarService : pulsarServiceList){
             // Init prop: lastMessageIdInBroker.
-            final SystemTopicTxnBufferSnapshotService tbSnapshotService =
+            final SystemTopicTxnBufferSnapshotService<?> tbSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-            SystemTopicTxnBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
+            SystemTopicTxnBufferSnapshotService<?> spyTbSnapshotService = spy(tbSnapshotService);
             doAnswer(invocation -> CompletableFuture.completedFuture(mockReader))
                     .when(spyTbSnapshotService).createReader(topicName);
             Field field =
@@ -375,7 +377,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // take snapshot by change times
         MessageId messageId2 = producer.newMessage(tnx2).value("test").send();
         tnx2.commit().get();
-
 
         TransactionBufferSnapshot snapshot = reader.readNext().getValue();
         assertEquals(snapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId2).getEntryId() + 1);
@@ -461,8 +462,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
-                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
-                            (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+                    @SuppressWarnings("unchecked")
+                    NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                            (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                                     field.get(persistentTopic.getManagedLedger());
 
                     ledgers.remove(((MessageIdImpl) messageId1).getLedgerId());
@@ -487,6 +489,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
                         abortsField.setAccessible(true);
 
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, Position> linkedMap =
                                 (LinkedMap<TxnID, Position>) abortsField.get(abortedTxnProcessor);
                         assertEquals(linkedMap.size(), 1);
@@ -501,6 +504,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertTrue(exist);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "enableSnapshotSegment")
     public void clearTransactionBufferSnapshotTest(Boolean enableSnapshotSegment) throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
@@ -553,6 +557,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private void checkSnapshotCount(TopicName topicName, boolean hasSnapshot,
                                     PersistentTopic persistentTopic, Field field) throws Exception {
         persistentTopic.triggerCompaction();
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
@@ -591,7 +596,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
     public void testTransactionBufferRecoverThrowException() throws Exception {
+        OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(1)
+                .name("pulsar-transaction-snapshot-recover")
+                .build();
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -620,7 +630,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         doReturn(CompletableFuture.completedFuture(reader))
                 .when(systemTopicTxnBufferSnapshotService).createReader(any());
         doReturn(refCounterWriter).when(systemTopicTxnBufferSnapshotService).getReferenceWriter(any());
-        doReturn(new MockTableView(pulsarServiceList.get(0))).when(systemTopicTxnBufferSnapshotService).getTableView();
+        doReturn(new MockTableView(pulsarServiceList.get(0))).when(systemTopicTxnBufferSnapshotService)
+                .getTableView(scheduler);
         TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory =
                 mock(TransactionBufferSnapshotServiceFactory.class);
         doReturn(systemTopicTxnBufferSnapshotService)
@@ -707,7 +718,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         SystemTopicClient.Reader<TransactionBufferSnapshotIndexes> indexesReader =
                 transactionBufferSnapshotIndexService.createReader(TopicName.get(SNAPSHOT_INDEX)).get();
-
 
         List<TransactionBufferSnapshotIndex> indexList = new LinkedList<>();
 
@@ -836,6 +846,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     //Verify the snapshotSegmentProcessor end to end
+    @SuppressWarnings("deprecation")
     @Test
     public void testSnapshotSegment() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testSnapshotSegment";

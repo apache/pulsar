@@ -34,7 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -69,7 +69,7 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 /**
  * Provide a zookeeper client to handle session expire.
  */
-@Slf4j
+@CustomLog
 public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoCloseable {
 
     private static final int DEFAULT_RETRY_EXECUTOR_THREAD_COUNT = 1;
@@ -119,21 +119,26 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
                     @Override
                     public ZooKeeper call() throws KeeperException, InterruptedException {
-                        log.info("Reconnecting zookeeper {}.", connectString);
+                        log.info().attr("connectString", connectString).log("Reconnecting zookeeper");
                         // close the previous one
                         closeZkHandle();
                         ZooKeeper newZk;
                         try {
                             newZk = createZooKeeper();
                         } catch (IOException | QuorumPeerConfig.ConfigException e) {
-                            log.error("Failed to create zookeeper instance to {} with config path {}",
-                                    connectString, configPath, e);
+                            log.error()
+                                    .attr("connectString", connectString)
+                                    .attr("configPath", configPath)
+                                    .exception(e)
+                                    .log("Failed to create zookeeper instance");
                             throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
                         }
                         waitForConnection();
                         zk.set(newZk);
-                        log.info("ZooKeeper session {} is created to {}.",
-                                Long.toHexString(newZk.getSessionId()), connectString);
+                        log.info()
+                                .attr("sessionId", Long.toHexString(newZk.getSessionId()))
+                                .attr("connectString", connectString)
+                                .log("ZooKeeper session is created");
                         return newZk;
                     }
 
@@ -144,8 +149,10 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
                 }, connectRetryPolicy, rateLimiter, createClientStats);
             } catch (Exception e) {
-                log.error("Gave up reconnecting to ZooKeeper : ", e);
-                Runtime.getRuntime().exit(1);
+                log.error().exception(e).log("Gave up reconnecting to ZooKeeper");
+                if (!Boolean.getBoolean("pulsar.test.preventExit")) {
+                    Runtime.getRuntime().exit(1);
+                }
             }
         }
 
@@ -289,6 +296,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         return new Builder();
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarZooKeeperClient(String connectString,
                                     int sessionTimeoutMs,
                                     ZooKeeperWatcherBase watcherManager,
@@ -354,6 +362,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         watcherManager.waitForConnection();
     }
 
+    @SuppressWarnings("deprecation")
     protected ZooKeeper createZooKeeper() throws IOException, QuorumPeerConfig.ConfigException {
         if (null != configPath) {
             return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,
@@ -376,16 +385,18 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             return;
         }
 
-        log.info("ZooKeeper session {} is expired from {}.",
-                Long.toHexString(getSessionId()), connectString);
+        log.info()
+                .attr("sessionId", Long.toHexString(getSessionId()))
+                .attr("connectString", connectString)
+                .log("ZooKeeper session is expired");
         try {
             connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
             if (!closed.get()) {
-                log.error("ZooKeeper reconnect task is rejected : ", ree);
+                log.error().exception(ree).log("ZooKeeper reconnect task is rejected");
             }
         } catch (Exception t) {
-            log.error("Failed to submit zookeeper reconnect task due to runtime exception : ", t);
+            log.error().exception(t).log("Failed to submit zookeeper reconnect task due to runtime exception");
         }
     }
 
@@ -461,7 +472,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             retryExecutor.schedule(r, nextRetryWaitTimeMs, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException ree) {
             if (!closed.get()) {
-                log.error("ZooKeeper Operation {} is rejected : ", r, ree);
+                log.error().attr("operation", r).exception(ree).log("ZooKeeper Operation is rejected");
             }
         }
     }
@@ -1444,7 +1455,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         proc.run();
     }
 
-    @Slf4j
+    @CustomLog
     static final class ZooWorker {
         int attempts = 0;
         long startTimeNanos;
@@ -1544,7 +1555,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (null != client) {
                         client.waitForConnection();
                     }
-                    log.debug("Execute {} at {} retry attempt.", proc, attempts);
+                    log.debug().attr("proc", proc).attr("attempts", attempts).log("Execute at retry attempt");
                     if (null != rateLimiter) {
                         rateLimiter.acquire();
                     }
@@ -1563,7 +1574,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (rethrow) {
                         statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
                                 TimeUnit.MICROSECONDS);
-                        log.debug("Stopped executing {} after {} attempts.", proc, attempts);
+                        log.debug().attr("proc", proc).attr("attempts", attempts)
+                                .log("Stopped executing after attempts");
                         throw e;
                     }
                     TimeUnit.MILLISECONDS.sleep(retryPolicy.nextRetryWaitTime(attempts, elapsedTime));

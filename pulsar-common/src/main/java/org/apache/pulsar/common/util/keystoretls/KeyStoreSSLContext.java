@@ -36,14 +36,14 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.SecurityUtility;
 
 /**
  * KeyStoreSSLContext that mainly wrap a SSLContext to provide SSL context for both webservice and netty.
  */
-@Slf4j
+@CustomLog
 public class KeyStoreSSLContext {
     public static final String DEFAULT_KEYSTORE_TYPE = "JKS";
     public static final String DEFAULT_SSL_PROTOCOL = "TLS";

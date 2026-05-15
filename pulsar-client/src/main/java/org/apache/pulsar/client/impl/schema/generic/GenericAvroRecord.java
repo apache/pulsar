@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -28,7 +28,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A generic avro record.
  */
-@Slf4j
+@CustomLog
 public class GenericAvroRecord extends VersionedGenericRecord {
 
     private final org.apache.avro.Schema schema;

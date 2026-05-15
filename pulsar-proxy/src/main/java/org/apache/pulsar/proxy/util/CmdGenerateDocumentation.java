@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.proxy.util;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -29,7 +29,7 @@ import org.apache.pulsar.docs.tools.BaseGenerateDocumentation;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
-@Slf4j
+@CustomLog
 public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
 
     @Override

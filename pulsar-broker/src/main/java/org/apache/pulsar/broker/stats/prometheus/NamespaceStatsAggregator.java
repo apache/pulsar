@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.service.AbstractTopic.getCustomMetricLabelsMap;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
@@ -35,6 +37,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
@@ -46,7 +49,7 @@ import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
-@Slf4j
+@CustomLog
 public class NamespaceStatsAggregator {
 
     private static final FastThreadLocal<AggregatedBrokerStats> localBrokerStats =
@@ -97,9 +100,25 @@ public class NamespaceStatsAggregator {
                 brokerStats.updateStats(topicStats);
 
                 if (includeTopicMetrics) {
+                    // Get and convert custom metric labels if feature is enabled
+                    String[] customLabelAndValues = null;
+                    if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
+                        TopicName topicName = TopicName.get(name);
+
+                        Map<String, String> customLabelsMap = getCustomMetricLabelsMap(pulsar, topicName);
+                        if (MapUtils.isNotEmpty(customLabelsMap)) {
+                            customLabelAndValues = new String[customLabelsMap.size() * 2];
+                            int index = 0;
+                            for (Map.Entry<String, String> entry : customLabelsMap.entrySet()) {
+                                customLabelAndValues[index++] = entry.getKey();
+                                customLabelAndValues[index++] = entry.getValue();
+                            }
+                        }
+                    }
+
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                            splitTopicAndPartitionIndexLabel);
+                        splitTopicAndPartitionIndexLabel, customLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
@@ -326,7 +345,7 @@ public class NamespaceStatsAggregator {
 
         compactorMXBean
                 .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
-                .map(compactionRecord -> {
+                .ifPresent(compactionRecord -> {
                     stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
                     stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();
                     stats.compactionFailedCount = compactionRecord.getCompactionFailedCount();
@@ -346,7 +365,6 @@ public class NamespaceStatsAggregator {
                         stats.compactionCompactedEntriesCount = entries;
                         stats.compactionCompactedEntriesSize = size;
                     }
-                    return compactionRecord;
                 });
     }
 
@@ -574,14 +592,11 @@ public class NamespaceStatsAggregator {
         stream.writeSample(metricName, value, labels);
     }
 
-
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                     String namespace) {
         String[] labels = new String[]{"cluster", cluster, "namespace", namespace};
         stream.writeSample(metricName, value, labels);
     }
-
-
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,
                                              AggregatedNamespaceStats namespaceStats,
@@ -596,6 +611,5 @@ public class NamespaceStatsAggregator {
             );
         }
     }
-
 
 }

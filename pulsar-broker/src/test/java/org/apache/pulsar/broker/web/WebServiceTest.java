@@ -56,6 +56,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -78,8 +79,6 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,6 +88,7 @@ import org.testng.annotations.Test;
  * tests for now as this test class was added quite a bit after the class was written.
  */
 @Test(groups = "broker")
+@CustomLog
 public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
@@ -106,7 +106,6 @@ public class WebServiceTest {
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
     private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
@@ -271,10 +270,10 @@ public class WebServiceTest {
     public void testRateLimiting() throws Exception {
         setupEnv(false, false, false, false, 10.0, false);
 
-        // setupEnv makes a HTTP call to create the cluster.
+        // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 1);
+                Result.ACCEPTED.attributes, 3);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -288,7 +287,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 6);
+                Result.ACCEPTED.attributes, 8);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -306,7 +305,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
@@ -422,10 +421,10 @@ public class WebServiceTest {
                 }
             }
 
-            log.info("Response Content: {}", content);
+            log.info().attr("responseContent", content).log("Response Content");
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
-            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            log.error().exception(e).log("Failed to decompress the content, likely the content is not compressed ");
             fail();
         } finally {
             connection.disconnect();
@@ -460,7 +459,7 @@ public class WebServiceTest {
             connection.disconnect();
         }
 
-        log.info("Response Content: {}", content);
+        log.info().attr("responseContent", content).log("Response Content");
 
         assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
@@ -491,7 +490,7 @@ public class WebServiceTest {
                 response = new URL(brokerLookUpUrl).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
-            log.info("Response: {}", resp);
+            log.info().attr("response", resp).log("Response");
             return resp;
         } finally {
             Closeables.close(response, false);
@@ -561,9 +560,9 @@ public class WebServiceTest {
         }
 
         brokerLookUpUrl = brokerUrlBase
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         brokerLookUpUrlTls = brokerUrlBaseTls
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
@@ -571,6 +570,13 @@ public class WebServiceTest {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
                     ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
+            // This is OK.
+        }
+        try {
+            pulsarAdmin.tenants().createTenant("my-property",
+                    TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+            pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
+        } catch (Exception e) {
             // This is OK.
         }
     }
@@ -588,5 +594,4 @@ public class WebServiceTest {
         pulsar = null;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);
 }

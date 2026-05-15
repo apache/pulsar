@@ -178,7 +178,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader;
 
     @JsonIgnore
-    private transient MessageCrypto messageCrypto = null;
+    private transient MessageCrypto<?, ?> messageCrypto = null;
 
     private Set<String> encryptionKeys = new TreeSet<>();
 

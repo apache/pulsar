@@ -47,6 +47,7 @@ public final class Resources {
                 ));
     }
 
+    @SuppressWarnings("deprecation")
     public static Set<Class<?>> getApiV3Resources() {
         return new HashSet<>(
                 Arrays.asList(

@@ -45,6 +45,9 @@ import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -217,6 +220,23 @@ public class ClientChannelHelper {
         @Override
         protected void handlePong(CommandPong pong) {
             return;
+        }
+
+        @Override
+        protected void handleCommandScalableTopicUpdate(CommandScalableTopicUpdate update) {
+            queue.offer(new CommandScalableTopicUpdate().copyFrom(update));
+        }
+
+        @Override
+        protected void handleCommandScalableTopicSubscribeResponse(
+                CommandScalableTopicSubscribeResponse response) {
+            queue.offer(new CommandScalableTopicSubscribeResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleCommandScalableTopicAssignmentUpdate(
+                CommandScalableTopicAssignmentUpdate update) {
+            queue.offer(new CommandScalableTopicAssignmentUpdate().copyFrom(update));
         }
     };
 

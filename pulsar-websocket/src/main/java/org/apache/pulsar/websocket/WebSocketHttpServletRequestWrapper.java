@@ -20,7 +20,6 @@ package org.apache.pulsar.websocket;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
 
 /**
  * WebSocket HttpServletRequest wrapper.
@@ -40,7 +39,7 @@ public class WebSocketHttpServletRequestWrapper extends HttpServletRequestWrappe
         // The browser javascript WebSocket client couldn't add the auth param to the request header, use the
         // query param `token` to transport the auth token for the browser javascript WebSocket client.
         if (name.equals(HTTP_HEADER_NAME)
-                && !((UpgradeHttpServletRequest) this.getRequest()).getHeaders().containsKey(HTTP_HEADER_NAME)) {
+                && ((HttpServletRequest) getRequest()).getHeader(HTTP_HEADER_NAME) == null) {
             String token = getRequest().getParameter(TOKEN);
             if (token != null && !token.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 return HTTP_HEADER_VALUE_PREFIX + token;

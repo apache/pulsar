@@ -20,10 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
+import io.opentelemetry.api.OpenTelemetry;
+import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -145,5 +148,25 @@ class PulsarClientResourcesConfigurer {
             resourceConfig = new PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig();
         }
         return new DnsResolverGroupImpl(resourceConfig);
+    }
+
+    static MemoryLimitController createMemoryLimitControllerWithResourceConfig(
+            PulsarClientSharedResourcesBuilderImpl.MemoryLimitResourceConfig resourceConfig) {
+        if (resourceConfig == null) {
+            resourceConfig = new PulsarClientSharedResourcesBuilderImpl.MemoryLimitResourceConfig();
+        }
+        long memoryLimit = resourceConfig.memoryLimit;
+        // Keep the same logic with PulsarClientImpl's memory limit settings.
+        long triggerThreshold =
+                (long) (memoryLimit * PulsarClientImpl.THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING);
+        return new MemoryLimitController(memoryLimit, triggerThreshold);
+    }
+
+    static InstrumentProvider createInstrumentProviderWithResourceConfig(
+            PulsarClientSharedResourcesBuilderImpl.OpenTelemetryResourceConfig resourceConfig) {
+        // Use global openTelemetry instance if not configured.
+        OpenTelemetry openTelemetry =
+                Optional.ofNullable(resourceConfig).map(config -> config.openTelemetry).orElse(null);
+        return new InstrumentProvider(openTelemetry);
     }
 }

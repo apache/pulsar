@@ -131,6 +131,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         doFindBrokerWithListenerName(true);
         doFindBrokerWithListenerName(false);
     }
+    @SuppressWarnings("deprecation")
 
     private void doFindBrokerWithListenerName(boolean useHttp) throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();

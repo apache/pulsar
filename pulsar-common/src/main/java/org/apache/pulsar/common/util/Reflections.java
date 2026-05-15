@@ -40,7 +40,7 @@ public class Reflections {
     private static final Map<Class<?>, Constructor<?>> constructorCache =
         new ConcurrentHashMap<>();
 
-    private static final Map PRIMITIVE_NAME_TYPE_MAP = new HashMap();
+    private static final Map<String, Class<?>> PRIMITIVE_NAME_TYPE_MAP = new HashMap<>();
 
     static {
         PRIMITIVE_NAME_TYPE_MAP.put("boolean", Boolean.TYPE);
@@ -74,9 +74,11 @@ public class Reflections {
         if (!xface.isAssignableFrom(theCls)) {
             throw new RuntimeException(userClassName + " does not implement " + xface.getName());
         }
+        @SuppressWarnings("unchecked") // safe: theCls is verified to be assignable to xface
         Class<T> tCls = (Class<T>) theCls.asSubclass(xface);
         T result;
         try {
+            @SuppressWarnings("unchecked") // safe: constructor cache is keyed by theCls which extends T
             Constructor<T> meth = (Constructor<T>) constructorCache.get(theCls);
             if (null == meth) {
                 meth = tCls.getDeclaredConstructor();
@@ -135,7 +137,7 @@ public class Reflections {
     }
 
     public static Object createInstance(String userClassName,
-                                        ClassLoader classLoader, Object[] params, Class[] paramTypes) {
+                                        ClassLoader classLoader, Object[] params, Class<?>[] paramTypes) {
         if (params.length != paramTypes.length) {
             throw new RuntimeException(
                     "Unequal number of params and paramTypes. Each param must have a corresponding param type");
@@ -224,7 +226,7 @@ public class Reflections {
      * @param xface interface to check if implement
      * @return true if class from jar implements interface xface and false if otherwise
      */
-    public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
+    public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class<?> xface) {
         boolean ret = false;
         java.net.URLClassLoader loader = null;
         try {
@@ -253,7 +255,7 @@ public class Reflections {
      * @param xface the interface the fqcn should implement
      * @return true if class implements interface xface and false if otherwise
      */
-    public static boolean classImplementsIface(String fqcn, Class xface) {
+    public static boolean classImplementsIface(String fqcn, Class<?> xface) {
         boolean ret = false;
         try {
             if (xface.isAssignableFrom(Class.forName(fqcn))){
@@ -277,7 +279,7 @@ public class Reflections {
      * @return loaded class
      * @throws ClassNotFoundException
      */
-    public static Class loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
+    public static Class<?> loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
         if (className.length() == 1) {
             char type = className.charAt(0);
             if (type == 'B') {
@@ -302,7 +304,7 @@ public class Reflections {
                 throw new ClassNotFoundException(className);
             }
         } else if (isPrimitive(className)) {
-            return (Class) PRIMITIVE_NAME_TYPE_MAP.get(className);
+            return PRIMITIVE_NAME_TYPE_MAP.get(className);
         } else if (className.charAt(0) == 'L' && className.charAt(className.length() - 1) == ';') {
             return classLoader.loadClass(className.substring(1, className.length() - 1));
         } else {
@@ -318,7 +320,7 @@ public class Reflections {
                     }
                     // CHECKSTYLE.ON: EmptyStatement
 
-                    Class componentType = loadClass(className.substring(arrayDimension), classLoader);
+                    Class<?> componentType = loadClass(className.substring(arrayDimension), classLoader);
                     return Array.newInstance(componentType, new int[arrayDimension]).getClass();
                 }
             }

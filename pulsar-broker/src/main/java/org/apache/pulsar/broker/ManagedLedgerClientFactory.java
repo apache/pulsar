@@ -30,7 +30,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -47,14 +49,13 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
     private static final String DEFAULT_STORAGE_CLASS_NAME = "bookkeeper";
     private BookkeeperManagedLedgerStorageClass defaultStorageClass;
-    private ManagedLedgerFactory managedLedgerFactory;
+    @VisibleForTesting
+    protected ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
             bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().recordStats().buildAsync();
@@ -92,12 +93,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
         if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0
                 && managedLedgerMaxReadsInFlightSizeBytes < conf.getDispatcherMaxReadSizeBytes()) {
-            log.warn("Invalid configuration for managedLedgerMaxReadsInFlightSizeInMB: {}, "
-                            + "dispatcherMaxReadSizeBytes: {}. managedLedgerMaxReadsInFlightSizeInMB in bytes should "
-                            + "be greater than dispatcherMaxReadSizeBytes. You should set "
-                            + "managedLedgerMaxReadsInFlightSizeInMB to at least {}",
-                    conf.getManagedLedgerMaxReadsInFlightSizeInMB(), conf.getDispatcherMaxReadSizeBytes(),
-                    (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1);
+            log.warn()
+                    .attr("managedLedgerMaxReadsInFlightSizeInMB", conf.getManagedLedgerMaxReadsInFlightSizeInMB())
+                    .attr("dispatcherMaxReadSizeBytes", conf.getDispatcherMaxReadSizeBytes())
+                    .attr("minManagedLedgerMaxReadsInFlightSizeInMB",
+                            (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1)
+                    .log("Invalid configuration:"
+                            + " managedLedgerMaxReadsInFlightSizeInMB in bytes"
+                            + " should be greater than"
+                            + " dispatcherMaxReadSizeBytes");
         }
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(
@@ -138,9 +142,12 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             }
 
             // find or create bk-client in cache for a specific ensemblePlacementPolicy
+            @SuppressWarnings("unchecked")
+            Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
+                    (Optional) Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass());
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
                     (config, executor) -> bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                            Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                            policyClass,
                             ensemblePlacementPolicyConfig.getProperties(), statsLogger));
         };
 
@@ -206,7 +213,6 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         return defaultStorageClass;
     }
 
-
     @VisibleForTesting
     public Map<EnsemblePlacementPolicyConfig, BookKeeper> getBkEnsemblePolicyToBookKeeperMap() {
         return bkEnsemblePolicyToBkClientMap.synchronous().asMap();
@@ -235,7 +241,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 //
                 // an alternative solution is to close bookkeeper client before shutting down managed ledger
                 // factory, however that might be introducing more unknowns.
-                log.warn("Encountered exceptions on closing bookkeeper client", ree);
+                log.warn().attr("client", ree).log("Encountered exceptions on closing bookkeeper client");
             }
             bkEnsemblePolicyToBkClientMap.synchronous().asMap().forEach((policy, bk) -> {
                 try {
@@ -243,12 +249,12 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                         bk.close();
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+                    log.warn().attr("policy", policy).exception(e).log("Failed to close bookkeeper-client for policy");
                 }
             });
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
-            log.warn(e.getMessage(), e);
+            log.warn().exception(e).log("Failed to close ManagedLedgerClientFactory");
             throw new IOException(e);
         }
     }

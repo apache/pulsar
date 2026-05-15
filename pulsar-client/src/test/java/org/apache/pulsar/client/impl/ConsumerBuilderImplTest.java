@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -74,17 +76,18 @@ import org.testng.annotations.Test;
 public class ConsumerBuilderImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
-    private ConsumerBuilderImpl consumerBuilderImpl;
+    private ConsumerBuilderImpl<byte[]> consumerBuilderImpl;
 
+    @SuppressWarnings("unchecked")
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
-        ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
+        ConsumerConfigurationData<byte[]> consumerConfigurationData = mock(ConsumerConfigurationData.class);
         when(consumerConfigurationData.getTopicsPattern()).thenReturn(Pattern.compile("\\w+"));
         when(consumerConfigurationData.getSubscriptionName()).thenReturn("testSubscriptionName");
-        consumerBuilderImpl = new ConsumerBuilderImpl(client, consumerConfigurationData, Schema.BYTES);
+        consumerBuilderImpl = new ConsumerBuilderImpl<>(client, consumerConfigurationData, Schema.BYTES);
     }
 
     @Test
@@ -101,23 +104,24 @@ public class ConsumerBuilderImplTest {
     @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
-        when(consumerBuilderImpl.subscribeAsync())
-                .thenReturn(CompletableFuture.completedFuture(consumer));
-        assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+        ConsumerBuilderImpl<byte[]> spyBuilder = spy(consumerBuilderImpl);
+        doReturn(CompletableFuture.completedFuture(consumer)).when(spyBuilder).subscribeAsync();
+        assertNotNull(spyBuilder.topic(TOPIC_NAME).subscribe());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenSchemaIsNull() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
-        new ConsumerBuilderImpl(client, consumerConfigurationData, null);
+        new ConsumerBuilderImpl<>(client, consumerConfigurationData, null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
-        consumerBuilderImpl.topic(null);
+        consumerBuilderImpl.topic((String[]) null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -131,22 +135,26 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenTopicNamesIsNull() {
         consumerBuilderImpl.topics(null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenTopicNamesIsEmpty() {
         consumerBuilderImpl.topics(Arrays.asList());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenTopicNamesHasBlankTopic() {
         List<String> topicNames = Arrays.asList("my-topic", " ");
         consumerBuilderImpl.topics(topicNames);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenTopicNamesHasNullTopic() {
         List<String> topicNames = Arrays.asList("my-topic", null);
         consumerBuilderImpl.topics(topicNames);
@@ -188,12 +196,14 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = NullPointerException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader((Map<String, String>) null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader(new HashMap<String, String>());
@@ -237,6 +247,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesAreCorrect() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", "Test-Value");
@@ -246,6 +257,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesKeyIsNull() {
         Map<String, String> properties = new HashMap<>();
         properties.put(null, "Test-Value");
@@ -254,6 +266,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesKeyIsBlank() {
         Map<String, String> properties = new HashMap<>();
         properties.put("  ", "Test-Value");
@@ -262,6 +275,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesValueIsNull() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", null);
@@ -270,6 +284,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesValueIsBlank() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", "   ");
@@ -278,6 +293,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
@@ -285,6 +301,7 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = NullPointerException.class)
+    @SuppressWarnings("unchecked")
     public void testConsumerBuilderImplWhenPropertiesIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(null);
     }

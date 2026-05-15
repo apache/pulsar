@@ -347,6 +347,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int httpServerAcceptQueueSize = 8192;
 
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "Idle timeout for HTTP server connections in milliseconds."
+    )
+    private int httpServerIdleTimeout = 30 * 1000;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
@@ -486,11 +492,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    private static final String DEFAULT_EXTENDED_RESOURCES_CLASS_NAME =
+            "org.apache.pulsar.broker.DefaultPulsarResourcesExtended";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The class name of the PulsarResourcesExtended implementation. "
+                    + "This class must implement org.apache.pulsar.broker.PulsarResourcesExtended."
+    )
+    private String pulsarResourcesExtendedClassName = DEFAULT_EXTENDED_RESOURCES_CLASS_NAME;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Is metadata store read-only operations."
     )
     private boolean metadataStoreAllowReadOnlyOperations;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The number of threads used for serializing and deserializing data to and from the metadata store"
+    )
+    private int metadataStoreSerDesThreads = 1;
 
     @Deprecated
     @FieldContext(
@@ -1253,9 +1275,37 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
-            doc = "Enables evaluating subscription pattern on broker side."
+            doc = "Enables evaluating subscription pattern on broker side. "
+                    + "Note: This config no longer controls watching topic list. "
+                    + "Please use `enableBrokerTopicListWatcher` to control that behavior."
     )
     private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables watching topic add/remove events on broker side for "
+                    + "subscription pattern evaluation."
+    )
+    private boolean enableBrokerTopicListWatcher = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables the scalable-topics V5 API on this broker. When disabled, "
+                    + "the broker advertises supports_scalable_topics=false in CommandConnected "
+                    + "feature flags and rejects scalable-topic commands from clients."
+    )
+    private boolean scalableTopicsEnabled = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Grace period (seconds) the controller leader waits for a disconnected scalable-topic "
+                    + "consumer to reconnect with the same consumer name before evicting its session and "
+                    + "reassigning its segments to remaining consumers."
+    )
+    private int scalableTopicConsumerSessionGracePeriodSeconds = 60;
 
     @FieldContext(
             dynamic = false,
@@ -1392,6 +1442,42 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConcurrentLookupRequest = 50000;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum heap memory for inflight topic list operations (MB).\n"
+                    + "Default: 100 MB (supports ~1M topic names assuming 100 bytes each)")
+    private int maxTopicListInFlightHeapMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum direct memory for inflight topic list responses (MB).\n"
+                    + "Default: 100 MB (network buffers for serialized responses)")
+    private int maxTopicListInFlightDirectMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for acquiring heap memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum queue size for heap memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for acquiring direct memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum queue size for direct memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of concurrent topic loading request broker allows to control number of zk-operations"
@@ -1512,7 +1598,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
-    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 30;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1760,6 +1846,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable authentication"
     )
     private boolean authenticationEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Strictly enforce authentication method. If specified, Pulsar will only attempt to authenticate with "
+                + "the provided method. If no method is provided, authentication fails."
+    )
+    private boolean strictAuthMethod = false;
+
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list, which is a list of class names"
@@ -2284,11 +2378,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
     private TopicType allowAutoTopicCreationType = TopicType.NON_PARTITIONED;
-    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
-            doc = "If 'allowAutoTopicCreation' is true and the name of the topic contains 'cluster',"
-                    + "the topic cannot be automatically created."
-    )
-    private boolean allowAutoTopicCreationWithLegacyNamingScheme = true;
     @FieldContext(category = CATEGORY_SERVER, dynamic = true,
             doc = "If 'strictSubscriptionNameVerification' is true, the new subscription name can only contain"
                 + " (a-zA-Z_0-9) and these special chars -=:."
@@ -2958,7 +3047,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Optional<Double> loadBalancerOverrideBrokerNicSpeedGbps = Optional.empty();
-
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Option to override the auto-detected network interfaces"
+    )
+    private List<String> loadBalancerOverrideBrokerNics = new ArrayList<>();
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
@@ -3348,6 +3441,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.FULL;
 
+    @FieldContext(
+        category = CATEGORY_SCHEMA,
+        doc = "Whether to allow legacy Jackson JsonSchema format for SchemaType.JSON schema definitions. "
+            + "When false (default), only valid Apache Avro schema format is accepted for SchemaType.JSON, "
+            + "consistent with what the consumer side requires. When true, the pre-2.1 backward-compatible "
+            + "behavior is preserved for deployments that still have topics with legacy-format schemas. "
+            + "See PIP-464 for details."
+    )
+    private boolean schemaJsonAllowLegacyJacksonFormat = false;
+
     /**** --- WebSocket. --- ****/
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -3473,6 +3576,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable expose the broker bundles metrics."
     )
     private boolean exposeBundlesMetricsInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable or disable custom topic metric labels feature. "
+                    + "If enabled, custom metric labels can be set on topics and will be exposed in metrics. "
+                    + "Default is false."
+    )
+    private boolean exposeCustomTopicMetricLabelsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "A comma-separated list of Topic Property keys that are allowed to be exposed as metrics."
+            + "Only keys explicitly listed here will be exposed."
+    )
+    private Set<String> allowedTopicPropertyKeysForMetrics = new HashSet<>();
 
     /**** --- Functions. --- ****/
     @FieldContext(
@@ -3620,7 +3738,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction buffer provider"
+            doc = "Class name for transaction buffer provider. Default routes segment:// topics to the"
+                    + " legacy TopicTransactionBuffer. Set this to"
+                    + " org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider"
+                    + " once the v5 transaction coordinator (PIP-473 P5) is enabled to opt segment topics"
+                    + " into MetadataTransactionBuffer."
     )
     private String transactionBufferProviderClassName =
             "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
@@ -3964,6 +4086,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The bookkeeper ledger root path"
     )
     private String packagesManagementLedgerRootPath = "/ledgers";
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "Whether new package metadata writes use JSON (safe) or the legacy Java serialization format. "
+            + "Defaults to true. Set to false only as a temporary rollback path; the legacy format will be "
+            + "removed in a future release."
+    )
+    private boolean packagesManagementJsonSerializationEnabled = true;
+
+    @FieldContext(
+        category = CATEGORY_PACKAGES_MANAGEMENT,
+        doc = "Whether to accept reading legacy Java-serialized package metadata written by older brokers. "
+            + "A strict ObjectInputFilter allowlist is applied unconditionally whenever the legacy path "
+            + "runs. Defaults to true for upgrade compatibility; disable once all existing packages have "
+            + "been re-uploaded or rewritten via updateMeta. This default is scheduled to flip to false in "
+            + "a future release."
+    )
+    private boolean packagesManagementAllowLegacyJavaSerialization = true;
 
     /* packages management service configurations (end) */
 

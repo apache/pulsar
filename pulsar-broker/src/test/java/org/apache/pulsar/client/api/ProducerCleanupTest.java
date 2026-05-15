@@ -19,36 +19,19 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ProducerCleanupTest extends ProducerConsumerBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
-        isTcpLookup = true;
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerCleanupTest extends SharedPulsarBaseTest {
 
     @Test
     public void testAllTimerTaskShouldCanceledAfterProducerClosed() throws PulsarClientException, InterruptedException {
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://public/default/" + UUID.randomUUID().toString())
+                .topic(newTopicName())
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
         producer.close();

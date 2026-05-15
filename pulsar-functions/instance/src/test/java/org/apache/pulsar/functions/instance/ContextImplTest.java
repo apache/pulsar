@@ -55,6 +55,7 @@ import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -63,7 +64,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.io.core.SinkContext;
@@ -87,27 +88,29 @@ public class ContextImplTest {
     private PulsarClientImpl client;
     private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
+    @SuppressWarnings("rawtypes")
     private Producer producer;
     private ProducerCache producerCache;
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-            .setUserConfig("")
-            .build();
+        FunctionDetails functionDetails = new FunctionDetails()
+            .setUserConfig("");
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
         producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
-        when(client.newProducer()).thenAnswer(invocation -> new ProducerBuilderImpl(client, Schema.BYTES));
+        when(client.newProducer()).thenAnswer(invocation -> new ProducerBuilderImpl<>(client, Schema.BYTES));
         when(client.newProducer(any())).thenAnswer(
-                invocation -> new ProducerBuilderImpl(client, invocation.getArgument(0)));
+                invocation -> new ProducerBuilderImpl<>(client, invocation.getArgument(0)));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
@@ -116,6 +119,7 @@ public class ContextImplTest {
         clientBuilder = mock(ClientBuilder.class);
         when(clientBuilder.build()).thenReturn(client);
 
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilder messageBuilder = spy(new TypedMessageBuilderImpl(mock(ProducerBase.class), Schema.STRING));
         doReturn(new CompletableFuture<>()).when(messageBuilder).sendAsync();
         when(producer.newMessage()).thenReturn(messageBuilder);
@@ -355,6 +359,7 @@ public class ContextImplTest {
         when(consumer2.getTopic()).thenReturn(TopicName.get("second").toString());
         List<Consumer<?>> consumersList = Lists.newArrayList(consumer1, consumer2);
 
+        @SuppressWarnings("rawtypes")
         MultiTopicsConsumerImpl mtc = Mockito.mock(MultiTopicsConsumerImpl.class);
         when(mtc.getConsumers()).thenReturn(consumersList);
 

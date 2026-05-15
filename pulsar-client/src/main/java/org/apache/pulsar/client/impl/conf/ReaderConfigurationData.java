@@ -125,7 +125,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private ConsumerCryptoFailureAction cryptoFailureAction;
 
     @JsonIgnore
-    private transient MessageCrypto messageCrypto = null;
+    private transient MessageCrypto<?, ?> messageCrypto = null;
 
     @ApiModelProperty(
             name = "readCompacted",
@@ -200,12 +200,12 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     }
 
     @SuppressFBWarnings({"EI_EXPOSE_REP"})
-    public MessageCrypto getMessageCrypto() {
+    public MessageCrypto<?, ?> getMessageCrypto() {
         return messageCrypto;
     }
 
     @SuppressFBWarnings({"EI_EXPOSE_REP2"})
-    public void setMessageCrypto(MessageCrypto messageCrypto) {
+    public void setMessageCrypto(MessageCrypto<?, ?> messageCrypto) {
         this.messageCrypto = messageCrypto;
     }
 }

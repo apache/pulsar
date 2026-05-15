@@ -51,20 +51,16 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Broker admin base.
  */
 public class BrokersBase extends AdminResource {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
@@ -90,12 +86,17 @@ public class BrokersBase extends AdminResource {
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(activeBrokers -> {
-                    LOG.info("[{}] Successfully to get active brokers, cluster={}", clientAppId(), cluster);
+                    log.info()
+                            .attr("cluster", cluster)
+                            .log("Successfully to get active brokers, cluster");
                     asyncResponse.resume(activeBrokers);
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
-                        LOG.error("[{}] Fail to get active brokers, cluster={}", clientAppId(), cluster, ex);
+                        log.error()
+                                .attr("cluster", cluster)
+                                .exception(ex)
+                                .log("Fail to get active brokers, cluster");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -135,11 +136,13 @@ public class BrokersBase extends AdminResource {
                     BrokerInfo brokerInfo = BrokerInfo.builder()
                             .serviceUrl(leaderBroker.getServiceUrl())
                             .brokerId(leaderBroker.getBrokerId()).build();
-                    LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
+                    log.info("Successfully got the information of the leader broker");
                     asyncResponse.resume(brokerInfo);
                 })
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get the information of the leader broker.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -165,8 +168,10 @@ public class BrokersBase extends AdminResource {
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
-                        LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
-                                clientAppId(), cluster, brokerId);
+                        log.error()
+                                .attr("cluster", cluster)
+                                .attr("broker", brokerId)
+                                .log("Failed to get the namespace ownership status");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -190,10 +195,17 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION)
                 .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
                 .thenAccept(__ -> {
-                    LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
+                    log.info()
+                            .attr("configuration", configName)
+                            .attr("configValue", configValue)
+                            .log("Updated Service configuration");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
+                    log.error()
+                            .attr("configuration", configName)
+                            .attr("configValue", configValue)
+                            .exception(ex)
+                            .log("Failed to update configuration");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -215,10 +227,15 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.DELETE_DYNAMIC_CONFIGURATION)
                 .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
                 .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully to delete dynamic configuration {}", clientAppId(), configName);
+                    log.info()
+                            .attr("configuration", configName)
+                            .log("Successfully to delete dynamic configuration");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    LOG.error("[{}] Failed to delete dynamic configuration {}", clientAppId(), configName, ex);
+                    log.error()
+                            .attr("configuration", configName)
+                            .exception(ex)
+                            .log("Failed to delete dynamic configuration");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -238,7 +255,9 @@ public class BrokersBase extends AdminResource {
                 .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
                 .thenAccept(configOpt -> asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap)))
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to get all dynamic configuration.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get all dynamic configuration.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -255,7 +274,9 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getDynamicConfiguration()))
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get all dynamic configuration names.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -271,7 +292,9 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.LIST_RUNTIME_CONFIGURATIONS)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration()))
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to get runtime configuration.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get runtime configuration.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -313,7 +336,9 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getInternalConfigurationData()))
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to get internal configuration data.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get internal configuration data.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -334,7 +359,9 @@ public class BrokersBase extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 } , pulsar().getBrokerService().getBacklogQuotaChecker())
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to trigger backlog quota check.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to trigger backlog quota check.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -365,8 +392,6 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error"),
         @ApiResponse(code = 503, message = "Service unavailable")})
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
-                            @ApiParam(value = "Topic Version")
-                            @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
         if (pulsar().getState() == State.Closed || pulsar().getState() == State.Closing) {
             asyncResponse.resume(Response.status(Status.SERVICE_UNAVAILABLE).build());
@@ -377,16 +402,20 @@ public class BrokersBase extends AdminResource {
                 .thenCompose(__ -> maybeRedirectToBroker(
                         StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
                 .thenAccept(__ -> checkDeadlockedThreads())
-                .thenCompose(__ -> internalRunHealthCheck(topicVersion))
+                .thenCompose(__ -> internalRunHealthCheck())
                 .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully run health check.", clientAppId());
+                    log.info("Successfully ran health check");
                     asyncResponse.resume(Response.ok("ok").build());
                 }).exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         if (isNotFoundException(ex)) {
-                            LOG.warn("[{}] Failed to run health check: {}", clientAppId(), ex.getMessage());
+                            log.warn()
+                                    .exceptionMessage(ex)
+                                    .log("Failed to run health check");
                         } else {
-                            LOG.error("[{}] Failed to run health check.", clientAppId(), ex);
+                            log.error()
+                                    .exception(ex)
+                                    .log("Failed to run health check.");
                         }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -405,22 +434,25 @@ public class BrokersBase extends AdminResource {
             if (System.currentTimeMillis() - threadDumpLoggedTimestamp
                     > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
                 threadDumpLoggedTimestamp = System.currentTimeMillis();
-                LOG.error("Deadlocked threads detected. {}\n{}", threadNames,
-                        ThreadDumpUtil.buildThreadDiagnosticString());
+                log.error()
+                        .attr("detected", threadNames)
+                        .attr("n", ThreadDumpUtil.buildThreadDiagnosticString())
+                        .log("Deadlocked threads detected. \n");
             } else {
-                LOG.error("Deadlocked threads detected. {}", threadNames);
+                log.error().attr("detected", threadNames).log("Deadlocked threads detected.");
             }
             throw new IllegalStateException("Deadlocked threads detected. " + threadNames);
         }
     }
 
-    private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        return pulsar().runHealthCheck(topicVersion, clientAppId());
+    private CompletableFuture<Void> internalRunHealthCheck() {
+        return pulsar().runHealthCheck(clientAppId());
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
         if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration");
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration"));
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
                 if (old != null) {
@@ -460,11 +492,11 @@ public class BrokersBase extends AdminResource {
                 BrokerOperation.SHUTDOWN)
                 .thenCompose(__ -> doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic))
                 .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    log.info("Successfully shutdown broker gracefully");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-            LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
+            log.error().exception(ex).log("Failed to shutdown broker gracefully");
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
@@ -476,7 +508,6 @@ public class BrokersBase extends AdminResource {
         return pulsar().closeAsync(false);
     }
 
-
     private CompletableFuture<Void> validateBothSuperuserAndBrokerOperation(String cluster, String brokerId,
                                                                             BrokerOperation operation) {
         final var superUserAccessValidation = validateSuperUserAccessAsync();
@@ -487,25 +518,24 @@ public class BrokersBase extends AdminResource {
                         || !brokerOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    if (LOG.isDebugEnabled()) {
-                        Throwable superUserValidationException = null;
-                        try {
-                            superUserAccessValidation.join();
-                        } catch (Throwable ex) {
-                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        Throwable brokerOperationValidationException = null;
-                        try {
-                            brokerOperationValidation.join();
-                        } catch (Throwable ex) {
-                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        LOG.debug("validateBothSuperuserAndBrokerOperation failed."
-                                  + " originalPrincipal={} clientAppId={} operation={} broker={} "
-                                  + "superuserValidationError={} brokerOperationValidationError={}",
-                                originalPrincipal(), clientAppId(), operation.toString(), brokerId,
-                                superUserValidationException, brokerOperationValidationException);
+                    Throwable superUserValidationException = null;
+                    try {
+                        superUserAccessValidation.join();
+                    } catch (Throwable ex) {
+                        superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                     }
+                    Throwable brokerOperationValidationException = null;
+                    try {
+                        brokerOperationValidation.join();
+                    } catch (Throwable ex) {
+                        brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                    }
+                    log.debug().attr("originalPrincipal", originalPrincipal())
+                            .attr("operation", operation.toString())
+                            .attr("broker", brokerId)
+                            .attr("superuserValidationError", superUserValidationException)
+                            .attr("brokerOperationValidationError", brokerOperationValidationException)
+                            .log("validateBothSuperuserAndBrokerOperation failed");
                     throw new RestException(Status.UNAUTHORIZED,
                             String.format("Unauthorized to validateBothSuperuserAndBrokerOperation for"
                                           + " originalPrincipal [%s] and clientAppId [%s] "
@@ -513,7 +543,6 @@ public class BrokersBase extends AdminResource {
                                     originalPrincipal(), clientAppId(), operation.toString(), brokerId));
                 });
     }
-
 
     private CompletableFuture<Void> validateBrokerOperationAsync(String cluster, String brokerId,
                                                                  BrokerOperation operation) {
@@ -536,4 +565,3 @@ public class BrokersBase extends AdminResource {
         return CompletableFuture.completedFuture(null);
     }
 }
-

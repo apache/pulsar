@@ -27,6 +27,7 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANE
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
+import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.ConcurrencyReducer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -56,10 +57,12 @@ import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -83,10 +86,13 @@ import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.asynchttpclient.proxy.ProxyServer;
+import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
@@ -97,7 +103,7 @@ import org.glassfish.jersey.client.spi.Connector;
 /**
  * Customized Jersey client connector with multi-host support.
  */
-@Slf4j
+@CustomLog
 public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
@@ -117,6 +123,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private final boolean createdEventLoopGroup;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
+    @Getter
+    @Setter
+    private boolean followRedirects = true;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
@@ -235,6 +244,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             }
         });
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        configureSocks5ProxyIfNeeded(confBuilder, conf);
     }
 
     protected AsyncHttpClient createAsyncHttpClient(AsyncHttpClientConfig asyncHttpClientConfig) {
@@ -334,7 +344,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 try {
                     callback.response(jerseyResponse);
                 } catch (Exception ex) {
-                    log.error("failed to handle the http response {}", jerseyResponse, ex);
+                    log.error().exception(ex).attr("response", jerseyResponse)
+                            .log("Failed to handle the http response");
                 }
             }
         }));
@@ -372,18 +383,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                 resultFuture.completeExceptionally(throwable);
                             } else {
                                 if (retries > 0) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Retrying operation. Remaining retries: {}", retries);
-                                    }
+                                    log.debug().attr("remainingRetries", retries)
+                                            .log("Retrying operation");
                                     retryOperation(
                                             resultFuture,
                                             operation,
                                             retries - 1);
                                 } else {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Number of retries has been exhausted. Failing the operation.",
-                                                throwable);
-                                    }
+                                    log.debug().exception(throwable)
+                                            .log("Number of retries has been exhausted. Failing the operation");
                                     resultFuture.completeExceptionally(
                                             new RetryException("Could not complete the operation. Number of retries "
                                                     + "has been exhausted. Failed reason: " + throwable.getMessage(),
@@ -453,7 +461,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             responseFuture = doExecuteRequest(request, handlerSupplier);
         }
         CompletableFuture<Response> futureWithRedirect = responseFuture.thenCompose(response -> {
-            if (isRedirectStatusCode(response.getStatusCode())) {
+            if (followRedirects && isRedirectStatusCode(response.getStatusCode())) {
                 return executeRedirect(request, response, handlerSupplier, redirectCount);
             }
             return CompletableFuture.completedFuture(response);
@@ -570,6 +578,43 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         return "Pulsar-Admin";
     }
 
+    /**
+     * Configure SOCKS5 proxy for the underlying Netty-based async-http-client if
+     * {@link ClientConfigurationData#getSocks5ProxyAddress()} is set. The configuration keys
+     * (socks5ProxyAddress / socks5ProxyUsername / socks5ProxyPassword) are shared with the
+     * pulsar-client module so that admin and client behave consistently.
+     *
+     * <p>async-http-client's {@link ProxyServer} with {@link ProxyType#SOCKS_V5} is backed by
+     * Netty's {@code Socks5ProxyHandler}, which is injected into the channel pipeline when
+     * establishing a new connection.
+     */
+    @VisibleForTesting
+    static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                             ClientConfigurationData conf) {
+        if (conf == null) {
+            return;
+        }
+        InetSocketAddress socks5Address = conf.getSocks5ProxyAddress();
+        if (socks5Address == null) {
+            return;
+        }
+        if (!conf.getSocks5ProxyScope().appliesToHttp()) {
+            return;
+        }
+        ProxyServer.Builder proxyBuilder =
+                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
+                        .setProxyType(ProxyType.SOCKS_V5);
+        String socks5Username = conf.getSocks5ProxyUsername();
+        if (StringUtils.isNotBlank(socks5Username)) {
+            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
+                    .setScheme(Realm.AuthScheme.BASIC)
+                    .build();
+            proxyBuilder.setRealm(realm);
+        }
+        confBuilder.setProxyServer(proxyBuilder.build());
+        log.info().attr("proxy", socks5Address).log("Pulsar admin client is using SOCKS5 proxy");
+    }
+
     @Override
     public void close() {
         try {
@@ -582,7 +627,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 eventLoopGroup.shutdownGracefully();
             }
         } catch (IOException e) {
-            log.warn("Failed to close http client", e);
+            log.warn().exception(e).log("Failed to close http client");
         }
     }
 
@@ -615,7 +660,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

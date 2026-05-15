@@ -76,12 +76,13 @@ public class PersistentSubscriptionTest {
     private Consumer consumerMock;
     private ManagedLedgerConfig managedLedgerConfigMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    final String successTopicName = "persistent://prop/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
     final TxnID txnID1 = new TxnID(1, 1);
     final TxnID txnID2 = new TxnID(1, 2);
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
@@ -125,6 +126,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<Position, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(PositionFactory.create(2, 1), 0));
@@ -164,7 +166,7 @@ public class PersistentSubscriptionTest {
             persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic][subscriptionName] "
                     + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
@@ -177,7 +179,7 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic]"
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic]"
                     + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
                     + "2:50 within range of current currentPosition: 1:100");
         }
@@ -191,7 +193,7 @@ public class PersistentSubscriptionTest {
         positionList.add(PositionFactory.create(3, 5));
 
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(positionList, AckType.Individual, Collections.emptyMap()).join();
 
         //Abort txn.
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
@@ -209,6 +211,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAcknowledgeUpdateCursorLastActive() throws Exception {
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
@@ -223,9 +226,9 @@ public class PersistentSubscriptionTest {
         positionList.add(PositionFactory.create(1, 1));
         long beforeAcknowledgeTimestamp = System.currentTimeMillis();
         Thread.sleep(1);
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(positionList, AckType.Individual, Collections.emptyMap()).join();
 
-        // `acknowledgeMessage` should update cursor last active
+        // `acknowledgeMessageAsync` should update cursor last active
         assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
     }
 

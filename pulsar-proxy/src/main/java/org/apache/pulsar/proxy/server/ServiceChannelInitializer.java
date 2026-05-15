@@ -25,19 +25,18 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Initialize service channel handlers.
  *
  */
+@CustomLog
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
-    private static final Logger log = LoggerFactory.getLogger(ServiceChannelInitializer.class);
 
     public static final String TLS_HANDLER = "tls";
     private final ProxyService proxyService;
@@ -117,7 +116,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 }

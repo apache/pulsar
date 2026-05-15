@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -34,13 +33,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
+@CustomLog
 public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private final AtomicLong maxBucketId;
@@ -117,12 +116,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         }
         return CompletableFuture.supplyAsync(() -> {
             ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
-            SnapshotMetadata snapshotMetadata;
-            try {
-                snapshotMetadata = SnapshotMetadata.parseFrom(byteBuf.nioBuffer());
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            SnapshotMetadata snapshotMetadata = new SnapshotMetadata();
+            ByteBuf slice = byteBuf.slice();
+            snapshotMetadata.parseFrom(slice, slice.readableBytes());
             return snapshotMetadata;
         }, executorService);
     }

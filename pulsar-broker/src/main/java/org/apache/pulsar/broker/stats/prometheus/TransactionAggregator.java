@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import io.netty.util.concurrent.FastThreadLocal;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -32,7 +32,7 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 
-@Slf4j
+@CustomLog
 public class TransactionAggregator {
 
     private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
@@ -71,7 +71,9 @@ public class TransactionAggregator {
                                                 stream, cluster, namespace, name, subscription.getName());
                                     }
                                 } catch (Exception e) {
-                                    log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
+                                    log.warn()
+                                            .exception(e)
+                                            .log("Transaction pending ack generate managedLedgerStats fail!");
                                 }
                             });
                         }

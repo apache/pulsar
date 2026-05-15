@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.List;
 import java.util.concurrent.locks.StampedLock;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.util.collections.Long2IntMap;
+import org.apache.pulsar.common.util.collections.Long2IntOpenHashMap;
+import org.apache.pulsar.common.util.collections.Long2ObjectMap;
+import org.apache.pulsar.common.util.collections.Long2ObjectOpenHashMap;
 
 public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     // ledgerId -> entryId -> count

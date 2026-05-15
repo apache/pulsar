@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -50,7 +50,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 /**
  * The broker registry impl, base on the LockManager.
  */
-@Slf4j
+@CustomLog
 public class BrokerRegistryImpl implements BrokerRegistry {
 
     private static final int MAX_REGISTER_RETRY_DELAY_IN_MILLIS = 1000;
@@ -137,18 +137,20 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public CompletableFuture<Void> registerAsync() {
         final var state = this.state.get();
         if (state != State.Started && state != State.Registered) {
-            log.info("[{}] Skip registering self because the state is {}", getBrokerId(), state);
+            log.info().attr("broker", getBrokerId()).attr("state", state)
+                    .log("Skip registering self because the state is invalid");
             return CompletableFuture.completedFuture(null);
         }
-        log.info("[{}] Started registering self to {} (state: {})", getBrokerId(), brokerIdKeyPath, state);
+        log.info().attr("broker", getBrokerId()).attr("brokerIdKeyPath", brokerIdKeyPath).attr("state", state)
+                .log("Started registering self");
         return brokerLookupDataMetadataCache.put(brokerIdKeyPath, brokerLookupData, EnumSet.of(CreateOption.Ephemeral))
                 .orTimeout(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                 .whenComplete((__, ex) -> {
                     if (ex == null) {
                         this.state.set(State.Registered);
-                        log.info("[{}] Finished registering self", getBrokerId());
+                        log.info().attr("broker", getBrokerId()).log("Finished registering self");
                     } else {
-                        log.error("[{}] Failed registering self", getBrokerId(), ex);
+                        log.error().attr("broker", getBrokerId()).exception(ex).log("Failed registering self");
                     }
                 });
     }
@@ -179,7 +181,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (ExecutionException e) {
                 if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
-                    log.warn("{} has already been unregistered", brokerIdKeyPath);
+                    log.warn().attr("broker", brokerIdKeyPath).log("has already been unregistered");
                 } else {
                     throw MetadataStoreException.unwrap(e);
                 }
@@ -219,7 +221,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                     if (lookupDataOpt.isPresent()) {
                         map.put(brokerId, lookupDataOpt.get());
                     } else {
-                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                        log.warn().attr("broker", brokerId).log("Got an empty lookup data, brokerId");
                     }
                 }));
             }
@@ -242,7 +244,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             this.listeners.clear();
             this.unregister();
         } catch (Exception ex) {
-            log.error("Unexpected error when unregistering the broker registry", ex);
+            log.error().exception(ex).log("Unexpected error when unregistering the broker registry");
         } finally {
             this.state.set(State.Closed);
         }
@@ -253,9 +255,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             return;
         }
         try {
-            if (log.isDebugEnabled()) {
-                log.debug("Handle notification: [{}]", t);
-            }
+            log.debug().attr("notification", t).log("Handle notification");
             // The registered node is an ephemeral node that could be deleted when the metadata store client's session
             // is expired. In this case, we should register again.
             final var brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
@@ -288,9 +288,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         if (!this.isStarted()) {
             return;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Handle metadata session event: [{}]", event);
-        }
+        log.debug().attr("event", event).log("Handle metadata session event");
         if (event == SessionEvent.SessionReestablished || event == SessionEvent.Reconnected) {
             this.registerAsyncWithRetries();
         }

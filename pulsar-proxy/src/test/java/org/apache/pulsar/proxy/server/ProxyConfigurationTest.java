@@ -118,6 +118,7 @@ public class ProxyConfigurationTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConvert() throws IOException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");

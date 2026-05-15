@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,33 +32,36 @@ import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * MLPendingAckStore reply call back.
  */
 public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
+    private static final Logger LOG = Logger.get(MLPendingAckReplyCallBack.class);
+    private final Logger log;
+
     private final PendingAckHandleImpl pendingAckHandle;
 
     public MLPendingAckReplyCallBack(PendingAckHandleImpl pendingAckHandle) {
         this.pendingAckHandle = pendingAckHandle;
+        this.log = LOG.with()
+                .attr("topic", pendingAckHandle.getTopicName())
+                .attr("subscription", pendingAckHandle.getSubName())
+                .attr("state", () -> pendingAckHandle.state)
+                .build();
     }
 
     @Override
     public void replayComplete() {
         pendingAckHandle.getInternalPinnedExecutor().execute(() -> {
-            log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
-                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+            log.info("Pending ack state reply success");
 
             if (pendingAckHandle.changeToReadyState()) {
                 pendingAckHandle.completeHandleFuture();
-                log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+                log.info("Pending ack handle cache request success");
             } else {
-                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail! current state: {}",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName(), pendingAckHandle.state);
+                log.error("Pending ack state reply fail");
                 replayFailed(new BrokerServiceException.ServiceUnitNotReadyException("Failed"
                         + " to change PendingAckHandle state to Ready, current state is : " + pendingAckHandle.state));
             }
@@ -121,6 +125,4 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MLPendingAckReplyCallBack.class);
 }

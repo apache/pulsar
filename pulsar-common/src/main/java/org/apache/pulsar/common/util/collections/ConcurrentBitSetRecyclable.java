@@ -27,8 +27,10 @@ import java.util.BitSet;
 /**
  * Safe multithreaded version of {@code BitSet} and leverage netty recycler.
  */
+@Deprecated
 @EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSetRecyclable extends ConcurrentBitSet {
+    private static final long serialVersionUID = 1L;
 
     private final Handle<ConcurrentBitSetRecyclable> recyclerHandle;
 

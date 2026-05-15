@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -54,13 +54,12 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
  *
  */
+@CustomLog
 public class WebSocketService implements Closeable {
 
     AuthenticationService authenticationService;
@@ -94,8 +93,7 @@ public class WebSocketService implements Closeable {
         this.proxyStats = new ProxyStats(this);
     }
 
-    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
 
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
@@ -126,7 +124,7 @@ public class WebSocketService implements Closeable {
                         .getDeclaredConstructor().newInstance();
                 cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
             } catch (Exception e) {
-                log.info("Failed to initialize crypto-key reader", e);
+                log.info().exception(e).log("Failed to initialize crypto-key reader");
                 throw new PulsarServerException(e);
             }
         }
@@ -185,6 +183,7 @@ public class WebSocketService implements Closeable {
         this.localCluster = clusterData;
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),
@@ -337,6 +336,4 @@ public class WebSocketService implements Closeable {
     public ServiceConfiguration getConfig() {
         return config;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
 }

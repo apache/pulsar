@@ -23,7 +23,7 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
@@ -32,7 +32,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 /**
  * An timer-task implementation of {@link TransactionTimeoutTracker}.
  */
-@Slf4j
+@CustomLog
 public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker, TimerTask {
 
     private final Timer timer;

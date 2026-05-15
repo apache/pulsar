@@ -40,6 +40,7 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,7 +59,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -70,6 +71,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLo
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -106,10 +108,9 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ModularLoadManagerImplTest {
 
@@ -172,7 +173,7 @@ public class ModularLoadManagerImplTest {
         executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         // Start broker 1
@@ -280,18 +281,18 @@ public class ModularLoadManagerImplTest {
         }
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
     private NamespaceBundle makeBundle(final String all) {
-        return makeBundle(all, all, all);
+        return makeBundle(all, all);
     }
 
     private String mockBundleName(final int i) {
-        return String.format("%d/%d/%d/0x00000000_0xffffffff", i, i, i);
+        return String.format("%d/%d/0x00000000_0xffffffff", i, i);
     }
 
     // Test disabled since it's depending on CPU usage in the machine
@@ -333,7 +334,7 @@ public class ModularLoadManagerImplTest {
     // Test disabled since it's depending on CPU usage in the machine
     @Test(enabled = false)
     public void testEvenBundleDistribution() throws Exception {
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", 16);
         int numAssignedToPrimary = 0;
         int numAssignedToSecondary = 0;
         final BundleData bundleData = new BundleData(10, 1000);
@@ -368,8 +369,8 @@ public class ModularLoadManagerImplTest {
         pulsar3.start();
 
         final String tenant = "test";
-        final String cluster = "test";
-        String namespace = tenant + "/" + cluster + "/" + "test";
+        final String cluster = "use";
+        String namespace = tenant + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
@@ -382,7 +383,7 @@ public class ModularLoadManagerImplTest {
 
         String brokerServiceUrl = pulsar1.getBrokerServiceUrl();
         String brokerId = pulsar1.getBrokerId();
-        log.debug("initial broker service url - {}", topicLookup);
+        log.debug().attr("topicLookup", topicLookup).log("initial broker service url");
         Random rand = new Random();
 
         if (topicLookup.equals(brokerServiceUrl)) {
@@ -395,10 +396,12 @@ public class ModularLoadManagerImplTest {
                 brokerServiceUrl = pulsar3.getBrokerServiceUrl();
             }
         }
-        log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerId);
+        log.debug().attr("brokerServiceUrl", brokerServiceUrl).attr("brokerId", brokerId)
+                .log("destination broker service url");
         String leaderBrokerId = admin1.brokers().getLeaderBroker().getBrokerId();
-        log.debug("leader lookup address - {}, broker1 lookup address - {}", leaderBrokerId,
-                pulsar1.getBrokerId());
+        log.debug().attr("leaderBrokerId", leaderBrokerId)
+                .attr("broker1Id", pulsar1.getBrokerId())
+                .log("leader lookup address");
         // Make a call to broker which is not a leader
         if (!leaderBrokerId.equals(pulsar1.getBrokerId())) {
             admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
@@ -408,8 +411,28 @@ public class ModularLoadManagerImplTest {
 
         sleep(2000);
         String topicLookupAfterUnload = admin1.lookups().lookupTopic(topic);
-        log.debug("final broker service url - {}", topicLookupAfterUnload);
+        log.debug().attr("topicLookup", topicLookupAfterUnload).log("final broker service url");
         Assert.assertEquals(brokerServiceUrl, topicLookupAfterUnload);
+    }
+
+    @Test
+    public void testBrokerAffinityLookupUsesFullBundleName() throws Exception {
+        String affinityBroker1 = "affinity-broker-1";
+        String affinityBroker2 = "affinity-broker-2";
+        NamespaceBundle bundle1 = makeBundle("tenant-1", "ns-1");
+        NamespaceBundle bundle2 = makeBundle("tenant-1", "ns-2");
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle1.toString(), affinityBroker1);
+        wrapper.setNamespaceBundleAffinity(bundle2.toString(), affinityBroker2);
+
+        Optional<ResourceUnit> leastLoadedBroker1 = wrapper.getLeastLoaded(bundle1);
+        Optional<ResourceUnit> leastLoadedBroker2 = wrapper.getLeastLoaded(bundle2);
+
+        Assert.assertTrue(leastLoadedBroker1.isPresent());
+        Assert.assertTrue(leastLoadedBroker2.isPresent());
+        Assert.assertEquals(leastLoadedBroker1.get().getResourceId(), affinityBroker1);
+        Assert.assertEquals(leastLoadedBroker2.get().getResourceId(), affinityBroker2);
     }
 
     /**
@@ -428,7 +451,7 @@ public class ModularLoadManagerImplTest {
     public void testMaxTopicDistributionToBroker() throws Exception {
 
         final int totalBundles = 50;
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test",
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test",
                 totalBundles);
         final BundleData bundleData = new BundleData(10, 1000);
         // it sets max topics under this bundle so, owner of this broker reaches max-topic threshold
@@ -468,7 +491,7 @@ public class ModularLoadManagerImplTest {
         // create and configure bundle-data
         final int totalBundles = 5;
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
-                nsFactory, "test", "test", "test", totalBundles);
+                nsFactory, "test", "test", totalBundles);
         LoadData loadData = (LoadData) getField(loadManager, "loadData");
         for (int i = 0; i < totalBundles; i++) {
             final BundleData bundleData = new BundleData(10, 1000);
@@ -772,13 +795,13 @@ public class ModularLoadManagerImplTest {
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
+        admin1.namespaces().createNamespace(tenant + "/" + namespace);
 
         // set a new policy
-        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
+        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s.*\"],\"primary\":[\"%s\"],"
                 + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\","
                 + "\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
-        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 1);
         String newPolicyName = "my-ns-isolation-policies";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
@@ -788,7 +811,7 @@ public class ModularLoadManagerImplTest {
 
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
-        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
+        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerId) {
@@ -828,7 +851,7 @@ public class ModularLoadManagerImplTest {
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
 
-        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 2);
         nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationDataImpl.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
@@ -864,7 +887,7 @@ public class ModularLoadManagerImplTest {
 
         final String cluster = "use";
         final String tenant = "my-tenant";
-        final String namespace = "my-tenant/use/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final String bundle = "0x00000000_0xffffffff";
         final String brokerHost = pulsar1.getAdvertisedAddress();
         final String brokerAddress = brokerHost  + ":8080";
@@ -924,25 +947,32 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
-        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        PulsarService pulsar = new PulsarService(config);
-        // create znode using different zk-session
-        final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
-                + config.getWebServicePort().get();
-        pulsar1.getLocalMetadataStore()
-                .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        // Pre-allocate a port: the test creates a znode at the broker's would-be address before
+        // starting the broker, so it needs to know the address up front.
+        int webPort = PortManager.nextLockedFreePort();
         try {
-            pulsar.start();
-            fail("should have failed");
-        } catch (PulsarServerException e) {
-            //Ok.
-        }
+            config.setWebServicePort(Optional.of(webPort));
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+            config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+            config.setBrokerServicePort(Optional.of(0));
+            PulsarService pulsar = new PulsarService(config);
+            // create znode using different zk-session
+            final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
+                    + config.getWebServicePort().get();
+            pulsar1.getLocalMetadataStore()
+                    .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+            try {
+                pulsar.start();
+                fail("should have failed");
+            } catch (PulsarServerException e) {
+                //Ok.
+            }
 
-        pulsar.close();
+            pulsar.close();
+        } finally {
+            PortManager.releaseLockedPort(webPort);
+        }
     }
 
     @Test
@@ -965,17 +995,12 @@ public class ModularLoadManagerImplTest {
         assertEquals(data.size(), 1);
     }
 
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] {{true}, {false}};
-    }
-
-    @Test(dataProvider = "isV1")
-    public void testBundleDataDefaultValue(boolean isV1) throws Exception {
+    @Test
+    public void testBundleDataDefaultValue() throws Exception {
         final String cluster = "use";
         final String tenant = "my-tenant";
         final String namespace = "my-ns";
-        NamespaceName ns = isV1 ? NamespaceName.get(tenant, cluster, namespace) : NamespaceName.get(tenant, namespace);
+        NamespaceName ns = NamespaceName.get(tenant, namespace);
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
@@ -1067,6 +1092,11 @@ public class ModularLoadManagerImplTest {
         executorService.submit(latch::countDown);
         latch.await();
 
+        // Ensure lm1 has loaded broker data from both brokers before writing bundle data.
+        // Without this, lm1 may only see bundles from one broker, causing fewer than
+        // bundleNumbers bundles to be written to the metadata store.
+        lm1.updateAll();
+
         loadManagerWrapper.writeResourceQuotasToZooKeeper();
 
         MetadataCache<BundleData> bundlesCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
@@ -1124,10 +1154,64 @@ public class ModularLoadManagerImplTest {
 
         // check bundle data should be deleted from metadata store.
 
-        CompletableFuture<List<String>> childrenAfterSplit = bundlesCache.getChildren(bundleDataPath);
-        List<String> bundlesAfterSplit = childrenAfterSplit.join();
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<List<String>> childrenAfterSplit = bundlesCache.getChildren(bundleDataPath);
+            List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
-        assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
+            assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
+        });
+    }
+
+    @Test
+    public void testRepeatSplitBundle() throws Exception {
+        final String cluster = "use";
+        final String tenant = "my-tenant";
+        final String namespace = "repeat-split-bundle";
+        final String topicName = tenant + "/" + namespace + "/" + "topic";
+        int bundleNumbers = 8;
+
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+            .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant(tenant,
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin1.namespaces().createNamespace(tenant + "/" + namespace, bundleNumbers);
+
+        LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
+        LocalBrokerData localData = (LocalBrokerData) getField(primaryLoadManager, "localData");
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl()).build();
+
+        // create a lot of topic to fully distributed among bundles.
+        List<Consumer<?>> consumers = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String topicNameI = topicName + i;
+            admin1.topics().createPartitionedTopic(topicNameI, 20);
+            // trigger bundle assignment
+
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicNameI)
+                .subscriptionName("my-subscriber-name2").subscribe();
+            consumers.add(consumer);
+        }
+
+        String topicToFindBundle = topicName + 0;
+        NamespaceBundle realBundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
+        String bundleKey = realBundle.toString();
+        log.info().attr("bundle", bundleKey).log("Before bundle");
+
+        NamespaceBundleStats stats = new NamespaceBundleStats();
+        stats.msgRateIn = 100000.0;
+        localData.getLastStats().put(bundleKey, stats);
+        pulsar1.getBrokerService().updateRates();
+
+        primaryLoadManager.updateAll();
+
+        primaryLoadManager.updateAll();
+        Assert.assertFalse(loadData.getBundleData().containsKey(bundleKey));
+
+        for (Consumer<?> consumer : consumers) {
+            consumer.close();
+        }
     }
 
 }

@@ -51,7 +51,7 @@ import javax.net.ssl.SSLSession;
 import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
@@ -67,7 +67,8 @@ import org.apache.pulsar.common.stats.CacheMetricsCollector;
  * indicates, this method should only be implemented when using single stage authentication. In the case of this
  * provider, the authentication is multi-stage.
  */
-@Slf4j
+@CustomLog
+@SuppressWarnings("deprecation") // Implements deprecated AuthenticationProvider/AuthenticationState methods
 public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     private Pattern allowedIdsPattern;
@@ -94,20 +95,21 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         try {
             this.allowedIdsPattern = Pattern.compile(allowedIdsPatternRegExp);
         } catch (PatternSyntaxException error) {
-            log.error("Invalid regular expression for id {}", allowedIdsPatternRegExp, error);
+            log.error().attr("value", allowedIdsPatternRegExp).exception(error)
+                    .log("Invalid regular expression for id");
             throw new IOException(error);
         }
 
         loginContextName = config.getSaslJaasServerSectionName();
         if (jaasCredentialsContainer == null) {
-            log.info("JAAS loginContext is: {}.", loginContextName);
+            log.info().attr("value", loginContextName).log("JAAS loginContext is:.");
             try {
                 jaasCredentialsContainer = new JAASCredentialsContainer(
                     loginContextName,
                     new PulsarSaslServer.SaslServerCallbackHandler(allowedIdsPattern),
                     configuration);
             } catch (LoginException e) {
-                log.error("JAAS login in broker failed", e);
+                log.error().exception(e).log("JAAS login in broker failed");
                 throw new IOException(e);
             }
         }
@@ -148,7 +150,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             PulsarSaslServer server = new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
             return new SaslAuthenticationState(server);
         } catch (Throwable t) {
-            log.error("Failed create sasl auth state", t);
+            log.error().exception(t).log("Failed create sasl auth state");
             throw new AuthenticationException(t.getMessage());
         }
     }
@@ -174,12 +176,13 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
         try {
             token = SaslRoleToken.parse(unSigned);
-            if (log.isDebugEnabled()) {
-                log.debug("server side get role token: {}, session in token:{}, session in request:{}",
-                    token, token.getSession(), httpRequest.getRemoteAddr());
-            }
+            log.debug()
+                .attr("token", token)
+                .attr("sessionInToken", token.getSession())
+                .attr("remoteAddr", httpRequest.getRemoteAddr())
+                .log("Server side get role token");
         } catch (Exception e) {
-            log.error("token parse failed, with exception: ",  e);
+            log.error().exception(e).log("token parse failed, with exception: ");
             return SASL_AUTH_ROLE_TOKEN_EXPIRED;
         }
 
@@ -197,10 +200,13 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         SaslRoleToken token = new SaslRoleToken(role, sessionId, expireAtMs);
 
         String signed = signer.sign(token.toString());
-        if (log.isDebugEnabled()) {
-            log.debug("create role token token: {}, role: {} session :{}, expires:{}\nsigned:{}",
-                token, token.getUserRole(), token.getSession(), token.getExpires(), signed);
-        }
+        log.debug()
+            .attr("token", token)
+            .attr("role", token.getUserRole())
+            .attr("session", token.getSession())
+            .attr("expires", token.getExpires())
+            .attr("signed", signed)
+            .log("Created role token");
         return signed;
     }
 
@@ -227,8 +233,9 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         try {
             return authStates.getIfPresent(Long.parseLong(id));
         } catch (NumberFormatException e) {
-            log.error("[{}] Wrong Id String in Token {}. e:", request.getRequestURI(),
-                id, e);
+            log.error().attr("requestURI", request.getRequestURI())
+                    .attr("id", id).exception(e)
+                    .log("Wrong Id String in Token");
             return null;
         }
     }
@@ -253,9 +260,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             if (saslAuthRoleToken.equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED)) {
                 setResponseHeaderState(response, SASL_AUTH_ROLE_TOKEN_EXPIRED);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Role token expired");
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token expired: {}", request.getRequestURI(), saslAuthRoleToken);
-                }
+                    log.debug()
+                        .attr("requestUri", request.getRequestURI())
+                        .attr("roleToken", saslAuthRoleToken)
+                        .log("Server side role token expired");
                 return false;
             }
 
@@ -266,20 +274,18 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 request.setAttribute(AuthenticatedRoleAttributeName, saslAuthRoleToken);
                 request.setAttribute(AuthenticatedDataAttributeName,
                     new AuthenticationDataHttps(request));
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token OK to go on: {}", request.getRequestURI(),
-                            saslAuthRoleToken);
-                }
+                    log.debug()
+                        .attr("requestUri", request.getRequestURI())
+                        .attr("roleToken", saslAuthRoleToken)
+                        .log("Server side role token OK");
                 return true;
             } else {
                 checkState(request.getHeader(SASL_HEADER_STATE).equalsIgnoreCase(SASL_STATE_SERVER_CHECK_TOKEN));
                 setResponseHeaderState(response, SASL_STATE_COMPLETE);
                 response.setHeader(SASL_STATE_SERVER, sanitizeHeaderValue(request.getHeader(SASL_STATE_SERVER)));
                 response.setStatus(HttpServletResponse.SC_OK);
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(),
-                            saslAuthRoleToken);
-                }
+                    log.debug().attr("requestUri", request.getRequestURI())
+                            .log("Server side role token verified success");
                 return false;
             }
         } else {
@@ -299,9 +305,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
             // authentication has completed, it has get the auth role.
             if (state.isComplete()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] SASL server authentication complete, send OK to client.", request.getRequestURI());
-                }
+                    log.debug().attr("requestUri", request.getRequestURI())
+                            .log("SASL server authentication complete, send OK to client");
                 String authRole = state.getAuthRole();
                 String authToken = createAuthRoleToken(authRole, String.valueOf(state.getStateId()));
                 response.setHeader(SASL_AUTH_ROLE_TOKEN, authToken);
@@ -316,10 +321,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 return false;
             } else {
                 // auth not complete
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] SASL server authentication not complete, send {} back to client.",
-                        request.getRequestURI(), HttpServletResponse.SC_UNAUTHORIZED);
-                }
+                log.debug()
+                    .attr("requestUri", request.getRequestURI())
+                    .attr("statusCode", HttpServletResponse.SC_UNAUTHORIZED)
+                    .log("SASL server authentication not complete");
                 setResponseHeaderState(response, SASL_STATE_NEGOTIATE);
                 response.setHeader(SASL_STATE_SERVER, String.valueOf(state.getStateId()));
                 response.setHeader(SASL_AUTH_TOKEN, Base64.getEncoder().encodeToString(brokerData.getBytes()));

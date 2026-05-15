@@ -28,15 +28,14 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests.
  */
+@CustomLog
 public class AuthenticationFilter implements Filter {
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     private final AuthenticationService authenticationService;
 
@@ -60,11 +59,22 @@ public class AuthenticationFilter implements Filter {
         try {
             doFilter = authenticationService.authenticateHttpRequest(httpRequest, httpResponse);
         } catch (Exception e) {
-            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             if (e instanceof AuthenticationException) {
-                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
+                String msg = e.getMessage();
+                if (msg == null) {
+                    msg = "Authentication required";
+                }
+                httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, msg);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("request", msg)
+                        .log("Failed to authenticate HTTP request");
             } else {
-                LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
+                httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+                log.error()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .exception(e)
+                        .log("Error performing authentication for HTTP");
             }
             return;
         }

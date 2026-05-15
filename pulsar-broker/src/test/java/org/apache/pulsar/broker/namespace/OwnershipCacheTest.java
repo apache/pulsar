@@ -125,11 +125,12 @@ public class OwnershipCacheTest {
         assertNotNull(cache.getOwnedBundles());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDisableOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
 
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-1"),
+        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-1"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
@@ -146,7 +147,7 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOrSetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
+        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-2"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         // case 1: no one owns the namespace
@@ -192,7 +193,7 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-3"),
+        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-3"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         // case 1: no one owns the namespace
@@ -228,7 +229,7 @@ public class OwnershipCacheTest {
         assertEquals(data1, readOnlyData);
 
 
-        NamespaceBundle noneBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-none"),
+        NamespaceBundle noneBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-none"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         Optional<NamespaceEphemeralData> res = cache
@@ -239,7 +240,7 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOwnedServiceUnit() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceName testNs = NamespaceName.get("pulsar/test/ns-5");
+        NamespaceName testNs = NamespaceName.get("pulsar/ns-5");
         NamespaceBundle testBundle = new NamespaceBundle(testNs,
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
@@ -299,7 +300,7 @@ public class OwnershipCacheTest {
     @Test
     public void testGetOwnedServiceUnits() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceName testNs = NamespaceName.get("pulsar/test/ns-6");
+        NamespaceName testNs = NamespaceName.get("pulsar/ns-6");
         NamespaceBundle testBundle = new NamespaceBundle(testNs,
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
@@ -345,7 +346,7 @@ public class OwnershipCacheTest {
     @Test
     public void testRemoveOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceName testNs = NamespaceName.get("pulsar/test/ns-7");
+        NamespaceName testNs = NamespaceName.get("pulsar/ns-7");
         NamespaceBundle bundle = new NamespaceBundle(testNs,
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
@@ -371,7 +372,7 @@ public class OwnershipCacheTest {
     @Test
     public void testReestablishOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
-        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-8"),
+        NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-8"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         String testFullBundlePath = ServiceUnitUtils.path(testFullBundle);

@@ -35,7 +35,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 import org.apache.commons.lang3.RandomUtils;
@@ -49,15 +49,14 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.nested.Request;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private static final String BASE_PATH = "/metrics/broker";
@@ -116,6 +115,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
     }
 
     // this is for nar package test
+    @SuppressWarnings("deprecation")
     private void addServletNar() {
         Properties properties = new Properties();
         properties.setProperty("basePath", "/metrics-prometheus/broker");
@@ -130,7 +130,10 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         try {
             handlerPath = Paths.get(testHandlerUrl.toURI());
         } catch (Exception e) {
-            log.error("failed to get handler Path, handlerUrl: {}. Exception: ", testHandlerUrl, e);
+            log.error()
+                    .attr("handlerUrl", testHandlerUrl)
+                    .exception(e)
+                    .log("failed to get handler Path, . Exception");
             return;
         }
         String servletDirectory = handlerPath.toFile().getParent();
@@ -155,7 +158,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             @Override
             public void service(ServletRequest servletRequest, ServletResponse servletResponse)
                     throws ServletException, IOException {
-                log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+                log.info()
+                        .attr("path", ((Request) servletRequest).getOriginalURI())
+                        .log("service]");
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
                 servletResponse.setContentLength(value.getBytes().length);
@@ -177,7 +182,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         AdditionalServlet proxyAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(proxyAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+        Mockito.when(proxyAdditionalServlet.getServletInstance()).thenReturn(servlet);
+        Mockito.when(proxyAdditionalServlet.getServletType()).thenReturn(
+                AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
 
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
@@ -199,10 +206,13 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
-        log.info("proxy service httpPort {}", httpPort);
+        log.info()
+                .attr("httpPort", httpPort)
+                .log("proxy service httpPort");
         String paramValue = "value - " + RandomUtils.nextInt();
         final Map<String, String> headers = new HashMap<>();
         String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue,

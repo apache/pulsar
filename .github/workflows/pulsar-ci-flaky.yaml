@@ -27,7 +27,7 @@ on:
   schedule:
     # scheduled job with JDK 21
     - cron: '0 12 * * *'
-    # scheduled job with JDK 17
+    # scheduled job with JDK 25
     # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -42,9 +42,7 @@ on:
         required: true
         type: choice
         options:
-          - '17'
           - '21'
-          - '24'
           - '25'
         default: '21'
       trace_test_resource_cleanup:
@@ -76,7 +74,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -98,7 +95,7 @@ jobs:
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
@@ -107,9 +104,9 @@ jobs:
       - name: Select JDK major version
         id: jdk_major_version
         run: |
-          # use JDK 17 for the scheduled build with cron expression '0 6 * * *'
+          # use JDK 25 for the scheduled build with cron expression '0 6 * * *'
           if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
-            echo "jdk_major_version=17" >> $GITHUB_OUTPUT
+            echo "jdk_major_version=25" >> $GITHUB_OUTPUT
             exit 0
           fi
           # use JDK 21 for build unless overridden with workflow_dispatch input
@@ -117,7 +114,7 @@ jobs:
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -140,26 +137,18 @@ jobs:
       - name: Check if coverage should be collected
         id: check_coverage
         run: |
-          echo "collect_coverage=${{ 
-          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
-            && (github.base_ref == 'master' || github.ref_name == 'master')) 
+          echo "collect_coverage=${{
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch'
+            && (github.base_ref == 'master' || github.ref_name == 'master'))
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
       - name: Set Netty leak detection mode
         id: netty_leak_detection
         run: |
-          echo "netty_leak_detection=${{ 
+          echo "netty_leak_detection=${{
           github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
           }}" >> $GITHUB_OUTPUT
-
-      - name: Check if the PR has been approved for testing
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
-        env:
-          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          build/pulsar_ci_tool.sh check_ready_to_test
 
   build-and-test:
     needs: preconditions
@@ -167,20 +156,19 @@ jobs:
     env:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
-      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
+      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/build/trace-test-resource-cleanup
       THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
-      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
+      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
-      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -197,94 +185,55 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      - name: Cache local Maven repository
-        uses: actions/cache@v4
-        timeout-minutes: 5
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
-
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Build core-modules
-        run: |
-          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: false
 
       - name: Run unit test group BROKER_FLAKY
         run: |
-          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
+          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./pulsar-build/run_unit_group_gradle.sh BROKER_FLAKY
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh print_thread_dumps
 
-      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+      - name: Aggregate test reports to ./test-reports directory
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
-
-      - name: Publish Test Report
-        uses: apache/pulsar-test-infra/action-junit-report@master
-        if: ${{ always() }}
-        with:
-          report_paths: 'test-reports/TEST-*.xml'
-          annotate_only: 'true'
 
       - name: Report detected thread leaks
         if: ${{ always() }}
         run: |
           if [ -d "$THREAD_LEAK_DETECTOR_DIR" ]; then
             cd "$THREAD_LEAK_DETECTOR_DIR"
-            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'  
+            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
           fi
 
       - name: Report detected Netty leaks
         if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh report_netty_leaks
 
-      - name: Create Jacoco reports
-        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
-        continue-on-error: true
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
-          cd $GITHUB_WORKSPACE/target
-          zip -qr jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report || true
-
-      - name: Upload Jacoco report files to build artifacts
-        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jacoco-coverage-report-flaky
-          path: target/jacoco_test_coverage_report_flaky.zip
-          retention-days: 3
-          if-no-files-found: ignore
-
-      - name: Upload to Codecov
-        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
-        uses: ./.github/actions/upload-coverage
-        continue-on-error: true
-        with:
-          flags: unittests
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Upload Surefire reports
-        uses: actions/upload-artifact@v4
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
-          name: Unit-BROKER_FLAKY-surefire-reports
-          path: surefire-reports
+          name: Unit-BROKER_FLAKY-test-reports
+          path: |
+            test-reports/
+            **/build/reports/tests/
           retention-days: 7
           if-no-files-found: ignore
 
       - name: Upload possible heap dump, core dump or crash files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: Unit-BROKER_FLAKY-dumps
@@ -292,6 +241,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            build/threaddumps/
             ${{ env.NETTY_LEAK_DUMP_DIR }}/*
             ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
             ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*

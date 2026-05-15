@@ -30,6 +30,7 @@ import org.apache.pulsar.common.util.DateFormatter;
  * Consumer statistics.
  */
 @Data
+@SuppressWarnings("deprecation") // Implements deprecated ConsumerStats fields for backward compatibility
 public class ConsumerStatsImpl implements ConsumerStats {
     /** the app id. */
     public String appId;

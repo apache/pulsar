@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -31,7 +31,7 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
-@Slf4j
+@CustomLog
 @Command(name = "gen-doc", description = "Generate documentation automatically.")
 public class CmdGenerateDocumentation extends CmdBase{
 

@@ -21,6 +21,9 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
+import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver;
 import com.fasterxml.jackson.databind.util.EnumResolver;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -96,8 +99,15 @@ public final class FieldParser {
 
         if (to.isEnum()) {
             // Converting string to enum
-            EnumResolver r = EnumResolver.constructUsingToString(
-                ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig(), to);
+            DeserializationConfig deserializationConfig =
+                    ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig();
+            // No replacement API available in Jackson 2.x
+            AnnotatedClass annotatedEnum = AnnotatedClassResolver.resolve(
+                    deserializationConfig,
+                    deserializationConfig.getTypeFactory().constructType(to),
+                    deserializationConfig
+            );
+            EnumResolver r = EnumResolver.constructUsingToString(deserializationConfig, annotatedEnum);
             T value = (T) r.findEnum((String) from);
             if (value == null) {
                 throw new RuntimeException("Invalid value '" + from + "' for enum " + to);
@@ -181,7 +191,9 @@ public final class FieldParser {
                     throw new IllegalArgumentException(format("unsupported non-primitive Optional<%s> for %s",
                             typeClazz.getClass(), field.getName()));
                 }
-                return Optional.ofNullable(convert(strValue, (Class) typeClazz));
+                @SuppressWarnings("unchecked") // typeClazz is verified to be a non-parameterized Class
+                Optional<?> result = Optional.ofNullable(convert(strValue, (Class<?>) typeClazz));
+                return result;
             } else {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
@@ -245,7 +257,7 @@ public final class FieldParser {
         WRAPPER_TYPES.put(boolean.class, Boolean.class);
     }
 
-    /***** --- Converters --- ****/
+    // --- Converters ---
 
     /**
      * Converts String to Integer.

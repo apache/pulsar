@@ -19,12 +19,12 @@
 
 package org.apache.pulsar.tests;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -34,10 +34,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 import org.testng.ITestClass;
@@ -48,8 +47,8 @@ import org.testng.ITestClass;
  * is set to a positive value. A recommended value is 10000 for THREAD_LEAK_DETECTOR_WAIT_MILLIS. This will ensure
  * that any asynchronous operations should have completed before the detector determines that it has found a leak.
  */
+@CustomLog
 public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter implements ISuiteListener {
-    private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
     private static final long WAIT_FOR_THREAD_TERMINATION_MILLIS =
             Long.parseLong(System.getenv().getOrDefault("THREAD_LEAK_DETECTOR_WAIT_MILLIS", "0"));
     private static final File DUMP_DIR =
@@ -59,7 +58,9 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     private static final boolean COLLECT_THREADDUMP =
             Boolean.parseBoolean(System.getenv().getOrDefault("THREAD_LEAK_DETECTOR_COLLECT_THREADDUMP", "true"));
 
-    private Set<ThreadKey> capturedThreadKeys;
+    private static volatile ThreadLeakDetectorListener activeInstance;
+
+    private volatile Set<ThreadKey> capturedThreadKeys;
 
     private static final Field THREAD_TARGET_FIELD;
     static {
@@ -76,8 +77,27 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
 
     @Override
     public void onStart(ISuite suite) {
+        activeInstance = this;
         // capture the initial set of threads
         detectLeakedThreads(Collections.emptyList());
+    }
+
+    /**
+     * Re-captures the current set of threads as the baseline. This should be called after
+     * shared infrastructure (e.g., a JVM-wide singleton cluster) has been fully initialized,
+     * so that its threads are not reported as leaks of the first test class that triggers
+     * the initialization.
+     */
+    public static void resetCapturedThreads() {
+        ThreadLeakDetectorListener listener = activeInstance;
+        if (listener != null) {
+            listener.capturedThreadKeys = Collections.unmodifiableSet(
+                    ThreadUtils.getAllThreads().stream()
+                            .filter(thread -> !shouldSkipThread(thread))
+                            .map(ThreadKey::of)
+                            .collect(Collectors.<ThreadKey, Set<ThreadKey>>toCollection(
+                                    LinkedHashSet::new)));
+        }
     }
 
     @Override
@@ -107,14 +127,14 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     }
 
     private void detectLeakedThreads(List<ITestClass> testClasses) {
-        LOG.info("Capturing identifiers of running threads.");
+        log.info("Capturing identifiers of running threads.");
         MutableBoolean differenceDetected = new MutableBoolean();
         Set<ThreadKey> currentThreadKeys =
                 compareThreads(capturedThreadKeys, testClasses, WAIT_FOR_THREAD_TERMINATION_MILLIS <= 0,
                         differenceDetected, null);
         if (WAIT_FOR_THREAD_TERMINATION_MILLIS > 0 && !testClasses.isEmpty() && differenceDetected.booleanValue()) {
-            LOG.info("Difference detected in active threads. Waiting up to {} ms for threads to terminate.",
-                    WAIT_FOR_THREAD_TERMINATION_MILLIS);
+            log.info().attr("waitMillis", WAIT_FOR_THREAD_TERMINATION_MILLIS)
+                    .log("Difference detected in active threads. Waiting for threads to terminate.");
             long endTime = System.currentTimeMillis() + WAIT_FOR_THREAD_TERMINATION_MILLIS;
             while (System.currentTimeMillis() < endTime) {
                 try {
@@ -141,7 +161,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                             new File(DUMP_DIR, "threadleak" + datetimePart + firstTestClassName + ".txt");
                     out = new PrintWriter(threadleakdumpFile);
                 } catch (IOException e) {
-                    LOG.error("Cannot write thread leak dump", e);
+                    log.error().exception(e).log("Cannot write thread leak dump");
                 }
                 currentThreadKeys = compareThreads(capturedThreadKeys, testClasses, true, null, out);
                 if (out != null) {
@@ -151,10 +171,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                     File threaddumpFile =
                             new File(DUMP_DIR, "threaddump" + datetimePart + firstTestClassName + ".txt");
                     try {
-                        Files.asCharSink(threaddumpFile, Charsets.UTF_8)
+                        Files.asCharSink(threaddumpFile, StandardCharsets.UTF_8)
                                 .write(ThreadDumpUtil.buildThreadDiagnosticString());
                     } catch (IOException e) {
-                        LOG.error("Cannot write thread dump", e);
+                        log.error().exception(e).log("Cannot write thread dump");
                     }
                 }
             }
@@ -183,7 +203,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                                 joinSimpleTestClassNames(testClasses),
                                 threadKey.getThreadId(), threadKey.getThreadName());
                         if (logDifference) {
-                            LOG.warn(message);
+                            log.warn(message);
                         }
                         if (out != null) {
                             out.println(message);
@@ -196,7 +216,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                         "Summary: Tests in class %s created %d new threads. There are now %d threads in total.",
                         joinTestClassNames(testClasses), newThreadsCounter, threadKeys.size());
                 if (logDifference) {
-                    LOG.warn(message);
+                    log.warn(message);
                 }
                 if (out != null) {
                     out.println(message);
@@ -293,7 +313,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         try {
             target = (Runnable) THREAD_TARGET_FIELD.get(thread);
         } catch (IllegalAccessException e) {
-            LOG.warn("Cannot access target field in Thread.class", e);
+            log.warn().exception(e).log("Cannot access target field in Thread.class");
         }
         return target;
     }

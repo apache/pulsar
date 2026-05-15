@@ -33,14 +33,13 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
+@SuppressWarnings("deprecation")
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
-    private final WebTarget adminNonPersistentTopics;
     private final WebTarget adminV2NonPersistentTopics;
 
     public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        adminNonPersistentTopics = web.path("/admin");
         adminV2NonPersistentTopics = web.path("/admin/v2");
     }
 
@@ -138,15 +137,13 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
-        final WebTarget base = namespace.isV2() ? adminV2NonPersistentTopics : adminNonPersistentTopics;
-        WebTarget namespacePath = base.path(domain).path(namespace.toString());
+        WebTarget namespacePath = adminV2NonPersistentTopics.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2NonPersistentTopics : adminNonPersistentTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
+        WebTarget topicPath = adminV2NonPersistentTopics.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;
     }

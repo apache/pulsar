@@ -36,7 +36,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -64,7 +64,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-@Slf4j
+@CustomLog
 public class FunctionsImpl extends ComponentResource implements Functions {
 
     private final WebTarget functions;
@@ -364,8 +364,9 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}",
-                                    path.getUri(), throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -581,6 +582,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         return future;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
@@ -595,12 +597,14 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSources() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSourceClass()))
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSinks() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))

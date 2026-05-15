@@ -33,13 +33,21 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegistryService {
 
     public static SchemaRegistryServiceWithSchemaDataValidator of(SchemaRegistryService service) {
-        return new SchemaRegistryServiceWithSchemaDataValidator(service);
+        return new SchemaRegistryServiceWithSchemaDataValidator(service, false);
+    }
+
+    public static SchemaRegistryServiceWithSchemaDataValidator of(SchemaRegistryService service,
+                                                                   boolean allowLegacyJacksonFormat) {
+        return new SchemaRegistryServiceWithSchemaDataValidator(service, allowLegacyJacksonFormat);
     }
 
     private final SchemaRegistryService service;
+    private final boolean allowLegacyJacksonFormat;
 
-    private SchemaRegistryServiceWithSchemaDataValidator(SchemaRegistryService service) {
+    private SchemaRegistryServiceWithSchemaDataValidator(SchemaRegistryService service,
+                                                         boolean allowLegacyJacksonFormat) {
         this.service = service;
+        this.allowLegacyJacksonFormat = allowLegacyJacksonFormat;
     }
 
     @Override
@@ -89,7 +97,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
                                                               SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         try {
-            SchemaDataValidator.validateSchemaData(schema);
+            SchemaDataValidator.validateSchemaData(schema, allowLegacyJacksonFormat);
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
@@ -115,7 +123,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         try {
-            SchemaDataValidator.validateSchemaData(schema);
+            SchemaDataValidator.validateSchemaData(schema, allowLegacyJacksonFormat);
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
@@ -127,7 +135,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
                                                    SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         try {
-            SchemaDataValidator.validateSchemaData(schema);
+            SchemaDataValidator.validateSchemaData(schema, allowLegacyJacksonFormat);
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
