@@ -231,8 +231,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final CallbackMutex trimmerMutex = new CallbackMutex();
 
     protected final CallbackMutex offloadMutex = new CallbackMutex();
-    public static final CompletableFuture<Position> NULL_OFFLOAD_PROMISE = CompletableFuture
+    // Automatic offload has no caller-visible future. Coalesce concurrent automatic triggers into at most one
+    // running offload and one follow-up run.
+    private final AtomicBoolean automaticOffloadInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean automaticOffloadRerunRequested = new AtomicBoolean(false);
+    // Identity sentinel for automatic offload requests. The completed Position value is not used.
+    public static final CompletableFuture<Position> AUTOMATIC_OFFLOAD_TRIGGER = CompletableFuture
             .completedFuture(PositionFactory.LATEST);
+
+    private enum OffloadRequestSource {
+        AUTOMATIC,
+        EXPLICIT
+    }
+
     @VisibleForTesting
     @Getter
     protected volatile LedgerHandle currentLedger;
@@ -1968,7 +1979,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
-        maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+        maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
 
         createLedgerAfterClosed();
     }
@@ -2804,22 +2815,66 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void maybeOffloadInBackground(CompletableFuture<Position> promise) {
-        if (getOffloadPoliciesIfAppendable().isEmpty()) {
+        if (promise == AUTOMATIC_OFFLOAD_TRIGGER) {
+            if (!automaticOffloadInProgress.compareAndSet(false, true)) {
+                automaticOffloadRerunRequested.set(true);
+                return;
+            }
+            CompletableFuture<Position> automaticOffloadCompletion = new CompletableFuture<>();
+            automaticOffloadCompletion.whenComplete((res, ex) -> finishAutomaticOffload(ex));
+            maybeOffloadInBackground(automaticOffloadCompletion, OffloadRequestSource.AUTOMATIC);
             return;
         }
 
-        final OffloadPolicies policies = config.getLedgerOffloader().getOffloadPolicies();
+        maybeOffloadInBackground(promise, OffloadRequestSource.EXPLICIT);
+    }
+
+    private void maybeOffloadInBackground(CompletableFuture<Position> promise, OffloadRequestSource source) {
+        Optional<Pair<Long, Long>> offloadThresholds = getOffloadThresholds();
+        if (offloadThresholds.isEmpty()) {
+            // Explicit callers keep the previous no-completion behavior. The internal automatic completion must be
+            // finished so automaticOffloadInProgress can be cleared.
+            if (source == OffloadRequestSource.AUTOMATIC) {
+                promise.complete(PositionFactory.LATEST);
+            }
+            return;
+        }
+
+        Pair<Long, Long> thresholds = offloadThresholds.get();
+        executor.execute(() -> maybeOffload(thresholds.getLeft(), thresholds.getRight(), promise,
+                source));
+    }
+
+    private Optional<Pair<Long, Long>> getOffloadThresholds() {
+        Optional<OffloadPolicies> optionalOffloadPolicies = getOffloadPoliciesIfAppendable();
+        if (optionalOffloadPolicies.isEmpty()) {
+            return Optional.empty();
+        }
+
+        final OffloadPolicies policies = optionalOffloadPolicies.get();
         final long offloadThresholdInBytes =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
         final long offloadThresholdInSeconds =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
         if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
-            executor.execute(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise));
+            return Optional.of(Pair.of(offloadThresholdInBytes, offloadThresholdInSeconds));
+        }
+
+        return Optional.empty();
+    }
+
+    private void finishAutomaticOffload(Throwable exception) {
+        if (exception != null) {
+            log.warn().exception(exception).log("Failed to automatically offload ledgers");
+        }
+        automaticOffloadInProgress.set(false);
+        if (automaticOffloadRerunRequested.getAndSet(false)) {
+            maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
         }
     }
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
-                              CompletableFuture<Position> finalPromise) {
+                              CompletableFuture<Position> finalPromise, OffloadRequestSource source) {
         if (getOffloadPoliciesIfAppendable().isEmpty()) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
@@ -2834,7 +2889,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(() -> maybeOffloadInBackground(finalPromise),
+            scheduledExecutor.schedule(() -> maybeOffloadInBackground(finalPromise, source),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -2926,12 +2981,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private Optional<OffloadPolicies> getOffloadPoliciesIfAppendable() {
         LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
-        if (ledgerOffloader == null
-                || !ledgerOffloader.isAppendable()
-                || ledgerOffloader.getOffloadPolicies() == null) {
+        if (ledgerOffloader == null || !ledgerOffloader.isAppendable()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(ledgerOffloader.getOffloadPolicies());
+        OffloadPolicies offloadPolicies = ledgerOffloader.getOffloadPolicies();
+        return Optional.ofNullable(offloadPolicies);
     }
 
     @VisibleForTesting
