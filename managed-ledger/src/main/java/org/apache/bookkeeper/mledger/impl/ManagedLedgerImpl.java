@@ -1706,7 +1706,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx) {
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        State state = STATE_UPDATER.get(this);
+        if (state == State.Terminated) {
+            if (lh != null) {
+                log.warn().attr("rc", rc)
+                        .attr("ledgerId", lh != null ? lh.getId() : -1)
+                        .attr("state", state)
+                        .log("Ledger create completed after the managed ledger is terminated,"
+                                + " so just close this ledger handle");
+                lh.closeAsync();
+            }
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        } else if (state == State.Closed) {
             if (lh != null) {
                 log.warn().attr("rc", rc)
                         .attr("ledgerId", lh != null ? lh.getId() : -1)
@@ -1749,8 +1761,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     synchronized (ManagedLedgerImpl.this) {
                         try {
                             State state = STATE_UPDATER.get(ManagedLedgerImpl.this);
-                            if (state == State.Closed || state.isFenced()) {
-                                log.debug().log("skip ledger update after create complete ledger is closed or fenced");
+                            if (state == State.Closed || state == State.Terminated || state.isFenced()) {
+                                log.debug().attr("state", state)
+                                        .log("skip ledger update after create complete ledger is not writable");
                                 lh.closeAsync().exceptionally(e -> {
                                     if (e != null) {
                                         log.error()
@@ -1760,6 +1773,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     }
                                     return null;
                                 });
+                                if (state == State.Terminated) {
+                                    clearPendingAddEntries(new ManagedLedgerTerminatedException(
+                                            "Managed ledger was already terminated"));
+                                }
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
                                 ledgers.put(lh.getId(), newLedger);
@@ -1861,6 +1878,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected synchronized void updateLedgersIdsComplete(@Nullable LedgerHandle originalCurrentLedger) {
+        State state = STATE_UPDATER.get(this);
+        if (state == State.Terminated) {
+            log.debug().attr("state", state)
+                    .attr("pendingAddEntries", pendingAddEntries.size())
+                    .log("Skip completing ledger switch because managed ledger is terminated");
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        }
         STATE_UPDATER.set(this, State.LedgerOpened);
         // Delete original "currentLedger" if it has been removed from "ledgers".
         if (originalCurrentLedger != null && !ledgers.containsKey(originalCurrentLedger.getId())){
@@ -1996,7 +2021,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     boolean isNeededCreateNewLedgerAfterCloseLedger() {
         final State state = STATE_UPDATER.get(this);
-        if (state != State.CreatingLedger && state != State.LedgerOpened) {
+        if (state != State.CreatingLedger && state != State.LedgerOpened && state != State.Terminated) {
             return true;
         }
         return false;
