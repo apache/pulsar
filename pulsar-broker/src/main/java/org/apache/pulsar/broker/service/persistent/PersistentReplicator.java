@@ -532,11 +532,20 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     private void completeFailedReadTask(Object ctx) {
-        if (ctx instanceof InFlightTask) {
-            InFlightTask inFlightTask = (InFlightTask) ctx;
-            if (inFlightTask.entries == null) {
-                inFlightTask.setEntries(Collections.emptyList());
-            }
+        if (!(ctx instanceof InFlightTask)) {
+            log.error()
+                    .attr("ctx", ctx)
+                    .log("Unexpected read entries failed context");
+            return;
+        }
+
+        InFlightTask inFlightTask = (InFlightTask) ctx;
+        if (inFlightTask.entries == null) {
+            inFlightTask.setEntries(Collections.emptyList());
+        } else {
+            log.error()
+                    .attr("inFlightTask", inFlightTask)
+                    .log("Unexpected completed in-flight task in read entries failed callback");
         }
     }
 
