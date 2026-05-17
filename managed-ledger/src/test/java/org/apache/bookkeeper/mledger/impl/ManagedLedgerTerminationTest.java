@@ -29,10 +29,14 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
+import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -72,6 +76,9 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void terminateDuringLedgerSwitchKeepsTerminatedState() throws Exception {
+        // Regression for terminate racing with a ledger rollover. The new ledger create callback is held until after
+        // terminate wins. The late create callback must not reopen the managed ledger, and the late-created ledger
+        // must be closed/deleted because terminate will not use a future ledger for pending writes.
         BookKeeper spyBookKeeper = spy(bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
@@ -127,10 +134,17 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
             assertEquals(lastPosition, p0);
             assertEquals(ledger.getState(), ManagedLedgerImpl.State.Terminated);
 
-            createCallback.get().createComplete(BKException.Code.OK, createdLedger.get(), createCtx.get());
             assertTrue(addFailed.await(5, TimeUnit.SECONDS));
             assertTrue(addSuccess.get() == null);
             assertTrue(addFailure.get() instanceof ManagedLedgerTerminatedException);
+            assertEquals(ledger.pendingAddEntries.size(), 0);
+
+            long lateCreatedLedgerId = createdLedger.get().getId();
+            assertTrue(bkc.getLedgers().contains(lateCreatedLedgerId));
+            createCallback.get().createComplete(BKException.Code.OK, createdLedger.get(), createCtx.get());
+            assertTrue(((CompletableFuture<?>) createCtx.get()).isDone());
+            assertEquals(ledger.mbean.getPendingBookieOpsStats().dataLedgerCreateOp, 0);
+            Awaitility.await().untilAsserted(() -> assertFalse(bkc.getLedgers().contains(lateCreatedLedgerId)));
             assertEquals(ledger.getState(), ManagedLedgerImpl.State.Terminated);
 
             try {
@@ -152,6 +166,145 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         } finally {
             localFactory.shutdown();
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void terminatePositionIncludesAddAlreadyAckedByBookKeeper() throws Exception {
+        // BK has already acked the add and advanced LAC, but the ML client callback is still queued behind the
+        // managed-ledger executor. terminate must use the BK LAC as its boundary, so the terminated position still
+        // includes this add even though the client callback is delivered after terminate() returns.
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("terminate_includes_acked_add");
+        LedgerHandle originalLedger = ledger.currentLedger;
+        LedgerHandle spyLedger = spy(originalLedger);
+        long ledgerId = originalLedger.getId();
+
+        CountDownLatch addIssued = new CountDownLatch(1);
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        CountDownLatch addCompleted = new CountDownLatch(1);
+        AtomicLong lac = new AtomicLong(-1);
+        AtomicReference<AddCallback> bkAddCallback = new AtomicReference<>();
+        AtomicReference<Object> bkAddCtx = new AtomicReference<>();
+        AtomicReference<Position> addSuccess = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> addFailure = new AtomicReference<>();
+
+        doAnswer(invocation -> {
+            bkAddCallback.set(invocation.getArgument(1));
+            bkAddCtx.set(invocation.getArgument(2));
+            addIssued.countDown();
+            return null;
+        }).when(spyLedger).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+        doAnswer(invocation -> lac.get()).when(spyLedger).getLastAddConfirmed();
+        doAnswer(invocation -> {
+            CloseCallback closeCallback = invocation.getArgument(0);
+            Object closeCtx = invocation.getArgument(1);
+            closeCallback.closeComplete(BKException.Code.OK, spyLedger, closeCtx);
+            return null;
+        }).when(spyLedger).asyncClose(any(CloseCallback.class), any());
+
+        ledger.currentLedger = spyLedger;
+
+        ledger.asyncAddEntry("entry-0".getBytes(), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addSuccess.set(position);
+                addCompleted.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addFailure.set(exception);
+                addCompleted.countDown();
+            }
+        }, null);
+
+        assertTrue(addIssued.await(5, TimeUnit.SECONDS));
+        ledger.getExecutor().execute(() -> {
+            executorBlocked.countDown();
+            try {
+                releaseExecutor.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(executorBlocked.await(5, TimeUnit.SECONDS));
+
+        lac.set(0);
+        bkAddCallback.get().addComplete(BKException.Code.OK, spyLedger, 0, bkAddCtx.get());
+
+        try {
+            Position terminatedPosition = ledger.terminate();
+            assertEquals(terminatedPosition, PositionFactory.create(ledgerId, 0));
+            assertFalse(addCompleted.await(100, TimeUnit.MILLISECONDS));
+        } finally {
+            releaseExecutor.countDown();
+        }
+
+        assertTrue(addCompleted.await(5, TimeUnit.SECONDS));
+        assertEquals(addSuccess.get(), PositionFactory.create(ledgerId, 0));
+        assertTrue(addFailure.get() == null);
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Terminated);
+    }
+
+    @Test(timeOut = 30000)
+    public void terminateFailsInflightAddDrainedByLedgerClose() throws Exception {
+        // BK close drains outstanding adds that have not reached LAC. Those entries are outside the terminated
+        // position, so ML must fail their callbacks as terminated instead of entering the normal write-failure path,
+        // which would return from ledgerClosed() in Terminated state and leave the add callback hanging.
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("terminate_inflight_add_close");
+        LedgerHandle originalLedger = ledger.currentLedger;
+        LedgerHandle spyLedger = spy(originalLedger);
+        long ledgerId = originalLedger.getId();
+
+        CountDownLatch addIssued = new CountDownLatch(1);
+        AtomicReference<AddCallback> bkAddCallback = new AtomicReference<>();
+        AtomicReference<Object> bkAddCtx = new AtomicReference<>();
+
+        doAnswer(invocation -> {
+            bkAddCallback.set(invocation.getArgument(1));
+            bkAddCtx.set(invocation.getArgument(2));
+            addIssued.countDown();
+            return null;
+        }).when(spyLedger).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+
+        doAnswer(invocation -> {
+            CloseCallback closeCallback = invocation.getArgument(0);
+            Object closeCtx = invocation.getArgument(1);
+            bkAddCallback.get().addComplete(BKException.Code.LedgerClosedException, spyLedger, -1, bkAddCtx.get());
+            closeCallback.closeComplete(BKException.Code.OK, spyLedger, closeCtx);
+            return null;
+        }).when(spyLedger).asyncClose(any(CloseCallback.class), any());
+
+        ledger.currentLedger = spyLedger;
+
+        CountDownLatch addFailed = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> addFailure = new AtomicReference<>();
+        AtomicReference<Position> addSuccess = new AtomicReference<>();
+        ledger.asyncAddEntry("entry-0".getBytes(), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addSuccess.set(position);
+                addFailed.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addFailure.set(exception);
+                addFailed.countDown();
+            }
+        }, null);
+
+        assertTrue(addIssued.await(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.pendingAddEntries.size(), 1));
+
+        Position lastPosition = ledger.terminate();
+
+        assertEquals(lastPosition, PositionFactory.create(ledgerId, -1));
+        assertTrue(addFailed.await(5, TimeUnit.SECONDS));
+        assertTrue(addSuccess.get() == null);
+        assertTrue(addFailure.get() instanceof ManagedLedgerTerminatedException);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.pendingAddEntries.size(), 0));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Terminated);
     }
 
     @Test(timeOut = 20000)
