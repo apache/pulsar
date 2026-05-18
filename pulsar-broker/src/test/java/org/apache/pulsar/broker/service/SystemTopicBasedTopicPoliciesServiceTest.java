@@ -110,7 +110,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         CompletableFuture<Void> f = CompletableFuture.completedFuture(null).thenRunAsync(() -> {
             for (int i = 0; i < 100; i++) {
                 TopicPolicyListener listener = new TopicPolicyListenerImpl();
-                systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+                systemTopicBasedTopicPoliciesService.registerListenerAsync(topicName, listener);
                 Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
                 Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
                 systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
@@ -119,7 +119,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         for (int i = 0; i < 100; i++) {
             TopicPolicyListener listener = new TopicPolicyListenerImpl();
-            systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+            systemTopicBasedTopicPoliciesService.registerListenerAsync(topicName, listener);
             Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
             Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
             systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
