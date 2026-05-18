@@ -36,7 +36,7 @@ public class PrometheusTextFormat {
 
     Set<String> metricNameSet = new HashSet<>();
 
-    void writeGauge(Writer w, String name, SimpleGauge<? extends Number> gauge) {
+    public void writeGauge(Writer w, String name, SimpleGauge<? extends Number> gauge) {
         // Example:
         // # TYPE bookie_storage_entries_count gauge
         // bookie_storage_entries_count 519
@@ -50,7 +50,7 @@ public class PrometheusTextFormat {
         }
     }
 
-    void writeCounter(Writer w, String name, LongAdderCounter counter) {
+    public void writeCounter(Writer w, String name, LongAdderCounter counter) {
         // Example:
         // # TYPE jvm_threads_started_total counter
         // jvm_threads_started_total 59
@@ -64,7 +64,7 @@ public class PrometheusTextFormat {
         }
     }
 
-    void writeOpStat(Writer w, String name, DataSketchesOpStatsLogger opStat) {
+    public void writeOpStat(Writer w, String name, DataSketchesOpStatsLogger opStat) {
         // Example:
         // # TYPE bookie_journal_JOURNAL_ADD_ENTRY summary
         // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.5",} NaN
@@ -141,7 +141,7 @@ public class PrometheusTextFormat {
     }
 
     private void writeQuantile(Writer w, DataSketchesOpStatsLogger opStat, String name, Boolean success,
-            double quantile) throws IOException {
+                               double quantile) throws IOException {
         w.append(name)
                 .append("{success=\"").append(success.toString())
                 .append("\",quantile=\"").append(Double.toString(quantile))
@@ -176,7 +176,8 @@ public class PrometheusTextFormat {
                 .append(Double.toString(opStat.getSum(success))).append('\n');
     }
 
-    static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry) throws IOException {
+    public static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry)
+            throws IOException {
         Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
         while (metricFamilySamples.hasMoreElements()) {
             MetricFamilySamples metricFamily = metricFamilySamples.nextElement();

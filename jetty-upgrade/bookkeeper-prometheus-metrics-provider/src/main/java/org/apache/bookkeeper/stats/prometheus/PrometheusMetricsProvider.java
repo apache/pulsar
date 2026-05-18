@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metrics.prometheus.bookkeeper;
+package org.apache.bookkeeper.stats.prometheus;
 
 // CHECKSTYLE.OFF: IllegalImport
 
@@ -47,11 +47,21 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import lombok.Getter;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.stats.ThreadRegistry;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.DataSketchesOpStatsLogger;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.LongAdderCounter;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusServlet;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusStatsLogger;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusTextFormat;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.ScopeContext;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.SimpleGauge;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.ThreadScopedDataSketchesStatsLogger;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.ThreadScopedLongAdderCounter;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -80,16 +90,22 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     final CollectorRegistry registry;
 
+    @Getter
     Server server;
 
     /*
      * These acts a registry of the metrics defined in this provider
      */
+    @Getter
     final ConcurrentMap<ScopeContext, LongAdderCounter> counters = new ConcurrentHashMap<>();
+    @Getter
     final ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>> gauges = new ConcurrentHashMap<>();
+    @Getter
     final ConcurrentMap<ScopeContext, DataSketchesOpStatsLogger> opStats = new ConcurrentHashMap<>();
+    @Getter
     final ConcurrentMap<ScopeContext, ThreadScopedDataSketchesStatsLogger> threadScopedOpStats =
             new ConcurrentHashMap<>();
+    @Getter
     final ConcurrentMap<ScopeContext, ThreadScopedLongAdderCounter> threadScopedCounters =
             new ConcurrentHashMap<>();
 
@@ -133,7 +149,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
             registerMetrics(new GarbageCollectorExports());
             registerMetrics(new ThreadExports());
 
-        // Add direct memory allocated through unsafe
+            // Add direct memory allocated through unsafe
             registerMetrics(Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
                 @Override
                 public double get() {
@@ -203,7 +219,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
     }
 
     @VisibleForTesting
-    void rotateLatencyCollection() {
+    public void rotateLatencyCollection() {
         opStats.forEach((name, metric) -> {
             metric.rotateLatencyCollection();
         });

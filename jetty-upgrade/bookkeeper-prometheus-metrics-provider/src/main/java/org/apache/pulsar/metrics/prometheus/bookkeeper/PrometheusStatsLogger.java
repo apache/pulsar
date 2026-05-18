@@ -26,6 +26,7 @@ import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider;
 
 /**
  * A {@code Prometheus} based {@link StatsLogger} implementation.
@@ -36,7 +37,7 @@ public class PrometheusStatsLogger implements StatsLogger {
     private final String scope;
     private final Map<String, String> labels;
 
-    PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope, Map<String, String> labels) {
+    public PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope, Map<String, String> labels) {
         this.provider = provider;
         this.scope = scope;
         this.labels = labels;
@@ -44,28 +45,28 @@ public class PrometheusStatsLogger implements StatsLogger {
 
     @Override
     public OpStatsLogger getOpStatsLogger(String name) {
-        return provider.opStats.computeIfAbsent(scopeContext(name), x -> new DataSketchesOpStatsLogger(labels));
+        return provider.getOpStats().computeIfAbsent(scopeContext(name), x -> new DataSketchesOpStatsLogger(labels));
     }
 
     @Override
     public OpStatsLogger getThreadScopedOpStatsLogger(String name) {
-        return provider.threadScopedOpStats.computeIfAbsent(scopeContext(name),
+        return provider.getThreadScopedOpStats().computeIfAbsent(scopeContext(name),
                 x -> new ThreadScopedDataSketchesStatsLogger(provider, x, labels));
     }
 
     @Override
     public Counter getCounter(String name) {
-        return provider.counters.computeIfAbsent(scopeContext(name), x -> new LongAdderCounter(labels));
+        return provider.getCounters().computeIfAbsent(scopeContext(name), x -> new LongAdderCounter(labels));
     }
 
     public Counter getThreadScopedCounter(String name) {
-        return provider.threadScopedCounters.computeIfAbsent(scopeContext(name),
+        return provider.getThreadScopedCounters().computeIfAbsent(scopeContext(name),
                 x -> new ThreadScopedLongAdderCounter(provider, x, labels));
     }
 
     @Override
     public <T extends Number> void registerGauge(String name, Gauge<T> gauge) {
-        provider.gauges.computeIfAbsent(scopeContext(name), x -> new SimpleGauge<T>(gauge, labels));
+        provider.getGauges().computeIfAbsent(scopeContext(name), x -> new SimpleGauge<T>(gauge, labels));
     }
 
     @Override

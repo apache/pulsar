@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider;
 import org.testng.annotations.Test;
 
 /**
