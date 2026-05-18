@@ -3131,7 +3131,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     && highestPositionToDelete.compareTo(cursor.getManagedLedger()
                     .getLastConfirmedEntry()) <= 0 && !(!cursor.isDurable() && cursor instanceof NonDurableCursorImpl
                     && ((NonDurableCursorImpl) cursor).isReadCompacted())) {
-                cursor.asyncMarkDelete(highestPositionToDelete, cursor.getProperties(), new MarkDeleteCallback() {
+                cursor.asyncMarkDelete(highestPositionToDelete, null, new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
                     }
