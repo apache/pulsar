@@ -188,7 +188,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         TopicPolicies policies = currentPolicies.map(TopicPolicies::clone).orElseGet(TopicPolicies::new);
         policies.setIsGlobal(isGlobalPolicy);
         policyUpdater.accept(policies);
-        policies.setIsGlobal(isGlobalPolicy);
         return policies;
     }
 
@@ -251,8 +250,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     @VisibleForTesting
     public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesDirectFromStore(TopicName topicName,
                                                                                       boolean isGlobal) {
-        TopicName partitionedTopicName = normalizeTopicName(topicName);
-        String path = pathFor(partitionedTopicName, isGlobal);
+        String path = pathFor(topicName, isGlobal);
         MetadataCache<TopicPolicies> c = cache(isGlobal);
         c.invalidate(path);
         return c.get(path).thenApply(opt -> opt.map(p -> cloneWithScope(p, isGlobal)));
