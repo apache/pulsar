@@ -496,7 +496,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        InFlightTask inFlightTask = (InFlightTask) ctx;
+        completeFailedReadTask(ctx);
         if (state != Started) {
             log.info("[{}] Replicator was disconnected while reading entries."
                             + " Stop reading. Replicator state: {}",
@@ -517,17 +517,30 @@ public abstract class PersistentReplicator extends AbstractReplicator
             terminate();
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
-            inFlightTask.setEntries(Collections.emptyList());
             log.error("[{}] Error reading entries at {}. Retrying to read in {}s. ({})",
                     replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(), exception);
         } else {
-            inFlightTask.setEntries(Collections.emptyList());
             log.debug("[{}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
                     replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
                     exception);
         }
 
         brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
+    }
+
+    private void completeFailedReadTask(Object ctx) {
+        if (!(ctx instanceof InFlightTask)) {
+            log.error("[{}] Unexpected read entries failed context {}", replicatorId, ctx);
+            return;
+        }
+
+        InFlightTask inFlightTask = (InFlightTask) ctx;
+        if (inFlightTask.entries == null) {
+            inFlightTask.setEntries(Collections.emptyList());
+        } else {
+            log.error("[{}] Unexpected completed in-flight task in read entries failed callback. inFlightTask={}",
+                    replicatorId, inFlightTask);
+        }
     }
 
     public CompletableFuture<Void> clearBacklog() {
