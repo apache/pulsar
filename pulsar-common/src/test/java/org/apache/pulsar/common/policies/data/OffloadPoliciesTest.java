@@ -364,10 +364,11 @@ public class OffloadPoliciesTest {
                 OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
 
         Assert.assertNotNull(offloadPolicies);
-        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
-                Collections.singletonMap("tieredStorageBucketPrefix", "topic-prefix",
-                        "brokerOnly", "broker-value",
-                        "topicOnly", "topic-value"));
+        Map<String, String> expectedConfigs = new HashMap<>();
+        expectedConfigs.put("tieredStorageBucketPrefix", "topic-prefix");
+        expectedConfigs.put("brokerOnly", "broker-value");
+        expectedConfigs.put("topicOnly", "topic-value");
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(), expectedConfigs);
     }
 
     @Test
@@ -383,7 +384,7 @@ public class OffloadPoliciesTest {
 
         Assert.assertNotNull(offloadPolicies);
         assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
-                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+                Collections.singletonMap("tieredStorageBucketPrefix", "broker-prefix"));
     }
 
     @Test
