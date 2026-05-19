@@ -267,6 +267,17 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         try {
             pulsarClient.updateServiceUrl(targetUrl);
             pulsarClient.reloadLookUp();
+            // When recovering to a higher-priority service, the check loop will only probe
+            // indices 0..targetIndex going forward. Any transient state (e.g., PreFail from
+            // a single timed-out probe) at higher indices would become stuck because those
+            // indices are no longer probed. Reset them so they start fresh if a future
+            // failover needs to consider them again.
+            if (targetIndex < currentPulsarServiceIndex) {
+                for (int i = targetIndex + 1; i < pulsarServiceStateArray.length; i++) {
+                    pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
+                    checkCounterArray[i].setValue(0);
+                }
+            }
             currentPulsarServiceIndex = targetIndex;
         } catch (Exception e) {
             log.error().attr("logMsg", logMsg).exception(e).log("Failed to");
