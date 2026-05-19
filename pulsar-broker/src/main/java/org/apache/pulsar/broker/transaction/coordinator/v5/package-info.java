@@ -22,6 +22,6 @@
  * {@code END_TXN} wire commands against the metadata-store-backed
  * {@link org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore}. Replaces the
  * legacy {@code TransactionMetadataStoreService} when
- * {@code transactionCoordinatorV5Enabled} is on.
+ * {@code transactionCoordinatorScalableTopicsEnabled} is on.
  */
 package org.apache.pulsar.broker.transaction.coordinator.v5;

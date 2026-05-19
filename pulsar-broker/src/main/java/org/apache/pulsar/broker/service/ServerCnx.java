@@ -3348,7 +3348,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             service.pulsar().getTransactionCoordinatorV5().handleClientConnect(tcId)
                     .whenComplete((__, e) -> {
                         if (e == null) {
@@ -3429,7 +3429,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             final String v5Owner = getPrincipal();
             service.pulsar().getTransactionCoordinatorV5()
                     .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
@@ -3496,7 +3496,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops.
             writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
@@ -3564,7 +3564,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             service.pulsar().getTransactionCoordinatorV5().endTransaction(txnID, txnAction)
                     .whenComplete((__, e) -> {
                         if (e == null) {
@@ -3892,7 +3892,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops.
             writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,

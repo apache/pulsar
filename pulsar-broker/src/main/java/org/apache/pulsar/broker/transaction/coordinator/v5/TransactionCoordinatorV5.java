@@ -53,7 +53,7 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
  * it keeps the client-side discovery surface unchanged.
  *
  * <p>Wire commands handled (routed by {@code ServerCnx} when
- * {@code transactionCoordinatorV5Enabled} is on):
+ * {@code transactionCoordinatorScalableTopicsEnabled} is on):
  * <ul>
  *   <li>{@code TC_CLIENT_CONNECT} → {@link #handleClientConnect}</li>
  *   <li>{@code NEW_TXN} → {@link #newTransaction}</li>

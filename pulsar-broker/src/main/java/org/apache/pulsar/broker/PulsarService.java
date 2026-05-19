@@ -132,6 +132,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -283,7 +284,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
-    private org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5 transactionCoordinatorV5;
+    private TransactionCoordinatorV5 transactionCoordinatorV5;
     private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
     private HashedWheelTimer transactionTimer;
@@ -1031,9 +1032,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
                         transactionBufferClient, transactionTimer);
 
-                if (config.isTransactionCoordinatorV5Enabled()) {
-                    transactionCoordinatorV5 =
-                            new org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5(this);
+                if (config.isTransactionCoordinatorScalableTopicsEnabled()) {
+                    transactionCoordinatorV5 = new TransactionCoordinatorV5(this);
                 }
 
                 transactionBufferProvider = TransactionBufferProvider

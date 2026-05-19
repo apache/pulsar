@@ -3739,14 +3739,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Enable the PIP-473 metadata-driven v5 transaction coordinator. When true, wire"
-                    + " commands (NEW_TXN / END_TXN / etc.) are served by TransactionCoordinatorV5"
-                    + " instead of the legacy TransactionMetadataStoreService. Requires "
-                    + "transactionCoordinatorEnabled = true. Default off — flip in P5.4 together"
-                    + " with the participant providers (transactionBufferProviderClassName and"
-                    + " transactionPendingAckStoreProviderClassName)."
+            doc = "Enable the metadata-driven transaction coordinator used by scalable topics."
+                    + " When true, wire commands (NEW_TXN / END_TXN / etc.) are served by the"
+                    + " metadata-store-backed coordinator instead of the legacy"
+                    + " TransactionMetadataStoreService. Requires transactionCoordinatorEnabled"
+                    + " = true, and must be enabled together with the scalable-topic transaction"
+                    + " buffer and pending-ack store providers."
     )
-    private boolean transactionCoordinatorV5Enabled = false;
+    private boolean transactionCoordinatorScalableTopicsEnabled = false;
 
     @FieldContext(
         category = CATEGORY_TRANSACTION,
