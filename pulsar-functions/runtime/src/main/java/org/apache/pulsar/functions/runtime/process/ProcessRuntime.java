@@ -242,6 +242,15 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+        if (!isAlive()) {
+            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+            builder.setRunning(false);
+            if (deathException != null && deathException.getMessage() != null) {
+                builder.setFailureException(deathException.getMessage());
+            }
+            retval.complete(builder.build());
+            return retval;
+        }
         ListenableFuture<FunctionStatus> response = stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
                 .getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
