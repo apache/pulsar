@@ -166,11 +166,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         return Optional.empty();
     }
 
-    private static Pair<Set<String>, Set<String>> getIsolationGroup(
+    @VisibleForTesting
+    Pair<Set<String>, Set<String>> getIsolationGroup(
             EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
-        MutablePair<Set<String>, Set<String>> pair = new MutablePair<>();
-        String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
-        if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
+        // Retain compatibility with ZkIsolatedBookieEnsemblePlacementPolicy
+        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(ensemblePlacementPolicyConfig.getPolicyClass())) {
+            MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(Collections.emptySet(), Collections.emptySet());
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
             String primaryIsolationGroupString = ConfigurationStringUtil
                     .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
@@ -178,21 +179,23 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(Sets.newHashSet(primaryIsolationGroupString.split(",")));
-            } else {
-                pair.setLeft(Collections.emptySet());
             }
             if (!secondaryIsolationGroupString.isEmpty()) {
                 pair.setRight(Sets.newHashSet(secondaryIsolationGroupString.split(",")));
-            } else {
-                pair.setRight(Collections.emptySet());
             }
+            return pair;
+        } else {
+            log.info()
+                    .attr("policyClass", ensemblePlacementPolicyConfig.getPolicyClass().getName())
+                    .log("The ensemble placement policy class is not compatible with "
+                            + "IsolatedBookieEnsemblePlacementPolicy, fallback to use defaultIsolationGroups");
+            return defaultIsolationGroups;
         }
-        return pair;
     }
 
     @VisibleForTesting
     Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
-        Pair<Set<String>, Set<String>> isolationGroups) {
+                                                        Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> excludedBookies = new HashSet<>();
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
