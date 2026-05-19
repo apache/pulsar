@@ -264,7 +264,7 @@ public class ServiceConfigurationTest {
         try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
             final ServiceConfiguration fileConfig =
                     PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
-            assertFalse(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertTrue(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
             assertEquals(fileConfig.getBookkeeperClientNumIoThreads(), Runtime.getRuntime().availableProcessors() * 2);
         }
         String confFile = "bookkeeperClientNumIoThreads=1\n"

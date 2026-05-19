@@ -312,11 +312,11 @@ public class BookKeeperClientFactoryImplTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
-        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(false);
         builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
     }
 
     @Test
