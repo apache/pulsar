@@ -3348,6 +3348,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
+        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+            service.pulsar().getTransactionCoordinatorV5().handleClientConnect(tcId)
+                    .whenComplete((__, e) -> {
+                        if (e == null) {
+                            commandSender.sendTcClientConnectResponse(requestId);
+                        } else {
+                            log.error().attr("requestId", requestId).attr("tcId", tcId).exception(e)
+                                    .log("v5 TC client connect failed");
+                            commandSender.sendTcClientConnectResponse(requestId,
+                                    BrokerServiceException.getClientErrorCode(e), e.getMessage());
+                        }
+                    });
+            return;
+        }
+
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
@@ -3414,6 +3429,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
+        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+            final String v5Owner = getPrincipal();
+            service.pulsar().getTransactionCoordinatorV5()
+                    .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
+                    .whenComplete((txnId, e) -> {
+                        if (e == null) {
+                            commandSender.sendNewTxnResponse(requestId, txnId, tcId.getId());
+                        } else {
+                            Throwable cause = handleTxnException(e, BaseCommand.Type.NEW_TXN.name(), requestId);
+                            commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(),
+                                    BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
+                        }
+                    });
+            return;
+        }
+
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         final String owner = getPrincipal();
@@ -3462,6 +3493,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .log("Receive add published partition to txn request " + "from with txnId, topic"));
 
         if (!checkTransactionEnableAndSendError(requestId)) {
+            return;
+        }
+
+        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+            // v5: TC doesn't need pre-registration — participants advertise themselves by writing
+            // /txn/op records when they actually apply ops.
+            writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
             return;
         }
 
@@ -3522,6 +3561,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
         if (!checkTransactionEnableAndSendError(requestId)) {
+            return;
+        }
+
+        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+            service.pulsar().getTransactionCoordinatorV5().endTransaction(txnID, txnAction)
+                    .whenComplete((__, e) -> {
+                        if (e == null) {
+                            commandSender.sendEndTxnResponse(requestId, txnID, txnAction);
+                        } else {
+                            Throwable cause = handleTxnException(e, BaseCommand.Type.END_TXN.name(), requestId);
+                            commandSender.sendEndTxnErrorResponse(requestId, txnID,
+                                    BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
+                        }
+                    });
             return;
         }
 
@@ -3836,6 +3889,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
         if (!checkTransactionEnableAndSendError(requestId)) {
+            return;
+        }
+
+        if (service.getPulsar().getConfig().isTransactionCoordinatorV5Enabled()) {
+            // v5: TC doesn't need pre-registration — participants advertise themselves by writing
+            // /txn/op records when they actually apply ops.
+            writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
             return;
         }
 

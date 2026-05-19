@@ -283,6 +283,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
+    private org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5 transactionCoordinatorV5;
     private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
     private HashedWheelTimer transactionTimer;
@@ -1029,6 +1030,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
                         transactionBufferClient, transactionTimer);
+
+                if (config.isTransactionCoordinatorV5Enabled()) {
+                    transactionCoordinatorV5 =
+                            new org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5(this);
+                }
 
                 transactionBufferProvider = TransactionBufferProvider
                         .newProvider(config.getTransactionBufferProviderClassName());

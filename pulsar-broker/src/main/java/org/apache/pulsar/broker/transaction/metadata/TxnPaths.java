@@ -92,6 +92,21 @@ public final class TxnPaths {
      */
     public static final String IDX_TXN_ABORTED_BY_POSITION = "idx:txn-aborted-by-position";
 
+    /**
+     * Index: list all {@code /txn/op} records for a txn. Key = {@code txnId}. Used by the v5 TC
+     * at end-txn time to enumerate the txn's participants without scanning the whole
+     * {@code /txn/op} namespace.
+     */
+    public static final String IDX_OPS_BY_TXN = "idx:ops-by-txn";
+
+    /** Path prefix for per-tcId txnId-sequence counter documents. */
+    public static final String TXN_TC_SEQ_PREFIX = "/txn/tc-seq";
+
+    /** @return {@code /txn/tc-seq/<tcId>} — the txnId-sequence counter doc for {@code tcId}. */
+    public static String tcSequencePath(long tcId) {
+        return TXN_TC_SEQ_PREFIX + "/" + tcId;
+    }
+
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 
