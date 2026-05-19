@@ -1700,10 +1700,12 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newScalableTopicUpdate(long sessionId, ScalableTopicDAG dag) {
+    public static ByteBuf newScalableTopicUpdate(long sessionId, String resolvedTopicName,
+                                                 ScalableTopicDAG dag) {
         BaseCommand cmd = new BaseCommand().setType(Type.SCALABLE_TOPIC_UPDATE);
         CommandScalableTopicUpdate update = cmd.setScalableTopicUpdate()
-                .setSessionId(sessionId);
+                .setSessionId(sessionId)
+                .setResolvedTopicName(resolvedTopicName);
         update.setDag().copyFrom(dag);
         return serializeWithSize(cmd);
     }

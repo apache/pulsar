@@ -101,12 +101,13 @@ public class CommandsScalableTopicTest {
                 .addParentId(0L);
         dag.addSegmentBroker().setSegmentId(2L).setBrokerUrl("pulsar://broker-a:6650");
 
-        ByteBuf frame = Commands.newScalableTopicUpdate(77L, dag);
+        ByteBuf frame = Commands.newScalableTopicUpdate(77L, "topic://t/n/x", dag);
         BaseCommand cmd = parseFrame(frame);
 
         assertEquals(cmd.getType(), BaseCommand.Type.SCALABLE_TOPIC_UPDATE);
         assertTrue(cmd.hasScalableTopicUpdate());
         assertEquals(cmd.getScalableTopicUpdate().getSessionId(), 77L);
+        assertEquals(cmd.getScalableTopicUpdate().getResolvedTopicName(), "topic://t/n/x");
         assertFalse(cmd.getScalableTopicUpdate().hasError(),
                 "successful update must not carry an error field");
 

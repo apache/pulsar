@@ -32,8 +32,10 @@ import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
 import org.apache.pulsar.common.api.proto.SegmentBrokerAddress;
 import org.apache.pulsar.common.api.proto.SegmentInfoProto;
 import org.apache.pulsar.common.api.proto.SegmentState;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -61,6 +63,9 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     private final BrokerService brokerService;
 
     private final String metadataPath;
+    /** Canonical {@code topic://...} identity returned to the client regardless of the
+     *  input form ({@code topic://}, {@code persistent://}, or short-form). */
+    private final String resolvedTopicName;
     private volatile boolean closed = false;
 
     public DagWatchSession(long sessionId,
@@ -74,6 +79,7 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         this.resources = resources;
         this.brokerService = brokerService;
         this.metadataPath = resources.topicPath(topicName);
+        this.resolvedTopicName = topicName.toScalableTopic().toString();
         this.log = LOG.with().attr("topic", topicName).attr("sessionId", sessionId).build();
     }
 
@@ -85,6 +91,19 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     /**
      * Start the session: load current metadata, set up watch, and return
      * the initial layout response.
+     *
+     * <p>If no scalable metadata exists at the canonical path:
+     * <ul>
+     *   <li>{@code topic://...} input → fail with {@code TopicNotFound} (the scalable
+     *       topic doesn't exist).</li>
+     *   <li>{@code persistent://...} input → build a synthetic layout that wraps the
+     *       existing regular (partitioned or non-partitioned) topic as one or more
+     *       special segments, so V5 clients can operate against the regular topic
+     *       through the scalable surface until the operator migrates it.</li>
+     * </ul>
+     * The metadata-store watch is registered regardless, so a subsequent migration
+     * that writes scalable metadata to the same path will be observed and the
+     * synthetic layout will be transparently replaced with the real DAG.
      */
     public CompletableFuture<ScalableTopicLayoutResponse> start() {
         // Register through the resources-level fan-out so close() can deregister us
@@ -93,12 +112,64 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
 
         return resources.getScalableTopicMetadataAsync(topicName, true)
                 .thenCompose(optMd -> {
-                    if (optMd.isEmpty()) {
-                        return CompletableFuture.failedFuture(
-                                new IllegalStateException("Scalable topic not found: " + topicName));
+                    if (optMd.isPresent()) {
+                        return buildResponse(optMd.get());
                     }
-                    ScalableTopicMetadata metadata = optMd.get();
-                    return buildResponse(metadata);
+                    if (topicName.getDomain() == TopicDomain.persistent) {
+                        return buildSyntheticResponse();
+                    }
+                    return CompletableFuture.failedFuture(
+                            new IllegalStateException("Scalable topic not found: " + topicName));
+                });
+    }
+
+    /**
+     * Build a synthetic layout for a not-yet-migrated regular topic. Each partition
+     * (or the whole topic, for non-partitioned) becomes an active special segment
+     * that wraps the existing {@code persistent://...} topic. The synthetic layout
+     * uses mod-N routing (signalled by all active leaves being special segments)
+     * so V5 producers route the same way v4 producers do.
+     */
+    private CompletableFuture<ScalableTopicLayoutResponse> buildSyntheticResponse() {
+        return brokerService.fetchPartitionedTopicMetadataAsync(topicName)
+                .thenApply(partitionedMd -> {
+                    int partitions = partitionedMd.partitions;
+                    long createdAtMs = System.currentTimeMillis();
+                    Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
+                    if (partitions <= 0) {
+                        // Non-partitioned: one special segment covering the full hash range.
+                        // We're only called when topicName.getDomain() == persistent, so
+                        // toString() is the canonical persistent://t/n/x form.
+                        segments.put(0L, SegmentInfo.activeSpecial(
+                                0L,
+                                HashRange.of(0x0000, 0xFFFF),
+                                topicName.toString(),
+                                /*createdAtEpoch*/ 0L,
+                                createdAtMs));
+                    } else {
+                        // Partitioned: N special segments with equal-width contiguous ranges.
+                        // The ranges are cosmetic — routing for synthetic layouts is mod-N over
+                        // segment_id, derived implicitly by the SDK from "all active leaves are
+                        // special segments".
+                        int width = 0x10000 / partitions;
+                        for (int k = 0; k < partitions; k++) {
+                            int start = k * width;
+                            int end = (k == partitions - 1) ? 0xFFFF : (start + width - 1);
+                            segments.put((long) k, SegmentInfo.activeSpecial(
+                                    k,
+                                    HashRange.of(start, end),
+                                    topicName.getPartition(k).toString(),
+                                    /*createdAtEpoch*/ 0L,
+                                    createdAtMs));
+                        }
+                    }
+                    return new ScalableTopicLayoutResponse(
+                            /*epoch*/ 0L,
+                            segments,
+                            /*segmentBrokerAddresses*/ null,
+                            /*segmentBrokerAddressesTls*/ null,
+                            /*controllerBrokerUrl*/ null,
+                            /*controllerBrokerUrlTls*/ null);
                 });
     }
 
@@ -142,7 +213,10 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         }
         ScalableTopicDAG dag = buildDagProto(response);
         log.info().attr("epoch", response.epoch()).log("Pushing DAG update");
-        cnx.ctx().writeAndFlush(Commands.newScalableTopicUpdate(sessionId, dag));
+        // Always report the canonical topic://... identity so clients that looked up
+        // via persistent://... or short-form know the resolved name.
+        cnx.ctx().writeAndFlush(Commands.newScalableTopicUpdate(
+                sessionId, resolvedTopicName, dag));
     }
 
     private ScalableTopicDAG buildDagProto(ScalableTopicLayoutResponse response) {
@@ -169,6 +243,10 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
             segProto.setCreatedAtMs(seg.createdAtMs());
             if (seg.sealedAtMs() >= 0) {
                 segProto.setSealedAtMs(seg.sealedAtMs());
+            }
+            // Special segments wrap an existing persistent://... topic.
+            if (seg.underlyingTopicName() != null) {
+                segProto.setUnderlyingTopicName(seg.underlyingTopicName());
             }
         }
 

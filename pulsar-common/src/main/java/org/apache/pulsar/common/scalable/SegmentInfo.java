@@ -35,15 +35,23 @@ import java.util.List;
  *       Used for retention-based segment GC and for timestamp-based seek.</li>
  * </ul>
  *
- * @param segmentId      monotonically increasing, unique within the topic
- * @param hashRange      inclusive hash range [start, end]
- * @param state          ACTIVE or SEALED
- * @param parentIds      parent segment IDs in the DAG (empty for initial/root segments)
- * @param childIds       child segment IDs in the DAG (empty for active leaf segments)
- * @param createdAtEpoch DAG epoch when this segment was created
- * @param sealedAtEpoch  DAG epoch when sealed (-1 if still active)
- * @param createdAtMs    wall-clock millis at creation time
- * @param sealedAtMs     wall-clock millis at seal time (-1 if still active)
+ * <p>A segment may be a <i>special segment</i> — one that wraps an existing
+ * {@code persistent://...} topic rather than having its own {@code segment://...} URI.
+ * Special segments appear in the synthetic-layout response returned for a regular
+ * (partitioned or non-partitioned) topic that has not yet been migrated to a scalable
+ * topic. {@code underlyingTopicName} is non-null exactly for special segments.
+ *
+ * @param segmentId          monotonically increasing, unique within the topic
+ * @param hashRange          inclusive hash range [start, end]
+ * @param state              ACTIVE or SEALED
+ * @param parentIds          parent segment IDs in the DAG (empty for initial/root segments)
+ * @param childIds           child segment IDs in the DAG (empty for active leaf segments)
+ * @param createdAtEpoch     DAG epoch when this segment was created
+ * @param sealedAtEpoch      DAG epoch when sealed (-1 if still active)
+ * @param createdAtMs        wall-clock millis at creation time
+ * @param sealedAtMs         wall-clock millis at seal time (-1 if still active)
+ * @param underlyingTopicName for special segments: the underlying persistent://... topic
+ *                            name. {@code null} for regular segments.
  */
 public record SegmentInfo(
         long segmentId,
@@ -54,7 +62,8 @@ public record SegmentInfo(
         long createdAtEpoch,
         long sealedAtEpoch,
         long createdAtMs,
-        long sealedAtMs
+        long sealedAtMs,
+        String underlyingTopicName
 ) {
     public SegmentInfo {
         parentIds = parentIds != null ? List.copyOf(parentIds) : List.of();
@@ -65,32 +74,55 @@ public record SegmentInfo(
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, null);
     }
 
     /** Create a new active segment with the given parent IDs. */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      List<Long> parentIds, long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1);
+                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1, null);
+    }
+
+    /**
+     * Create a new active special segment that wraps the given {@code persistent://...}
+     * topic instead of having its own {@code segment://...} URI. Used by the
+     * synthetic-layout response for not-yet-migrated regular topics.
+     */
+    public static SegmentInfo activeSpecial(long segmentId, HashRange hashRange,
+                                            String underlyingTopicName,
+                                            long createdAtEpoch, long createdAtMs) {
+        return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, underlyingTopicName);
     }
 
     /** Return a sealed copy of this segment with the given child IDs. */
     public SegmentInfo sealed(long sealedAtEpoch, long sealedAtMs, List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.SEALED,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
+                underlyingTopicName);
     }
 
     /** Return a copy with different parent IDs. */
     public SegmentInfo withParentIds(List<Long> parentIds) {
         return new SegmentInfo(segmentId, hashRange, state,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
+                underlyingTopicName);
     }
 
     /** Return a copy with different child IDs. */
     public SegmentInfo withChildIds(List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, state,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
+                underlyingTopicName);
+    }
+
+    /**
+     * True if this is a special segment — one that wraps an existing
+     * {@code persistent://...} topic rather than owning a {@code segment://...} URI.
+     */
+    public boolean isSpecial() {
+        return underlyingTopicName != null;
     }
 
     public boolean isActive() {
