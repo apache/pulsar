@@ -401,8 +401,8 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - async-http-client-2.14.5.jar
-    - async-http-client-netty-utils-2.14.5.jar
+    - async-http-client-2.15.0.jar
+    - async-http-client-netty-utils-2.15.0.jar
  * Jetty
     - jetty-alpn-client-12.1.9.jar
     - jetty-client-12.1.9.jar
