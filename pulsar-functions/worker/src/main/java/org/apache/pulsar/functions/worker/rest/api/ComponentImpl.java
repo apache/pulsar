@@ -1926,7 +1926,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (isNotBlank(functionPkgUrl)) {
             componentPackageFile = getPackageFile(componentType, functionPkgUrl);
         } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
-            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, existingPackagePath)) {
                 throw new IllegalArgumentException("Function Package url is not valid."
                         + "supported url (http/https/file)");
             }
@@ -1935,7 +1935,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             } catch (Exception e) {
                 throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                 + "when getting %s package from %s", e.getMessage(),
-                        ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                        ComponentTypeUtils.toString(componentType), existingPackagePath));
             }
         } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
             componentPackageFile = getPackageFile(componentType, existingPackagePath);
