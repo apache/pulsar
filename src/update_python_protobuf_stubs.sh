@@ -28,8 +28,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 # Create a temporary virtual environment to avoid polluting the global Python environment
 tempvenv=$(mktemp -d /tmp/pulsar-venv.XXXXXX)
-python3 -m venv $tempvenv
-source $tempvenv/bin/activate
+python3 -m venv "$tempvenv"
+source "$tempvenv/bin/activate"
 
 # install the required packages for protobuf and grpc
 echo "Installing grpc-tools $PYTHON_GRPCIO_VERSION..."
@@ -40,7 +40,7 @@ python3 -m grpc_tools.protoc --version
 echo "The compatible matching protobuf package version in Python is prefixed with '6.'"
 echo "Ensure that you are using a compatible version of the protobuf package such as 6.$(python3 -m grpc_tools.protoc --version | awk '{print $2}') (or a matching patch version)."
 
-cd $SCRIPT_DIR/..
+cd "$SCRIPT_DIR/.."
 echo "Generating Python gRPC and Protobuf stubs from the .proto files..."
 
 # Generate Python gRPC and Protobuf stubs from the .proto files
@@ -81,4 +81,4 @@ echo "Python gRPC and Protobuf stubs generated successfully."
 
 # Deactivate and remove the temporary virtual environment
 deactivate
-rm -rf $tempvenv
+rm -rf "$tempvenv"
