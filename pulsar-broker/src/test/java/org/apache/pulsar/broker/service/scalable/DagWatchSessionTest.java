@@ -132,7 +132,7 @@ public class DagWatchSessionTest {
     @Test
     public void testStartBuildsSyntheticLayoutForNonPartitionedPersistentTopic() throws Exception {
         // persistent:// input + no scalable metadata + non-partitioned regular topic
-        // (partitions=0) → synthetic layout with a single active special segment
+        // (partitions=0) → synthetic layout with a single active legacy segment
         // covering [0x0000, 0xFFFF] that wraps the existing persistent:// topic.
         TopicName regular = TopicName.get("persistent://tenant/ns/my-regular");
         String regularPath = "/admin/scalable-topics/tenant/ns/my-regular";
@@ -153,14 +153,14 @@ public class DagWatchSessionTest {
         assertEquals(seg.hashRange().start(), 0x0000);
         assertEquals(seg.hashRange().end(), 0xFFFF);
         assertTrue(seg.isActive());
-        assertTrue(seg.isSpecial(), "non-partitioned regular topic must wrap as a special segment");
-        assertEquals(seg.underlyingTopicName(), "persistent://tenant/ns/my-regular");
+        assertTrue(seg.isLegacy(), "non-partitioned regular topic must wrap as a legacy segment");
+        assertEquals(seg.legacyTopicName(), "persistent://tenant/ns/my-regular");
     }
 
     @Test
     public void testStartBuildsSyntheticLayoutForPartitionedPersistentTopic() throws Exception {
         // persistent:// input + no scalable metadata + 4-partition topic →
-        // synthetic layout with 4 active special segments wrapping each
+        // synthetic layout with 4 active legacy segments wrapping each
         // persistent://...-partition-K and equal-width contiguous hash ranges.
         TopicName regular = TopicName.get("persistent://tenant/ns/my-partitioned");
         String regularPath = "/admin/scalable-topics/tenant/ns/my-partitioned";
@@ -180,8 +180,8 @@ public class DagWatchSessionTest {
             assertNotNull(seg, "missing segment for partition " + k);
             assertEquals(seg.segmentId(), k);
             assertTrue(seg.isActive());
-            assertTrue(seg.isSpecial(), "partition " + k + " must wrap as a special segment");
-            assertEquals(seg.underlyingTopicName(),
+            assertTrue(seg.isLegacy(), "partition " + k + " must wrap as a legacy segment");
+            assertEquals(seg.legacyTopicName(),
                     "persistent://tenant/ns/my-partitioned-partition-" + k);
         }
         // Hash ranges cover [0x0000, 0xFFFF] contiguously and end at 0xFFFF inclusive
@@ -197,13 +197,34 @@ public class DagWatchSessionTest {
     }
 
     @Test
+    public void testStartRejectsIndividualPartitionInput() throws Exception {
+        // A specific partition name must be rejected — the synthetic layout models the
+        // whole partitioned topic, and wrapping a single partition would otherwise
+        // produce nonsensical -partition-K-partition-J underlying names.
+        TopicName partition = TopicName.get("persistent://tenant/ns/my-partitioned-partition-3");
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, partition, cnx, resources, brokerService);
+        CompletableFuture<ScalableTopicLayoutResponse> future = s.start();
+
+        assertTrue(future.isCompletedExceptionally());
+        try {
+            future.get();
+            fail("expected failure");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException, "got: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("individual partition"),
+                    e.getCause().getMessage());
+        }
+    }
+
+    @Test
     public void testSyntheticLayoutPushedToClientCarriesResolvedTopicName() {
         // The synthetic-layout response goes through pushUpdate, which always emits the
         // canonical topic://... identity in resolved_topic_name regardless of input form.
         TopicName regular = TopicName.get("persistent://tenant/ns/my-regular");
         ScalableTopicLayoutResponse response = new ScalableTopicLayoutResponse(
                 0L,
-                Map.of(0L, SegmentInfo.activeSpecial(0L, HashRange.of(0x0000, 0xFFFF),
+                Map.of(0L, SegmentInfo.activeLegacy(0L, HashRange.of(0x0000, 0xFFFF),
                         "persistent://tenant/ns/my-regular", 0L, 12345L)),
                 null, null, null, null);
 
@@ -215,10 +236,10 @@ public class DagWatchSessionTest {
         BaseCommand cmd = parseFrame(captor.getValue());
         assertEquals(cmd.getScalableTopicUpdate().getResolvedTopicName(),
                 "topic://tenant/ns/my-regular");
-        // The special-segment marker round-trips through the wire format.
+        // The legacy-segment marker round-trips through the wire format.
         var seg = cmd.getScalableTopicUpdate().getDag().getSegmentAt(0);
-        assertTrue(seg.hasUnderlyingTopicName());
-        assertEquals(seg.getUnderlyingTopicName(), "persistent://tenant/ns/my-regular");
+        assertTrue(seg.hasLegacyTopicName());
+        assertEquals(seg.getLegacyTopicName(), "persistent://tenant/ns/my-regular");
     }
 
     @Test

@@ -856,13 +856,13 @@ message SegmentInfoProto {
     required uint64 created_at_ms    = 9;
     optional uint64 sealed_at_ms     = 10;
 
-    // Special segment marker. When set, this segment does not have its own
-    // segment://... topic — it wraps the named persistent://... topic instead.
-    // Used by the synthetic-layout response the broker returns for a regular
-    // (partitioned or non-partitioned) topic that has not yet been migrated to
-    // a scalable topic. When absent, the segment URI is computed normally from
-    // the scalable topic name and segment_id (segment://<topic>/<descriptor>).
-    optional string underlying_topic_name = 11;
+    // Legacy-segment marker. When set, this segment is not managed by the scalable-topic
+    // controller and has no segment://... topic of its own — it wraps the named, externally
+    // managed persistent://... topic instead. Used by the synthetic-layout response the
+    // broker returns for a regular (partitioned or non-partitioned) topic that has not yet
+    // been migrated to a scalable topic. When absent, the segment URI is computed normally
+    // from the scalable topic name and segment_id (segment://<topic>/<descriptor>).
+    optional string legacy_topic_name = 11;
 }
 
 message SegmentBrokerAddress {

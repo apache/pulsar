@@ -134,6 +134,27 @@ public class CommandsScalableTopicTest {
     }
 
     @Test
+    public void testNewScalableTopicUpdateWithNullResolvedTopicNameLeavesFieldUnset() {
+        // resolved_topic_name is optional on the wire; a null must serialise cleanly with
+        // the field unset rather than NPE in the lightproto setter.
+        ScalableTopicDAG dag = new ScalableTopicDAG().setEpoch(1L);
+        dag.addSegment()
+                .setSegmentId(0L)
+                .setHashStart(0x0000)
+                .setHashEnd(0xFFFF)
+                .setState(SegmentState.ACTIVE)
+                .setCreatedAtEpoch(0L)
+                .setCreatedAtMs(System.currentTimeMillis());
+
+        ByteBuf frame = Commands.newScalableTopicUpdate(5L, null, dag);
+        BaseCommand cmd = parseFrame(frame);
+
+        assertEquals(cmd.getScalableTopicUpdate().getSessionId(), 5L);
+        assertFalse(cmd.getScalableTopicUpdate().hasResolvedTopicName(),
+                "null resolvedTopicName must leave the optional field unset");
+    }
+
+    @Test
     public void testNewScalableTopicError() {
         ByteBuf frame = Commands.newScalableTopicError(15L, ServerError.TopicNotFound,
                 "Scalable topic not found: topic://t/n/x");

@@ -35,11 +35,12 @@ import java.util.List;
  *       Used for retention-based segment GC and for timestamp-based seek.</li>
  * </ul>
  *
- * <p>A segment may be a <i>special segment</i> — one that wraps an existing
- * {@code persistent://...} topic rather than having its own {@code segment://...} URI.
- * Special segments appear in the synthetic-layout response returned for a regular
- * (partitioned or non-partitioned) topic that has not yet been migrated to a scalable
- * topic. {@code underlyingTopicName} is non-null exactly for special segments.
+ * <p>A segment may be a <i>legacy segment</i> — one that is not managed by the
+ * scalable-topic controller and has no {@code segment://...} URI of its own; instead it
+ * wraps an existing, externally managed {@code persistent://...} topic. Legacy segments
+ * appear in the synthetic-layout response returned for a regular (partitioned or
+ * non-partitioned) topic that has not yet been migrated to a scalable topic.
+ * {@code legacyTopicName} is non-null exactly for legacy segments.
  *
  * @param segmentId          monotonically increasing, unique within the topic
  * @param hashRange          inclusive hash range [start, end]
@@ -50,8 +51,9 @@ import java.util.List;
  * @param sealedAtEpoch      DAG epoch when sealed (-1 if still active)
  * @param createdAtMs        wall-clock millis at creation time
  * @param sealedAtMs         wall-clock millis at seal time (-1 if still active)
- * @param underlyingTopicName for special segments: the underlying persistent://... topic
- *                            name. {@code null} for regular segments.
+ * @param legacyTopicName    for legacy segments: the externally managed
+ *                           {@code persistent://...} topic this segment wraps.
+ *                           {@code null} for regular controller-managed segments.
  */
 public record SegmentInfo(
         long segmentId,
@@ -63,7 +65,7 @@ public record SegmentInfo(
         long sealedAtEpoch,
         long createdAtMs,
         long sealedAtMs,
-        String underlyingTopicName
+        String legacyTopicName
 ) {
     public SegmentInfo {
         parentIds = parentIds != null ? List.copyOf(parentIds) : List.of();
@@ -85,44 +87,45 @@ public record SegmentInfo(
     }
 
     /**
-     * Create a new active special segment that wraps the given {@code persistent://...}
-     * topic instead of having its own {@code segment://...} URI. Used by the
-     * synthetic-layout response for not-yet-migrated regular topics.
+     * Create a new active legacy segment that wraps the given externally managed
+     * {@code persistent://...} topic instead of having its own {@code segment://...} URI.
+     * Used by the synthetic-layout response for not-yet-migrated regular topics.
      */
-    public static SegmentInfo activeSpecial(long segmentId, HashRange hashRange,
-                                            String underlyingTopicName,
-                                            long createdAtEpoch, long createdAtMs) {
+    public static SegmentInfo activeLegacy(long segmentId, HashRange hashRange,
+                                           String legacyTopicName,
+                                           long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, underlyingTopicName);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, legacyTopicName);
     }
 
     /** Return a sealed copy of this segment with the given child IDs. */
     public SegmentInfo sealed(long sealedAtEpoch, long sealedAtMs, List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.SEALED,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                underlyingTopicName);
+                legacyTopicName);
     }
 
     /** Return a copy with different parent IDs. */
     public SegmentInfo withParentIds(List<Long> parentIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                underlyingTopicName);
+                legacyTopicName);
     }
 
     /** Return a copy with different child IDs. */
     public SegmentInfo withChildIds(List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                underlyingTopicName);
+                legacyTopicName);
     }
 
     /**
-     * True if this is a special segment — one that wraps an existing
-     * {@code persistent://...} topic rather than owning a {@code segment://...} URI.
+     * True if this is a legacy segment — one that wraps an existing, externally managed
+     * {@code persistent://...} topic rather than owning a controller-managed
+     * {@code segment://...} URI. An empty {@code legacyTopicName} does not count as legacy.
      */
-    public boolean isSpecial() {
-        return underlyingTopicName != null;
+    public boolean isLegacy() {
+        return legacyTopicName != null && !legacyTopicName.isEmpty();
     }
 
     public boolean isActive() {

@@ -305,12 +305,18 @@ public class TopicName implements ServiceUnitId {
      * regardless of the original input domain. Used to derive the canonical
      * scalable-topic identity for a name the user may have spelled as
      * {@code persistent://...} or short-form.
+     *
+     * <p>Any {@code -partition-K} suffix is stripped, so a partition name like
+     * {@code persistent://t/n/x-partition-3} resolves to the base topic's scalable
+     * identity {@code topic://t/n/x}, not {@code topic://t/n/x-partition-3}.
      */
     public TopicName toScalableTopic() {
         if (domain == TopicDomain.topic) {
             return this;
         }
-        return get(TopicDomain.topic.value() + "://" + getNamespace() + "/" + getEncodedLocalName());
+        TopicName base = isPartitioned() ? get(getPartitionedTopicName()) : this;
+        return get(TopicDomain.topic.value() + "://" + base.getNamespace()
+                + "/" + base.getEncodedLocalName());
     }
 
     /**

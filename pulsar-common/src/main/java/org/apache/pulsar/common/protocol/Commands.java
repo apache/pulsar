@@ -1704,8 +1704,12 @@ public class Commands {
                                                  ScalableTopicDAG dag) {
         BaseCommand cmd = new BaseCommand().setType(Type.SCALABLE_TOPIC_UPDATE);
         CommandScalableTopicUpdate update = cmd.setScalableTopicUpdate()
-                .setSessionId(sessionId)
-                .setResolvedTopicName(resolvedTopicName);
+                .setSessionId(sessionId);
+        // resolved_topic_name is optional on the wire; guard against null because the
+        // lightproto setter would NPE rather than leave the field unset.
+        if (resolvedTopicName != null) {
+            update.setResolvedTopicName(resolvedTopicName);
+        }
         update.setDag().copyFrom(dag);
         return serializeWithSize(cmd);
     }
