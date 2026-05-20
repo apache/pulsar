@@ -1039,12 +1039,9 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
 
-        FunctionMetaData existingMetaData = FunctionMetaData.newBuilder()
-                .setFunctionDetails(createDefaultFunctionDetails())
-                .setPackageLocation(org.apache.pulsar.functions.proto.Function.PackageLocationMetaData.newBuilder()
-                        .setPackagePath(filePackageUrl)
-                        .build())
-                .build();
+        FunctionMetaData existingMetaData = new FunctionMetaData();
+        existingMetaData.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
+        existingMetaData.setPackageLocation().setPackagePath(filePackageUrl);
 
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(existingMetaData);
