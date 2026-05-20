@@ -508,8 +508,11 @@ public class ResendRequestTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message<byte[]> message1 = consumer1.receive();
-        Message<byte[]> message2 = consumer2.receive();
+        // Use timeouts on the initial receives — with a Shared subscription the broker may
+        // dispatch all messages to a single consumer (receiverQueueSize is larger than the
+        // number of messages per partition), and a blocking receive() would hang.
+        Message<byte[]> message1 = consumer1.receive(5000, TimeUnit.MILLISECONDS);
+        Message<byte[]> message2 = consumer2.receive(5000, TimeUnit.MILLISECONDS);
         int messageCount1 = 0;
         int messageCount2 = 0;
         int ackCount1 = 0;
