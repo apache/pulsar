@@ -1028,6 +1028,45 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     }
 
+    @Test
+    public void testUpdateFunctionWithExistingFileUrl() throws IOException {
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        // increment parallelism to avoid 'Update contains no change' exception
+        functionConfig.setParallelism(PARALLELISM + 1);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+
+        FunctionMetaData existingMetaData = FunctionMetaData.newBuilder()
+                .setFunctionDetails(createDefaultFunctionDetails())
+                .setPackageLocation(org.apache.pulsar.functions.proto.Function.PackageLocationMetaData.newBuilder()
+                        .setPackagePath(filePackageUrl)
+                        .build())
+                .build();
+
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(existingMetaData);
+
+        updateFunction(
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
+                null,
+                null,
+                null,
+                functionConfig,
+                null, null);
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
