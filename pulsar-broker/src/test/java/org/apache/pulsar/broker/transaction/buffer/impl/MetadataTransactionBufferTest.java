@@ -29,6 +29,7 @@ import io.netty.buffer.Unpooled;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -36,12 +37,14 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
+import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -248,6 +251,12 @@ public class MetadataTransactionBufferTest {
         // existence of the record matters (it tells recovery this txn is involved on this segment).
         txnStore.appendOp(TxnIds.toKey(openTxn),
                 new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 0L, 0L, null)).get();
+        // An OPEN txn whose only op record is on a *different* segment must not be recovered here.
+        TxnID otherSegmentTxn = new TxnID(2, 2);
+        createOpenHeader(otherSegmentTxn);
+        txnStore.appendOp(TxnIds.toKey(otherSegmentTxn),
+                new TxnOp(TxnOpKind.WRITE, "segment://public/default/topic/0000-ffff-1",
+                        null, 0L, 0L, null)).get();
         txnStore.casSegmentWatermark(SEGMENT,
                 new org.apache.pulsar.broker.transaction.metadata.SegmentWatermark(5, 0),
                 Optional.of(-1L)).get();
@@ -256,7 +265,89 @@ public class MetadataTransactionBufferTest {
         tb.checkIfTBRecoverCompletely().get();
 
         assertThat(tb.getMaxReadPosition()).isEqualTo(PositionFactory.create(5, 0));
+        // Only the same-segment txn is tracked; the other-segment op record isn't recovered here.
         assertThat(tb.getOngoingTxnCount()).isOne();
+        // An OPEN recovery-discovered txn is not in the aborted set.
+        assertThat(tb.isTxnAborted(openTxn, PositionFactory.create(5, 0))).isFalse();
+    }
+
+    @Test
+    public void recoveryDiscoveredAbortedTxns_filteredImmediatelyAfterRecovery() throws Exception {
+        // Regression for the recovery race: txns whose headers are ABORTED and whose only remaining
+        // trace is a leftover /txn/op record — no durable aborted record was ever written (the
+        // previous broker crashed before applyTerminalNow persisted it). isTxnAborted must return
+        // true for every such txn the instant recovery completes. ABORTED recovery entries aren't
+        // watermark-pinned, so any visibility window here would expose the aborted data.
+        //
+        // The race only opens with multiple terminal txns: the first applyTerminalNow runs
+        // synchronously (stateTail was complete) and adds itself, but a second is queued behind the
+        // first's in-flight persist chain. We force exactly that by hanging the first putAbortedTxn,
+        // so the second txn's queued apply cannot run before recovery completes — only the
+        // synchronous hydrate in applyHeaderForRecovery makes it filtered in time.
+
+        TxnID abortedA = new TxnID(7, 42);
+        TxnID abortedB = new TxnID(7, 43);
+        for (TxnID t : new TxnID[] {abortedA, abortedB}) {
+            createOpenHeader(t);
+            abortTxn(t);
+            // Leftover op record on this segment; no putAbortedTxn — durable aborted record is gone.
+            txnStore.appendOp(TxnIds.toKey(t),
+                    new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 0L, 0L, null)).get();
+        }
+
+        // Spy the store and hang the first persisted-aborted-record write so its apply chain stays
+        // in flight, blocking any txn queued behind it on stateTail.
+        TxnMetadataStore spied = org.mockito.Mockito.spy(txnStore);
+        CompletableFuture<Stat> firstPut = new CompletableFuture<>();
+        java.util.concurrent.atomic.AtomicBoolean first = new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(inv -> {
+            if (first.getAndSet(false)) {
+                return firstPut;
+            }
+            return inv.callRealMethod();
+        }).when(spied).putAbortedTxn(any(), any(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong());
+
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spied);
+        tb.checkIfTBRecoverCompletely().get();
+
+        // Both must be filtered as of recovery completion — without the synchronous hydrate, the
+        // txn queued behind the hung persist would still read as visible here.
+        assertThat(tb.isTxnAborted(abortedA, PositionFactory.create(10, 0))).isTrue();
+        assertThat(tb.isTxnAborted(abortedB, PositionFactory.create(10, 0))).isTrue();
+
+        // Release the hung write so the apply chain can drain cleanly.
+        firstPut.complete(null);
+    }
+
+    @Test
+    public void recoveryDiscoveredAbortedTxn_persistsAbortedRecordAtSegmentLac() throws Exception {
+        // Regression for the prune-key bug: a recovery-discovered aborted txn has unknown
+        // positions, so persistAbortedRecord falls back to the segment LAC — NOT the durable
+        // watermark. The txn's data sits above the watermark, so keying the record on the
+        // watermark would let trim-pruning drop it while the data is still readable.
+        TxnID abortedTxn = new TxnID(8, 99);
+        String txnIdKey = TxnIds.toKey(abortedTxn);
+        createOpenHeader(abortedTxn);
+        abortTxn(abortedTxn);
+        txnStore.appendOp(txnIdKey, new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 0L, 0L, null)).get();
+        // Watermark (5,0) is well below the segment LAC (10,0).
+        txnStore.casSegmentWatermark(SEGMENT,
+                new org.apache.pulsar.broker.transaction.metadata.SegmentWatermark(5, 0),
+                Optional.of(-1L)).get();
+
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        // The aborted record is persisted on stateTail after recovery completes; await it and
+        // assert its stored max position is the LAC (10,0), not the watermark (5,0).
+        Awaitility.await().untilAsserted(() -> {
+            var opt = store.get(TxnPaths.segmentAbortedTxnPath(SEGMENT, txnIdKey)).get();
+            assertThat(opt).isPresent();
+            AbortedTxnRecord rec = TxnMetadataStore.fromJson(opt.get().getValue(), AbortedTxnRecord.class);
+            assertThat(rec.maxLedgerId()).isEqualTo(10L);
+            assertThat(rec.maxEntryId()).isEqualTo(0L);
+        });
     }
 
     @Test

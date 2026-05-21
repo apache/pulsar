@@ -253,6 +253,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             if (state == TxnState.OPEN) {
                 entry.recoveryDiscovered = true;
                 recoveryDiscoveredOpen++;
+            } else if (state == TxnState.ABORTED) {
+                // Hydrate the aborted set now, under the lock, so isTxnAborted is correct the
+                // instant recoveryFuture completes. The terminal apply that would otherwise add
+                // this txn runs later on stateTail (after recovery completes), leaving a window
+                // in which the txn's data — which isn't watermark-pinned, since ABORTED entries
+                // don't set recoveryDiscovered — would read as visible. add() is idempotent with
+                // applyTerminalNow's aborted-set update.
+                abortedTxns.add(txnIdKey);
             }
             txns.put(txnIdKey, entry);
         }
@@ -403,7 +411,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         // Snapshot the entry under the lock — we need its positions / recovery flag to decide
         // what to persist.
         boolean alreadyTerminal;
-        boolean wasRecoveryDiscovered;
         Position lastPos;
         synchronized (lock) {
             TxnEntry entry = txns.get(txnIdKey);
@@ -411,7 +418,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 return CompletableFuture.completedFuture(null);
             }
             alreadyTerminal = entry.state.isTerminal();
-            wasRecoveryDiscovered = entry.recoveryDiscovered;
             lastPos = entry.lastPosition;
             // Mark in-memory now so subsequent appendBufferToTxn for this txn fail with TxnConflict.
             if (!alreadyTerminal) {
@@ -427,15 +433,16 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                     abortedTxns.add(txnIdKey);
                 }
                 recomputeMaxReadPositionLocked();
-            } else if (newState == TxnState.ABORTED && abortedTxns.add(txnIdKey)) {
-                // Idempotent path — header re-confirms ABORTED and we hadn't recorded it yet
-                // (e.g. an in-memory rebuild lost the set). Make sure the in-memory set holds it.
+            } else if (newState == TxnState.ABORTED) {
+                // Idempotent path — header re-confirms ABORTED. Make sure the in-memory set holds
+                // it (e.g. after an in-memory rebuild that lost the set).
+                abortedTxns.add(txnIdKey);
             }
         }
 
         // Persist aborted record if this is an abort.
         CompletableFuture<Void> persistAborted = (newState == TxnState.ABORTED)
-                ? persistAbortedRecord(txnIdKey, lastPos, wasRecoveryDiscovered)
+                ? persistAbortedRecord(txnIdKey, lastPos)
                 : CompletableFuture.completedFuture(null);
 
         return persistAborted
@@ -445,25 +452,26 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     /**
      * Write {@code /txn/segment-state/<segment>/aborted/<txnId>} with the txn's max position in
-     * this segment. For recovery-discovered txns we don't know the positions; use the current
-     * watermark as a conservative max (the aborted record's position bound is only used by the
-     * trim-driven pruning, and the worst case is the record sits around longer).
+     * this segment. The stored position is the prune key: trim-driven pruning drops an aborted
+     * record once the segment trims past it, so it must be at least as high as the txn's highest
+     * data position, or the record would be dropped while its data is still readable.
+     *
+     * <p>When the positions are unknown (a recovery-discovered txn with no new appends) we fall
+     * back to the current segment LAC. The txn's data was written in a prior epoch, so it cannot
+     * sit above the LAC — that makes the LAC a correct conservative upper bound. The durable
+     * watermark would be wrong here: the txn's data sits <em>above</em> the watermark, so pruning
+     * keyed on the watermark would discard the record too early.
      */
-    private CompletableFuture<Void> persistAbortedRecord(String txnIdKey, Position lastPos,
-                                                        boolean wasRecoveryDiscovered) {
+    private CompletableFuture<Void> persistAbortedRecord(String txnIdKey, Position lastPos) {
         long maxLedger;
         long maxEntry;
         if (lastPos != null) {
             maxLedger = lastPos.getLedgerId();
             maxEntry = lastPos.getEntryId();
         } else {
-            // Unknown positions (recovery-discovered with no new appends) — use the current
-            // watermark as a placeholder. Pruning will drop this record once the segment trims
-            // past that point.
-            synchronized (lock) {
-                maxLedger = watermark == null ? 0L : watermark.ledgerId();
-                maxEntry = watermark == null ? 0L : watermark.entryId();
-            }
+            Position lac = ledger.getLastConfirmedEntry();
+            maxLedger = lac == null ? 0L : lac.getLedgerId();
+            maxEntry = lac == null ? 0L : lac.getEntryId();
         }
         return txnStore.putAbortedTxn(segmentName, txnIdKey, maxLedger, maxEntry).thenApply(s -> null);
     }
@@ -495,13 +503,31 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             toWrite = new SegmentWatermark(desired.getLedgerId(), desired.getEntryId());
             expectedVersion = watermarkVersion;
         }
-        Optional<Long> expected = expectedVersion == -1L ? Optional.of(-1L) : Optional.of(expectedVersion);
+        Optional<Long> expected = Optional.of(expectedVersion);
         return txnStore.casSegmentWatermark(segmentName, toWrite, expected)
                 .thenAccept(stat -> {
                     synchronized (lock) {
                         watermark = toWrite;
                         watermarkVersion = stat.getVersion();
                     }
+                })
+                .exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.BadVersionException) {
+                        // Our in-memory version is stale (a concurrent writer moved the record).
+                        // Re-read so the next enqueued apply CASes against the current version
+                        // instead of looping on the stale one. Still propagate this failure so the
+                        // caller logs+retries; the retry now has a fresh version to work with.
+                        return txnStore.getSegmentWatermark(segmentName).thenAccept(opt -> {
+                            if (opt.isPresent()) {
+                                synchronized (lock) {
+                                    watermark = opt.get().value();
+                                    watermarkVersion = opt.get().version();
+                                }
+                            }
+                        }).thenCompose(__ -> FutureUtil.failedFuture(cause));
+                    }
+                    return FutureUtil.failedFuture(cause);
                 });
     }
 
@@ -552,9 +578,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     public boolean isTxnAborted(TxnID txnID, Position readPosition) {
         String key = TxnIds.toKey(txnID);
         synchronized (lock) {
-            // New semantics (P3.5): below the watermark, default is committed/visible; only txns
-            // explicitly in the aborted set are filtered. The watermark itself caps the
-            // dispatcher, so messages above it never reach this check.
+            // New semantics (P3.5): default is committed/visible; only txns explicitly in the
+            // aborted set are filtered. maxReadPosition caps what the dispatcher delivers — at the
+            // lowest open txn's first write in steady state, or pinned at the watermark while
+            // recovery-discovered opens remain — so reads above that cap don't reach this check.
             return abortedTxns.contains(key);
         }
     }
@@ -568,9 +595,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         synchronized (lock) {
             lastDispatchable = position;
             recomputeMaxReadPositionLocked();
-        }
-        // Persist the new watermark if it advanced as a result of the non-txn append.
-        synchronized (lock) {
+            // Persist the new watermark if it advanced as a result of the non-txn append.
             stateTail = stateTail.thenCompose(__ -> persistWatermarkIfAdvanced())
                     .exceptionally(err -> {
                         log.warn().attr("segment", segmentName).exception(err)
