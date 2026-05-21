@@ -107,6 +107,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.HealthChecker;
+import org.apache.pulsar.broker.service.LegacyAwareTopicPoliciesService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
@@ -754,8 +755,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 } else {
                     log.warn().exception(t).log("Closed with errors");
                 }
-                state = State.Closed;
-                isClosedCondition.signalAll();
+                mutex.lock();
+                try {
+                    state = State.Closed;
+                    isClosedCondition.signalAll();
+                } finally {
+                    mutex.unlock();
+                }
                 return null;
             });
             return closeFuture;
@@ -2288,8 +2294,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 return TopicPoliciesService.DISABLED;
             }
         }
-        return (TopicPoliciesService) Reflections.createInstance(className,
+        final var configuredService = (TopicPoliciesService) Reflections.createInstance(className,
                 Thread.currentThread().getContextClassLoader());
+        if (!config.isSystemTopicEnabled()) {
+            log.info()
+                    .attr("className", className)
+                    .log("System topic is disabled, using configured topic policies service without legacy routing");
+            return configuredService;
+        }
+        return new LegacyAwareTopicPoliciesService(this, new SystemTopicBasedTopicPoliciesService(this),
+                configuredService);
     }
 
     /**

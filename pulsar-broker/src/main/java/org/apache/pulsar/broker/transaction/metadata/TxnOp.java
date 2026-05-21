@@ -24,10 +24,11 @@ import lombok.NoArgsConstructor;
 
 /**
  * Per-write or per-ack operation record. One {@code TxnOp} is appended at
- * {@code /txn-op/&lt;txnId&gt;-&lt;seq&gt;} (with {@code partitionKey = txnId}) every time a
+ * {@code /txn/op/&lt;txnId&gt;-&lt;seq&gt;} (with {@code partitionKey = txnId}) every time a
  * participant applies a transactional operation on a segment.
  *
- * <p>{@link #kind} discriminates writes from acks. {@link #subscription} is set only for acks.
+ * <p>{@link #kind} discriminates writes from acks. {@link #subscription} and {@link #cumulative}
+ * are only set on {@link TxnOpKind#ACK} entries.
  */
 @Data
 @NoArgsConstructor
@@ -48,4 +49,11 @@ public class TxnOp {
 
     /** Managed-ledger entry id of the entry this op refers to. */
     private long entryId;
+
+    /**
+     * For {@link TxnOpKind#ACK} entries only: {@code true} if this is a cumulative ack
+     * (markDelete up-to-and-including the position), {@code false} (or omitted) for individual
+     * acks. Always {@code null} for {@link TxnOpKind#WRITE} entries.
+     */
+    private Boolean cumulative;
 }

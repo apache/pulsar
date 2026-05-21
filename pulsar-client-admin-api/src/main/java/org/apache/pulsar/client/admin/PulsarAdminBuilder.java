@@ -372,7 +372,7 @@ public interface PulsarAdminBuilder {
     /**
      * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified
      * amount of seconds, it will be released back to the connection pool.
-     * Defaults to 25 seconds.
+     * Defaults to 60 seconds.
      *
      * @param connectionMaxIdleSeconds the maximum idle time, in seconds, for a pooled connection
      * @return the PulsarAdminBuilder instance

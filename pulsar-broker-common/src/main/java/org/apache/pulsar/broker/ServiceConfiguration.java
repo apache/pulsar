@@ -1750,8 +1750,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "The class name of the topic policies service. The default config only takes affect when the "
-                    + "systemTopicEnable config is true"
+            doc = """
+                    The class name of the topic policies service. There are 2 built-in implementations:
+                    1. "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService" (default)
+                      It stores a topic's policies in the `__change_events` topic. If `systemTopicEnabled` is false,
+                      the topic policies will just be disabled
+                    2. "org.apache.pulsar.broker.service.MetadataStoreTopicPoliciesService"
+                      It stores a topic's policies in the metadata store. If `systemTopicEnabled` is true and the
+                      topic's namespace has a `__change_events` topic, the policies will still be stored in the
+                      `__change_events` topic for backward compatibility.
+                    """
     )
     private String topicPoliciesServiceClassName =
             "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService";

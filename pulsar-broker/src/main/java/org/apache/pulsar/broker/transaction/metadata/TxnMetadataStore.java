@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -49,6 +50,7 @@ import org.apache.pulsar.metadata.api.Stat;
  * <p>The façade is stateless apart from holding the store reference — index population happens via
  * options on writes, so there is no explicit registration step.
  */
+@CustomLog
 public class TxnMetadataStore {
 
     /** Sequence-keys delta used by all append-only streams in this layout. */
@@ -110,7 +112,7 @@ public class TxnMetadataStore {
     // ---- Op-log append -----------------------------------------------------
 
     /**
-     * Append a {@link TxnOp} under {@code /txn-op/<txnId>-<seq>}. Adds the per-kind secondary-index
+     * Append a {@link TxnOp} under {@code /txn/op/<txnId>-<seq>}. Adds the per-kind secondary-index
      * entry — {@link TxnPaths#IDX_WRITES_BY_SEGMENT} for writes,
      * {@link TxnPaths#IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} for acks. Returns the {@link Stat} whose
      * {@code path} carries the generated sequence key.
@@ -156,14 +158,35 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} write record for {@code (segment, txnId)} — used by the TB once
+     * Delete every {@code /txn/op} write record for {@code (segment, txnId)} — used by the TB once
      * an event tells it the txn is terminal. Path extraction follows the layout in
      * {@link TxnPaths#txnIdFromOpPath}. Best-effort: tolerates concurrent deletions via
      * {@link MetadataStore#deleteIfExists}.
      */
     public CompletableFuture<Void> deleteWriteOpsForSegmentAndTxn(String segment, String txnId) {
+        return scanAndDeleteOpsForTxn(txnId, collector -> listWritesBySegment(segment, collector));
+    }
+
+    /**
+     * Delete every {@code /txn/op} ack record for {@code (segment, subscription, txnId)} — used by
+     * the PendingAckStore once an event tells it the txn is terminal. Same path-extraction +
+     * best-effort semantics as {@link #deleteWriteOpsForSegmentAndTxn}.
+     */
+    public CompletableFuture<Void> deleteAckOpsForSegmentSubscriptionAndTxn(String segment, String subscription,
+                                                                            String txnId) {
+        return scanAndDeleteOpsForTxn(txnId,
+                collector -> listAcksBySegmentSubscription(segment, subscription, collector));
+    }
+
+    /**
+     * Shared implementation: invoke the supplied scan with a collector that captures only paths
+     * matching {@code txnId}, then delete each captured path with the txn-scoped partition key.
+     */
+    private CompletableFuture<Void> scanAndDeleteOpsForTxn(
+            String txnId,
+            java.util.function.Function<ScanConsumer, CompletableFuture<Void>> scan) {
         java.util.List<String> paths = new java.util.ArrayList<>();
-        return listWritesBySegment(segment, new ScanConsumer() {
+        ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(org.apache.pulsar.metadata.api.GetResult r) {
                 if (txnId.equals(TxnPaths.txnIdFromOpPath(r.getStat().getPath()))) {
@@ -173,12 +196,17 @@ public class TxnMetadataStore {
 
             @Override
             public void onError(Throwable throwable) {
+                // The caller observes failure via the scan's returned future; logging here so
+                // the cause is visible alongside the txnId context.
+                log.warn().attr("txnId", txnId).exception(throwable)
+                        .log("Op-record cleanup scan errored");
             }
 
             @Override
             public void onCompleted() {
             }
-        }).thenCompose(__ -> {
+        };
+        return scan.apply(collector).thenCompose(__ -> {
             Set<Option> opts = Set.of(new Option.PartitionKey(txnId));
             CompletableFuture<?>[] deletes = new CompletableFuture<?>[paths.size()];
             for (int i = 0; i < paths.size(); i++) {

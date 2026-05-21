@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -781,6 +782,94 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.readEntries(0);
 
         fail("Should have thrown an exception in the above line");
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseManagedLedgerAfterRollover() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = Mockito.spy(realLedger);
+        AtomicBoolean onlyOnce = new AtomicBoolean(false);
+        when(ledger.currentLedgerIsFull()).thenAnswer(invocation -> onlyOnce.compareAndSet(false, true));
+        OpAddEntry realOp = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
+        OpAddEntry op = spy(realOp);
+        CountDownLatch createLatch = new CountDownLatch(1);
+        CountDownLatch closeLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            // Simulate that before the rollover is completed, new write requests arrive,
+            // and after these write requests are added to pendingAddEntries, the ledger is closed.
+            log.info("before add, ledger state: " + ledger.getState());
+            for (int i = 0; i < 10; ++i) {
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                        ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean()));
+            }
+            ledger.asyncClose(new CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    log.info("closeComplete finished, ledger state: " + ledger.getState());
+                    closeLatch.countDown();
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    log.info("closeFailed, ex: " + exception.getMessage() + ", state: " + ledger.getState());
+                    closeLatch.countDown();
+                }
+            }, null);
+            log.info("after add, ledger state: " + ledger.getState());
+            return invocationOnMock.callRealMethod();
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
+        doAnswer(invocationOnMock -> {
+            Object o = invocationOnMock.callRealMethod();
+            log.info("createComplete finished, state: " + ledger.getState());
+            ledger.executor.execute(createLatch::countDown);
+            return o;
+        }).when(ledger).createComplete(anyInt(), any(), any());
+        ledger.internalAsyncAddEntry(op);
+        createLatch.await();
+        closeLatch.await();
+        Assert.assertEquals(ledger.pendingAddEntries.size(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testFencedManagedLedgerAfterAdd() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory1.open("my_test_ledger");
+        ManagedLedgerImpl ledger = spy(realLedger);
+
+        int sendNum = 10;
+        CountDownLatch sendLatch = new CountDownLatch(sendNum);
+        CountDownLatch fencedLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            stopBookKeeper();
+            stopMetadataStore();
+            for (int i = 0; i < sendNum; ++i) {
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), new AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        sendLatch.countDown();
+                    }
+
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        sendLatch.countDown();
+                    }
+                }, null, new AtomicBoolean()));
+            }
+            Object o = invocationOnMock.callRealMethod();
+            fencedLatch.countDown();
+            return o;
+        }).when(ledger).setFenced();
+        ledger.setFenced();
+        fencedLatch.await();
+        sendLatch.await();
+        assertEquals(ledger.pendingAddEntries.size(), 0);
     }
 
     @Test(timeOut = 20000)
@@ -5320,5 +5409,66 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), expectedProperties);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(0);
+
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties", config);
+        @Cleanup
+        ManagedCursorImpl durableCursor = (ManagedCursorImpl) ledger.openCursor("durableCursor1");
+        @Cleanup
+        NonDurableCursorImpl realNonDurableCursor =
+                (NonDurableCursorImpl) ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+        NonDurableCursorImpl nonDurableCursor = spy(realNonDurableCursor);
+
+        ledger.getCursors().removeCursor(realNonDurableCursor.getName());
+        ledger.getCursors().add(nonDurableCursor, null);
+
+        CountDownLatch advanceCursorsMarkDeleteEnteredLatch = new CountDownLatch(1);
+        CountDownLatch nonDurableCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+        CountDownLatch advanceCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            Map<String, Long> invocationProperties = invocation.getArgument(1);
+            // Pause the advanceCursorsIfNecessary mark-delete so the nonDurableCursor markDelete() can complete first.
+            if (invocationProperties == null || invocationProperties.isEmpty()) {
+                advanceCursorsMarkDeleteEnteredLatch.countDown();
+                assertTrue(nonDurableCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+                try {
+                    return invocation.callRealMethod();
+                } finally {
+                    advanceCursorsMarkDeleteCompletedLatch.countDown();
+                }
+            }
+
+            return invocation.callRealMethod();
+        }).when(nonDurableCursor)
+                .internalAsyncMarkDelete(any(Position.class), nullable(Map.class), any(MarkDeleteCallback.class),
+                        nullable(Object.class), nullable(Runnable.class));
+
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        Position pos2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Mark-delete the durable cursor to trigger trimming, which advances non-durable cursors.
+        durableCursor.markDelete(pos2);
+        assertTrue(advanceCursorsMarkDeleteEnteredLatch.await(5, TimeUnit.SECONDS));
+
+        String propertyKey = "test-property";
+        Map<String, Long> properties = new HashMap<>();
+        properties.put(propertyKey, 1L);
+        nonDurableCursor.markDelete(pos2, properties);
+        nonDurableCursorsMarkDeleteCompletedLatch.countDown();
+
+        assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        assertEquals(nonDurableCursor.getProperties(), properties);
     }
 }

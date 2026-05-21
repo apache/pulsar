@@ -3167,8 +3167,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
+        OffloadPoliciesImpl nsLevelOffloadPolicies = (OffloadPoliciesImpl) policies.offload_policies;
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(null,
+                OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies),
+                pulsar().getConfig().getProperties());
         LedgerOffloader managedLedgerOffloader = pulsar()
-                .getManagedLedgerOffloader(namespaceName, (OffloadPoliciesImpl) policies.offload_policies);
+                .getManagedLedgerOffloader(namespaceName, offloadPolicies);
 
         String localClusterName = pulsar().getConfiguration().getClusterName();
 

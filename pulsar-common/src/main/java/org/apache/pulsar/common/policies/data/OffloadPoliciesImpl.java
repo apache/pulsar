@@ -429,7 +429,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
             for (Field field : CONFIGURATION_FIELDS) {
                 Object object;
-                if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
+                if (field.getName().equals("managedLedgerExtraConfigurations")) {
+                    object = mergeManagedLedgerExtraConfigurations(topicLevelPolicies, nsLevelPolicies,
+                            brokerProperties);
+                } else if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     object = field.get(nsLevelPolicies);
@@ -451,6 +454,28 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         } catch (Exception e) {
             log.error().exception(e).log("Failed to merge configuration.");
             return null;
+        }
+    }
+
+    private static Map<String, String> mergeManagedLedgerExtraConfigurations(OffloadPoliciesImpl topicLevelPolicies,
+                                                                            OffloadPoliciesImpl nsLevelPolicies,
+                                                                            Properties brokerProperties) {
+        Map<String, String> mergedExtraConfigurations = new HashMap<>();
+        putAllExtraConfigurations(mergedExtraConfigurations, getExtraConfigurations(brokerProperties));
+        if (nsLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    nsLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        if (topicLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    topicLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        return mergedExtraConfigurations.isEmpty() ? null : mergedExtraConfigurations;
+    }
+
+    private static void putAllExtraConfigurations(Map<String, String> target, Map<String, String> extraConfigurations) {
+        if (extraConfigurations != null && !extraConfigurations.isEmpty()) {
+            target.putAll(extraConfigurations);
         }
     }
 

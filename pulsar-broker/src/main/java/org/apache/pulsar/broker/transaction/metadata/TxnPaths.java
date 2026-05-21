@@ -23,14 +23,15 @@ import org.apache.pulsar.common.util.Codec;
 /**
  * Path templates and secondary-index names for PIP-473 transaction metadata.
  *
- * <p>Layout (all under the metadata-store root). Sequence-key appends use
- * {@link org.apache.pulsar.metadata.api.Option.SequenceKeysDeltas} with delta {@code [1]} —
- * the store generates a 20-digit zero-padded suffix appended to the prefix with a {@code -}:
+ * <p>All transaction-related metadata lives under the {@code /txn} root, grouped by purpose.
+ * Sequence-key appends use {@link org.apache.pulsar.metadata.api.Option.SequenceKeysDeltas} with
+ * delta {@code [1]} — the store generates a 20-digit zero-padded suffix appended to the prefix
+ * with a {@code -}:
  * <pre>
- *   /txn/&lt;txnId&gt;                                       partitionKey = txnId
- *   /txn-op/&lt;txnId&gt;-&lt;seq&gt;                              partitionKey = txnId
- *   /txn-segment-events/&lt;segment&gt;-&lt;seq&gt;                 partitionKey = segment
- *   /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;      partitionKey = segment:sub
+ *   /txn/id/&lt;txnId&gt;                                       partitionKey = txnId
+ *   /txn/op/&lt;txnId&gt;-&lt;seq&gt;                                     partitionKey = txnId
+ *   /txn/segment-events/&lt;segment&gt;-&lt;seq&gt;                        partitionKey = segment
+ *   /txn/subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;             partitionKey = segment:sub
  * </pre>
  *
  * <p>Secondary indexes (registered on the {@code MetadataStore} at startup):
@@ -46,20 +47,20 @@ import org.apache.pulsar.common.util.Codec;
  */
 public final class TxnPaths {
 
-    /** Path prefix for transaction headers. {@code /txn/<txnId>}. */
-    public static final String TXN_HEADER_PREFIX = "/txn";
+    /** Path prefix for transaction headers. {@code /txn/id/<txnId>}. */
+    public static final String TXN_HEADER_PREFIX = "/txn/id";
 
-    /** Path prefix for transaction op log entries. {@code /txn-op/<txnId>/<seq>}. */
-    public static final String TXN_OP_PREFIX = "/txn-op";
+    /** Path prefix for transaction op log entries. {@code /txn/op/<txnId>-<seq>}. */
+    public static final String TXN_OP_PREFIX = "/txn/op";
 
-    /** Path prefix for per-segment notification events. {@code /txn-segment-events/&lt;segment&gt;-&lt;seq&gt;}. */
-    public static final String TXN_SEGMENT_EVENTS_PREFIX = "/txn-segment-events";
+    /** Path prefix for per-segment notification events. {@code /txn/segment-events/&lt;segment&gt;-&lt;seq&gt;}. */
+    public static final String TXN_SEGMENT_EVENTS_PREFIX = "/txn/segment-events";
 
     /**
      * Path prefix for per-(segment, subscription) notification events.
-     * {@code /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;}.
+     * {@code /txn/subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;}.
      */
-    public static final String TXN_SUBSCRIPTION_EVENTS_PREFIX = "/txn-subscription-events";
+    public static final String TXN_SUBSCRIPTION_EVENTS_PREFIX = "/txn/subscription-events";
 
     /** Index: list write ops by segment. Key = segment. */
     public static final String IDX_WRITES_BY_SEGMENT = "idx:writes-by-segment";
@@ -85,12 +86,12 @@ public final class TxnPaths {
      */
     public static final String MAX_LONG_KEY = "99999999999999999999";
 
-    /** @return {@code /txn/<txnId>} — the header path for {@code txnId}. */
+    /** @return {@code /txn/id/<txnId>} — the header path for {@code txnId}. */
     public static String header(String txnId) {
         return TXN_HEADER_PREFIX + "/" + txnId;
     }
 
-    /** @return {@code /txn-op/<txnId>} — the parent path under which op-log entries are appended. */
+    /** @return {@code /txn/op/<txnId>} — the parent path under which op-log entries are appended. */
     public static String opParent(String txnId) {
         return TXN_OP_PREFIX + "/" + txnId;
     }
@@ -107,13 +108,16 @@ public final class TxnPaths {
         return Codec.encode(segment);
     }
 
-    /** @return {@code /txn-segment-events/<encoded-segment>} — parent path for {@code segment}'s event stream. */
+    /**
+     * @return {@code /txn/segment-events/<encoded-segment>} — parent path for {@code segment}'s
+     *     event stream.
+     */
     public static String segmentEventsParent(String segment) {
         return TXN_SEGMENT_EVENTS_PREFIX + "/" + segmentKey(segment);
     }
 
     /**
-     * @return {@code /txn-subscription-events/<encoded-segment>:<encoded-sub>} — parent for
+     * @return {@code /txn/subscription-events/<encoded-segment>:<encoded-sub>} — parent for
      *     (segment, sub) events. Both components are URL-encoded so the {@code :} separator is
      *     unambiguous (segment names contain {@code :} in their URI scheme).
      */
@@ -142,8 +146,8 @@ public final class TxnPaths {
 
     /**
      * Extract the {@code txnId} key from a path under {@link #TXN_OP_PREFIX}. The path layout is
-     * {@code /txn-op/<txnId>-<paddedSeq>}; txnId itself is {@code <most>-<least>} (one dash), so
-     * the sequence dash is always the last one and the substring before it is the txnId key.
+     * {@code /txn/op/<txnId>-<paddedSeq>}; txnId itself is {@code <most>_<least>}, so the sequence
+     * dash is always the last one and the substring before it is the txnId key.
      *
      * @return the txnId key, or {@code null} if {@code opPath} doesn't have the expected shape
      */

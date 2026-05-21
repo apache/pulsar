@@ -90,7 +90,9 @@ sourceSets["main"].proto { exclude("**/*") }
 // Generate Avro test classes from .avsc schema files
 val avroTools by configurations.creating
 dependencies {
-    avroTools("org.apache.avro:avro-tools:${libs.versions.avro.get()}")
+    avroTools("org.apache.avro:avro-tools:${libs.versions.avro.get()}") {
+        exclude(group = "org.eclipse.jetty", module = "jetty-server")
+    }
 }
 
 val generateTestAvro by tasks.registering(JavaExec::class) {

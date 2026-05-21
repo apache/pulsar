@@ -189,19 +189,19 @@ public class MetadataTransactionBufferTest {
 
         createOpenHeader(openTxn);
         txnStore.appendOp(TxnIds.toKey(openTxn),
-                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 1L)).get();
+                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 1L, null)).get();
         txnStore.appendOp(TxnIds.toKey(openTxn),
-                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 2L)).get();
+                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 2L, null)).get();
 
         txnStore.createHeader(TxnIds.toKey(committedTxn),
                 new TxnHeader(TxnState.COMMITTED, Duration.ofMillis(5000),
                         Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000))).get();
         txnStore.appendOp(TxnIds.toKey(committedTxn),
-                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 3L)).get();
+                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 5L, 3L, null)).get();
 
         createOpenHeader(otherSegTxn);
         txnStore.appendOp(TxnIds.toKey(otherSegTxn),
-                new TxnOp(TxnOpKind.WRITE, "segment://public/default/topic/other-seg", null, 5L, 9L)).get();
+                new TxnOp(TxnOpKind.WRITE, "segment://public/default/topic/other-seg", null, 5L, 9L, null)).get();
 
         MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
         tb.checkIfTBRecoverCompletely().get();
