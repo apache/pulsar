@@ -1022,7 +1022,6 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     @Test
     public void testUpdateFunctionWithExistingFileUrl() throws IOException {
-        Configurator.setRootLevel(Level.DEBUG);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String filePackageUrl = "file://" + fileLocation;
