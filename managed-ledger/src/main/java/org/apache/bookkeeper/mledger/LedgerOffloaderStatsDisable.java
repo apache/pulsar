@@ -59,6 +59,16 @@ public class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
     }
 
     @Override
+    public void recordReadOffloadCacheHit(String topic, long size) {
+
+    }
+
+    @Override
+    public void recordReadOffloadCacheMiss(String topic, long size) {
+
+    }
+
+    @Override
     public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
 
     }
