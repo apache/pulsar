@@ -101,6 +101,18 @@ public final class TxnPaths {
      */
     public static final String MAX_LONG_KEY = "99999999999999999999";
 
+    /**
+     * The minimum {@link #LONG_KEY_WIDTH}-wide decimal — useful as the lower bound of a
+     * range scan that starts at position zero.
+     */
+    public static final String MIN_LONG_KEY = "00000000000000000000";
+
+    /** Suffix selecting the lowest {@code (ledgerId, entryId)} position in a per-segment range. */
+    private static final String MIN_POSITION_SUFFIX = ":" + MIN_LONG_KEY + ":" + MIN_LONG_KEY;
+
+    /** Suffix selecting the highest {@code (ledgerId, entryId)} position in a per-segment range. */
+    private static final String MAX_POSITION_SUFFIX = ":" + MAX_LONG_KEY + ":" + MAX_LONG_KEY;
+
     /** @return {@code /txn/id/<txnId>} — the header path for {@code txnId}. */
     public static String header(String txnId) {
         return TXN_HEADER_PREFIX + "/" + txnId;
@@ -186,12 +198,12 @@ public final class TxnPaths {
 
     /** @return the lower bound of the per-segment range in {@link #IDX_TXN_ABORTED_BY_POSITION}. */
     public static String abortedByPositionSegmentLowerBound(String segment) {
-        return segmentKey(segment) + ":" + longKey(0L) + ":" + longKey(0L);
+        return segmentKey(segment) + MIN_POSITION_SUFFIX;
     }
 
     /** @return the upper bound of the per-segment range in {@link #IDX_TXN_ABORTED_BY_POSITION}. */
     public static String abortedByPositionSegmentUpperBound(String segment) {
-        return segmentKey(segment) + ":" + MAX_LONG_KEY + ":" + MAX_LONG_KEY;
+        return segmentKey(segment) + MAX_POSITION_SUFFIX;
     }
 
     /**
@@ -230,7 +242,16 @@ public final class TxnPaths {
 
     /** @return {@code value} formatted as a zero-padded fixed-width decimal for use as a range-scan index key. */
     public static String longKey(long value) {
-        return String.format("%0" + LONG_KEY_WIDTH + "d", value);
+        // value is always non-negative here (ledger/entry ids, epoch millis), and a long never
+        // exceeds LONG_KEY_WIDTH digits — so build the padded string directly and skip the
+        // String.format overhead on this index-key hot path.
+        char[] buf = new char[LONG_KEY_WIDTH];
+        long v = value;
+        for (int i = LONG_KEY_WIDTH - 1; i >= 0; i--) {
+            buf[i] = (char) ('0' + (int) (v % 10));
+            v /= 10;
+        }
+        return new String(buf);
     }
 
     /** @return the composite final-state index key {@code <state>:padded(finalizedMs)}. */
