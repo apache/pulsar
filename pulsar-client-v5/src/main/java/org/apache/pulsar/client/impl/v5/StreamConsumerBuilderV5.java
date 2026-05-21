@@ -87,7 +87,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
                     client, v5Schema, conf, namespaceName, propertyFilters);
         }
 
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(),
                 topic,

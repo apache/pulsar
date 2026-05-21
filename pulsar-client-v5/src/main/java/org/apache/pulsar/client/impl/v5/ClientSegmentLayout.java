@@ -79,7 +79,11 @@ final class ClientSegmentLayout {
             HashRange range = HashRange.of((int) seg.getHashStart(), (int) seg.getHashEnd());
             String segTopicName = SegmentTopicName.fromParent(
                     parentTopic, range, seg.getSegmentId()).toString();
-            ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName);
+            // Legacy segments (synthetic-layout entries wrapping an existing, externally
+            // managed persistent:// topic) carry that URI. Regular controller-managed
+            // segments leave it null and attach to segTopicName instead.
+            String legacy = seg.hasLegacyTopicName() ? seg.getLegacyTopicName() : null;
+            ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName, legacy);
             if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.ACTIVE) {
                 activeSegments.add(ref);
             } else if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.SEALED) {

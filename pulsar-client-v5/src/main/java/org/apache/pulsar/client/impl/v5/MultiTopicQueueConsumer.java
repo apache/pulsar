@@ -159,7 +159,7 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         if (perTopic.containsKey(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
         // Per-topic message sink: tag each delivered message with the parent scalable
         // topic for ack routing + display, and forward into the shared mux. No pump
