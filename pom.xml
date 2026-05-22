@@ -290,11 +290,9 @@ flexible messaging model and an intuitive client API.</description>
     <jna.version>5.18.1</jna.version>
     <kubernetesclient.version>18.0.0</kubernetesclient.version>
     <jose4j.version>0.9.6</jose4j.version>
-    <okhttp3.version>5.3.1</okhttp3.version>
+    <okhttp3.version>5.3.2</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.16.3</okio.version>
-    <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
-    <kotlin-stdlib.version>1.9.25</kotlin-stdlib.version>
+    <okio.version>3.17.0</okio.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
     <spring.version>6.2.12</spring.version>
@@ -1665,23 +1663,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.squareup.okio</groupId>
         <artifactId>okio</artifactId>
         <version>${okio.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib</artifactId>
-        <version>${kotlin-stdlib.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib-common</artifactId>
-        <version>${kotlin-stdlib.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib-jdk8</artifactId>
-        <version>${kotlin-stdlib.version}</version>
       </dependency>
 
       <dependency>
