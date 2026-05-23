@@ -248,6 +248,53 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testInactiveGeoReplicationProducerKeepsDedupState() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+        ManagedLedger managedLedger = mock(ManagedLedger.class);
+
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, topic, managedLedger);
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        doReturn(PositionFactory.create(0, 0)).when(managedCursor).getMarkDeletedPosition();
+        doReturn(managedCursor).when(messageDeduplication).getManagedCursor();
+
+        Field field = MessageDeduplication.class.getDeclaredField("inactiveProducers");
+        field.setAccessible(true);
+        Map<String, Long> inactiveProducers = (ConcurrentHashMap<String, Long>) field.get(messageDeduplication);
+
+        String replicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        String lastSequenceLIdKey = replicatorProducerName + "_LID";
+        String lastSequenceEIdKey = replicatorProducerName + "_EID";
+        // Geo V2 dedup state tracks the last source position, so it must outlive producer inactivity cleanup.
+        messageDeduplication.highestSequencedPushed.put(lastSequenceLIdKey, 7L);
+        messageDeduplication.highestSequencedPushed.put(lastSequenceEIdKey, 9L);
+        messageDeduplication.highestSequencedPersisted.put(lastSequenceLIdKey, 7L);
+        messageDeduplication.highestSequencedPersisted.put(lastSequenceEIdKey, 9L);
+
+        messageDeduplication.producerRemoved(replicatorProducerName);
+        inactiveProducers.put(replicatorProducerName, System.currentTimeMillis() - 70000);
+
+        messageDeduplication.purgeInactiveProducers();
+
+        assertFalse(inactiveProducers.containsKey(replicatorProducerName));
+        assertEquals(messageDeduplication.highestSequencedPushed.get(lastSequenceLIdKey).longValue(), 7L);
+        assertEquals(messageDeduplication.highestSequencedPushed.get(lastSequenceEIdKey).longValue(), 9L);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get(lastSequenceLIdKey).longValue(), 7L);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get(lastSequenceEIdKey).longValue(), 9L);
+    }
+
+    @Test
     public void testIsDuplicateWithFailure() {
 
         PulsarService pulsarService = mock(PulsarService.class);

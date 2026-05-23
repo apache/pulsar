@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerReplayTask;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -132,6 +133,8 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
+    private static final String REPL_LEDGER_ID_SUFFIX = "_LID";
+    private static final String REPL_ENTRY_ID_SUFFIX = "_EID";
 
     private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
 
@@ -246,7 +249,10 @@ public class MessageDeduplication {
         managedCursor = cursor;
         // Load the sequence ids from the snapshot in the cursor properties
         managedCursor.getProperties().forEach((k, v) -> {
-            producerRemoved(k);
+            // Geo-replication V2 keys are source-position watermarks, not producer lifecycle state.
+            if (!isReplSequenceKey(k)) {
+                producerRemoved(k);
+            }
             highestSequencedPushed.put(k, v);
             highestSequencedPersisted.put(k, v);
         });
@@ -257,6 +263,14 @@ public class MessageDeduplication {
         return replayTask.replay(cursor, (__, buffer) -> {
             final var metadata = Commands.parseMessageMetadata(buffer);
             final var producerName = metadata.getProducerName();
+            // Rebuild geo-replication watermarks from entries written after the last dedup snapshot.
+            String replProducerName = getReplProducerName(metadata);
+            if (replProducerName != null) {
+                long[] replSourcePosition = getReplSourcePosition(metadata, replProducerName);
+                if (replSourcePosition != null) {
+                    recoverMessagePersistedRepl(replProducerName, replSourcePosition[0], replSourcePosition[1]);
+                }
+            }
             final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
             highestSequencedPushed.put(producerName, sequenceId);
             highestSequencedPersisted.put(producerName, sequenceId);
@@ -292,7 +306,7 @@ public class MessageDeduplication {
             return MessageDupStatus.NotDup;
         }
         if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
-            if (!publishContext.supportsReplDedupByLidAndEid()){
+            if (!publishContext.supportsReplDedupByLidAndEid()) {
                 return isDuplicateReplV1(publishContext, headersAndPayload);
             } else {
                 return isDuplicateReplV2(publishContext, headersAndPayload);
@@ -337,34 +351,52 @@ public class MessageDeduplication {
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.readerIndex(readerIndex);
 
-            List<KeyValue> kvPairList = md.getPropertiesList();
-            for (KeyValue kvPair : kvPairList) {
-                if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
-                    if (!kvPair.getValue().contains(":")) {
-                        log.warn()
-                                .attr("producerName", publishContext.getProducerName())
-                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
-                                .attr("value", kvPair.getValue())
-                                .log("Unexpected");
-                        break;
-                    }
-                    String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
-                    if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
-                            || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
-                        log.warn()
-                                .attr("producerName", publishContext.getProducerName())
-                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
-                                .attr("value", kvPair.getValue())
-                                .log("Unexpected");
-                        break;
-                    }
-                    long[] positionPair = new long[]{Long.valueOf(ledgerIdAndEntryId[0]).longValue(),
-                            Long.valueOf(ledgerIdAndEntryId[1]).longValue()};
-                    publishContext.setProperty(MSG_PROP_REPL_SOURCE_POSITION, positionPair);
-                    break;
-                }
+            long[] positionPair = getReplSourcePosition(md, publishContext.getProducerName());
+            if (positionPair != null) {
+                publishContext.setProperty(MSG_PROP_REPL_SOURCE_POSITION, positionPair);
             }
         }
+    }
+
+    private long[] getReplSourcePosition(MessageMetadata md, String producerName) {
+        List<KeyValue> kvPairList = md.getPropertiesList();
+        for (KeyValue kvPair : kvPairList) {
+            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
+                if (!kvPair.getValue().contains(":")) {
+                    log.warn()
+                            .attr("producerName", producerName)
+                            .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                            .attr("value", kvPair.getValue())
+                            .log("Unexpected");
+                    return null;
+                }
+                String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
+                if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
+                        || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
+                    log.warn()
+                            .attr("producerName", producerName)
+                            .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                            .attr("value", kvPair.getValue())
+                            .log("Unexpected");
+                    return null;
+                }
+                return new long[]{Long.valueOf(ledgerIdAndEntryId[0]).longValue(),
+                        Long.valueOf(ledgerIdAndEntryId[1]).longValue()};
+            }
+        }
+        return null;
+    }
+
+    private String getReplProducerName(MessageMetadata md) {
+        if (md.hasReplicatedFrom()) {
+            return AbstractReplicator.getReplicatorName(replicatorPrefix, md.getReplicatedFrom())
+                    + AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER
+                    + pulsar.getConfiguration().getClusterName();
+        }
+        if (Producer.isRemoteOrShadow(md.getProducerName(), replicatorPrefix)) {
+            return md.getProducerName();
+        }
+        return null;
     }
 
     public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
@@ -384,8 +416,8 @@ public class MessageDeduplication {
         long replSequenceLId = positionPair[0];
         long replSequenceEId = positionPair[1];
 
-        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
-        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
+        String lastSequenceLIdKey = publishContext.getProducerName() + REPL_LEDGER_ID_SUFFIX;
+        String lastSequenceEIdKey = publishContext.getProducerName() + REPL_ENTRY_ID_SUFFIX;
         synchronized (highestSequencedPushed) {
             Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
             Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
@@ -526,11 +558,24 @@ public class MessageDeduplication {
         long[] positionPair = (long[]) positionPairObj;
         long replSequenceLId = positionPair[0];
         long replSequenceEId = positionPair[1];
-        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
-        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
+        recordMessagePersistedRepl(publishContext.getProducerName(), replSequenceLId, replSequenceEId);
+        increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
+    }
+
+    private void recordMessagePersistedRepl(String producerName, long replSequenceLId, long replSequenceEId) {
+        String lastSequenceLIdKey = producerName + REPL_LEDGER_ID_SUFFIX;
+        String lastSequenceEIdKey = producerName + REPL_ENTRY_ID_SUFFIX;
         highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
         highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
-        increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
+    }
+
+    private void recoverMessagePersistedRepl(String producerName, long replSequenceLId, long replSequenceEId) {
+        String lastSequenceLIdKey = producerName + REPL_LEDGER_ID_SUFFIX;
+        String lastSequenceEIdKey = producerName + REPL_ENTRY_ID_SUFFIX;
+        highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
+        highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
+        highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
+        highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
     }
 
     public void recordMessagePersistedNormal(PublishContext publishContext, Position position) {
@@ -585,7 +630,23 @@ public class MessageDeduplication {
 
         Map<String, Long> snapshot = new TreeMap<>();
         highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
+            // A geo-replication watermark is valid only when both source ledger and entry ids are saved together.
+            if (isReplSequenceKey(producerName)) {
+                String baseProducerName = getBaseProducerName(producerName);
+                String ledgerIdKey = baseProducerName + REPL_LEDGER_ID_SUFFIX;
+                String entryIdKey = baseProducerName + REPL_ENTRY_ID_SUFFIX;
+                Long ledgerId = highestSequencedPersisted.get(ledgerIdKey);
+                Long entryId = highestSequencedPersisted.get(entryIdKey);
+                if (ledgerId != null && entryId != null) {
+                    snapshot.put(ledgerIdKey, ledgerId);
+                    snapshot.put(entryIdKey, entryId);
+                }
+            }
+        });
+        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
+            if (isReplSequenceKey(producerName)) {
+                return;
+            } else if (snapshot.size() < maxNumberOfProducers) {
                 snapshot.put(producerName, sequenceId);
             }
         });
@@ -636,7 +697,7 @@ public class MessageDeduplication {
         }
 
         // Producer is no-longer active
-        inactiveProducers.put(producerName, System.currentTimeMillis());
+        inactiveProducers.put(getBaseProducerName(producerName), System.currentTimeMillis());
     }
 
     /**
@@ -662,18 +723,41 @@ public class MessageDeduplication {
             long lastActiveTimestamp = entry.getValue();
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
-                log.info()
-                        .attr("producerName", producerName)
-                        .log("Purging dedup information for producer");
                 mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                if (Producer.isRemoteOrShadow(producerName, replicatorPrefix)) {
+                    // Keep the geo-replication watermark; the source can replay this producer after failover.
+                    log.info()
+                            .attr("producerName", producerName)
+                            .log("Clearing inactive geo-replication producer");
+                } else {
+                    log.info()
+                            .attr("producerName", producerName)
+                            .log("Purging dedup information for producer");
+                    highestSequencedPushed.remove(producerName);
+                    highestSequencedPersisted.remove(producerName);
+                    hasInactive = true;
+                }
             }
         }
         if (hasInactive && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
+    }
+
+    private String getBaseProducerName(String producerName) {
+        if (Producer.isRemoteOrShadow(producerName, replicatorPrefix)) {
+            if (producerName.endsWith(REPL_LEDGER_ID_SUFFIX)) {
+                return producerName.substring(0, producerName.length() - REPL_LEDGER_ID_SUFFIX.length());
+            } else if (producerName.endsWith(REPL_ENTRY_ID_SUFFIX)) {
+                return producerName.substring(0, producerName.length() - REPL_ENTRY_ID_SUFFIX.length());
+            }
+        }
+        return producerName;
+    }
+
+    private boolean isReplSequenceKey(String producerName) {
+        return Producer.isRemoteOrShadow(producerName, replicatorPrefix)
+                && (producerName.endsWith(REPL_LEDGER_ID_SUFFIX) || producerName.endsWith(REPL_ENTRY_ID_SUFFIX));
     }
 
     public long getLastPublishedSequenceId(String producerName) {
