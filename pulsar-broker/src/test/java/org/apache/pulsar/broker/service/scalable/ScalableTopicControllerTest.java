@@ -811,4 +811,72 @@ public class ScalableTopicControllerTest {
         ConsumerRegistration b = new ConsumerRegistration();
         assertEquals(a, b);
     }
+
+    // --- createMigratedMetadata (PIP-475 regular-to-scalable migration) ---
+
+    @Test
+    public void testCreateMigratedMetadataForPartitionedTopic() {
+        // 3-partition source → 3 sealed legacy parents (ids 0..2, full range, wrapping
+        // each -partition-K) + 3 active range-based children (ids 3..5, full fan-in).
+        TopicName base = TopicName.get("persistent://tenant/ns/my-topic");
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3);
+
+        assertEquals(md.getEpoch(), 0L);
+        assertEquals(md.getNextSegmentId(), 6L);
+        assertEquals(md.getSegments().size(), 6);
+
+        // Parents 0..2: sealed legacy, full hash range, children = [3,4,5], no parents.
+        for (int k = 0; k < 3; k++) {
+            org.apache.pulsar.common.scalable.SegmentInfo parent = md.getSegments().get((long) k);
+            assertTrue(parent.isSealed(), "parent " + k + " must be sealed");
+            assertTrue(parent.isLegacy(), "parent " + k + " must be a legacy segment");
+            assertEquals(parent.legacyTopicName(),
+                    "persistent://tenant/ns/my-topic-partition-" + k);
+            assertEquals(parent.hashRange().start(), 0x0000);
+            assertEquals(parent.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
+            assertTrue(parent.parentIds().isEmpty());
+            assertEquals(parent.childIds(), java.util.List.of(3L, 4L, 5L));
+        }
+
+        // Children 3..5: active, range-based tiling, parents = [0,1,2], not legacy.
+        int expectedWidth = (org.apache.pulsar.common.scalable.HashRange.MAX_HASH + 1) / 3;
+        for (int j = 0; j < 3; j++) {
+            long id = 3 + j;
+            org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(id);
+            assertTrue(child.isActive(), "child " + id + " must be active");
+            assertFalse(child.isLegacy(), "child " + id + " must be a regular segment");
+            assertEquals(child.parentIds(), java.util.List.of(0L, 1L, 2L));
+            assertTrue(child.childIds().isEmpty());
+            int expectedStart = j * expectedWidth;
+            assertEquals(child.hashRange().start(), expectedStart);
+        }
+        // Children tile the full space: first starts at 0, last ends at MAX_HASH.
+        assertEquals(md.getSegments().get(3L).hashRange().start(), 0x0000);
+        assertEquals(md.getSegments().get(5L).hashRange().end(),
+                org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
+    }
+
+    @Test
+    public void testCreateMigratedMetadataForNonPartitionedTopic() {
+        // Non-partitioned source (partitions <= 0) → 1 sealed legacy parent wrapping the
+        // base persistent:// topic + 1 active child covering the full range.
+        TopicName base = TopicName.get("persistent://tenant/ns/np-topic");
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0);
+
+        assertEquals(md.getNextSegmentId(), 2L);
+        assertEquals(md.getSegments().size(), 2);
+
+        org.apache.pulsar.common.scalable.SegmentInfo parent = md.getSegments().get(0L);
+        assertTrue(parent.isSealed());
+        assertTrue(parent.isLegacy());
+        assertEquals(parent.legacyTopicName(), "persistent://tenant/ns/np-topic");
+        assertEquals(parent.childIds(), java.util.List.of(1L));
+
+        org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(1L);
+        assertTrue(child.isActive());
+        assertFalse(child.isLegacy());
+        assertEquals(child.parentIds(), java.util.List.of(0L));
+        assertEquals(child.hashRange().start(), 0x0000);
+        assertEquals(child.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
+    }
 }

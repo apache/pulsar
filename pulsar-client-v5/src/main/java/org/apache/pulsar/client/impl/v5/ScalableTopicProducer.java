@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 
 /**
  * V5 Producer implementation for scalable topics.
@@ -490,14 +491,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             // Find the segment and the URI to attach the per-segment v4 producer to.
             // Regular segments use the computed segment:// URI; legacy segments (synthetic
             // layouts wrapping an externally managed persistent:// topic) use that URI directly.
-            String attachTopicName = null;
+            ActiveSegment segment = null;
             for (var seg : activeSegments) {
                 if (seg.segmentId() == id) {
-                    attachTopicName = seg.attachTopicName();
+                    segment = seg;
                     break;
                 }
             }
-            if (attachTopicName == null) {
+            if (segment == null) {
                 return CompletableFuture.failedFuture(
                         new PulsarClientException("Segment " + id + " not found in active segments"));
             }
@@ -508,7 +509,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             // initialSequenceId, accessMode, properties, ...) and not just the few
             // fields explicitly carried over.
             var segConf = producerConf.clone();
-            segConf.setTopicName(attachTopicName);
+            segConf.setTopicName(segment.attachTopicName());
+            // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
+            // migration pre-check (PIP-475) inspects, so mark just those connections as
+            // V5-managed — connections to real segment:// topics are never examined.
+            if (segment.isLegacy()) {
+                segConf.getProperties().put(
+                        ScalableTopicConstants.V5_MANAGED_METADATA_KEY,
+                        ScalableTopicConstants.V5_MANAGED_METADATA_VALUE);
+            }
             if (producerConf.getProducerName() != null
                     && !producerConf.getProducerName().isEmpty()) {
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);

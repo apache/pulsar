@@ -114,6 +114,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncPutRequest(path, entity);
     }
 
+    // --- Migrate ---
+
+    @Override
+    public void migrateToScalable(String topic, boolean force) throws PulsarAdminException {
+        sync(() -> migrateToScalableAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> migrateToScalableAsync(String topic, boolean force) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("migrate").queryParam("force", force);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     // --- Get metadata ---
 
     @Override
