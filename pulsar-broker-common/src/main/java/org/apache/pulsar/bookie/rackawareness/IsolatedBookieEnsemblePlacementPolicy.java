@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static java.util.Collections.emptySet;
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.METADATA_STORE_INSTANCE;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
@@ -170,8 +171,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     Pair<Set<String>, Set<String>> getIsolationGroup(
             EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
         // Retain compatibility with ZkIsolatedBookieEnsemblePlacementPolicy
-        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(ensemblePlacementPolicyConfig.getPolicyClass())) {
-            MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(Collections.emptySet(), Collections.emptySet());
+        Class<?> policyClass = ensemblePlacementPolicyConfig.getPolicyClass();
+        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)) {
+            MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(emptySet(), emptySet());
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
             String primaryIsolationGroupString = ConfigurationStringUtil
                     .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
@@ -218,8 +220,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     return excludedBookies;
                 }
                 int totalAvailableBookiesInPrimaryGroup = 0;
-                Set<String> primaryIsolationGroup = Collections.emptySet();
-                Set<String> secondaryIsolationGroup = Collections.emptySet();
+                Set<String> primaryIsolationGroup = emptySet();
+                Set<String> secondaryIsolationGroup = emptySet();
                 Set<BookieId> primaryGroupBookies = new HashSet<>();
                 if (isolationGroups != null) {
                     primaryIsolationGroup = isolationGroups.getLeft();
