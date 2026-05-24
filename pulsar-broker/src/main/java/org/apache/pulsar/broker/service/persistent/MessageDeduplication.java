@@ -263,14 +263,8 @@ public class MessageDeduplication {
         return replayTask.replay(cursor, (__, buffer) -> {
             final var metadata = Commands.parseMessageMetadata(buffer);
             final var producerName = metadata.getProducerName();
-            // Rebuild geo-replication watermarks from entries written after the last dedup snapshot.
-            String replProducerName = getReplProducerName(metadata);
-            if (replProducerName != null) {
-                long[] replSourcePosition = getReplSourcePosition(metadata, replProducerName);
-                if (replSourcePosition != null) {
-                    recoverMessagePersistedRepl(replProducerName, replSourcePosition[0], replSourcePosition[1]);
-                }
-            }
+            // Rebuild replication watermarks from entries written after the last dedup snapshot.
+            recoverReplWatermarkFromMetadata(metadata);
             final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
             highestSequencedPushed.put(producerName, sequenceId);
             highestSequencedPersisted.put(producerName, sequenceId);
@@ -387,7 +381,27 @@ public class MessageDeduplication {
         return null;
     }
 
-    private String getReplProducerName(MessageMetadata md) {
+    @VisibleForTesting
+    void recoverReplWatermarkFromMetadata(MessageMetadata md) {
+        if (md.hasMarkerType()) {
+            return;
+        }
+        String replProducerName = getReplProducerName(md);
+        if (replProducerName != null) {
+            long[] replSourcePosition = getReplSourcePosition(md, replProducerName);
+            if (replSourcePosition != null) {
+                recoverMessagePersistedRepl(replProducerName, replSourcePosition[0], replSourcePosition[1]);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    String getReplProducerName(MessageMetadata md) {
+        final var shadowSourceTopic = topic.getShadowSourceTopic();
+        if (md.hasReplicatedFrom() && shadowSourceTopic.isPresent()) {
+            return ShadowReplicator.getShadowProducerName(replicatorPrefix,
+                    shadowSourceTopic.get().toString(), topic.getName());
+        }
         if (md.hasReplicatedFrom()) {
             return AbstractReplicator.getReplicatorName(replicatorPrefix, md.getReplicatedFrom())
                     + AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER
@@ -630,7 +644,7 @@ public class MessageDeduplication {
 
         Map<String, Long> snapshot = new TreeMap<>();
         highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            // A geo-replication watermark is valid only when both source ledger and entry ids are saved together.
+            // A replication watermark is valid only when both source ledger and entry ids are saved together.
             if (isReplSequenceKey(producerName)) {
                 String baseProducerName = getBaseProducerName(producerName);
                 String ledgerIdKey = baseProducerName + REPL_LEDGER_ID_SUFFIX;
