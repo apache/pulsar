@@ -121,11 +121,17 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
             allowConnect = true;
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
-                    request.getRemotePort(), subscription, topic, e);
+            int errorCode = getErrorCode(e);
+            boolean isKnownError = errorCode != HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            if (isKnownError) {
+                log.warn("[{}:{}] Failed in creating reader {} on topic {}: {}", request.getRemoteAddr(),
+                        request.getRemotePort(), subscription, topic, e.getMessage());
+            } else {
+                log.error("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), subscription, topic, e);
+            }
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Failed to create reader: " + e.getMessage());
+                response.sendError(errorCode, getErrorMessage(e));
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
@@ -340,13 +346,25 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         return size;
     }
 
-    private MessageId getMessageId() throws IOException {
+    private MessageId getMessageId() {
         MessageId messageId = MessageId.latest;
-        if (isNotBlank(queryParams.get("messageId"))) {
-            if (queryParams.get("messageId").equals("earliest")) {
+        String messageIdParam = queryParams.get("messageId");
+        if (isNotBlank(messageIdParam)) {
+            if (messageIdParam.equals("earliest")) {
                 messageId = MessageId.earliest;
-            } else if (!queryParams.get("messageId").equals("latest")) {
-                messageId = MessageIdImpl.fromByteArray(Base64.getDecoder().decode(queryParams.get("messageId")));
+            } else if (!messageIdParam.equals("latest")) {
+                final byte[] decoded;
+                try {
+                    decoded = Base64.getDecoder().decode(messageIdParam);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid messageId base64 value", e);
+                }
+
+                try {
+                    messageId = MessageIdImpl.fromByteArray(decoded);
+                } catch (IOException | RuntimeException e) {
+                    throw new IllegalArgumentException("Invalid messageId value", e);
+                }
             }
         }
         return messageId;
