@@ -413,7 +413,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
                 try {
                     messageId = MessageIdImpl.fromByteArray(decoded);
-                } catch (IOException e) {
+                } catch (IOException | RuntimeException e) {
                     throw new IllegalArgumentException("Invalid messageId value", e);
                 }
             }
