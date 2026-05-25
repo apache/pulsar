@@ -22,6 +22,7 @@ import io.netty.util.HashedWheelTimer;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -50,8 +51,9 @@ public class ProducerCleanupTest extends ProducerConsumerBase {
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
         producer.close();
-        Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
+        Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 }
