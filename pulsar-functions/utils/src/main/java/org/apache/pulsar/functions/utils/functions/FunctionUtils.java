@@ -159,10 +159,6 @@ public class FunctionUtils {
             for (Path archive : stream) {
                 try {
                     FunctionDefinition funcDef = FunctionUtils.getFunctionDefinition(archive.toFile());
-                    log.info()
-                            .attr("function", funcDef)
-                            .attr("archive", archive)
-                            .log("Found function");
                     if (!StringUtils.isEmpty(funcDef.getFunctionClass())) {
                         String name = funcDef.getName();
                         String md5Hex = computeArchiveMd5Hex(archive);
