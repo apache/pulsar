@@ -101,6 +101,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String functionInstanceClassPath;
     private String downloadDirectory;
     private int gracePeriodSeconds;
+    private String kubernetesServiceDomainSuffix;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -179,6 +180,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
 
+	this.kubernetesServiceDomainSuffix = factoryConfig.getKubernetesServiceDomainSuffix();
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
         this.installUserCodeDependencies = factoryConfig.getInstallUserCodeDependencies();
         this.pythonDependencyRepository = factoryConfig.getPythonDependencyRepository();
@@ -318,6 +320,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             // get the namespace for this function
             overriddenNamespace,
             overriddenName,
+	    kubernetesServiceDomainSuffix,
             customLabels,
             installUserCodeDependencies,
             pythonDependencyRepository,
