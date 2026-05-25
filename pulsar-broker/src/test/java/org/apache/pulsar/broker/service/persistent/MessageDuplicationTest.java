@@ -281,13 +281,11 @@ public class MessageDuplicationTest extends BrokerTestBase {
         Map<String, Long> inactiveProducers = (ConcurrentHashMap<String, Long>) field.get(messageDeduplication);
 
         String replicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
-        String lastSequenceLIdKey = replicatorProducerName + "_LID";
-        String lastSequenceEIdKey = replicatorProducerName + "_EID";
         // Geo V2 dedup state tracks the last source position, so it must outlive producer inactivity cleanup.
-        messageDeduplication.highestSequencedPushed.put(lastSequenceLIdKey, 7L);
-        messageDeduplication.highestSequencedPushed.put(lastSequenceEIdKey, 9L);
-        messageDeduplication.highestSequencedPersisted.put(lastSequenceLIdKey, 7L);
-        messageDeduplication.highestSequencedPersisted.put(lastSequenceEIdKey, 9L);
+        MessageDeduplication.ReplSourcePosition replSourcePosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        messageDeduplication.highestReplPositionPushed.put(replicatorProducerName, replSourcePosition);
+        messageDeduplication.highestReplPositionPersisted.put(replicatorProducerName, replSourcePosition);
 
         messageDeduplication.producerRemoved(replicatorProducerName);
         inactiveProducers.put(replicatorProducerName, System.currentTimeMillis() - 70000);
@@ -295,10 +293,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         messageDeduplication.purgeInactiveProducers();
 
         assertFalse(inactiveProducers.containsKey(replicatorProducerName));
-        assertEquals(messageDeduplication.highestSequencedPushed.get(lastSequenceLIdKey).longValue(), 7L);
-        assertEquals(messageDeduplication.highestSequencedPushed.get(lastSequenceEIdKey).longValue(), 9L);
-        assertEquals(messageDeduplication.highestSequencedPersisted.get(lastSequenceLIdKey).longValue(), 7L);
-        assertEquals(messageDeduplication.highestSequencedPersisted.get(lastSequenceEIdKey).longValue(), 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(replicatorProducerName), replSourcePosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(replicatorProducerName), replSourcePosition);
     }
 
     @Test
@@ -381,14 +377,69 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         String shadowProducerName = ShadowReplicator.getShadowProducerName(REPLICATOR_PREFIX, sourceTopicName,
                 shadowTopicName);
-        assertEquals(messageDeduplication.highestSequencedPushed.get(shadowProducerName + "_LID").longValue(), 7L);
-        assertEquals(messageDeduplication.highestSequencedPushed.get(shadowProducerName + "_EID").longValue(), 9L);
-        assertEquals(messageDeduplication.highestSequencedPersisted.get(shadowProducerName + "_LID").longValue(), 7L);
-        assertEquals(messageDeduplication.highestSequencedPersisted.get(shadowProducerName + "_EID").longValue(), 9L);
+        MessageDeduplication.ReplSourcePosition expectedPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(shadowProducerName), expectedPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(shadowProducerName), expectedPosition);
 
         String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
-        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(geoProducerName + "_LID"));
-        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(geoProducerName + "_EID"));
+        assertFalse(messageDeduplication.highestReplPositionPushed.containsKey(geoProducerName));
+    }
+
+    @Test
+    public void testReplayRecoverGeoReplicationWatermarkOnlyAdvances() {
+        String topicName = "persistent://prop/ns/tp";
+        String clusterName = "c2";
+
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setClusterName(clusterName);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn(topicName).when(topic).getName();
+        doReturn(Optional.empty()).when(topic).getShadowSourceTopic();
+
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+
+        MessageMetadata firstMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(1L)
+                .setPublishTime(System.currentTimeMillis());
+        firstMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:9");
+        messageDeduplication.recoverReplWatermarkFromMetadata(firstMetadata);
+
+        MessageMetadata olderMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(2L)
+                .setPublishTime(System.currentTimeMillis());
+        olderMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:8");
+        messageDeduplication.recoverReplWatermarkFromMetadata(olderMetadata);
+
+        MessageDeduplication.ReplSourcePosition firstPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(geoProducerName), firstPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), firstPosition);
+
+        MessageMetadata laterMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(3L)
+                .setPublishTime(System.currentTimeMillis());
+        laterMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("8:0");
+        messageDeduplication.recoverReplWatermarkFromMetadata(laterMetadata);
+
+        MessageDeduplication.ReplSourcePosition laterPosition =
+                new MessageDeduplication.ReplSourcePosition(8L, 0L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(geoProducerName), laterPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), laterPosition);
     }
 
     @Test
@@ -420,10 +471,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         messageDeduplication.recoverReplWatermarkFromMetadata(metadata);
 
         String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
-        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(geoProducerName + "_LID"));
-        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(geoProducerName + "_EID"));
-        assertFalse(messageDeduplication.highestSequencedPersisted.containsKey(geoProducerName + "_LID"));
-        assertFalse(messageDeduplication.highestSequencedPersisted.containsKey(geoProducerName + "_EID"));
+        assertFalse(messageDeduplication.highestReplPositionPushed.containsKey(geoProducerName));
+        assertFalse(messageDeduplication.highestReplPositionPersisted.containsKey(geoProducerName));
     }
 
     @Test

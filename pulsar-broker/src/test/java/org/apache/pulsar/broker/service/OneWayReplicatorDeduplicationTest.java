@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -321,6 +322,13 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             GeoPersistentReplicator replicator =
                     (GeoPersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
             assertNotNull(replicator);
+            AtomicReference<ClientCnx> replicatorClientCnx = new AtomicReference<>();
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertNotNull(replicator.producer);
+                ClientCnx clientCnx = replicator.producer.getClientCnx();
+                assertNotNull(clientCnx);
+                replicatorClientCnx.set(clientCnx);
+            });
 
             // Reload target before a dedup snapshot has to cover the latest replicated source positions.
             admin2.topics().unload(topicName);
@@ -328,7 +336,13 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
             // Reconnect the source replicator. It replays from the old replication cursor and target must deduplicate.
             stuckSendReceipt.set(false);
-            replicator.producer.getClientCnx().ctx().channel().close();
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertNotNull(replicator.producer);
+                ClientCnx clientCnx = replicator.producer.getClientCnx();
+                assertNotNull(clientCnx);
+                replicatorClientCnx.set(clientCnx);
+            });
+            replicatorClientCnx.get().ctx().channel().close();
 
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
                 assertEquals(replicator.getCursor().getNumberOfEntriesInBacklog(true), 0);
