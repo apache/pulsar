@@ -171,7 +171,9 @@ tasks.withType<Test>().configureEach {
     maxParallelForks = 4
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
-    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse("1"))
+    val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
+    val defaultTestRetryCount = if (ideaActive) "0" else "1"
+    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
     jvmArgs(
         "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",

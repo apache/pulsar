@@ -54,7 +54,7 @@ commons-text = "1.14.0"
 commons-math3 = "3.6.1"
 commons-logging = "1.3.5"
 commons-beanutils = "1.11.0"
-commons-configuration2 = "2.12.0"
+commons-configuration2 = "2.15.0"
 # BouncyCastle
 bouncycastle = "1.84"
 bouncycastle-bcpkix-fips = "2.0.11"
@@ -67,10 +67,10 @@ snakeyaml = "2.0"
 # Vert.x
 vertx = "4.5.27"
 # Networking / HTTP
-asynchttpclient = "2.14.5"
+asynchttpclient = "2.15.0"
 conscrypt = "2.5.2"
-okhttp3 = "5.3.1"
-okio = "3.16.3"
+okhttp3 = "5.3.2"
+okio = "3.17.0"
 netty-tcnative = "2.0.77.Final"
 httpcomponents-httpclient = "4.5.13"
 httpcomponents-httpcore = "4.4.15"
@@ -108,9 +108,7 @@ jline3 = "3.21.0"
 jline2 = "2.14.6"
 javassist = "3.25.0-GA"
 rocksdb = "7.9.2"
-kotlin-stdlib = "1.8.20"
 audience-annotations = "0.12.0"
-jetbrains-annotations = "13.0"
 # Misc
 curator = "5.7.1"
 reflections = "0.10.2"
@@ -163,7 +161,7 @@ skyscreamer = "1.5.0"
 zstd-jni = "1.5.7-3"
 lz4java = "1.10.3"
 spring = "6.2.12"
-kubernetesclient = "23.0.0"
+kubernetesclient = "26.0.0"
 aws-sdk = "1.12.788"
 hadoop3 = "3.5.0"
 jclouds = "2.6.0"
@@ -353,7 +351,6 @@ opencensus-contrib-http-util = { module = "io.opencensus:opencensus-contrib-http
 httpcomponents-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpcomponents-httpclient" }
 httpcomponents-httpcore = { module = "org.apache.httpcomponents:httpcore", version.ref = "httpcomponents-httpcore" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation" }
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin-stdlib" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 ant = { module = "org.apache.ant:ant", version.ref = "ant" }
 guice = { module = "com.google.inject:guice", version.ref = "guice" }

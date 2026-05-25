@@ -42,7 +42,7 @@ public class MetadataPendingAckStoreProvider implements TransactionPendingAckSto
     public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
         // The metadata layout is global — there is no per-subscription "initialized" log to
         // check. State (open txns, leftover op records) is rebuilt on demand from the
-        // /txn-op + /txn records at replay time.
+        // /txn/op + /txn records at replay time.
         return CompletableFuture.completedFuture(true);
     }
 }

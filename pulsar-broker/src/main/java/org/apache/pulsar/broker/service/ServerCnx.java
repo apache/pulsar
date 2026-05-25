@@ -165,6 +165,7 @@ import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -784,6 +785,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } catch (Exception e) {
             log.warn().attr("topic", topicStr).log("Invalid topic name in ScalableTopicLookup");
             ctx.close();
+            return;
+        }
+
+        // Scalable topics do not support non-persistent storage. Reject early with a
+        // clear error rather than failing later in segment infrastructure.
+        if (topicName.getDomain() == TopicDomain.non_persistent) {
+            ctx.writeAndFlush(Commands.newScalableTopicError(sessionId, ServerError.NotAllowedError,
+                    "Scalable topics do not support non-persistent:// topics"));
             return;
         }
 

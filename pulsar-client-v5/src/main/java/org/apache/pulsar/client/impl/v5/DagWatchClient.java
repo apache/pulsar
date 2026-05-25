@@ -65,6 +65,9 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private volatile LayoutChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    /** Canonical topic://t/n/x identity returned by the broker. Resolved on the first
+     *  update; used as the parent topic when computing segment:// URIs for real DAGs. */
+    private volatile TopicName resolvedTopicName;
 
     DagWatchClient(PulsarClientImpl v4Client, TopicName topicName) {
         this.v4Client = v4Client;
@@ -138,12 +141,24 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
      * This is invoked from the Netty I/O thread.
      */
     @Override
-    public void onUpdate(ScalableTopicDAG dag) {
+    public void onUpdate(ScalableTopicDAG dag, String resolvedTopicName) {
         if (closed) {
             return;
         }
 
-        ClientSegmentLayout newLayout = ClientSegmentLayout.fromProto(dag, topicName);
+        // Cache the canonical topic://... identity returned by the broker so segment://
+        // URIs are computed against the resolved parent regardless of the input domain.
+        // The broker should always set this on success; fall back to the input name if
+        // an older broker doesn't.
+        TopicName resolvedTn;
+        if (resolvedTopicName != null) {
+            resolvedTn = TopicName.get(resolvedTopicName);
+            this.resolvedTopicName = resolvedTn;
+        } else {
+            resolvedTn = this.resolvedTopicName != null ? this.resolvedTopicName : topicName;
+        }
+
+        ClientSegmentLayout newLayout = ClientSegmentLayout.fromProto(dag, resolvedTn);
         ClientSegmentLayout oldLayout = currentLayout.getAndSet(newLayout);
 
         log.info().attr("oldEpoch", oldLayout != null ? oldLayout.epoch() : "none")
@@ -236,8 +251,15 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         return sessionId;
     }
 
+    /**
+     * Returns the canonical scalable-topic identity, falling back to the user's input
+     * before the first response arrives. Once the broker has returned a
+     * {@code resolved_topic_name}, this always reflects the resolved form so callers
+     * see the canonical {@code topic://...} name regardless of how they spelled the input.
+     */
     TopicName topicName() {
-        return topicName;
+        TopicName resolved = resolvedTopicName;
+        return resolved != null ? resolved : topicName;
     }
 
     @Override

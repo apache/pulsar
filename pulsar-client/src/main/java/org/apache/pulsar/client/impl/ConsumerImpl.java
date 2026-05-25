@@ -1720,12 +1720,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      */
     void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
         if (pendingReceives.isEmpty()) {
+            if (getState() != State.Closing && getState() != State.Closed) {
+                log.error().attr("message", message)
+                    .attr("pendingReceives-size", pendingReceives.size())
+                    .log("If you received this log, it means that you encountered a bug: a message was"
+                        + " dropped internally, the client-side will encounter a crucial issue: this message will"
+                        + " never be consumed until the consumer is restarted or the topic is unloaded.");
+            }
             return;
         }
 
         // fetch receivedCallback from queue
         final CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture == null) {
+            if (getState() != State.Closing && getState() != State.Closed) {
+                log.error().attr("message", message)
+                    .log("The pendingReceives pulled out a null conpletableFuture object. If you received this log,"
+                        + " it means that you encountered a bug: a message was"
+                        + " dropped internally, the client-side will encounter a crucial issue: this message will never"
+                        + " be consumed until the consumer is restarted or the topic is unloaded.");
+            }
             return;
         }
 

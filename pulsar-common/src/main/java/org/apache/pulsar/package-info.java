@@ -17,15 +17,7 @@
  * under the License.
  */
 
-plugins {
-    id("pulsar.public-java-library-conventions")
-}
-
-dependencies {
-    implementation(project(":pulsar-functions:pulsar-functions-proto"))
-    implementation(libs.kubernetes.client.java) {
-        exclude(group = "software.amazon.awssdk")
-    }
-    implementation(libs.gson)
-    implementation(libs.commons.lang3)
-}
+/**
+ * Top-level Pulsar utilities such as {@link org.apache.pulsar.PulsarVersion}.
+ */
+package org.apache.pulsar;

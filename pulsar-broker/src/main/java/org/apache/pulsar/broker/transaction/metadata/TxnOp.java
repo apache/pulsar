@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Per-write or per-ack operation record. One {@code TxnOp} is appended at
- * {@code /txn-op/&lt;txnId&gt;-&lt;seq&gt;} (with {@code partitionKey = txnId}) every time a
+ * {@code /txn/op/&lt;txnId&gt;-&lt;seq&gt;} (with {@code partitionKey = txnId}) every time a
  * participant applies a transactional operation on a segment.
  *
  * <p>{@link #kind} discriminates writes from acks. {@link #subscription} and {@link #cumulative}

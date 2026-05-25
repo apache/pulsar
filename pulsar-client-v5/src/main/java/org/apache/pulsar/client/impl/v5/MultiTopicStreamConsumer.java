@@ -152,7 +152,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         if (perTopic.containsKey(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         // One ScalableConsumerClient session per topic, same as the single-topic builder.
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(), topic,

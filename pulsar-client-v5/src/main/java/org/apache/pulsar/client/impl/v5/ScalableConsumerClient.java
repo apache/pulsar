@@ -310,7 +310,8 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
             segments.add(new ActiveSegment(
                     s.getSegmentId(),
                     HashRange.of((int) s.getHashStart(), (int) s.getHashEnd()),
-                    s.getSegmentTopic()));
+                    s.getSegmentTopic(),
+                    /*legacyTopicName*/ null));
         }
         return Collections.unmodifiableList(segments);
     }

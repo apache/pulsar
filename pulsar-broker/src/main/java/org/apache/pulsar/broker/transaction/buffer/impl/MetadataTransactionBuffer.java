@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
@@ -58,35 +59,35 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 
 /**
- * {@link TransactionBuffer} for {@code segment://} topics that reads truth from the metadata-store
- * transaction layout (PIP-473) rather than from a per-topic snapshot log.
+ * {@link TransactionBuffer} for {@code segment://} topics that reads truth from the
+ * metadata-store transaction layout (PIP-473).
  *
- * <p>Lifecycle:
- * <ul>
- *   <li><b>Publish</b> — {@link #appendBufferToTxn} reads the txn header (cache-first), appends the
- *       entry to the managed ledger, then appends a {@link TxnOp} record under
- *       {@code /txn-op/<txnId>-<seq>}. Both must succeed before we ack the publisher.</li>
- *   <li><b>State transitions</b> — driven by {@code /txn-segment-events/<segment>-*} sequence
- *       events. The events are wake-ups; the truth is the header. On each notification we
- *       re-read headers for every currently-open txn and apply the resulting state changes.</li>
- *   <li><b>Recovery</b> (Option C) — scan {@code idx:writes-by-segment} for this segment, group by
- *       {@code txnId}, fetch each header, and seed the in-memory cache. Then subscribe to the
- *       event stream for forward updates.</li>
- * </ul>
+ * <p><b>Publish-path ordering.</b> {@link #appendBufferToTxn} writes the {@code /txn/op} record
+ * <em>before</em> the managed-ledger append. This eliminates the orphan class — a crash between
+ * the two writes leaves either (a) no entry and no op record, or (b) an op record with no entry
+ * (TC times out → ABORTED → cleanup). There's never a ledger entry with no op record. The invariant
+ * <i>every transactional entry in the segment has a corresponding {@code /txn/op} record at the
+ * time of append</i> lets recovery scan {@code /txn/op} authoritatively without segment-replay.
+ *
+ * <p><b>Durable visibility state.</b> The TB persists a per-segment
+ * {@code /txn/segment-state/<segment>/watermark} record (the resolved-below mark) plus one
+ * {@code aborted/<txnId>} record per aborted txn with still-readable data. Together they let
+ * {@link #isTxnAborted} answer correctly for as long as the data is in the segment ML, even after
+ * the original {@code /txn/id/<txnId>} headers have been GC'd. The aborted records carry the txn's
+ * max position via a secondary index so the TB can range-delete them when the segment ML trims its
+ * older data.
+ *
+ * <p><b>Recovery.</b> Load the durable watermark + aborted set; scan {@code /txn/op} for this
+ * segment to discover any txns still open at the time of the previous shutdown (their first
+ * positions aren't known — the in-memory watermark stays pinned at the durable value until they
+ * resolve); subscribe to the segment-event stream.
  *
  * <p><b>TC ordering contract.</b> There is a TOCTOU window between the header authorization read
- * in {@link #appendBufferToTxn} and the managed-ledger append: the TC may flip the header (commit
- * or abort) in between, and the entry still lands. On commit that's harmless — the message is
- * visible. On abort, the subsequent segment-event delivery marks the txn ABORTED in the cache and
- * {@link #isTxnAborted} filters it. This relies on the TC publishing the segment event <em>after</em>
- * the header CAS lands so a participant that lost the race always learns the decision. The legacy
- * {@code TopicTransactionBuffer} has the same window with marker-message ordering.
- *
- * <p><b>In-memory growth.</b> Terminal txns stay in the {@code txns} cache for the segment's
- * lifetime so {@code isTxnAborted} can answer authoritatively for dispatcher reads — evicting a
- * COMMITTED entry would mean the default "unknown → aborted" filter wrongly hides its messages.
- * Long-running segments with high txn turnover will accumulate cached entries. Cache pruning tied
- * to data-ledger trimming / header GC is a P5/P6 concern.
+ * and the {@code /txn/op} write: the TC may flip the header (commit or abort) in between. The op
+ * record still lands. On commit that's harmless. On abort, the subsequent segment-event delivery
+ * marks the txn ABORTED and the per-txn aborted record is written before the op record is deleted,
+ * so {@link #isTxnAborted} filters subsequent reads. This relies on the TC publishing the segment
+ * event <em>after</em> the header CAS.
  */
 @CustomLog
 public class MetadataTransactionBuffer implements TransactionBuffer {
@@ -101,14 +102,34 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private volatile AutoCloseable subscription;
     private volatile boolean closed;
 
-    /** Guards {@link #txns} + {@link #maxReadPosition} + {@link #lastDispatchable}. */
+    /** Guards mutable state below. */
     private final Object lock = new Object();
 
-    /** Cached per-txn state, populated by appendBufferToTxn and refreshed by event reconcile. */
+    /** In-memory per-txn state for txns this segment is involved in. */
     private final Map<String, TxnEntry> txns = new HashMap<>();
 
-    private Position maxReadPosition;
+    /** Aborted-txn set hydrated from durable state at recovery, updated on abort-apply. */
+    private final Set<String> abortedTxns = new HashSet<>();
+
+    /** Count of OPEN txns we discovered at recovery whose first position we don't know. */
+    private int recoveryDiscoveredOpen;
+
+    /** Durable watermark, mirrored in memory. May be null on a fresh segment. */
+    private SegmentWatermark watermark;
+    /** Version of the durable watermark record; -1 if it doesn't exist yet. */
+    private long watermarkVersion = -1L;
+
+    /** Latest dispatched position from non-txn publishes — the natural ceiling when no opens pin. */
     private Position lastDispatchable;
+
+    /** Current maxReadPosition; never moves above the watermark while recovery-discovered opens exist. */
+    private Position maxReadPosition;
+
+    /**
+     * Serialised chain for watermark-persist + op-record-cleanup. Each apply enqueues itself on the
+     * tail so we never have two in-flight watermark CASes racing.
+     */
+    private CompletableFuture<Void> stateTail = CompletableFuture.completedFuture(null);
 
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
@@ -136,46 +157,82 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         }
         subscription = handle;
 
-        // Scan all /txn-op records for this segment, group by txnId.
-        Map<String, List<Position>> opsByTxn = new ConcurrentHashMap<>();
-        txnStore.listWritesBySegment(segmentName, new ScanConsumer() {
-            @Override
-            public void onNext(GetResult r) {
-                TxnOp op = TxnMetadataStore.fromJson(r.getValue(), TxnOp.class);
-                String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
-                if (txnIdKey == null) {
-                    return;
-                }
-                opsByTxn.computeIfAbsent(txnIdKey, k -> new ArrayList<>())
-                        .add(PositionFactory.create(op.getLedgerId(), op.getEntryId()));
-            }
+        // 1. Load durable watermark.
+        CompletableFuture<Void> watermarkLoad = txnStore.getSegmentWatermark(segmentName)
+                .thenAccept(opt -> {
+                    if (opt.isPresent()) {
+                        synchronized (lock) {
+                            watermark = opt.get().value();
+                            watermarkVersion = opt.get().version();
+                            // Initialise maxReadPosition at the watermark so we don't expose anything
+                            // above it until in-memory state catches up.
+                            maxReadPosition = PositionFactory.create(
+                                    watermark.ledgerId(), watermark.entryId());
+                        }
+                    }
+                });
 
-            @Override
-            public void onError(Throwable throwable) {
-                // Recovery still fails loudly via the scan's returned future and the terminal
-                // whenComplete below; logging here captures the cause with segment context.
-                log.warn().attr("segment", segmentName).exception(throwable)
-                        .log("TB recovery scan errored");
-            }
+        // 2. Load the aborted-txn set (scan by segment-scoped index range).
+        CompletableFuture<Void> abortedLoad = watermarkLoad.thenCompose(__ ->
+                txnStore.scanAbortedTxns(segmentName,
+                        TxnPaths.abortedByPositionSegmentLowerBound(segmentName),
+                        TxnPaths.abortedByPositionSegmentUpperBound(segmentName),
+                        new ScanConsumer() {
+                            @Override
+                            public void onNext(GetResult r) {
+                                String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                                if (txnIdKey != null) {
+                                    synchronized (lock) {
+                                        abortedTxns.add(txnIdKey);
+                                    }
+                                }
+                            }
 
-            @Override
-            public void onCompleted() {
-            }
-        })
-        .thenCompose(__ -> {
-            // Fan out one header read per distinct txnId; build initial state.
+                            @Override
+                            public void onError(Throwable throwable) {
+                                log.warn().attr("segment", segmentName).exception(throwable)
+                                        .log("Aborted-txn scan errored during recovery");
+                            }
+
+                            @Override
+                            public void onCompleted() {
+                            }
+                        }));
+
+        // 3. Scan /txn/op for this segment to discover txns that were open at last shutdown.
+        Map<String, Boolean> writeOpsByTxn = new ConcurrentHashMap<>();
+        CompletableFuture<Void> opsLoad = abortedLoad.thenCompose(__ ->
+                txnStore.listWritesBySegment(segmentName, new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
+                        if (txnIdKey != null) {
+                            writeOpsByTxn.put(txnIdKey, Boolean.TRUE);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segmentName).exception(throwable)
+                                .log("Op-scan errored during recovery");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }));
+
+        // 4. For each discovered txn, fetch its header and seed the in-memory state.
+        opsLoad.thenCompose(__ -> {
             List<CompletableFuture<Void>> reads = new ArrayList<>();
-            opsByTxn.forEach((txnIdKey, positions) -> reads.add(
-                    txnStore.getHeader(txnIdKey).thenAccept(opt -> applyHeaderForRecovery(
-                            txnIdKey, opt, positions))));
+            writeOpsByTxn.keySet().forEach(txnIdKey -> reads.add(
+                    txnStore.getHeader(txnIdKey).thenAccept(opt ->
+                            applyHeaderForRecovery(txnIdKey, opt))));
             return FutureUtil.waitForAll(reads);
         })
         .whenComplete((__, err) -> {
             if (err != null) {
                 log.error().attr("segment", segmentName).exception(err).log("TB recovery failed");
-                // Close the subscription we opened above so the listener doesn't outlive a
-                // failed-to-recover TB instance (closeAsync may never be called if recovery never
-                // succeeded).
                 closeSubscriptionQuietly();
                 recoveryFuture.completeExceptionally(err);
                 return;
@@ -184,22 +241,33 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 recomputeMaxReadPositionLocked();
             }
             recoveryFuture.complete(null);
-            // Drain any events that fired between subscribe and now — triggerReconcile short-
-            // circuits while recoveryFuture is not done, so we explicitly kick a reconcile pass
-            // now to pick up state transitions whose only notification landed in that window.
+            // Drain any events that fired between subscribe and now.
             triggerReconcile();
         });
     }
 
-    private void applyHeaderForRecovery(String txnIdKey, Optional<Versioned<TxnHeader>> opt, List<Position> positions) {
+    private void applyHeaderForRecovery(String txnIdKey, Optional<Versioned<TxnHeader>> opt) {
         TxnState state = opt.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
-        Position first = positions.stream().min(Position::compareTo).orElse(null);
         synchronized (lock) {
-            txns.put(txnIdKey, new TxnEntry(state, first));
+            TxnEntry entry = new TxnEntry(state);
+            if (state == TxnState.OPEN) {
+                entry.recoveryDiscovered = true;
+                recoveryDiscoveredOpen++;
+            } else if (state == TxnState.ABORTED) {
+                // Hydrate the aborted set now, under the lock, so isTxnAborted is correct the
+                // instant recoveryFuture completes. The terminal apply that would otherwise add
+                // this txn runs later on stateTail (after recovery completes), leaving a window
+                // in which the txn's data — which isn't watermark-pinned, since ABORTED entries
+                // don't set recoveryDiscovered — would read as visible. add() is idempotent with
+                // applyTerminalNow's aborted-set update.
+                abortedTxns.add(txnIdKey);
+            }
+            txns.put(txnIdKey, entry);
         }
-        // Schedule op-record cleanup for terminal txns (best-effort, async).
+        // Terminal txns with leftover /txn/op records still need their outcome materialised and
+        // the records cleaned up — enqueue an apply.
         if (state.isTerminal()) {
-            cleanupOpRecords(txnIdKey);
+            enqueueApplyTerminal(txnIdKey, state);
         }
     }
 
@@ -207,7 +275,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
-        // Retain so the buffer survives the chain — release in the terminal handlers.
         buffer.retain();
         return recoveryFuture.thenCompose(__ -> internalAppend(txnId, buffer))
                 .whenComplete((p, ex) -> buffer.release());
@@ -225,8 +292,16 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException(
                                 "Transaction " + txnId + " is already " + state + " — TxnConflict"));
                     }
-                    return appendToLedger(buffer)
-                            .thenCompose(position -> recordOp(txnId, txnIdKey, position));
+                    // 1. Write /txn/op first. Positions are unknown at this point; the WRITE-kind
+                    // record uses sentinel 0/0 (positions live in the TB's in-memory tracking).
+                    TxnOp op = new TxnOp(TxnOpKind.WRITE, segmentName, null, 0L, 0L, null);
+                    return txnStore.appendOp(txnIdKey, op).thenCompose(opStat ->
+                            // 2. ML append. By the invariant above, /txn/op is durable before any
+                            // ledger entry exists for this op.
+                            appendToLedger(buffer).thenApply(position -> {
+                                trackPosition(txnIdKey, position);
+                                return position;
+                            }));
                 });
     }
 
@@ -240,7 +315,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return txnStore.getHeader(txnIdKey).thenApply(opt -> {
             TxnState state = opt.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
             synchronized (lock) {
-                txns.putIfAbsent(txnIdKey, new TxnEntry(state, null));
+                txns.putIfAbsent(txnIdKey, new TxnEntry(state));
             }
             return state;
         });
@@ -262,36 +337,39 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return result;
     }
 
-    private CompletableFuture<Position> recordOp(TxnID txnId, String txnIdKey, Position position) {
-        TxnOp op = new TxnOp(TxnOpKind.WRITE, segmentName, null,
-                position.getLedgerId(), position.getEntryId(), null);
-        return txnStore.appendOp(txnIdKey, op).thenApply(stat -> {
-            synchronized (lock) {
-                TxnEntry entry = txns.get(txnIdKey);
-                // Only an OPEN entry pins maxReadPosition. If a concurrent reconcile flipped this
-                // txn to terminal between the cache-first authorization read and this update, do
-                // NOT resurrect it as OPEN — the ML append still lands but isTxnAborted will mask
-                // it for aborted txns (see class javadoc on the publish-side TOCTOU window).
-                if (entry != null && entry.state == TxnState.OPEN) {
-                    if (entry.firstPosition == null || position.compareTo(entry.firstPosition) < 0) {
-                        entry.firstPosition = position;
-                        recomputeMaxReadPositionLocked();
-                    }
-                }
+    private void trackPosition(String txnIdKey, Position position) {
+        synchronized (lock) {
+            TxnEntry entry = txns.get(txnIdKey);
+            // Only an OPEN, non-recovery entry tracks positions. Recovery-discovered entries pin
+            // at the watermark and shouldn't be re-keyed by later appends (we don't know the
+            // earliest position).
+            if (entry == null || entry.state != TxnState.OPEN || entry.recoveryDiscovered) {
+                return;
             }
-            return position;
-        });
+            if (entry.firstPosition == null || position.compareTo(entry.firstPosition) < 0) {
+                entry.firstPosition = position;
+            }
+            if (entry.lastPosition == null || position.compareTo(entry.lastPosition) > 0) {
+                entry.lastPosition = position;
+            }
+            recomputeMaxReadPositionLocked();
+        }
     }
 
     // ---- Reconcile (event-driven) -----------------------------------------
 
     private void triggerReconcile() {
-        if (closed || !recoveryFuture.isDone()) {
+        if (closed || !recoveryFuture.isDone() || recoveryFuture.isCompletedExceptionally()) {
             return;
         }
         Set<String> snapshot;
         synchronized (lock) {
-            snapshot = new HashSet<>(openTxnsLocked());
+            snapshot = new HashSet<>();
+            for (Map.Entry<String, TxnEntry> e : txns.entrySet()) {
+                if (e.getValue().state == TxnState.OPEN) {
+                    snapshot.add(e.getKey());
+                }
+            }
         }
         if (snapshot.isEmpty()) {
             return;
@@ -300,7 +378,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         for (String txnIdKey : snapshot) {
             reads.add(txnStore.getHeader(txnIdKey).thenAccept(opt -> {
                 TxnState newState = opt.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
-                applyReconciledState(txnIdKey, newState);
+                if (newState.isTerminal()) {
+                    enqueueApplyTerminal(txnIdKey, newState);
+                }
             }));
         }
         FutureUtil.waitForAll(reads).whenComplete((__, err) -> {
@@ -310,75 +390,182 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         });
     }
 
-    private void applyReconciledState(String txnIdKey, TxnState newState) {
-        boolean cleanup = false;
+    /**
+     * Enqueue the durable side-effects for a txn that has been observed terminal: write the
+     * aborted record (if any), advance the persisted watermark, delete the {@code /txn/op}
+     * records. Serialised through {@link #stateTail} so concurrent applies don't race the
+     * watermark CAS.
+     */
+    private void enqueueApplyTerminal(String txnIdKey, TxnState newState) {
         synchronized (lock) {
-            TxnEntry entry = txns.get(txnIdKey);
-            if (entry == null || entry.state == newState) {
-                return;
-            }
-            entry.state = newState;
-            if (newState.isTerminal()) {
-                entry.firstPosition = null;
-                cleanup = true;
-                if (newState == TxnState.COMMITTED) {
-                    committedCount.increment();
-                } else {
-                    abortedCount.increment();
-                }
-                recomputeMaxReadPositionLocked();
-            }
-        }
-        if (cleanup) {
-            cleanupOpRecords(txnIdKey);
+            stateTail = stateTail.thenCompose(__ -> applyTerminalNow(txnIdKey, newState))
+                    .exceptionally(err -> {
+                        log.warn().attr("segment", segmentName).attr("txnId", txnIdKey)
+                                .exception(err).log("Apply-terminal failed; will retry on next reconcile");
+                        return null;
+                    });
         }
     }
 
+    private CompletableFuture<Void> applyTerminalNow(String txnIdKey, TxnState newState) {
+        // Snapshot the entry under the lock — we need its positions / recovery flag to decide
+        // what to persist.
+        boolean alreadyTerminal;
+        Position lastPos;
+        synchronized (lock) {
+            TxnEntry entry = txns.get(txnIdKey);
+            if (entry == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            alreadyTerminal = entry.state.isTerminal();
+            lastPos = entry.lastPosition;
+            // Mark in-memory now so subsequent appendBufferToTxn for this txn fail with TxnConflict.
+            if (!alreadyTerminal) {
+                entry.state = newState;
+                if (entry.recoveryDiscovered) {
+                    recoveryDiscoveredOpen = Math.max(0, recoveryDiscoveredOpen - 1);
+                    entry.recoveryDiscovered = false;
+                }
+                if (newState == TxnState.COMMITTED) {
+                    committedCount.increment();
+                } else if (newState == TxnState.ABORTED) {
+                    abortedCount.increment();
+                    abortedTxns.add(txnIdKey);
+                }
+                recomputeMaxReadPositionLocked();
+            } else if (newState == TxnState.ABORTED) {
+                // Idempotent path — header re-confirms ABORTED. Make sure the in-memory set holds
+                // it (e.g. after an in-memory rebuild that lost the set).
+                abortedTxns.add(txnIdKey);
+            }
+        }
+
+        // Persist aborted record if this is an abort.
+        CompletableFuture<Void> persistAborted = (newState == TxnState.ABORTED)
+                ? persistAbortedRecord(txnIdKey, lastPos)
+                : CompletableFuture.completedFuture(null);
+
+        return persistAborted
+                .thenCompose(__ -> persistWatermarkIfAdvanced())
+                .thenCompose(__ -> txnStore.deleteWriteOpsForSegmentAndTxn(segmentName, txnIdKey));
+    }
+
     /**
-     * Delete every {@code /txn-op} record for {@code (this segment, txnIdKey)}. Best-effort —
-     * failures are logged and retried by the next reconcile.
+     * Write {@code /txn/segment-state/<segment>/aborted/<txnId>} with the txn's max position in
+     * this segment. The stored position is the prune key: trim-driven pruning drops an aborted
+     * record once the segment trims past it, so it must be at least as high as the txn's highest
+     * data position, or the record would be dropped while its data is still readable.
+     *
+     * <p>When the positions are unknown (a recovery-discovered txn with no new appends) we fall
+     * back to the current segment LAC. The txn's data was written in a prior epoch, so it cannot
+     * sit above the LAC — that makes the LAC a correct conservative upper bound. The durable
+     * watermark would be wrong here: the txn's data sits <em>above</em> the watermark, so pruning
+     * keyed on the watermark would discard the record too early.
      */
-    private void cleanupOpRecords(String txnIdKey) {
-        txnStore.deleteWriteOpsForSegmentAndTxn(segmentName, txnIdKey)
-                .exceptionally(err -> {
-                    log.warn().attr("segment", segmentName).attr("txnId", txnIdKey).exception(err)
-                            .log("Op-record cleanup failed; will retry on next reconcile");
-                    return null;
+    private CompletableFuture<Void> persistAbortedRecord(String txnIdKey, Position lastPos) {
+        long maxLedger;
+        long maxEntry;
+        if (lastPos != null) {
+            maxLedger = lastPos.getLedgerId();
+            maxEntry = lastPos.getEntryId();
+        } else {
+            Position lac = ledger.getLastConfirmedEntry();
+            maxLedger = lac == null ? 0L : lac.getLedgerId();
+            maxEntry = lac == null ? 0L : lac.getEntryId();
+        }
+        return txnStore.putAbortedTxn(segmentName, txnIdKey, maxLedger, maxEntry).thenApply(s -> null);
+    }
+
+    /**
+     * If the in-memory watermark position has advanced beyond the durable one, CAS-write the new
+     * value. Idempotent and self-skipping when there's nothing to do.
+     */
+    private CompletableFuture<Void> persistWatermarkIfAdvanced() {
+        SegmentWatermark toWrite;
+        long expectedVersion;
+        synchronized (lock) {
+            Position desired = maxReadPosition;
+            if (desired == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            if (watermark != null
+                    && watermark.ledgerId() == desired.getLedgerId()
+                    && watermark.entryId() == desired.getEntryId()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Only advance forward.
+            if (watermark != null) {
+                Position existing = PositionFactory.create(watermark.ledgerId(), watermark.entryId());
+                if (desired.compareTo(existing) <= 0) {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }
+            toWrite = new SegmentWatermark(desired.getLedgerId(), desired.getEntryId());
+            expectedVersion = watermarkVersion;
+        }
+        Optional<Long> expected = Optional.of(expectedVersion);
+        return txnStore.casSegmentWatermark(segmentName, toWrite, expected)
+                .thenAccept(stat -> {
+                    synchronized (lock) {
+                        watermark = toWrite;
+                        watermarkVersion = stat.getVersion();
+                    }
+                })
+                .exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.BadVersionException) {
+                        // Our in-memory version is stale (a concurrent writer moved the record).
+                        // Re-read so the next enqueued apply CASes against the current version
+                        // instead of looping on the stale one. Still propagate this failure so the
+                        // caller logs+retries; the retry now has a fresh version to work with.
+                        return txnStore.getSegmentWatermark(segmentName).thenAccept(opt -> {
+                            if (opt.isPresent()) {
+                                synchronized (lock) {
+                                    watermark = opt.get().value();
+                                    watermarkVersion = opt.get().version();
+                                }
+                            }
+                        }).thenCompose(__ -> FutureUtil.failedFuture(cause));
+                    }
+                    return FutureUtil.failedFuture(cause);
                 });
     }
 
     // ---- maxReadPosition ---------------------------------------------------
 
-    private Set<String> openTxnsLocked() {
-        Set<String> open = new HashSet<>();
-        for (Map.Entry<String, TxnEntry> e : txns.entrySet()) {
-            if (e.getValue().state == TxnState.OPEN) {
-                open.add(e.getKey());
-            }
-        }
-        return open;
-    }
-
     private void recomputeMaxReadPositionLocked() {
-        Position min = null;
-        for (TxnEntry e : txns.values()) {
-            if (e.state == TxnState.OPEN && e.firstPosition != null) {
-                if (min == null || e.firstPosition.compareTo(min) < 0) {
-                    min = e.firstPosition;
+        Position next;
+        Position watermarkPos = (watermark == null) ? null
+                : PositionFactory.create(watermark.ledgerId(), watermark.entryId());
+
+        if (recoveryDiscoveredOpen > 0) {
+            // Pinned at the durable watermark while any recovery-discovered open txn remains:
+            // we don't know their first positions and mustn't advance past them.
+            next = watermarkPos != null ? watermarkPos : maxReadPosition;
+        } else {
+            Position min = null;
+            for (TxnEntry e : txns.values()) {
+                if (e.state == TxnState.OPEN && e.firstPosition != null) {
+                    if (min == null || e.firstPosition.compareTo(min) < 0) {
+                        min = e.firstPosition;
+                    }
                 }
             }
+            if (min != null) {
+                next = ledger.getPreviousPosition(min);
+            } else {
+                // No open txns pinning anything: free to advance to last-dispatched.
+                next = lastDispatchable;
+            }
         }
-        Position next = (min == null) ? lastDispatchable : ledger.getPreviousPosition(min);
         Position prev = maxReadPosition;
         maxReadPosition = next;
-        // Only fire the callback on forward motion. Initial-state setup at recovery may move
-        // the position backwards (LAC -> previous(firstOpenWrite)); that's not a "moved forward".
         if (next.compareTo(prev) > 0 && maxReadPositionCallBack != null) {
             maxReadPositionCallBack.maxReadPositionMovedForward(prev, next);
         }
     }
 
-    // ---- SPI surface (lifecycle, queries) ---------------------------------
+    // ---- SPI surface -------------------------------------------------------
 
     @Override
     public Position getMaxReadPosition() {
@@ -391,13 +578,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     public boolean isTxnAborted(TxnID txnID, Position readPosition) {
         String key = TxnIds.toKey(txnID);
         synchronized (lock) {
-            TxnEntry entry = txns.get(key);
-            if (entry == null) {
-                // No record of this txn — must be either orphan (broker crash mid-publish) or
-                // long-aborted-and-cleaned. Filtering is the safe default.
-                return true;
-            }
-            return entry.state == TxnState.ABORTED;
+            // New semantics (P3.5): default is committed/visible; only txns explicitly in the
+            // aborted set are filtered. maxReadPosition caps what the dispatcher delivers — at the
+            // lowest open txn's first write in steady state, or pinned at the watermark while
+            // recovery-discovered opens remain — so reads above that cap don't reach this check.
+            return abortedTxns.contains(key);
         }
     }
 
@@ -410,6 +595,13 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         synchronized (lock) {
             lastDispatchable = position;
             recomputeMaxReadPositionLocked();
+            // Persist the new watermark if it advanced as a result of the non-txn append.
+            stateTail = stateTail.thenCompose(__ -> persistWatermarkIfAdvanced())
+                    .exceptionally(err -> {
+                        log.warn().attr("segment", segmentName).exception(err)
+                                .log("Watermark persist on normal publish failed; will retry");
+                        return null;
+                    });
         }
     }
 
@@ -440,18 +632,13 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
-        // No-op for the metadata-driven TB: v5 commits are driven by the TC writing /txn header CAS
-        // and the segment-event stream, not by direct SPI calls.
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark) {
-        // No-op (see commitTxn).
         return CompletableFuture.completedFuture(null);
     }
-
-    // ---- SPI surface (snapshots / readers — unused in v5) -----------------
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
@@ -526,11 +713,19 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     private static final class TxnEntry {
         TxnState state;
-        Position firstPosition; // null if no writes on this segment yet, or after termination
+        /** Earliest position the TB itself has seen on this segment for this txn. */
+        Position firstPosition;
+        /** Latest position the TB itself has seen on this segment for this txn. */
+        Position lastPosition;
+        /**
+         * True if this entry was created by recovery from a leftover {@code /txn/op} record —
+         * the TB doesn't know the real positions and pins {@code maxReadPosition} at the watermark
+         * until this txn resolves.
+         */
+        boolean recoveryDiscovered;
 
-        TxnEntry(TxnState state, Position firstPosition) {
+        TxnEntry(TxnState state) {
             this.state = state;
-            this.firstPosition = firstPosition;
         }
     }
 }

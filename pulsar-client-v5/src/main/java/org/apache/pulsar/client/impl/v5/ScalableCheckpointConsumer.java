@@ -344,7 +344,9 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
         var segConf = new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<T>();
-        segConf.getTopicNames().add(segment.segmentTopicName());
+        // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
+        // computed segment:// URI. attachTopicName() collapses both into the right URI.
+        segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setStartMessageId(startMsgId);
         if (consumerName != null) {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());

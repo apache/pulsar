@@ -29,10 +29,8 @@ tasks.named("jar") { enabled = false }
 
 val bookkeeperVersion: String = libs.versions.bookkeeper.get()
 val zookeeperVersion: String = libs.versions.zookeeper.get()
-val kotlinStdlibVersion: String = libs.versions.kotlin.stdlib.get()
 val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val audienceAnnotationsVersion: String = libs.versions.audience.annotations.get()
-val jetbrainsAnnotationsVersion: String = libs.versions.jetbrains.annotations.get()
 
 // Configuration for collecting runtime dependencies
 val distLib by configurations.creating {
@@ -167,11 +165,6 @@ dependencies {
     distLib("org.apache.bookkeeper:native-io:${bookkeeperVersion}") {
         artifact { type = "jar" }
     }
-
-    // Kotlin stdlib and JetBrains annotations (Maven includes these transitively)
-    distLib("org.jetbrains.kotlin:kotlin-stdlib:${kotlinStdlibVersion}")
-    distLib("org.jetbrains.kotlin:kotlin-stdlib-common:${kotlinStdlibVersion}")
-    distLib("org.jetbrains:annotations:${jetbrainsAnnotationsVersion}")
 
     // zookeeper-jute (transitive of zookeeper, but zookeeper itself is excluded)
     distLib("org.apache.zookeeper:zookeeper-jute:${zookeeperVersion}")

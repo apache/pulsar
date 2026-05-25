@@ -487,15 +487,17 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private CompletableFuture<org.apache.pulsar.client.api.Producer<T>> getOrCreateSegmentProducerAsync(
             long segmentId) {
         return segmentProducers.computeIfAbsent(segmentId, id -> {
-            // Find the segment topic name
-            String segmentTopicName = null;
+            // Find the segment and the URI to attach the per-segment v4 producer to.
+            // Regular segments use the computed segment:// URI; legacy segments (synthetic
+            // layouts wrapping an externally managed persistent:// topic) use that URI directly.
+            String attachTopicName = null;
             for (var seg : activeSegments) {
                 if (seg.segmentId() == id) {
-                    segmentTopicName = seg.segmentTopicName();
+                    attachTopicName = seg.attachTopicName();
                     break;
                 }
             }
-            if (segmentTopicName == null) {
+            if (attachTopicName == null) {
                 return CompletableFuture.failedFuture(
                         new PulsarClientException("Segment " + id + " not found in active segments"));
             }
@@ -506,7 +508,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             // initialSequenceId, accessMode, properties, ...) and not just the few
             // fields explicitly carried over.
             var segConf = producerConf.clone();
-            segConf.setTopicName(segmentTopicName);
+            segConf.setTopicName(attachTopicName);
             if (producerConf.getProducerName() != null
                     && !producerConf.getProducerName().isEmpty()) {
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);

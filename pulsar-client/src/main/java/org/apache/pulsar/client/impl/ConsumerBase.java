@@ -350,10 +350,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
         getInternalExecutor(message).execute(() -> {
-            if (!receivedFuture.complete(message)) {
-                log.warn().attr("cancelled", receivedFuture.isCancelled())
-                        .attr("message", message)
-                        .log("Race condition detected, receive future was already completed and message was dropped");
+            if (!receivedFuture.complete(message) && getState() != State.Closing && getState() != State.Closed) {
+                log.error().attr("cancelled", receivedFuture.isCancelled())
+                    .attr("message", message)
+                    .log("Race condition detected, receive future was already completed and message was dropped."
+                        + " In other words, the message was dropped internally, the client-side will encounter a"
+                        + " crucial issue: this message will never be consumed until the consumer is restarted or"
+                        + " the topic is unloaded. Under normal circumstances, this won't happen. It only occurs when"
+                        + " user itself has completed the completable future object returned by"
+                        + " \"consumer.receiveAsync()\"");
             }
         });
     }
@@ -1118,9 +1123,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
         if (!future.complete(messages)) {
             log.warn().attr("cancelled", future.isCancelled())
-                    .attr("messages", messages)
-                    .log("Race condition detected, batch receive future was"
-                            + " already completed and messages were dropped");
+                .attr("messages", messages)
+                .log("Race condition detected, receive future was already completed and message was dropped."
+                    + " In other words, the message was dropped internally, the client-side will encounter a"
+                    + " crucial issue: these message will never be consumed until the consumer is restarted or"
+                    + " the topic is unloaded. Under normal circumstances, this won't happen. It only occurs when"
+                    + " user itself has completed the completable future object returned by"
+                    + " \"consumer.batchReceiveAsync()\"");
         }
     }
 

@@ -112,7 +112,7 @@ public class TxnMetadataStore {
     // ---- Op-log append -----------------------------------------------------
 
     /**
-     * Append a {@link TxnOp} under {@code /txn-op/<txnId>-<seq>}. Adds the per-kind secondary-index
+     * Append a {@link TxnOp} under {@code /txn/op/<txnId>-<seq>}. Adds the per-kind secondary-index
      * entry — {@link TxnPaths#IDX_WRITES_BY_SEGMENT} for writes,
      * {@link TxnPaths#IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} for acks. Returns the {@link Stat} whose
      * {@code path} carries the generated sequence key.
@@ -158,7 +158,7 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} write record for {@code (segment, txnId)} — used by the TB once
+     * Delete every {@code /txn/op} write record for {@code (segment, txnId)} — used by the TB once
      * an event tells it the txn is terminal. Path extraction follows the layout in
      * {@link TxnPaths#txnIdFromOpPath}. Best-effort: tolerates concurrent deletions via
      * {@link MetadataStore#deleteIfExists}.
@@ -168,7 +168,7 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} ack record for {@code (segment, subscription, txnId)} — used by
+     * Delete every {@code /txn/op} ack record for {@code (segment, subscription, txnId)} — used by
      * the PendingAckStore once an event tells it the txn is terminal. Same path-extraction +
      * best-effort semantics as {@link #deleteWriteOpsForSegmentAndTxn}.
      */
@@ -301,6 +301,84 @@ public class TxnMetadataStore {
         String pk = TxnPaths.ackIndexKey(segment, subscription);
         return store.subscribeSequence(TxnPaths.subscriptionEventsParent(segment, subscription),
                 listener, Set.of(new Option.PartitionKey(pk)));
+    }
+
+    // ---- Per-segment durable visibility state -----------------------------
+
+    /**
+     * Read the segment's watermark record, or {@link Optional#empty()} if it doesn't exist (a
+     * fresh segment that has never had a transactional message).
+     */
+    public CompletableFuture<Optional<Versioned<SegmentWatermark>>> getSegmentWatermark(String segment) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.get(TxnPaths.segmentWatermarkPath(segment), opts)
+                .thenApply(opt -> opt.map(gr -> new Versioned<>(
+                        fromJson(gr.getValue(), SegmentWatermark.class), gr.getStat().getVersion())));
+    }
+
+    /**
+     * CAS-write the segment's watermark. Pass {@link Optional#empty()} for unconditional create
+     * (must not exist); pass a version from a prior {@link #getSegmentWatermark} for an update.
+     */
+    public CompletableFuture<Stat> casSegmentWatermark(String segment, SegmentWatermark watermark,
+                                                       Optional<Long> expectedVersion) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.put(TxnPaths.segmentWatermarkPath(segment), toJson(watermark),
+                expectedVersion, opts);
+    }
+
+    /**
+     * Persist a per-aborted-txn record for {@code (segment, txnId)}. Also writes the
+     * {@link TxnPaths#IDX_TXN_ABORTED_BY_POSITION} secondary-index entry keyed by the max
+     * position so the TB can range-delete on ML trim.
+     */
+    public CompletableFuture<Stat> putAbortedTxn(String segment, String txnId, long maxLedgerId,
+                                                 long maxEntryId) {
+        AbortedTxnRecord record = new AbortedTxnRecord(maxLedgerId, maxEntryId);
+        Option.SecondaryIndex idx = new Option.SecondaryIndex(TxnPaths.IDX_TXN_ABORTED_BY_POSITION,
+                TxnPaths.abortedByPositionIndexKey(segment, maxLedgerId, maxEntryId));
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)), idx);
+        return store.put(TxnPaths.segmentAbortedTxnPath(segment, txnId), toJson(record),
+                Optional.empty(), opts);
+    }
+
+    /**
+     * Stream all aborted-txn records for {@code segment} whose max position falls in
+     * {@code [fromKeyInclusive, toKeyInclusive]} (use {@code null} on either bound for
+     * unbounded). Use {@link TxnPaths#abortedByPositionSegmentLowerBound} /
+     * {@link TxnPaths#abortedByPositionSegmentUpperBound} for the segment-scoped full range.
+     */
+    public CompletableFuture<Void> scanAbortedTxns(String segment,
+                                                   String fromKeyInclusive, String toKeyInclusive,
+                                                   ScanConsumer consumer) {
+        String segKey = TxnPaths.segmentKey(segment);
+        return store.scanByIndex(TxnPaths.TXN_SEGMENT_ABORTED_PREFIX,
+                TxnPaths.IDX_TXN_ABORTED_BY_POSITION,
+                fromKeyInclusive, toKeyInclusive,
+                gr -> {
+                    // Fallback for stores without native indexes: the records are flat children
+                    // of TXN_SEGMENT_ABORTED_PREFIX named "<segKey>:<txnId>" — match by segKey.
+                    return segKey.equals(TxnPaths.segmentKeyFromAbortedPath(gr.getStat().getPath()));
+                },
+                consumer);
+    }
+
+    /**
+     * Delete a single aborted-txn record (and its index entry).
+     */
+    public CompletableFuture<Void> deleteAbortedTxn(String segment, String txnId) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.deleteIfExists(TxnPaths.segmentAbortedTxnPath(segment, txnId),
+                Optional.empty(), opts);
+    }
+
+    /**
+     * Delete the segment's watermark record — used by the TB at segment-teardown alongside
+     * deleting any remaining aborted records.
+     */
+    public CompletableFuture<Void> deleteSegmentWatermark(String segment) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.deleteIfExists(TxnPaths.segmentWatermarkPath(segment), Optional.empty(), opts);
     }
 
     // ---- JSON helpers ------------------------------------------------------

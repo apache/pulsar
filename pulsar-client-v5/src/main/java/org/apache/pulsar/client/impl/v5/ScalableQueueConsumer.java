@@ -422,7 +422,9 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         var segConf = consumerConf.clone();
         segConf.getTopicNames().clear();
         segConf.setTopicsPattern(null);
-        segConf.getTopicNames().add(segment.segmentTopicName());
+        // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
+        // computed segment:// URI. attachTopicName() collapses both into the right URI.
+        segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setSubscriptionType(SubscriptionType.Shared);
         if (consumerConf.getConsumerName() != null) {
             segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());

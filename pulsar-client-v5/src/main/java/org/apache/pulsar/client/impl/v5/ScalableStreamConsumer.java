@@ -373,7 +373,9 @@ final class ScalableStreamConsumer<T>
         var segConf = consumerConf.clone();
         segConf.getTopicNames().clear();
         segConf.setTopicsPattern(null);
-        segConf.getTopicNames().add(segment.segmentTopicName());
+        // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
+        // computed segment:// URI. attachTopicName() collapses both into the right URI.
+        segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setSubscriptionType(SubscriptionType.Exclusive);
         if (consumerConf.getConsumerName() != null) {
             segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
