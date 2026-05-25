@@ -136,4 +136,24 @@ public class FunctionUtilsReloadTest {
         assertSame(second.get("fn-a"), first.get("fn-a"));
         assertThrows(IllegalStateException.class, removed::getFunctionPackage);
     }
+
+    @Test
+    public void reloadClosesAllFunctionArchivesWhenDirectoryIsMissing() throws Exception {
+        Path dir = Files.createTempDirectory("fn-reload-");
+        Path nar = dir.resolve("f1.nar");
+        writeMinimalNar(nar, sampleDefinition("f-one"));
+
+        Map<String, FunctionArchive> first =
+                FunctionUtils.searchForFunctions(dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
+        FunctionArchive removed = first.get("f-one");
+        Files.delete(nar);
+        Files.delete(dir);
+
+        ReloadFunctionsResult reload = FunctionUtils.reloadFunctions(
+                first, dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
+        closeEvicted(reload);
+
+        assertTrue(reload.functions().isEmpty());
+        assertThrows(IllegalStateException.class, removed::getFunctionPackage);
+    }
 }
