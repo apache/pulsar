@@ -2814,7 +2814,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final long offloadThresholdInSeconds =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
         if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
-            executor.execute(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise));
+            // Use dedicated offload scheduler to avoid any potential blocking of core services
+            factory.getOffloadScheduler()
+                    .execute(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise));
         }
     }
 
@@ -2834,7 +2836,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(() -> maybeOffloadInBackground(finalPromise),
+            // Use dedicated offload scheduler to avoid blocking core services
+            factory.getOffloadScheduler().schedule(() -> maybeOffloadInBackground(finalPromise),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -3426,7 +3429,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
             OffloadUtils.cleanupOffloaded(ledgerId, uuid, config,
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming", name, scheduledExecutor);
+                    "Trimming", name, factory.getOffloadScheduler());
         }
     }
 
@@ -3698,7 +3701,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                        TimeUnit.HOURS.toMillis(1)).limit(10),
                                            FAIL_ON_CONFLICT,
                                            () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
-                                           scheduledExecutor, name)
+                                           factory.getOffloadScheduler(), name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
                                         Throwable e = FutureUtil.unwrapCompletionException(exception);
@@ -3719,7 +3722,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         OffloadUtils.cleanupOffloaded(
                                             ledgerId, uuid, config,
                                             driverMetadata,
-                                            "Metastore failure", name, scheduledExecutor);
+                                            "Metastore failure", name, factory.getOffloadScheduler());
                                     }
                                 });
                     })
@@ -3785,8 +3788,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             CompletableFuture<Void> finalPromise) {
         synchronized (this) {
             if (!metadataMutex.tryLock()) {
-                // retry in 100 milliseconds
-                scheduledExecutor.schedule(
+                // retry in 100 milliseconds using offload scheduler to avoid blocking core services
+                factory.getOffloadScheduler().schedule(
                         () -> tryTransformLedgerInfo(ledgerId, transformation, finalPromise), 100,
                         TimeUnit.MILLISECONDS);
             } else { // lock acquired
@@ -3851,7 +3854,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                    config.getLedgerOffloader().getOffloadDriverMetadata()),
                                                "Previous failed offload",
                                                name,
-                                               scheduledExecutor);
+                                               factory.getOffloadScheduler());
                                        }
                                        LedgerInfo newInfo = new LedgerInfo();
                                        newInfo.copyFrom(oldInfo);
