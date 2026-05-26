@@ -50,6 +50,7 @@ dependencies {
         exclude(group = "org.bouncycastle", module = "bcutil-jdk18on")
         exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
+        exclude(group = "software.amazon.awssdk")
     }
     implementation(libs.simpleclient.hotspot)
     implementation(libs.prometheus.jmx.collector)
