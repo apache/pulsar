@@ -54,7 +54,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
@@ -65,7 +64,6 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -94,7 +92,6 @@ import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.proxy.ProxyServer;
 import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
-import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
@@ -127,13 +124,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Setter
     private boolean followRedirects = true;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    public AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
-        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
-                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
-                PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
-                autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression, null);
+        this(conf.getConnectionTimeoutMs(), conf.getReadTimeoutMs(), conf.getRequestTimeoutMs(),
+                autoCertRefreshTimeSeconds, conf, acceptGzipCompression, null);
     }
 
     @SneakyThrows
@@ -225,7 +219,6 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
-        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setConnectTimeout(connectTimeoutMs);
         confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
