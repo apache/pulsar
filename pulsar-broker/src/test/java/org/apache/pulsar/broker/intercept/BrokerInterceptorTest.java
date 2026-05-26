@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.apache.pulsar.broker.intercept.CounterBrokerInterceptor.CUSTOMIZE;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -99,6 +102,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         brokerInterceptorWithClassLoaderHashMap.put(CounterBrokerInterceptor.NAME, counterBrokerInterceptor);
         BrokerInterceptors brokerInterceptors = new BrokerInterceptors(brokerInterceptorWithClassLoaderHashMap);
         pulsarTestContextBuilder.brokerInterceptor(brokerInterceptors);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
     private CounterBrokerInterceptor getCounterBrokerInterceptor() {
@@ -321,5 +325,23 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Message<String> message = consumer.receive();
         consumer.negativeAcknowledge(message);
         Awaitility.await().until(() -> getCounterBrokerInterceptor().getHandleNackCount().get() == 1);
+    }
+
+    @Test
+    public void testOpenTelemetry() throws IOException {
+        String topic = "persistent://public/default/test-otel";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.send("hello world");
+        producer.send("hello world");
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        var attributes = Attributes.builder()
+                .put(CUSTOMIZE, "customize")
+                .build();
+        assertMetricLongSumValue(metrics, CounterBrokerInterceptor.MESSAGE_COUNTER, attributes, 2);
+
     }
 }
