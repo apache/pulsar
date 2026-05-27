@@ -97,6 +97,62 @@ public class V5MigrationEndToEndTest extends V5ClientBaseTest {
     }
 
     @Test
+    public void testV5AsyncProducerSurvivesMigration() throws Exception {
+        // Same as the producer-survives-migration case, but driving the *async* producer API
+        // (producer.async()...send()). Async sends issued right after migration must ride
+        // through the synthetic→real-DAG transition — the per-segment producer for a
+        // just-terminated partition fails, and the send must retry onto an active child
+        // rather than fail the user's future.
+        String topic = baseName("e2e-async");
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic("persistent://" + topic)
+                .create();
+
+        java.util.List<java.util.concurrent.CompletableFuture<MessageId>> sends =
+                new java.util.ArrayList<>();
+        Set<String> sent = new HashSet<>();
+        for (int i = 0; i < 20; i++) {
+            String v = "pre-" + i;
+            sends.add(producer.async().newMessage().key("k-" + i).value(v).send());
+            sent.add(v);
+        }
+
+        admin.scalableTopics().migrateToScalable(topic, false);
+
+        // Issue the post-migration batch via async sends without awaiting in between, so the
+        // retry-across-transition path is exercised.
+        for (int i = 0; i < 20; i++) {
+            String v = "post-" + i;
+            sends.add(producer.async().newMessage().key("k-" + i).value(v).send());
+            sent.add(v);
+        }
+        // Every async send must eventually complete (none fail across the migration boundary).
+        java.util.concurrent.CompletableFuture
+                .allOf(sends.toArray(new java.util.concurrent.CompletableFuture[0]))
+                .get(60, java.util.concurrent.TimeUnit.SECONDS);
+
+        @Cleanup
+        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+                .topic("persistent://" + topic)
+                .subscriptionName("e2e-async-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+
+        Set<String> received = new HashSet<>();
+        for (int i = 0; i < 40; i++) {
+            org.apache.pulsar.client.api.v5.Message<String> m = consumer.receive(Duration.ofSeconds(10));
+            assertNotNull(m, "expected 40 messages, missing after " + received.size());
+            received.add(m.value());
+            consumer.acknowledge(m.id());
+        }
+        assertEquals(received, sent,
+                "every async pre- and post-migration message must be consumable");
+    }
+
+    @Test
     public void testV4ProducerLockedOutAfterMigration() throws Exception {
         // After migration the old topic is terminated, so a legacy v4 producer can no longer
         // write to it — the produce fails with a terminated-topic error.

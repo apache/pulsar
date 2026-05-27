@@ -293,38 +293,56 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         }
         final long routedSegmentId = segmentId;
 
-        appendToDispatchChain(routedSegmentId, producer -> {
-            var ackFuture = buildV4Message(producer, key, value, properties,
-                    eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
-                    .sendAsync();
-            ackFuture.whenComplete((v4MsgId, ex) -> {
-                if (ex == null) {
-                    userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
-                    return;
-                }
-                Throwable cause = ex instanceof java.util.concurrent.CompletionException
-                        ? ex.getCause() : ex;
-                boolean segmentSealed = cause
-                        instanceof org.apache.pulsar.client.api.PulsarClientException
-                                .TopicTerminatedException
-                        || cause instanceof org.apache.pulsar.client.api.PulsarClientException
-                                .AlreadyClosedException;
-                if (segmentSealed && attempt < 3) {
-                    log.info().attr("segmentId", routedSegmentId)
-                            .attr("attempt", attempt + 1).log("Segment sealed, retrying");
-                    segmentProducers.remove(routedSegmentId);
-                    dispatchChains.remove(routedSegmentId);
-                    CompletableFuture.delayedExecutor(
-                                    100L * (attempt + 1),
-                                    java.util.concurrent.TimeUnit.MILLISECONDS)
-                            .execute(() -> dispatchSendAttempt(userFuture, key, value, properties,
-                                    eventTime, sequenceId, deliverAfter, deliverAt,
-                                    replicationClusters, txn, attempt + 1));
-                } else {
-                    userFuture.completeExceptionally(ex);
-                }
-            });
-        }, userFuture);
+        // Re-dispatch this message on the next attempt. Used when the target segment is gone
+        // — sealed by a split/merge or terminated by a regular-to-scalable migration — and
+        // the DAG watch is expected to refresh the layout shortly so routeMessage lands on an
+        // active child.
+        Runnable retry = () -> {
+            segmentProducers.remove(routedSegmentId);
+            dispatchChains.remove(routedSegmentId);
+            CompletableFuture.delayedExecutor(
+                            Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS),
+                            java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .execute(() -> dispatchSendAttempt(userFuture, key, value, properties,
+                            eventTime, sequenceId, deliverAfter, deliverAt,
+                            replicationClusters, txn, attempt + 1));
+        };
+
+        appendToDispatchChain(routedSegmentId,
+                producer -> {
+                    var ackFuture = buildV4Message(producer, key, value, properties,
+                            eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
+                            .sendAsync();
+                    ackFuture.whenComplete((v4MsgId, ex) -> {
+                        if (ex == null) {
+                            userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
+                        } else {
+                            // Failure from the v4 send (e.g. the segment sealed mid-flight).
+                            handleAsyncSegmentFailure(userFuture, routedSegmentId, attempt, ex, retry);
+                        }
+                    });
+                },
+                // Failure while (re)creating the per-segment producer — e.g. the partition was
+                // terminated by a migration between routing and creation.
+                createEx -> handleAsyncSegmentFailure(userFuture, routedSegmentId, attempt, createEx, retry));
+    }
+
+    /**
+     * Decide whether an async send failure should be retried. If the target segment is gone
+     * (a split/merge seal or a migration termination) and the retry budget isn't exhausted,
+     * run {@code retry}; otherwise fail the user-visible future. Covers both the v4 send
+     * failure and the per-segment producer-creation failure.
+     */
+    private void handleAsyncSegmentFailure(CompletableFuture<MessageIdV5> userFuture, long segmentId,
+                                           int attempt, Throwable ex, Runnable retry) {
+        Throwable cause = ex instanceof java.util.concurrent.CompletionException ? ex.getCause() : ex;
+        if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS) {
+            log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
+                    .log("Target segment gone, retrying async send after layout update");
+            retry.run();
+        } else {
+            userFuture.completeExceptionally(ex);
+        }
     }
 
     /**
@@ -332,12 +350,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * segment-producer-creation future; subsequent links complete as soon as
      * their {@code dispatchOp} returns (which calls v4 {@code sendAsync} — a
      * fast queue insert), so dispatch order strictly mirrors call order.
-     * If the chain itself fails (e.g., segment producer creation failed), the
-     * user-visible future is failed too.
+     * If the chain itself fails (e.g., segment producer creation failed),
+     * {@code onCreateFailure} is invoked so the caller can retry (when the segment
+     * is merely gone) or fail the user-visible future.
      */
     private void appendToDispatchChain(long segmentId,
                                        Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
-                                       CompletableFuture<MessageIdV5> userFuture) {
+                                       Consumer<Throwable> onCreateFailure) {
         synchronized (dispatchLock) {
             var prev = dispatchChains.computeIfAbsent(segmentId,
                     id -> getOrCreateSegmentProducerAsync(id));
@@ -345,9 +364,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 dispatchOp.accept(producer);
                 return producer;
             });
-            // If the chain link itself faults (creation failure), surface it.
+            // If the chain link itself faults (creation failure), hand it to the caller.
             next.exceptionally(ex -> {
-                userFuture.completeExceptionally(ex);
+                onCreateFailure.accept(ex);
                 return null;
             });
             dispatchChains.put(segmentId, next);
