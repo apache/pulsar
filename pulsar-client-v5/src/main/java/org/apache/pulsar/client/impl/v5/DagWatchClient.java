@@ -65,6 +65,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private volatile LayoutChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    private volatile boolean usingProxy = false;
 
     DagWatchClient(PulsarClientImpl v4Client, TopicName topicName) {
         this.v4Client = v4Client;
@@ -114,6 +115,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             }
             return;
         }
+        this.usingProxy = newCnx.isProxied();
         this.cnx = newCnx;
         newCnx.registerDagWatchSession(sessionId, this);
         newCnx.ctx().writeAndFlush(
@@ -222,6 +224,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
                     scheduleReconnect();
                     return null;
                 });
+    }
+
+    /** Whether the DAG-watch connection was established through a proxy. */
+    boolean isUsingProxy() {
+        return usingProxy;
     }
 
     ClientSegmentLayout currentLayout() {

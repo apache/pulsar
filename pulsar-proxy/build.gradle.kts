@@ -68,6 +68,8 @@ dependencies {
     testImplementation(project(":pulsar-broker"))
     testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
     testImplementation(project(":pulsar-client-admin-original"))
+    testImplementation(project(":pulsar-client-v5"))
+    testImplementation(project(":pulsar-client-api-v5"))
     testImplementation(project(":testmocks"))
     testImplementation(libs.asynchttpclient)
     testImplementation(libs.avro)
