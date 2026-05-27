@@ -261,7 +261,7 @@ public class ScalableTopics extends AdminResource {
         TopicName persistentBase =
                 TopicName.get(TopicDomain.persistent.value(), namespaceName, encodedTopic);
 
-        validateTopicOperationAsync(persistentBase, TopicOperation.PRODUCE)
+        validateTopicOperationAsync(persistentBase, TopicOperation.MIGRATE_TO_SCALABLE)
                 .thenCompose(__ -> doMigrateToScalableAsync(scalableName, persistentBase, force))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", scalableName)
