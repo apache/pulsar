@@ -238,9 +238,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      */
     private static boolean isSegmentGoneError(Throwable t) {
         for (Throwable cause = t; cause != null; cause = cause.getCause()) {
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException
-                    || cause instanceof
-                        org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException) {
+            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException) {
+                return true;
+            }
+            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException) {
                 return true;
             }
             // The per-segment producer-creation path can surface the broker's terminated /
