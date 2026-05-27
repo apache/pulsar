@@ -46,7 +46,8 @@ public class DataSketchesSummaryLogger {
     }
 
     public void registerEvent(long eventLatency, TimeUnit unit) {
-        double valueMillis = unit.toMicros(eventLatency) / 1000.0;
+        // Convert via nanoseconds to keep sub-microsecond precision and reduce overflow risk.
+        double valueMillis = unit.toNanos(eventLatency) / 1_000_000.0;
 
         countAdder.increment();
         sumAdder.add(valueMillis);
