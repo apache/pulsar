@@ -163,7 +163,7 @@ public class MetadataTransactionBufferTest {
         // Pre-set header to COMMITTED — txn is terminal before any append.
         Stat created = txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.COMMITTED, Duration.ofMillis(5000),
-                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000))).get();
+                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000), null)).get();
         assertThat(created.getVersion()).isZero();
 
         MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
@@ -393,14 +393,14 @@ public class MetadataTransactionBufferTest {
     private void createOpenHeader(TxnID txnId) throws Exception {
         txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.OPEN, Duration.ofMillis(60_000),
-                        Instant.ofEpochMilli(1000), null)).get();
+                        Instant.ofEpochMilli(1000), null, null)).get();
     }
 
     private void commitTxn(TxnID txnId) throws Exception {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 
@@ -408,7 +408,7 @@ public class MetadataTransactionBufferTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 

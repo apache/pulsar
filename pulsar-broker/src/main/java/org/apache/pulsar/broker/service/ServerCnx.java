@@ -3498,9 +3498,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
-            // /txn/op records when they actually apply ops.
-            writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
-                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
+            // /txn/op records when they actually apply ops. Still verify ownership before acking,
+            // matching the legacy authorization surface.
+            verifyTxnOwnership(txnID)
+                    .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
+                            : failedFutureTxnNotOwned(txnID))
+                    .whenComplete((v, ex) -> {
+                        if (ex == null) {
+                            writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                        } else {
+                            Throwable cause = handleTxnException(ex,
+                                    BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
+                            writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                                    txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(cause), cause.getMessage()));
+                        }
+                    });
             return;
         }
 
@@ -3565,7 +3579,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
-            service.pulsar().getTransactionCoordinatorV5().endTransaction(txnID, txnAction)
+            verifyTxnOwnership(txnID)
+                    .thenCompose(isOwner -> {
+                        if (!isOwner) {
+                            return failedFutureTxnNotOwned(txnID);
+                        }
+                        return service.pulsar().getTransactionCoordinatorV5()
+                                .endTransaction(txnID, txnAction);
+                    })
                     .whenComplete((__, e) -> {
                         if (e == null) {
                             commandSender.sendEndTxnResponse(requestId, txnID, txnAction);
@@ -3622,8 +3643,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
         assert ctx.executor().inEventLoop();
-        return service.pulsar().getTransactionMetadataStoreService()
-                .verifyTxnOwnership(txnID, getPrincipal())
+        CompletableFuture<Boolean> ownerCheck =
+                service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
+                        ? service.pulsar().getTransactionCoordinatorV5()
+                                .verifyTxnOwnership(txnID, getPrincipal())
+                        : service.pulsar().getTransactionMetadataStoreService()
+                                .verifyTxnOwnership(txnID, getPrincipal());
+        return ownerCheck
                 .thenComposeAsync(isOwner -> {
                     if (isOwner) {
                         return CompletableFuture.completedFuture(true);
@@ -3894,9 +3920,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
-            // /txn/op records when they actually apply ops.
-            writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
-                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
+            // /txn/op records when they actually apply ops. Still verify ownership before acking,
+            // matching the legacy authorization surface.
+            verifyTxnOwnership(txnID)
+                    .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
+                            : failedFutureTxnNotOwned(txnID))
+                    .whenComplete((v, ex) -> {
+                        if (ex == null) {
+                            writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                        } else {
+                            Throwable cause = handleTxnException(ex,
+                                    BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                            writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(cause), cause.getMessage()));
+                        }
+                    });
             return;
         }
 

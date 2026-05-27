@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
@@ -110,9 +111,25 @@ public class TransactionCoordinatorV5 {
         return txnStore.nextTxnSequence(tcId.getId()).thenCompose(seq -> {
             TxnID txnId = new TxnID(tcId.getId(), seq);
             TxnHeader header = new TxnHeader(TxnState.OPEN,
-                    Duration.ofMillis(timeoutInMillis), Instant.now(), null);
+                    Duration.ofMillis(timeoutInMillis), Instant.now(), null, owner);
             return txnStore.createHeader(TxnIds.toKey(txnId), header).thenApply(stat -> txnId);
         });
+    }
+
+    /**
+     * Verify {@code principal} owns {@code txnId}. Mirrors the legacy coordinator's
+     * {@code TransactionMetadataStoreService.verifyTxnOwnership} semantics: a {@code null} stored
+     * owner (authentication disabled, or a legacy txn) is always allowed; otherwise the principal
+     * must match. The superuser fallback lives in {@code ServerCnx#verifyTxnOwnership}, same as the
+     * legacy path. A missing header resolves to {@code false} (not owned).
+     */
+    public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnId, String principal) {
+        return txnStore.getHeader(TxnIds.toKey(txnId)).thenApply(opt -> opt
+                .map(v -> {
+                    String owner = v.value().getOwner();
+                    return owner == null || owner.equals(principal);
+                })
+                .orElse(false));
     }
 
     // ---- addPartition / addSubscription (no-op in v5) ---------------------
@@ -156,10 +173,13 @@ public class TransactionCoordinatorV5 {
             Versioned<TxnHeader> v = opt.get();
             TxnHeader current = v.value();
             if (current.getState() == newState) {
-                // Idempotent retry — already in the requested terminal state. Re-publish events
-                // is safe but skip for simplicity; participants tolerate missing events via the
-                // header re-read in their reconcile path.
-                return CompletableFuture.completedFuture(null);
+                // Idempotent retry — header already terminal-and-matching. Re-drive the fan-out
+                // rather than short-circuiting: if a previous attempt CAS'd the header but failed
+                // (partially or fully) before publishing, the only way a participant ever learns
+                // the decision is the event, and a terminal header gives the reconcile path nothing
+                // to act on. Re-publishing is safe — participants key on (txnId, decision) and the
+                // decision can't change once terminal.
+                return fanOutEvents(txnId, txnIdKey, newState);
             }
             if (current.getState() != TxnState.OPEN) {
                 return FutureUtil.failedFuture(
@@ -168,7 +188,7 @@ public class TransactionCoordinatorV5 {
                                         + ", cannot transition to " + newState));
             }
             TxnHeader updated = new TxnHeader(newState, current.getTimeout(),
-                    current.getCreatedAt(), Instant.now());
+                    current.getCreatedAt(), Instant.now(), current.getOwner());
             return txnStore.updateHeader(txnIdKey, updated, v.version())
                     .thenCompose(stat -> fanOutEvents(txnId, txnIdKey, newState));
         });
@@ -188,8 +208,8 @@ public class TransactionCoordinatorV5 {
      * and publish one event per participant. Writes are independent so we fire them in parallel.
      */
     private CompletableFuture<Void> fanOutEvents(TxnID txnId, String txnIdKey, TxnState decision) {
-        Set<String> writeSegments = ConcurrentHashSet.create();
-        Set<String> ackParticipants = ConcurrentHashSet.create();
+        Set<String> writeSegments = ConcurrentHashMap.newKeySet();
+        Set<AckParticipant> ackParticipants = ConcurrentHashMap.newKeySet();
         return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
@@ -197,7 +217,7 @@ public class TransactionCoordinatorV5 {
                 if (op.getKind() == TxnOpKind.WRITE) {
                     writeSegments.add(op.getSegment());
                 } else if (op.getKind() == TxnOpKind.ACK && op.getSubscription() != null) {
-                    ackParticipants.add(op.getSegment() + "\0" + op.getSubscription());
+                    ackParticipants.add(new AckParticipant(op.getSegment(), op.getSubscription()));
                 }
             }
 
@@ -218,21 +238,14 @@ public class TransactionCoordinatorV5 {
             for (String segment : writeSegments) {
                 publishes[i++] = txnStore.publishSegmentEvent(segment, event);
             }
-            for (String packed : ackParticipants) {
-                int nul = packed.indexOf('\0');
-                String segment = packed.substring(0, nul);
-                String subscription = packed.substring(nul + 1);
-                publishes[i++] = txnStore.publishSubscriptionEvent(segment, subscription, event);
+            for (AckParticipant p : ackParticipants) {
+                publishes[i++] = txnStore.publishSubscriptionEvent(p.segment(), p.subscription(), event);
             }
             return CompletableFuture.allOf(publishes);
         });
     }
 
-    // ---- Small helper instead of pulling in a third-party concurrent set --------------------
-
-    private static final class ConcurrentHashSet {
-        private static <T> Set<T> create() {
-            return java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
-        }
+    /** A {@code (segment, subscription)} ack participant; keys the ack fan-out de-dup set. */
+    private record AckParticipant(String segment, String subscription) {
     }
 }

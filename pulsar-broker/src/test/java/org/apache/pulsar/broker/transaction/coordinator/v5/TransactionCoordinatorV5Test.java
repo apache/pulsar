@@ -92,9 +92,10 @@ public class TransactionCoordinatorV5Test {
         assertThat(t1.getLeastSigBits()).isLessThan(t2.getLeastSigBits());
         assertThat(t2.getLeastSigBits()).isLessThan(t3.getLeastSigBits());
 
-        // Header lives at /txn/id/<TxnIds.toKey> with state = OPEN.
+        // Header lives at /txn/id/<TxnIds.toKey> with state = OPEN and the opening principal.
         var header = txnStore.getHeader(TxnIds.toKey(t1)).get().orElseThrow();
         assertThat(header.value().getState()).isEqualTo(TxnState.OPEN);
+        assertThat(header.value().getOwner()).isEqualTo("owner-a");
     }
 
     @Test
@@ -158,11 +159,51 @@ public class TransactionCoordinatorV5Test {
     public void endTransaction_idempotent_onRetryWithSameAction() throws Exception {
         TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
         tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
-        // Second call with the same action is a no-op (header already terminal-and-matching).
+        // Second call with the same action succeeds and leaves the header terminal-and-matching.
         tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
 
         var header = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         assertThat(header.value().getState()).isEqualTo(TxnState.COMMITTED);
+    }
+
+    @Test
+    public void endTransaction_idempotentRetry_republishesEvents() throws Exception {
+        // A retry of a terminal-and-matching txn re-drives the fan-out, so a participant that
+        // missed the first event (e.g. a partial publish on the first attempt) still gets it.
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        txnStore.appendOp(txnIdKey,
+                new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
+
+        List<String> received = new ArrayList<>();
+        try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
+            tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(1));
+            // Retry re-publishes — a second event lands for the same segment.
+            tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(2));
+        }
+    }
+
+    @Test
+    public void verifyTxnOwnership_matchesOwnerAndRejectsOthers() throws Exception {
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "alice").get();
+        assertThat(tc.verifyTxnOwnership(txnId, "alice").get()).isTrue();
+        assertThat(tc.verifyTxnOwnership(txnId, "bob").get()).isFalse();
+    }
+
+    @Test
+    public void verifyTxnOwnership_nullOwnerAlwaysAllowed() throws Exception {
+        // Authentication disabled — owner stored as null, mirroring the legacy "null ⟹ allowed".
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, null).get();
+        assertThat(tc.verifyTxnOwnership(txnId, "anyone").get()).isTrue();
+        assertThat(tc.verifyTxnOwnership(txnId, null).get()).isTrue();
+    }
+
+    @Test
+    public void verifyTxnOwnership_unknownTxnReturnsFalse() throws Exception {
+        assertThat(tc.verifyTxnOwnership(new TxnID(0L, 9999L), "alice").get()).isFalse();
     }
 
     @Test
