@@ -65,6 +65,12 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 @ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
+    /**
+     * Default name of the internal advertised listener used for broker-to-broker communication
+     * within a Pulsar cluster.
+     */
+    public static final String DEFAULT_INTERNAL_LISTENER_NAME = "internal";
+
     @Category
     private static final String CATEGORY_SERVER = "Server";
     @Category
@@ -169,26 +175,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving binary protobuf requests."
-            + " If set, defines a server binding for bindAddress:brokerServicePort."
-            + " The Default value is 6650."
+        doc = "Port for the Pulsar binary protocol of the internal listener."
+            + " The same port number is used both for the local socket binding (with `bindAddress`)"
+            + " and for the advertised URL (with `advertisedAddress`), so no entry in"
+            + " `advertisedListeners` or `bindAddresses` is required for the internal listener."
+            + " Default is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving TLS-secured binary protobuf requests."
-            + " If set, defines a server binding for bindAddress:brokerServicePortTls."
+        doc = "Port for the Pulsar binary protocol TLS endpoint of the internal listener."
+            + " Used both for the local socket binding and the advertised URL."
+            + " By default TLS is disabled."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving http requests"
+        doc = "Port for the HTTP admin/REST endpoint of the internal listener."
+            + " Used both for the local socket binding and the advertised URL."
     )
     private Optional<Integer> webServicePort = Optional.of(8080);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving https requests"
+        doc = "Port for the HTTPS admin/REST endpoint of the internal listener."
+            + " Used both for the local socket binding and the advertised URL."
+            + " By default TLS is disabled."
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
 
@@ -214,38 +226,75 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Hostname or IP address the service binds on"
+        doc = "Local network interface IP for the internal listener's port bindings."
+            + " Use a specific local IP to bind to a single interface, or `0.0.0.0` to bind on all"
+            + " interfaces. Default is `0.0.0.0`."
     )
     private String bindAddress = "0.0.0.0";
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Hostname or IP address the service advertises to the outside world."
-            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
+        doc = "Hostname or IP advertised to clients for the internal listener."
+            + " Combined with the *Port properties it forms the internal listener's advertised URLs"
+            + " (e.g. `pulsar://<advertisedAddress>:<brokerServicePort>`)."
+            + " If not set, defaults to `InetAddress.getLocalHost().getCanonicalHostName()`."
     )
     private String advertisedAddress;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Used to specify multiple advertised listeners for the broker."
-                    + " The value must format as <listener_name>:pulsar://<host>:<port>,"
-                    + "multiple listeners should separate with commas."
-                    + "Do not use this configuration with advertisedAddress and brokerServicePort."
-                    + "The Default value is absent means use advertisedAddress and brokerServicePort.")
+            doc = "Declares additional advertised listeners — typically external listeners that"
+                    + " complement the internal one.\n"
+                    + " Format: comma-separated `<listener_name>:<scheme>://<host>:<port>` entries."
+                    + " Supported schemes: `pulsar`, `pulsar+ssl`, `http`, `https`."
+                    + " A listener name may be repeated to declare multiple schemes for the same listener.\n"
+                    + " The internal listener is auto-configured from `advertisedAddress` plus the *Port"
+                    + " properties (`brokerServicePort` / `brokerServicePortTls` / `webServicePort` /"
+                    + " `webServicePortTls`) so it does not need an entry here. URLs declared here under"
+                    + " `internalListenerName` do override that auto-configured listener, but this is"
+                    + " not recommended because it can route cluster-internal traffic through an external"
+                    + " endpoint (for example, an external load balancer).\n"
+                    + " Legacy fallback: when `internalListenerName` is left blank, the first listener"
+                    + " parsed from this property is used as the internal listener (so in that case its"
+                    + " entry here is required).")
     private String advertisedListeners;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Used to specify the internal listener name for the broker."
-                    + "The listener name must contain in the advertisedListeners."
-                    + "The Default value is absent, the broker uses the first listener as the internal listener.")
-    private String internalListenerName;
+            doc = "Name of the listener used for cluster-internal broker-to-broker communication"
+                    + " (lookup redirects, admin forwarding to owner or leader broker). Defaults to"
+                    + " `internal`.\n"
+                    + " When set (the default), the internal listener is auto-configured from"
+                    + " `advertisedAddress` plus the *Port properties. The internal listener must"
+                    + " advertise addresses reachable from other brokers in the same cluster; avoid"
+                    + " overriding its URLs in `advertisedListeners` to point at an external load"
+                    + " balancer because that would route cluster-internal traffic outside the cluster."
+                    + " For external clients, declare a separate non-internal listener in"
+                    + " `advertisedListeners` instead. The default name `internal` also keeps the"
+                    + " port-derived internal listener distinct from any user-declared listener names.\n"
+                    + " Setting this to an empty string restores the legacy fallback: the first listener"
+                    + " parsed from `advertisedListeners` is used as the internal listener.")
+    private String internalListenerName = DEFAULT_INTERNAL_LISTENER_NAME;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Used to specify additional bind addresses for the broker."
-                    + " The value must format as <listener_name>:<scheme>://<host>:<port>,"
-                    + " multiple bind addresses should be separated with commas."
-                    + " Associates each bind address with an advertised listener and protocol handler."
-                    + " Note that the brokerServicePort, brokerServicePortTls, webServicePort, and"
-                    + " webServicePortTls properties define additional bindings.")
+            doc = "Per-listener socket bindings.\n"
+                    + " The internal listener's bindings are derived automatically from `bindAddress`"
+                    + " plus the port properties (`brokerServicePort` / `brokerServicePortTls` /"
+                    + " `webServicePort` / `webServicePortTls`) and do not need to be repeated here.\n"
+                    + " PIP-95 smart listener selection routes a connection to the listener whose port"
+                    + " it arrived on. For the Pulsar binary protocol (`pulsar` / `pulsar+ssl`) this is"
+                    + " optional — clients can also pass an explicit `listenerName`. For the HTTP/HTTPS"
+                    + " Admin API (`http` / `https`) it is the only routing mechanism, so every"
+                    + " HTTP/HTTPS advertised listener reachable from outside the cluster needs a"
+                    + " dedicated entry here on a unique port. This lets a layer-4 TCP load balancer"
+                    + " serve the Admin API directly per listener, without an HTTP reverse proxy.\n"
+                    + " Format: comma-separated `<listener_name>:<scheme>://<ip>:<port>` entries."
+                    + " Supported schemes: `pulsar`, `pulsar+ssl`, `http`, `https`."
+                    + " The `<ip>` part selects which local network interface the port binds to:"
+                    + " use a specific local IP, or `0.0.0.0` to bind on all interfaces."
+                    + " A local hostname is also accepted but not recommended.\n"
+                    + " Each `ip:port` may be bound by exactly one (listener, scheme) pair. An entry"
+                    + " that exactly matches the auto-derived internal-listener binding is tolerated;"
+                    + " assigning the same `ip:port` to a different listener or scheme fails validation.\n"
+                    + " Port `0` (OS-assigned ephemeral port) is supported only for the internal listener.")
     private String bindAddresses;
 
     @FieldContext(category = CATEGORY_SERVER,
@@ -1750,8 +1799,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "The class name of the topic policies service. The default config only takes affect when the "
-                    + "systemTopicEnable config is true"
+            doc = """
+                    The class name of the topic policies service. There are 2 built-in implementations:
+                    1. "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService" (default)
+                      It stores a topic's policies in the `__change_events` topic. If `systemTopicEnabled` is false,
+                      the topic policies will just be disabled
+                    2. "org.apache.pulsar.broker.service.MetadataStoreTopicPoliciesService"
+                      It stores a topic's policies in the metadata store. If `systemTopicEnabled` is true and the
+                      topic's namespace has a `__change_events` topic, the policies will still be stored in the
+                      `__change_events` topic for backward compatibility.
+                    """
     )
     private String topicPoliciesServiceClassName =
             "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService";
@@ -3025,6 +3082,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of load manager to use"
     )
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "When load manager migration is enabled, the broker will redirect requests to another broker if the "
+                    + "load manager on the current broker is not using the load manager of the latest service "
+                    + "lookup data available in the metadata store."
+    )
+    private boolean loadManagerMigrationEnabled = false;
 
     @FieldContext(category = CATEGORY_LOAD_BALANCER, doc = "Name of topic bundle assignment strategy to use")
     private String topicBundleAssignmentStrategy =

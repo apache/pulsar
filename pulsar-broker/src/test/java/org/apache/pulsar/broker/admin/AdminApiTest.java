@@ -3101,7 +3101,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(receivedMessages.size(), 0);
 
         consumer.close();
-        admin.topics().deleteSubscription(topicName, "my-sub");
+        // consumer.close() returns when the close request is dispatched, but the broker may not
+        // have processed the disconnect yet, so deleteSubscription can still see active consumers
+        // and return HTTP 412. Retry until the broker has detected the disconnect.
+        final String topicNameFinal = topicName;
+        Awaitility.await()
+                .ignoreExceptionsInstanceOf(PulsarAdminException.PreconditionFailedException.class)
+                .untilAsserted(() -> admin.topics().deleteSubscription(topicNameFinal, "my-sub"));
         admin.topics().deletePartitionedTopic(topicName);
     }
 

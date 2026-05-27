@@ -25,6 +25,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.TreeMap;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
@@ -75,7 +76,7 @@ public class FunctionUtils {
                 .readValue(narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME), valueType);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
+    public static Map<String, FunctionArchive> searchForFunctions(String functionsDirectory,
                                                                       String narExtractionDirectory,
                                                                       boolean enableClassloading) throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath().normalize();

@@ -54,10 +54,13 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -222,6 +225,193 @@ public class ScalableTopics extends AdminResource {
                 futures.add(admin.scalableTopics().createSegmentAsync(segmentTopic, List.of()));
             }
             return FutureUtil.waitForAll(futures);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    // --- Migrate (PIP-475 regular-to-scalable) ---
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/migrate")
+    @ApiOperation(value = "Migrate an existing regular (partitioned or non-partitioned) topic "
+            + "to a scalable topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Topic migrated successfully"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have produce permission on the topic"),
+            @ApiResponse(code = 404, message = "Topic doesn't exist"),
+            @ApiResponse(code = 409, message = "Already a scalable topic, or legacy v4 clients are "
+                    + "still connected and force was not set"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void migrateToScalable(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Migrate even if legacy v4 clients are still connected to the topic")
+            @QueryParam("force") @DefaultValue("false") boolean force) {
+        validateNamespaceName(tenant, namespace);
+        // The scalable topic's canonical identity uses the topic:// domain; the migration
+        // source is the same name in the persistent:// domain.
+        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName persistentBase =
+                TopicName.get(TopicDomain.persistent.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(persistentBase, TopicOperation.MIGRATE_TO_SCALABLE)
+                .thenCompose(__ -> doMigrateToScalableAsync(scalableName, persistentBase, force))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId()).attr("topic", scalableName)
+                            .attr("force", force).log("Migrated topic to scalable");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.AlreadyExistsException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "Topic is already scalable: " + scalableName));
+                    } else {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", scalableName)
+                                .exception(ex).log("Failed to migrate topic to scalable");
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
+    }
+
+    /**
+     * Orchestrate a regular-to-scalable migration:
+     * <ol>
+     *   <li>reject if scalable metadata already exists;</li>
+     *   <li>resolve the source topic's existence + partition count;</li>
+     *   <li>unless {@code force}, reject if any legacy v4 client is still connected;</li>
+     *   <li>build the migrated layout (sealed legacy parents + active children);</li>
+     *   <li>create the new child segment topics;</li>
+     *   <li>atomically write the scalable metadata (the commit point — connected V5 lookup
+     *       sessions transition from the synthetic layout to the real DAG via the metadata
+     *       watch);</li>
+     *   <li>terminate the old topics so no further v4 writes can land — they become the
+     *       drainable sealed parent segments.</li>
+     * </ol>
+     */
+    private CompletableFuture<Void> doMigrateToScalableAsync(TopicName scalableName,
+                                                             TopicName persistentBase, boolean force) {
+        return resources().getScalableTopicMetadataAsync(scalableName).thenCompose(existing -> {
+            if (existing.isPresent()) {
+                throw new RestException(Response.Status.CONFLICT,
+                        "Topic is already scalable: " + scalableName);
+            }
+            return pulsar().getNamespaceService().checkTopicExistsAsync(persistentBase);
+        }).thenCompose(existsInfo -> {
+            boolean exists = existsInfo.isExists();
+            int partitions = existsInfo.getPartitions();
+            existsInfo.recycle();
+            if (!exists) {
+                throw new RestException(Response.Status.NOT_FOUND,
+                        "Topic does not exist: " + persistentBase);
+            }
+            CompletableFuture<Void> precheck = force
+                    ? CompletableFuture.completedFuture(null)
+                    : checkNoLegacyConnectionsAsync(persistentBase, partitions);
+            return precheck.thenApply(__ -> partitions);
+        }).thenCompose(partitions -> {
+            ScalableTopicMetadata metadata =
+                    ScalableTopicController.createMigratedMetadata(persistentBase, partitions);
+            return createMigratedChildTopicsAsync(scalableName, metadata)
+                    .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
+                    .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
+        });
+    }
+
+    /**
+     * Reject the migration if any producer/consumer attached to the source topic is a legacy
+     * v4 client — i.e. its metadata lacks the V5-managed marker. V5 clients (which attach to
+     * the synthetic layout's legacy segments and transition transparently) are excluded.
+     */
+    private CompletableFuture<Void> checkNoLegacyConnectionsAsync(TopicName persistentBase,
+                                                                  int partitions) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        CompletableFuture<? extends TopicStats> statsFuture =
+                partitions > 0
+                        ? admin.topics().getPartitionedStatsAsync(persistentBase.toString(), false)
+                        : admin.topics().getStatsAsync(persistentBase.toString());
+        return statsFuture.thenAccept(stats -> {
+            long legacy = countLegacyConnections(stats);
+            if (legacy > 0) {
+                throw new RestException(Response.Status.CONFLICT,
+                        legacy + " legacy v4 client connection(s) still attached to " + persistentBase
+                                + "; disconnect them (or all clients are V5) before migrating, "
+                                + "or retry with force=true");
+            }
+        });
+    }
+
+    private static long countLegacyConnections(TopicStats stats) {
+        long count = 0;
+        for (var publisher : stats.getPublishers()) {
+            if (!isV5Managed(publisher.getMetadata())) {
+                count++;
+            }
+        }
+        for (var subscription : stats.getSubscriptions().values()) {
+            for (var consumer : subscription.getConsumers()) {
+                if (!isV5Managed(consumer.getMetadata())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static boolean isV5Managed(Map<String, String> metadata) {
+        return metadata != null && ScalableTopicConstants.V5_MANAGED_METADATA_VALUE
+                .equals(metadata.get(ScalableTopicConstants.V5_MANAGED_METADATA_KEY));
+    }
+
+    /**
+     * Create the backing segment topic for each new <i>active child</i> in the migrated layout.
+     * The sealed legacy parents are skipped — they wrap existing {@code persistent://} topics
+     * that already have managed ledgers.
+     */
+    private CompletableFuture<Void> createMigratedChildTopicsAsync(
+            TopicName scalableName, ScalableTopicMetadata metadata) {
+        try {
+            var admin = pulsar().getAdminClient();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (SegmentInfo seg : metadata.getSegments().values()) {
+                if (seg.isLegacy()) {
+                    continue;
+                }
+                String segmentTopic = SegmentTopicName.fromParent(
+                        scalableName, seg.hashRange(), seg.segmentId()).toString();
+                futures.add(admin.scalableTopics().createSegmentAsync(segmentTopic, List.of()));
+            }
+            return FutureUtil.waitForAll(futures);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Terminate the old topic(s) so no further v4 writes can land. The terminated topics
+     * become the drainable sealed parent segments of the new scalable topic.
+     */
+    private CompletableFuture<Void> terminateLegacyTopicsAsync(TopicName persistentBase,
+                                                               int partitions) {
+        try {
+            var admin = pulsar().getAdminClient();
+            CompletableFuture<?> terminate = partitions > 0
+                    ? admin.topics().terminatePartitionedTopicAsync(persistentBase.toString())
+                    : admin.topics().terminateTopicAsync(persistentBase.toString());
+            return terminate.thenAccept(ignored -> { });
         } catch (Exception e) {
             return CompletableFuture.failedFuture(e);
         }

@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.TreeMap;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -77,7 +77,7 @@ public class ConnectorUtilsReloadTest {
         Path nar = dir.resolve("c1.nar");
         writeMinimalNar(nar, sampleDefinition("c-one"));
 
-        TreeMap<String, Connector> first =
+        Map<String, Connector> first =
                 ConnectorUtils.searchForConnectors(dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         Connector c1 = first.get("c-one");
         c1.getConnectorFunctionPackage();
@@ -86,7 +86,7 @@ public class ConnectorUtilsReloadTest {
                 first, dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         assertTrue(reload.connectorsToClose().isEmpty());
         closeEvicted(reload);
-        TreeMap<String, Connector> second = reload.connectors();
+        Map<String, Connector> second = reload.connectors();
 
         assertSame(second.get("c-one"), c1);
         c1.getConnectorFunctionPackage();
@@ -98,7 +98,7 @@ public class ConnectorUtilsReloadTest {
         Path nar = dir.resolve("c1.nar");
         writeMinimalNar(nar, sampleDefinition("c-one"));
 
-        TreeMap<String, Connector> first =
+        Map<String, Connector> first =
                 ConnectorUtils.searchForConnectors(dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         Connector before = first.get("c-one");
 
@@ -109,7 +109,7 @@ public class ConnectorUtilsReloadTest {
         ReloadConnectorsResult reload = ConnectorUtils.reloadConnectors(
                 first, dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         closeEvicted(reload);
-        TreeMap<String, Connector> second = reload.connectors();
+        Map<String, Connector> second = reload.connectors();
 
         assertNotSame(second.get("c-one"), before);
         assertThrows(IllegalStateException.class, before::getConnectorFunctionPackage);
@@ -123,7 +123,7 @@ public class ConnectorUtilsReloadTest {
         writeMinimalNar(nar1, sampleDefinition("conn-a"));
         writeMinimalNar(nar2, sampleDefinition("conn-b"));
 
-        TreeMap<String, Connector> first =
+        Map<String, Connector> first =
                 ConnectorUtils.searchForConnectors(dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         Connector removed = first.get("conn-b");
         Files.delete(nar2);
@@ -131,7 +131,7 @@ public class ConnectorUtilsReloadTest {
         ReloadConnectorsResult reload = ConnectorUtils.reloadConnectors(
                 first, dir.toString(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR, false);
         closeEvicted(reload);
-        TreeMap<String, Connector> second = reload.connectors();
+        Map<String, Connector> second = reload.connectors();
 
         assertEquals(second.size(), 1);
         assertSame(second.get("conn-a"), first.get("conn-a"));

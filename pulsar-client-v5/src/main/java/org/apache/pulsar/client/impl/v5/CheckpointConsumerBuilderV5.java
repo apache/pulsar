@@ -66,7 +66,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
                     new PulsarClientException.InvalidConfigurationException("Topic name is required"));
         }
 
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
 
         if (consumerGroup != null && !consumerGroup.isEmpty()) {
             // Managed: register with the broker's subscription coordinator under the

@@ -70,12 +70,23 @@ public class ScalableTopicMetadata {
         private long createdAtEpoch;
         private long sealedAtEpoch;
 
+        /**
+         * For a legacy segment, the externally managed {@code persistent://...} topic this
+         * segment wraps; {@code null} for regular controller-managed segments. Populated for
+         * the sealed parent segments produced by a regular-to-scalable migration (PIP-475).
+         */
+        private String legacyTopicName;
+
         public boolean isActive() {
             return "ACTIVE".equals(state);
         }
 
         public boolean isSealed() {
             return "SEALED".equals(state);
+        }
+
+        public boolean isLegacy() {
+            return legacyTopicName != null && !legacyTopicName.isEmpty();
         }
     }
 

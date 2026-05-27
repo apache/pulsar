@@ -43,6 +43,7 @@ import org.apache.pulsar.common.naming.TopicName;
 public class TopicLookup extends TopicLookupBase {
 
     static final String LISTENERNAME_HEADER = "X-Pulsar-ListenerName";
+    public static final String LISTENERNAME_PARAM = "listenerName";
 
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
@@ -58,7 +59,7 @@ public class TopicLookup extends TopicLookupBase {
             @PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("listenerName") String listenerName,
+            @QueryParam(LISTENERNAME_PARAM) String listenerName,
             @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         if (StringUtils.isEmpty(listenerName) && StringUtils.isNotEmpty(listenerNameHeader)) {

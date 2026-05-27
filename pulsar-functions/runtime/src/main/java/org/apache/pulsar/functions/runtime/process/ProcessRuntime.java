@@ -241,6 +241,15 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+        if (!isAlive()){
+            FunctionStatus status = new FunctionStatus();
+            status.setRunning(false);
+            if (deathException != null && deathException.getMessage() != null) {
+                status.setFailureException(deathException.getMessage());
+            }
+            retval.complete(status);
+            return retval;
+        }
         stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
                 .getFunctionStatus(new Empty(), new StreamObserver<>() {
             @Override

@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -114,9 +115,13 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         topics = spy(new Topics());
         topics.setPulsar(pulsar);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        doReturn("http").when(request).getScheme();
+        topics.setHttpRequest(request);
         doReturn(TopicDomain.persistent.value()).when(topics).domain();
         doReturn("test-app").when(topics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
+        doReturn(null).when(topics).getWebServiceListenerName();
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
         admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of(testLocalCluster)));

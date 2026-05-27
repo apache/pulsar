@@ -70,7 +70,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                     new PulsarClientException.InvalidConfigurationException("Topic name is required"));
         }
 
-        TopicName topicName = V5Utils.asScalableTopicName(topicStr);
+        TopicName topicName = V5Utils.parseScalableTopicInput(topicStr);
 
         // Create DAG watch client and start the session
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topicName);

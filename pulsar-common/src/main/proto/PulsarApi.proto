@@ -855,6 +855,14 @@ message SegmentInfoProto {
     // and timestamp-based seek; epoch above is a DAG generation number, not a clock.
     required uint64 created_at_ms    = 9;
     optional uint64 sealed_at_ms     = 10;
+
+    // Legacy-segment marker. When set, this segment is not managed by the scalable-topic
+    // controller and has no segment://... topic of its own — it wraps the named, externally
+    // managed persistent://... topic instead. Used by the synthetic-layout response the
+    // broker returns for a regular (partitioned or non-partitioned) topic that has not yet
+    // been migrated to a scalable topic. When absent, the segment URI is computed normally
+    // from the scalable topic name and segment_id (segment://<topic>/<descriptor>).
+    optional string legacy_topic_name = 11;
 }
 
 message SegmentBrokerAddress {
@@ -874,7 +882,11 @@ message ScalableTopicDAG {
 // Client -> Broker: Request scalable topic metadata and initiate watch session
 message CommandScalableTopicLookup {
     required uint64 session_id = 1;   // Client-assigned session ID
-    required string topic      = 2;   // e.g. "topic://tenant/ns/my-topic"
+    // Any of "topic://t/n/x", "persistent://t/n/x", or a short form like
+    // "my-topic" (normalized by the broker to persistent://public/default/my-topic).
+    // The broker resolves the input to the canonical topic://... identity and
+    // returns it in CommandScalableTopicUpdate.resolved_topic_name.
+    required string topic      = 2;
 }
 
 // Broker -> Client: Used for BOTH initial response and subsequent pushed updates
@@ -884,6 +896,12 @@ message CommandScalableTopicUpdate {
 
     optional ServerError error         = 3;
     optional string message            = 4;
+
+    // Canonical scalable-topic identity (always "topic://t/n/x") that the client
+    // should use for downstream operations. Set on every success response,
+    // including for inputs that were given as persistent://... or short-form.
+    // Absent on error responses.
+    optional string resolved_topic_name = 5;
 }
 
 // Client -> Broker: Close the DAG watch session

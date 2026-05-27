@@ -23,7 +23,9 @@ plugins {
 
 dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
-    implementation(libs.kubernetes.client.java)
+    implementation(libs.kubernetes.client.java) {
+        exclude(group = "software.amazon.awssdk")
+    }
     implementation(libs.gson)
     implementation(libs.commons.lang3)
 }

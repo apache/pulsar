@@ -1372,7 +1372,8 @@ public class ClientCnx extends PulsarHandler {
 
         DagWatchSession session = dagWatchSessions.get(sessionId);
         if (session != null) {
-            session.onUpdate(cmd.getDag());
+            String resolvedTopicName = cmd.hasResolvedTopicName() ? cmd.getResolvedTopicName() : null;
+            session.onUpdate(cmd.getDag(), resolvedTopicName);
         } else {
             log.warn().attr("sessionId", sessionId)
                     .log("Received scalable topic update for unknown session");

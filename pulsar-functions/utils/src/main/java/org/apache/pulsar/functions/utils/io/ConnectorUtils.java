@@ -165,7 +165,7 @@ public class ConnectorUtils {
         return fields;
     }
 
-    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
+    public static Map<String, Connector> searchForConnectors(String connectorsDirectory,
                                                                  String narExtractionDirectory,
                                                                  boolean enableClassloading) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath().normalize();
@@ -216,7 +216,7 @@ public class ConnectorUtils {
      *         connectors the caller should close
      */
     public static ReloadConnectorsResult reloadConnectors(
-            TreeMap<String, Connector> previous,
+            Map<String, Connector> previous,
             String connectorsDirectory,
             String narExtractionDirectory,
             boolean enableClassloading) throws IOException {

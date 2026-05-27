@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -1424,31 +1425,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
         String leaderBrokerId = leaderBroker.getBrokerId();
+        LookupOptions lookupOptions = LookupOptions.builder()
+                .webServiceAdvertisedListenerName(getWebServiceListenerName()).build();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerId, false, null)
+                .createLookupResult(leaderBrokerId, false, lookupOptions)
                 .thenCompose(lookupResult -> {
-                    String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
-                            : lookupResult.getLookupData().getHttpUrl();
-                    if (redirectUrl == null) {
-                        log.error("Redirected broker's service url is not configured");
-                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Redirected broker's service url is not configured."));
-                    }
-
-                    try {
-                        URL url = new URL(redirectUrl);
-                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
-                                .port(url.getPort())
-                                .replaceQueryParam("authoritative",
-                                        false).build();
-                        // Redirect
-                            log.debug().attr("leader", redirect).log("Redirecting the request call to leader -");
-                                                return FutureUtil.failedFuture((
-                                new WebApplicationException(Response.temporaryRedirect(redirect).build())));
-                    } catch (MalformedURLException exception) {
-                        log.error().attr("malformed", redirectUrl).log("The redirect url is malformed -");
-                        return FutureUtil.failedFuture(new RestException(exception));
-                    }
+                    URI redirectUri = lookupResult.toRedirectUri(uri.getRequestUri());
+                    log.debug()
+                            .attr("leaderBrokerId", leaderBrokerId)
+                            .attr("redirectUri", redirectUri).log("Redirecting the request call to leader broker");
+                    return FutureUtil.failedFuture(
+                            new WebApplicationException(Response.temporaryRedirect(redirectUri).build()));
                 });
     }
 
@@ -3167,8 +3154,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
+        OffloadPoliciesImpl nsLevelOffloadPolicies = (OffloadPoliciesImpl) policies.offload_policies;
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(null,
+                OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies),
+                pulsar().getConfig().getProperties());
         LedgerOffloader managedLedgerOffloader = pulsar()
-                .getManagedLedgerOffloader(namespaceName, (OffloadPoliciesImpl) policies.offload_policies);
+                .getManagedLedgerOffloader(namespaceName, offloadPolicies);
 
         String localClusterName = pulsar().getConfiguration().getClusterName();
 

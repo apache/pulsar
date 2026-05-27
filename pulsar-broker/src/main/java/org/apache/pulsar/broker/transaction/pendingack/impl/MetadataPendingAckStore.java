@@ -51,17 +51,17 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  * <p>Lifecycle:
  * <ul>
  *   <li><b>Ack</b> — {@link #appendIndividualAck} / {@link #appendCumulativeAck} write a
- *       {@link TxnOp} record under {@code /txn-op/<txnId>-<seq>} with
+ *       {@link TxnOp} record under {@code /txn/op/<txnId>-<seq>} with
  *       {@code kind=ACK, segment, subscription, ledgerId, entryId, cumulative}. The associated
  *       {@code PendingAckHandle} keeps the in-memory state via the legacy interface.</li>
  *   <li><b>Commit / Abort marks</b> — {@link #appendCommitMark} / {@link #appendAbortMark} are
  *       <b>no-ops</b>. In v5 the TC owns the lifecycle: it CAS-updates the header and publishes
  *       subscription events; this store consumes those events.</li>
- *   <li><b>State transitions</b> — driven by {@code /txn-subscription-events/&lt;seg&gt;:&lt;sub&gt;-*}
+ *   <li><b>State transitions</b> — driven by {@code /txn/subscription-events/&lt;seg&gt;:&lt;sub&gt;-*}
  *       sequence events. The events are wake-ups; the truth is the header. On each notification
  *       we re-read headers for every currently-open txn this subscription is involved in and
  *       call {@code PendingAckHandleImpl.commitTxn} / {@code abortTxn} for those that have gone
- *       terminal — then delete the corresponding {@code /txn-op} ack records.</li>
+ *       terminal — then delete the corresponding {@code /txn/op} ack records.</li>
  *   <li><b>Recovery</b> (Option C) — on {@link #replayAsync}, subscribe to the event stream,
  *       scan {@code idx:acks-by-segment-subscription} for this {@code (segment, sub)}, group by
  *       {@code txnId}, fetch each header, and seed the in-memory open-txn set; then mark the

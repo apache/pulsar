@@ -268,7 +268,8 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, false, false, false, 10.0, false);
+        double rateLimit = 10.0;
+        setupEnv(false, false, false, false, rateLimit, false);
 
         // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -282,7 +283,7 @@ public class WebServiceTest {
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
             makeHttpRequest(false, false);
-            Thread.sleep(200);
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
         }
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -572,13 +573,32 @@ public class WebServiceTest {
         } catch (ConflictException ce) {
             // This is OK.
         }
+        sleepForRateLimiter(rateLimit);
+
         try {
             pulsarAdmin.tenants().createTenant("my-property",
                     TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+        } catch (Exception e) {
+            // This is OK.
+        }
+        sleepForRateLimiter(rateLimit);
+
+        try {
             pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
         } catch (Exception e) {
             // This is OK.
         }
+        sleepForRateLimiter(rateLimit);
+    }
+
+    private static void sleepForRateLimiter(double rateLimit) throws InterruptedException {
+        if (rateLimit > 0) {
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
+        }
+    }
+
+    private static long rateLimitPauseMillis(double rateLimit) {
+        return (long) Math.ceil((1000.0 / rateLimit) * 2);
     }
 
     @AfterMethod(alwaysRun = true)

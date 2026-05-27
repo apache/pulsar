@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentState;
@@ -104,6 +105,8 @@ public class DagWatchSessionTest {
 
     @Test
     public void testStartFailsWhenTopicMetadataMissing() {
+        // topic://... input + no scalable metadata = TopicNotFound. Synthetic layouts
+        // are only produced for persistent://... input (regular topics).
         when(resources.getScalableTopicMetadataAsync(TOPIC, true))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
@@ -122,6 +125,121 @@ public class DagWatchSessionTest {
             assertTrue(cause instanceof IllegalStateException, "got: " + cause);
             assertTrue(cause.getMessage().contains("not found"), cause.getMessage());
         }
+    }
+
+    // --- synthetic layout for not-yet-migrated regular topics ---
+
+    @Test
+    public void testStartBuildsSyntheticLayoutForNonPartitionedPersistentTopic() throws Exception {
+        // persistent:// input + no scalable metadata + non-partitioned regular topic
+        // (partitions=0) → synthetic layout with a single active legacy segment
+        // covering [0x0000, 0xFFFF] that wraps the existing persistent:// topic.
+        TopicName regular = TopicName.get("persistent://tenant/ns/my-regular");
+        String regularPath = "/admin/scalable-topics/tenant/ns/my-regular";
+        when(resources.topicPath(regular)).thenReturn(regularPath);
+        when(resources.getScalableTopicMetadataAsync(regular, true))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(brokerService.fetchPartitionedTopicMetadataAsync(regular))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        ScalableTopicLayoutResponse response = s.start().get();
+
+        assertEquals(response.epoch(), 0L);
+        assertEquals(response.segments().size(), 1);
+        SegmentInfo seg = response.segments().get(0L);
+        assertNotNull(seg);
+        assertEquals(seg.segmentId(), 0L);
+        assertEquals(seg.hashRange().start(), 0x0000);
+        assertEquals(seg.hashRange().end(), 0xFFFF);
+        assertTrue(seg.isActive());
+        assertTrue(seg.isLegacy(), "non-partitioned regular topic must wrap as a legacy segment");
+        assertEquals(seg.legacyTopicName(), "persistent://tenant/ns/my-regular");
+    }
+
+    @Test
+    public void testStartBuildsSyntheticLayoutForPartitionedPersistentTopic() throws Exception {
+        // persistent:// input + no scalable metadata + 4-partition topic →
+        // synthetic layout with 4 active legacy segments wrapping each
+        // persistent://...-partition-K and equal-width contiguous hash ranges.
+        TopicName regular = TopicName.get("persistent://tenant/ns/my-partitioned");
+        String regularPath = "/admin/scalable-topics/tenant/ns/my-partitioned";
+        when(resources.topicPath(regular)).thenReturn(regularPath);
+        when(resources.getScalableTopicMetadataAsync(regular, true))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(brokerService.fetchPartitionedTopicMetadataAsync(regular))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(4)));
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        ScalableTopicLayoutResponse response = s.start().get();
+
+        assertEquals(response.epoch(), 0L);
+        assertEquals(response.segments().size(), 4);
+        for (int k = 0; k < 4; k++) {
+            SegmentInfo seg = response.segments().get((long) k);
+            assertNotNull(seg, "missing segment for partition " + k);
+            assertEquals(seg.segmentId(), k);
+            assertTrue(seg.isActive());
+            assertTrue(seg.isLegacy(), "partition " + k + " must wrap as a legacy segment");
+            assertEquals(seg.legacyTopicName(),
+                    "persistent://tenant/ns/my-partitioned-partition-" + k);
+        }
+        // Hash ranges cover [0x0000, 0xFFFF] contiguously and end at 0xFFFF inclusive
+        // on the last segment.
+        assertEquals(response.segments().get(0L).hashRange().start(), 0x0000);
+        assertEquals(response.segments().get(3L).hashRange().end(), 0xFFFF);
+        // No gaps between consecutive segments.
+        for (int k = 0; k < 3; k++) {
+            int endK = response.segments().get((long) k).hashRange().end();
+            int startK1 = response.segments().get((long) (k + 1)).hashRange().start();
+            assertEquals(startK1, endK + 1, "gap between partition " + k + " and " + (k + 1));
+        }
+    }
+
+    @Test
+    public void testStartRejectsIndividualPartitionInput() throws Exception {
+        // A specific partition name must be rejected — the synthetic layout models the
+        // whole partitioned topic, and wrapping a single partition would otherwise
+        // produce nonsensical -partition-K-partition-J underlying names.
+        TopicName partition = TopicName.get("persistent://tenant/ns/my-partitioned-partition-3");
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, partition, cnx, resources, brokerService);
+        CompletableFuture<ScalableTopicLayoutResponse> future = s.start();
+
+        assertTrue(future.isCompletedExceptionally());
+        try {
+            future.get();
+            fail("expected failure");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException, "got: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("individual partition"),
+                    e.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void testSyntheticLayoutPushedToClientCarriesResolvedTopicName() {
+        // The synthetic-layout response goes through pushUpdate, which always emits the
+        // canonical topic://... identity in resolved_topic_name regardless of input form.
+        TopicName regular = TopicName.get("persistent://tenant/ns/my-regular");
+        ScalableTopicLayoutResponse response = new ScalableTopicLayoutResponse(
+                0L,
+                Map.of(0L, SegmentInfo.activeLegacy(0L, HashRange.of(0x0000, 0xFFFF),
+                        "persistent://tenant/ns/my-regular", 0L, 12345L)),
+                null, null, null, null);
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        s.pushUpdate(response);
+
+        ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);
+        verify(ctx).writeAndFlush(captor.capture());
+        BaseCommand cmd = parseFrame(captor.getValue());
+        assertEquals(cmd.getScalableTopicUpdate().getResolvedTopicName(),
+                "topic://tenant/ns/my-regular");
+        // The legacy-segment marker round-trips through the wire format.
+        var seg = cmd.getScalableTopicUpdate().getDag().getSegmentAt(0);
+        assertTrue(seg.hasLegacyTopicName());
+        assertEquals(seg.getLegacyTopicName(), "persistent://tenant/ns/my-regular");
     }
 
     @Test
@@ -314,7 +432,8 @@ public class DagWatchSessionTest {
                 createdAt,
                 sealedAt,
                 createdAtMs,
-                sealedAtMs);
+                sealedAtMs,
+                null);
     }
 
     private static java.util.List<Long> toList(long[] arr) {

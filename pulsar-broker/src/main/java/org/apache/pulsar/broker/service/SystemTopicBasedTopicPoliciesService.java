@@ -667,7 +667,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return systemTopicClient.newReaderAsync();
     }
 
-    private void removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
+    void removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
         if (NamespaceService.isHeartbeatNamespace(namespace)) {
             return;

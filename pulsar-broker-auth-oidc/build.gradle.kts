@@ -31,7 +31,9 @@ dependencies {
     implementation(libs.asynchttpclient)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.annotations)
-    implementation(libs.kubernetes.client.java)
+    implementation(libs.kubernetes.client.java) {
+        exclude(group = "software.amazon.awssdk")
+    }
     implementation(libs.okhttp3)
     implementation(libs.commons.lang3)
     implementation(libs.opentelemetry.api)

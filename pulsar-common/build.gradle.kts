@@ -28,18 +28,35 @@ plugins {
     alias(libs.plugins.lightproto)
 }
 
-val generatePulsarVersion by tasks.registering {
-    val templateFile = file("src/main/java-templates/org/apache/pulsar/PulsarVersion.java")
-    val outputDir = layout.buildDirectory.dir("generated-sources/java-templates")
-    val projectVersion = project.version.toString()
+// Generates pulsar-version.properties as a *resource* (not a Java source) so that changes to
+// git metadata only invalidate this module's processResources / jar tasks and do NOT trigger
+// a recompile of pulsar-common or any downstream module's compileJava.
+//
+// Set `pulsar.includeBuildInfo=false` (e.g. in `~/.gradle/gradle.properties`) to skip generation
+// entirely during development. PulsarVersion then returns placeholder values at runtime.
+val includeBuildInfo = providers.gradleProperty("pulsar.includeBuildInfo")
+    .map { it.toBoolean() }
+    .orElse(true)
 
-    // Resolve all providers at configuration time for configuration cache compatibility
-    val gitCommitId = providers.exec { commandLine("git", "rev-parse", "HEAD") }
-        .standardOutput.asText.map { it.trim() }
-    val gitDirty = providers.exec { commandLine("git", "status", "--porcelain") }
-        .standardOutput.asText.map { it.isNotBlank().toString() }
-    val gitBranch = providers.exec { commandLine("git", "rev-parse", "--abbrev-ref", "HEAD") }
-        .standardOutput.asText.map { it.trim() }
+val generatePulsarBuildInfo by tasks.registering {
+    description = "Generates pulsar-version.properties with version and (optionally) git/build metadata."
+    val outputFile = layout.buildDirectory.file("generated-resources/buildinfo/org/apache/pulsar/pulsar-version.properties")
+    val projectVersion = project.version.toString()
+    val includeBuildInfoValue = includeBuildInfo
+
+    // Lazy providers — evaluated at execution time only (no impact on configuration cache).
+    val gitCommitId = providers.exec {
+        commandLine("git", "rev-parse", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim() }
+    val gitDirty = providers.exec {
+        commandLine("git", "status", "--porcelain")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.isNotBlank().toString() }
+    val gitBranch = providers.exec {
+        commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim() }
     val gitUserEmail = providers.exec {
         commandLine("git", "config", "user.email")
         isIgnoreExitValue = true
@@ -48,40 +65,42 @@ val generatePulsarVersion by tasks.registering {
         commandLine("git", "config", "user.name")
         isIgnoreExitValue = true
     }.standardOutput.asText.map { it.trim() }
-    val buildHost = provider<String> { InetAddress.getLocalHost().hostName }
-    val buildTime = provider<String> {
-        ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"))
-    }
 
-    inputs.file(templateFile)
     inputs.property("version", projectVersion)
-    // TODO: Replace git/build metadata with a Gradle configuration cache and build cache
-    // compatible solution. Currently gitCommitId and gitDirty are not declared as inputs
-    // because they cause cascading rebuilds of pulsar-common and all its dependents.
-    // gitCommitId changes on every commit, and gitDirty changes whenever any file is
-    // modified (via `git status --porcelain`). The values are still captured in the output
-    // when the task runs for other reasons (same as buildTime/buildHost).
-    outputs.dir(outputDir)
+    inputs.property("includeBuildInfo", includeBuildInfoValue)
+    outputs.file(outputFile)
 
     doLast {
-        val template = templateFile.readText()
-        val generated = template
-            .replace("\${project.version}", projectVersion)
-            .replace("\${git.commit.id}", gitCommitId.getOrElse(""))
-            .replace("\${git.dirty}", gitDirty.getOrElse("true"))
-            .replace("\${git.branch}", gitBranch.getOrElse(""))
-            .replace("\${git.build.user.email}", gitUserEmail.getOrElse(""))
-            .replace("\${git.build.user.name}", gitUserName.getOrElse(""))
-            .replace("\${git.build.host}", buildHost.get())
-            .replace("\${git.build.time}", buildTime.get())
+        val entries = linkedMapOf<String, String>()
+        entries["version"] = projectVersion
+        if (includeBuildInfoValue.get()) {
+            entries["git.commit.id"] = gitCommitId.getOrElse("")
+            entries["git.dirty"] = gitDirty.getOrElse("true")
+            entries["git.branch"] = gitBranch.getOrElse("")
+            entries["git.build.user.email"] = gitUserEmail.getOrElse("")
+            entries["git.build.user.name"] = gitUserName.getOrElse("")
+            entries["git.build.host"] = InetAddress.getLocalHost().hostName
+            entries["git.build.time"] =
+                ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"))
+        }
 
-        val outFile = outputDir.get().file("org/apache/pulsar/PulsarVersion.java").asFile
+        val outFile = outputFile.get().asFile
         outFile.parentFile.mkdirs()
-        outFile.writeText(generated)
+        // Hand-rolled .properties writer so we don't get the non-deterministic timestamp comment
+        // that java.util.Properties.store always emits. Values from git/InetAddress are ASCII
+        // identifiers, so backslash escaping is sufficient.
+        outFile.writeText(buildString {
+            append("# Pulsar build info\n")
+            entries.forEach { (key, value) ->
+                append(key).append('=').append(value.replace("\\", "\\\\")).append('\n')
+            }
+        })
     }
 }
 
-sourceSets["main"].java.srcDir(generatePulsarVersion.map { layout.buildDirectory.dir("generated-sources/java-templates").get() })
+sourceSets["main"].resources.srcDir(generatePulsarBuildInfo.map {
+    layout.buildDirectory.dir("generated-resources/buildinfo").get()
+})
 
 
 dependencies {

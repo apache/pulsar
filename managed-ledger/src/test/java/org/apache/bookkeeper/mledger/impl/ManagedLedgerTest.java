@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -5408,5 +5409,66 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), expectedProperties);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(0);
+
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties", config);
+        @Cleanup
+        ManagedCursorImpl durableCursor = (ManagedCursorImpl) ledger.openCursor("durableCursor1");
+        @Cleanup
+        NonDurableCursorImpl realNonDurableCursor =
+                (NonDurableCursorImpl) ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+        NonDurableCursorImpl nonDurableCursor = spy(realNonDurableCursor);
+
+        ledger.getCursors().removeCursor(realNonDurableCursor.getName());
+        ledger.getCursors().add(nonDurableCursor, null);
+
+        CountDownLatch advanceCursorsMarkDeleteEnteredLatch = new CountDownLatch(1);
+        CountDownLatch nonDurableCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+        CountDownLatch advanceCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            Map<String, Long> invocationProperties = invocation.getArgument(1);
+            // Pause the advanceCursorsIfNecessary mark-delete so the nonDurableCursor markDelete() can complete first.
+            if (invocationProperties == null || invocationProperties.isEmpty()) {
+                advanceCursorsMarkDeleteEnteredLatch.countDown();
+                assertTrue(nonDurableCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+                try {
+                    return invocation.callRealMethod();
+                } finally {
+                    advanceCursorsMarkDeleteCompletedLatch.countDown();
+                }
+            }
+
+            return invocation.callRealMethod();
+        }).when(nonDurableCursor)
+                .internalAsyncMarkDelete(any(Position.class), nullable(Map.class), any(MarkDeleteCallback.class),
+                        nullable(Object.class), nullable(Runnable.class));
+
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        Position pos2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Mark-delete the durable cursor to trigger trimming, which advances non-durable cursors.
+        durableCursor.markDelete(pos2);
+        assertTrue(advanceCursorsMarkDeleteEnteredLatch.await(5, TimeUnit.SECONDS));
+
+        String propertyKey = "test-property";
+        Map<String, Long> properties = new HashMap<>();
+        properties.put(propertyKey, 1L);
+        nonDurableCursor.markDelete(pos2, properties);
+        nonDurableCursorsMarkDeleteCompletedLatch.countDown();
+
+        assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        assertEquals(nonDurableCursor.getProperties(), properties);
     }
 }

@@ -34,24 +34,31 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
+/**
+ * RedirectManagerForLoadManagerMigration checks if the current load manager class name is the same as the latest
+ * service lookup data.
+ * If not, it will redirect to a random broker with the same load manager class name.
+ * The name of this class is misleading since it doesn't manage all redirects.
+ */
 @CustomLog
-public class RedirectManager {
+public class RedirectManagerForLoadManagerMigration {
     private final PulsarService pulsar;
 
     private final LockManager<BrokerLookupData> brokerLookupDataLockManager;
 
 
-    public RedirectManager(PulsarService pulsar) {
+    public RedirectManagerForLoadManagerMigration(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
     }
 
     @VisibleForTesting
-    public RedirectManager(PulsarService pulsar, LockManager<BrokerLookupData> brokerLookupDataLockManager) {
+    public RedirectManagerForLoadManagerMigration(PulsarService pulsar,
+                                                  LockManager<BrokerLookupData> brokerLookupDataLockManager) {
         this.pulsar = pulsar;
         this.brokerLookupDataLockManager = brokerLookupDataLockManager;
     }
@@ -75,7 +82,19 @@ public class RedirectManager {
         });
     }
 
-    public CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync() {
+    /**
+     * Redirect the request to another broker if the load balancer on the current broker is using the load manager
+     * of the latest service lookup data available in the metadata store.
+     *
+     * @param options lookup options
+     * @return lookup result
+     */
+    public CompletableFuture<Optional<LookupResult>> redirectIfLoadBalancerOnBrokerIsNotExpected(
+            LookupOptions options) {
+        if (!pulsar.getConfiguration().isLoadManagerMigrationEnabled()) {
+            // no-op when load manager migration is disabled.
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         String currentLMClassName = pulsar.getConfiguration().getLoadManagerClassName();
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
         return getAvailableBrokerLookupDataAsync().thenApply(lookupDataMap -> {
@@ -84,7 +103,7 @@ public class RedirectManager {
                 log.warn(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
-            AtomicReference<ServiceLookupData> latestServiceLookupData = new AtomicReference<>();
+            AtomicReference<BrokerLookupData> latestServiceLookupData = new AtomicReference<>();
             AtomicLong lastStartTimestamp = new AtomicLong(0L);
             lookupDataMap.forEach((key, value) -> {
                 if (lastStartTimestamp.get() <= value.getStartTimestamp()) {
@@ -106,7 +125,7 @@ public class RedirectManager {
                 return Optional.empty();
             }
             var serviceLookupDataObj = latestServiceLookupData.get();
-            var candidateBrokers = new ArrayList<ServiceLookupData>();
+            var candidateBrokers = new ArrayList<BrokerLookupData>();
             lookupDataMap.forEach((key, value) -> {
                 if (Objects.equals(value.getLoadManagerClassName(), serviceLookupDataObj.getLoadManagerClassName())) {
                     candidateBrokers.add(value);
@@ -114,12 +133,7 @@ public class RedirectManager {
             });
             var selectedBroker = candidateBrokers.get((int) (Math.random() * candidateBrokers.size()));
 
-            return Optional.of(new LookupResult(selectedBroker.getWebServiceUrl(),
-                    selectedBroker.getWebServiceUrlTls(),
-                    selectedBroker.getPulsarServiceUrl(),
-                    selectedBroker.getPulsarServiceUrlTls(),
-                    true));
+            return Optional.of(selectedBroker.toLoadManagerMigrationLookupResult(options));
         });
     }
-
 }

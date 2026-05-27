@@ -679,6 +679,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_METADATA:
                                 return canLookupAsync(topicName, role, authData);
                             case PRODUCE:
+                            case MIGRATE_TO_SCALABLE:
                                 return canProduceAsync(topicName, role, authData);
                             case GET_SUBSCRIPTIONS:
                             case CONSUME:

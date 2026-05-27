@@ -4904,7 +4904,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
         final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
-        if (topicPoliciesService.registerListener(partitionedTopicName, this)) {
+        return topicPoliciesService.registerListenerAsync(partitionedTopicName, this).thenCompose(registered -> {
+            if (!registered) {
+                return CompletableFuture.completedFuture(null);
+            }
             if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -4916,8 +4919,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     TopicPoliciesService.GetType.LOCAL_ONLY))
             .thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
                             brokerService.getTopicOrderedExecutor());
-        }
-        return CompletableFuture.completedFuture(null);
+        });
     }
 
     @VisibleForTesting

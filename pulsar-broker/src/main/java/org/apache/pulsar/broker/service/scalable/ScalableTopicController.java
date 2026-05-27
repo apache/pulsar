@@ -1173,4 +1173,71 @@ public class ScalableTopicController {
                 .properties(properties != null ? properties : Map.of())
                 .build();
     }
+
+    /**
+     * Build the initial scalable-topic layout for a regular-to-scalable migration (PIP-475).
+     *
+     * <p>Each of the {@code partitions} old partitions (or the whole topic, for a
+     * non-partitioned source where {@code partitions <= 0}) becomes a <b>sealed legacy
+     * parent</b> segment that wraps the existing {@code persistent://...} topic. Alongside
+     * them, {@code N} fresh <b>active children</b> are created with equal-width contiguous
+     * hash ranges tiling {@code [0x0000, MAX_HASH]} and standard range-based routing.
+     *
+     * <p>The parents each span the <i>full</i> hash range because v4 partitioned routing
+     * ({@code signSafeMod(hash, N)}) scattered keys for any child's range across every
+     * partition. Consequently every child lists <i>all</i> parents as predecessors: the
+     * subscription controller's drain-before-assign protocol then drains all parents before
+     * a consumer is assigned to any child, preserving per-key ordering across the migration.
+     *
+     * <p>Segment IDs: parents are {@code 0..N-1}, children are {@code N..2N-1},
+     * {@code nextSegmentId == 2N}.
+     *
+     * @param persistentBase the source topic in the {@code persistent://} domain (its
+     *                       partitions are {@code persistentBase-partition-K})
+     * @param partitions     the source partition count; {@code <= 0} means non-partitioned
+     */
+    public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
+                                                               int partitions) {
+        int n = Math.max(partitions, 1);
+        long nowMs = System.currentTimeMillis();
+        Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
+
+        // Child IDs are N..2N-1; every child lists every parent (full fan-in).
+        List<Long> childIds = new ArrayList<>(n);
+        for (int j = 0; j < n; j++) {
+            childIds.add((long) (n + j));
+        }
+        List<Long> parentIds = new ArrayList<>(n);
+        for (int k = 0; k < n; k++) {
+            parentIds.add((long) k);
+        }
+
+        // N sealed legacy parents — the old partitions, each spanning the full hash range.
+        for (int k = 0; k < n; k++) {
+            String legacyTopic = partitions <= 0
+                    ? persistentBase.toString()
+                    : persistentBase.getPartition(k).toString();
+            SegmentInfo parent = SegmentInfo
+                    .activeLegacy(k, HashRange.of(0x0000, HashRange.MAX_HASH), legacyTopic, 0, nowMs)
+                    .sealed(0, nowMs, childIds);
+            segments.put((long) k, parent);
+        }
+
+        // N active range-based children tiling [0x0000, MAX_HASH]; each has all parents.
+        int rangeSize = (HashRange.MAX_HASH + 1) / n;
+        for (int j = 0; j < n; j++) {
+            long segId = n + j;
+            int start = j * rangeSize;
+            int end = (j == n - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
+            SegmentInfo child = SegmentInfo.active(segId, HashRange.of(start, end), parentIds, 0, nowMs);
+            segments.put(segId, child);
+        }
+
+        return ScalableTopicMetadata.builder()
+                .epoch(0)
+                .nextSegmentId(2L * n)
+                .segments(segments)
+                .properties(Map.of())
+                .build();
+    }
 }
