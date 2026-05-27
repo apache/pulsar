@@ -47,6 +47,11 @@ public class MathUtils {
      *
      */
     public static int ceilDiv(int x, int y) {
-        return -Math.floorDiv(-x, y);
+        int quotient = x / y;
+        int remainder = x % y;
+        if ((x ^ y) >= 0 && remainder != 0) {
+            quotient++;
+        }
+        return quotient;
     }
 }

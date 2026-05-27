@@ -37,4 +37,18 @@ public class MathUtilsTest {
         Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE - 1, Integer.MAX_VALUE), 1);
         Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE, Integer.MAX_VALUE), 1);
     }
+
+    @Test
+    public void testCeilDivWithNegativeValues() {
+        Assert.assertEquals(MathUtils.ceilDiv(-3, 2), -1);
+        Assert.assertEquals(MathUtils.ceilDiv(3, -2), -1);
+        Assert.assertEquals(MathUtils.ceilDiv(-3, -2), 2);
+    }
+
+    @Test
+    public void testCeilDivWithIntegerMinValue() {
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MIN_VALUE, 1), Integer.MIN_VALUE);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MIN_VALUE, 2), -1073741824);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MIN_VALUE + 1, 2), -1073741823);
+    }
 }
