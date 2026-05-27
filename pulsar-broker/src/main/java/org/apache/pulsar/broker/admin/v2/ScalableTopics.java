@@ -339,12 +339,22 @@ public class ScalableTopics extends AdminResource {
         } catch (Exception e) {
             return CompletableFuture.failedFuture(e);
         }
-        CompletableFuture<? extends TopicStats> statsFuture =
-                partitions > 0
-                        ? admin.topics().getPartitionedStatsAsync(persistentBase.toString(), false)
-                        : admin.topics().getStatsAsync(persistentBase.toString());
-        return statsFuture.thenAccept(stats -> {
-            long legacy = countLegacyConnections(stats);
+        // For a partitioned topic, inspect per-partition stats rather than the aggregate:
+        // aggregation merges publishers by producer name into fresh stat objects that drop
+        // per-connection metadata, which would hide the V5-managed marker and make every
+        // V5 connection look like a legacy v4 one.
+        final CompletableFuture<Long> legacyCount = partitions > 0
+                ? admin.topics().getPartitionedStatsAsync(persistentBase.toString(), true)
+                        .thenApply(stats -> {
+                            long count = 0;
+                            for (TopicStats partitionStats : stats.getPartitions().values()) {
+                                count += countLegacyConnections(partitionStats);
+                            }
+                            return count;
+                        })
+                : admin.topics().getStatsAsync(persistentBase.toString())
+                        .thenApply(ScalableTopics::countLegacyConnections);
+        return legacyCount.thenAccept(legacy -> {
             if (legacy > 0) {
                 throw new RestException(Response.Status.CONFLICT,
                         legacy + " legacy v4 client connection(s) still attached to " + persistentBase

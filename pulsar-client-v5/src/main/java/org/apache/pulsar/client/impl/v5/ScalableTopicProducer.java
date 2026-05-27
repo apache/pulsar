@@ -47,6 +47,13 @@ import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.LayoutChangeListener {
 
     private static final Logger LOG = Logger.get(ScalableTopicProducer.class);
+
+    /** Max attempts for a send when the target segment is gone (split/merge seal or migration
+     *  termination), giving the DAG watch time to deliver the new layout before giving up. */
+    private static final int SEND_RETRY_MAX_ATTEMPTS = 10;
+    /** Cap on the per-attempt backoff while waiting for the new layout. */
+    private static final long SEND_RETRY_MAX_BACKOFF_MS = 500L;
+
     private final Logger log;
 
     private final PulsarClientV5 client;
@@ -181,38 +188,72 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             java.util.List<String> replicationClusters,
             org.apache.pulsar.client.api.v5.Transaction txn) throws PulsarClientException {
 
-        for (int attempt = 0; attempt < 3; attempt++) {
+        PulsarClientException lastError = null;
+        for (int attempt = 0; attempt < SEND_RETRY_MAX_ATTEMPTS; attempt++) {
             long segmentId = routeMessage(key);
-            var producer = getOrCreateSegmentProducer(segmentId);
-
             try {
+                var producer = getOrCreateSegmentProducer(segmentId);
                 var v4MsgId = buildV4Message(producer, key, value, properties,
                         eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
                         .send();
                 return new MessageIdV5(v4MsgId, segmentId);
-            } catch (org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException
-                     | org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException e) {
-                // The segment was sealed (split/merge). We may observe this either as
-                // TopicTerminated (broker reply to a still-open producer) or AlreadyClosed
-                // (the v4 producer noticed first and shut itself down). Either way, drop
-                // the stale per-segment producer and retry — the DAG watch will deliver
-                // the new layout shortly, and routeMessage on the next attempt will land
-                // on an active child.
-                log.info().attr("segmentId", segmentId)
-                        .attr("attempt", attempt + 1)
-                        .log("Segment sealed, waiting for layout update");
-                segmentProducers.remove(segmentId);
-                try {
-                    Thread.sleep(100L * (attempt + 1));
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new PulsarClientException("Interrupted while waiting for layout update", ie);
+            } catch (PulsarClientException e) {
+                // Thrown while (re)creating the per-segment producer — already a V5 exception
+                // (it may wrap a v4 TopicTerminated/AlreadyClosed cause).
+                if (!isSegmentGoneError(e)) {
+                    throw e;
                 }
+                lastError = e;
             } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-                throw new PulsarClientException(e.getMessage(), e);
+                // Thrown by the v4 producer's send().
+                if (!isSegmentGoneError(e)) {
+                    throw new PulsarClientException(e.getMessage(), e);
+                }
+                lastError = new PulsarClientException(e.getMessage(), e);
+            }
+            // The target segment is gone: sealed by a split/merge, or terminated by a
+            // regular-to-scalable migration. Drop the stale per-segment producer and wait
+            // for the DAG watch to deliver the new layout; routeMessage on the next attempt
+            // lands on an active child.
+            log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
+                    .log("Target segment gone, waiting for layout update");
+            segmentProducers.remove(segmentId);
+            try {
+                Thread.sleep(Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS));
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new PulsarClientException("Interrupted while waiting for layout update", ie);
             }
         }
-        throw new PulsarClientException("Failed to send after segment termination retries");
+        throw lastError != null ? lastError
+                : new PulsarClientException("Failed to send after segment termination retries");
+    }
+
+    /**
+     * True if {@code t} (or one of its causes) signals that the target segment is gone —
+     * sealed by a split/merge or terminated by a regular-to-scalable migration — so the send
+     * should be retried once the new layout arrives. Handles both the v4 exceptions thrown by
+     * {@code send()} and the V5-wrapped exceptions thrown while (re)creating the per-segment
+     * producer on a now-terminated topic.
+     */
+    private static boolean isSegmentGoneError(Throwable t) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException
+                    || cause instanceof
+                        org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException) {
+                return true;
+            }
+            // The per-segment producer-creation path can surface the broker's terminated /
+            // already-closed error as a plain (untyped) PulsarClientException whose message
+            // carries the server-side class name; match on that too.
+            String msg = cause.getMessage();
+            if (msg != null
+                    && (msg.contains("TopicTerminated") || msg.contains("already terminated")
+                        || msg.contains("AlreadyClosed"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
