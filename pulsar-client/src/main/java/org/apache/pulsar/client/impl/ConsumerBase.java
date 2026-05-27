@@ -337,7 +337,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         + " crucial issue: this message will never be consumed until the consumer is restarted or"
                         + " the topic is unloaded. Under normal circumstances, this won't happen. It only occurs when"
                         + " user itself has completed the completable future object returned by"
-                        + " \"consumer.receiveAsync()\". message={}, cancelled={}", message, receivedFuture.isCancelled());
+                        + " \"consumer.receiveAsync()\". message={}, cancelled={}", message,
+                        receivedFuture.isCancelled());
             }
         });
     }
