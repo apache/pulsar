@@ -580,17 +580,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     }
 
     private void compareAndWriteQuota(String bundle, ResourceQuota oldQuota, ResourceQuota newQuota) throws Exception {
-        boolean needUpdate = true;
-        if (!oldQuota.getDynamic() || (Math
-                .abs(newQuota.getMsgRateIn() - oldQuota.getMsgRateIn()) < RESOURCE_QUOTA_MIN_MSGRATE_IN
-                && Math.abs(newQuota.getMsgRateOut() - oldQuota.getMsgRateOut()) < RESOURCE_QUOTA_MIN_MSGRATE_OUT
-                && Math.abs(newQuota.getBandwidthIn() - oldQuota.getBandwidthOut()) < RESOURCE_QUOTA_MIN_BANDWIDTH_IN
-                && Math.abs(newQuota.getBandwidthOut() - oldQuota.getBandwidthOut()) < RESOURCE_QUOTA_MIN_BANDWIDTH_OUT
-                && Math.abs(newQuota.getMemory() - oldQuota.getMemory()) < RESOURCE_QUOTA_MIN_MEMORY)) {
-            needUpdate = false;
-        }
-
-        if (needUpdate) {
+        if (needToUpdateQuota(oldQuota, newQuota)) {
             log.info(String.format(
                     "Update quota %s - msgRateIn: %.1f, msgRateOut: %.1f, bandwidthIn: %.1f,"
                             + " bandwidthOut: %.1f, memory: %.1f",
@@ -603,6 +593,15 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 pulsar.getBrokerService().getBundlesQuotas().setResourceQuota(bundle, newQuota).join();
             }
         }
+    }
+
+    static boolean needToUpdateQuota(ResourceQuota oldQuota, ResourceQuota newQuota) {
+        return oldQuota.getDynamic()
+                && (Math.abs(newQuota.getMsgRateIn() - oldQuota.getMsgRateIn()) >= RESOURCE_QUOTA_MIN_MSGRATE_IN
+                || Math.abs(newQuota.getMsgRateOut() - oldQuota.getMsgRateOut()) >= RESOURCE_QUOTA_MIN_MSGRATE_OUT
+                || Math.abs(newQuota.getBandwidthIn() - oldQuota.getBandwidthIn()) >= RESOURCE_QUOTA_MIN_BANDWIDTH_IN
+                || Math.abs(newQuota.getBandwidthOut() - oldQuota.getBandwidthOut()) >= RESOURCE_QUOTA_MIN_BANDWIDTH_OUT
+                || Math.abs(newQuota.getMemory() - oldQuota.getMemory()) >= RESOURCE_QUOTA_MIN_MEMORY);
     }
 
     @Override
