@@ -24,7 +24,6 @@ import com.google.common.base.MoreObjects;
  * This class encapsulates lookup data.
  */
 public class LookupData {
-    private String brokerId;
     private String brokerUrl;
     private String brokerUrlTls;
     private String httpUrl; // Web service HTTP address
@@ -34,17 +33,12 @@ public class LookupData {
     public LookupData() {
     }
 
-    public LookupData(String brokerId, String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls) {
-        this.brokerId = brokerId;
+    public LookupData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls) {
         this.brokerUrl = brokerUrl;
         this.brokerUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
         this.httpUrlTls = httpUrlTls;
         this.nativeUrl = brokerUrl;
-    }
-
-    public String getBrokerId() {
-        return brokerId;
     }
 
     public String getBrokerUrl() {
@@ -88,7 +82,7 @@ public class LookupData {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("brokerId", brokerId).add("brokerUrl", brokerUrl)
-                .add("brokerUrlTls", brokerUrlTls).add("httpUrl", httpUrl).add("httpUrlTls", httpUrlTls).toString();
+        return MoreObjects.toStringHelper(this).add("brokerUrl", brokerUrl).add("brokerUrlTls", brokerUrlTls)
+                .add("httpUrl", httpUrl).add("httpUrlTls", httpUrlTls).toString();
     }
 }

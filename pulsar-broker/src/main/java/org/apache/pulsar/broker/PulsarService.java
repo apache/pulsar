@@ -39,7 +39,6 @@ import java.net.MalformedURLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,7 +58,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -136,11 +134,9 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
-import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.broker.web.RestProducerContext;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -293,8 +289,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private BrokerInterceptor brokerInterceptor;
     private AdditionalServlets brokerAdditionalServlets;
-    @Getter
-    private final RestProducerContext restProducerContext = new RestProducerContext();
 
     // packages management service
     private PackagesManagement packagesManagement = null;
@@ -368,7 +362,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.openTelemetry = new PulsarBrokerOpenTelemetry(config, openTelemetrySdkBuilderCustomizer);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
-        this.advertisedListeners = MultipleListenerValidator.validateAndUpdateAdvertisedListeners(config);
+        this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
 
         // the advertised address is defined as the host component of the broker's canonical name.
         this.advertisedAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
@@ -860,11 +854,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
             }
 
-            if (config.getWebServicePort().isEmpty()
-                    && config.getWebServicePortTls().isEmpty()
-                    && BindAddressValidator.validateBindAddresses(config, Arrays.asList("http", "https")).isEmpty()) {
-                throw new IllegalArgumentException(
-                        "webServicePort/webServicePortTls or http/https bindAddresses must be present");
+            if (config.getWebServicePort().isEmpty() && config.getWebServicePortTls().isEmpty()) {
+                throw new IllegalArgumentException("webServicePort/webServicePortTls must be present");
             }
 
             if (config.isAuthorizationEnabled() && !config.isAuthenticationEnabled()) {
@@ -932,7 +923,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             managedLedgerStorage = newManagedLedgerStorage();
 
             this.brokerService = newBrokerService(this);
-            this.brokerService.addTopicEventListener(restProducerContext);
 
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
@@ -972,16 +962,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
 
-            // Refresh addresses and update configuration based on the actual bound ports. This is
-            // necessary both for dynamic ports (`Optional.of(0)`) and for the case where the broker
-            // is configured only via `bindAddresses` (legacy port properties left as
-            // `Optional.empty()`), so that downstream code — in particular
-            // MultipleListenerValidator.validateAndUpdateAdvertisedListeners — can synthesize the
-            // internal advertised listener from the now-known ports.
-            brokerService.getListenPort().ifPresent(port -> config.setBrokerServicePort(Optional.of(port)));
-            brokerService.getListenPortTls().ifPresent(port -> config.setBrokerServicePortTls(Optional.of(port)));
-            // Recompute the cached advertised listener map now that the bound ports are known.
-            this.advertisedListeners = MultipleListenerValidator.validateAndUpdateAdvertisedListeners(config);
+            // Refresh addresses and update configuration, since the port might have been dynamically assigned
+            if (config.getBrokerServicePort().equals(Optional.of(0))) {
+                config.setBrokerServicePort(brokerService.getListenPort());
+            }
+            if (config.getBrokerServicePortTls().equals(Optional.of(0))) {
+                config.setBrokerServicePortTls(brokerService.getListenPortTls());
+            }
             this.webServiceAddress = webAddress(config);
             this.webServiceAddressTls = webAddressTls(config);
             this.brokerServiceUrl = brokerUrl(config);
@@ -1544,7 +1531,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             List<CompletableFuture<Optional<Topic>>> persistentTopics = new ArrayList<>();
             long topicLoadStart = System.nanoTime();
 
-            AtomicInteger failedCount = new AtomicInteger(0);
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
                     .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
@@ -1552,10 +1538,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     if (bundle.includes(topicName) && !isTransactionInternalName(topicName)) {
                         CompletableFuture<Optional<Topic>> future = brokerService.getTopicIfExists(topic);
                         if (future != null) {
-                            persistentTopics.add(future.exceptionally(e -> {
-                                failedCount.incrementAndGet();
-                                return Optional.empty();
-                            }));
+                            persistentTopics.add(future);
                         }
                     }
                 } catch (Throwable t) {
@@ -1572,7 +1555,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             .count();
                     log.info()
                             .attr("numTopicsLoaded", numTopicsLoaded)
-                            .attr("failedCount", failedCount.get())
                             .attr("bundle", bundle)
                             .attr("timeTakenSeconds", topicLoadTimeSeconds)
                             .log("Loaded topics on bundle");

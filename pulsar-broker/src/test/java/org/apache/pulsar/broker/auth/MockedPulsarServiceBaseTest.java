@@ -189,7 +189,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return resolveLookupUrl(usePulsarBinaryProtocol).toString();
     }
 
-    protected URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
+    private URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
         if (usePulsarBinaryProtocol) {
             return URI.create(pulsar.getBrokerServiceUrl());
         } else {

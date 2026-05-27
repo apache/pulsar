@@ -27,7 +27,6 @@ dependencies {
     implementation(libs.slog)
     implementation(libs.guava)
     implementation(libs.commons.lang3)
-    implementation(libs.netty.common)
     implementation(libs.bookkeeper.server)
     implementation(libs.opentelemetry.api)
     implementation(libs.simpleclient)

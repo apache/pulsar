@@ -146,14 +146,12 @@ public class TopicOwnerTest {
             if (pulsarService == null) {
                 return (CompletableFuture<Optional<LookupResult>>) invocation.callRealMethod();
             }
-            LookupResult lookupResult = LookupResult.builder()
-                    .type(LookupResult.Type.RedirectUrl)
-                    .httpUrl(pulsarService.getWebServiceAddress())
-                    .httpUrlTls(pulsarService.getWebServiceAddressTls())
-                    .brokerServiceUrl(pulsarService.getBrokerServiceUrl())
-                    .brokerServiceUrlTls(pulsarService.getBrokerServiceUrlTls())
-                    .authoritativeRedirect(true)
-                    .build();
+            LookupResult lookupResult = new LookupResult(
+                    pulsarService.getWebServiceAddress(),
+                    pulsarService.getWebServiceAddressTls(),
+                    pulsarService.getBrokerServiceUrl(),
+                    pulsarService.getBrokerServiceUrlTls(),
+                    true);
             return CompletableFuture.completedFuture(Optional.of(lookupResult));
         };
         doAnswer(answer).when(spyLeaderNamespaceService).getBrokerServiceUrlAsync(any(TopicName.class),

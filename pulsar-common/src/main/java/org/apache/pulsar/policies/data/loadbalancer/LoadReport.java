@@ -126,11 +126,6 @@ public class LoadReport implements LoadManagerReport {
         this.name = brokerName;
     }
 
-    @JsonIgnore
-    public String getBrokerId() {
-        return name;
-    }
-
     public SystemResourceUsage getSystemResourceUsage() {
         return systemResourceUsage;
     }

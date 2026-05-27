@@ -231,6 +231,9 @@ public class BrokerService implements Closeable {
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
     private final Map<String, Map<String, Map<String, Topic>>> multiLayerTopicsMap = new ConcurrentHashMap<>();
+    // Keep track of topics and partitions served by this broker for fast lookup.
+    @Getter
+    private final Map<String, Set<Integer>> owningTopics = new ConcurrentHashMap<>();
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;

@@ -59,7 +59,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -1425,17 +1424,31 @@ public abstract class NamespacesBase extends AdminResource {
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
         String leaderBrokerId = leaderBroker.getBrokerId();
-        LookupOptions lookupOptions = LookupOptions.builder()
-                .webServiceAdvertisedListenerName(getWebServiceListenerName()).build();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerId, false, lookupOptions)
+                .createLookupResult(leaderBrokerId, false, null)
                 .thenCompose(lookupResult -> {
-                    URI redirectUri = lookupResult.toRedirectUri(uri.getRequestUri());
-                    log.debug()
-                            .attr("leaderBrokerId", leaderBrokerId)
-                            .attr("redirectUri", redirectUri).log("Redirecting the request call to leader broker");
-                    return FutureUtil.failedFuture(
-                            new WebApplicationException(Response.temporaryRedirect(redirectUri).build()));
+                    String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
+                            : lookupResult.getLookupData().getHttpUrl();
+                    if (redirectUrl == null) {
+                        log.error("Redirected broker's service url is not configured");
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Redirected broker's service url is not configured."));
+                    }
+
+                    try {
+                        URL url = new URL(redirectUrl);
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
+                                .port(url.getPort())
+                                .replaceQueryParam("authoritative",
+                                        false).build();
+                        // Redirect
+                            log.debug().attr("leader", redirect).log("Redirecting the request call to leader -");
+                                                return FutureUtil.failedFuture((
+                                new WebApplicationException(Response.temporaryRedirect(redirect).build())));
+                    } catch (MalformedURLException exception) {
+                        log.error().attr("malformed", redirectUrl).log("The redirect url is malformed -");
+                        return FutureUtil.failedFuture(new RestException(exception));
+                    }
                 });
     }
 
