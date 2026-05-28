@@ -301,16 +301,16 @@ public class TransactionCoordinatorV5 {
             }
         }).thenCompose(__ -> {
             TxnEvent event = new TxnEvent(txnIdKey, decision);
-            CompletableFuture<?>[] publishes = new CompletableFuture<?>[
-                    writeSegments.size() + ackParticipants.size()];
-            int i = 0;
+            List<CompletableFuture<Void>> publishes = new ArrayList<>(
+                    writeSegments.size() + ackParticipants.size());
             for (String segment : writeSegments) {
-                publishes[i++] = txnStore.publishSegmentEvent(segment, event);
+                publishes.add(txnStore.publishSegmentEvent(segment, event).thenApply(s -> null));
             }
             for (AckParticipant p : ackParticipants) {
-                publishes[i++] = txnStore.publishSubscriptionEvent(p.segment(), p.subscription(), event);
+                publishes.add(txnStore.publishSubscriptionEvent(p.segment(), p.subscription(), event)
+                        .thenApply(s -> null));
             }
-            return CompletableFuture.allOf(publishes);
+            return FutureUtil.waitForAll(publishes);
         });
     }
 
