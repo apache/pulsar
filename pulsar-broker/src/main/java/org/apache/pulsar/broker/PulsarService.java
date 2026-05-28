@@ -706,6 +706,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (transactionTimer != null) {
                 transactionTimer.stop();
             }
+            if (transactionCoordinatorV5 != null) {
+                transactionCoordinatorV5.close();
+                transactionCoordinatorV5 = null;
+            }
             MLPendingAckStoreProvider.closeBufferedWriterMetrics();
             MLTransactionMetadataStoreProvider.closeBufferedWriterMetrics();
             if (this.offloaderStats != null) {
@@ -1047,6 +1051,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
                 if (config.isTransactionCoordinatorScalableTopicsEnabled()) {
                     transactionCoordinatorV5 = new TransactionCoordinatorV5(this);
+                    transactionCoordinatorV5.start();
                 }
 
                 transactionBufferProvider = TransactionBufferProvider

@@ -3807,6 +3807,34 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean transactionCoordinatorScalableTopicsEnabled = false;
 
     @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Interval, in seconds, at which the scalable-topics transaction coordinator sweeps"
+                    + " for timed-out open transactions and aborts them. Only the broker that owns"
+                    + " partition 0 of the transaction-coordinator-assign topic runs the sweep."
+                    + " Only relevant when transactionCoordinatorScalableTopicsEnabled = true."
+    )
+    private int transactionCoordinatorScalableTopicsTimeoutSweepIntervalSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Interval, in seconds, at which the scalable-topics transaction coordinator sweeps"
+                    + " for finalized transactions whose retention has elapsed and garbage-collects"
+                    + " their metadata. Only relevant when transactionCoordinatorScalableTopicsEnabled"
+                    + " = true."
+    )
+    private int transactionCoordinatorScalableTopicsGcIntervalSeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "How long, in seconds, a finalized (committed/aborted) transaction's metadata is"
+                    + " retained before the scalable-topics transaction coordinator's GC sweep is"
+                    + " allowed to delete it. Gives participants time to observe the outcome via the"
+                    + " durable per-segment visibility state. Only relevant when"
+                    + " transactionCoordinatorScalableTopicsEnabled = true."
+    )
+    private int transactionCoordinatorScalableTopicsGcRetentionSeconds = 900;
+
+    @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
