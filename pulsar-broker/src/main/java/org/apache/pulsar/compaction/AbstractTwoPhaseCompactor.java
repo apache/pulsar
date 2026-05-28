@@ -470,7 +470,9 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
     if (msgMetadata.hasPartitionKey()) {
       int payloadSize;
-      if (msgMetadata.hasUncompressedSize()) {
+      if (msgMetadata.hasNullValue() && msgMetadata.isNullValue()) {
+        payloadSize = 0;
+      } else if (msgMetadata.hasUncompressedSize()) {
         payloadSize = msgMetadata.getUncompressedSize();
       } else {
         ByteBuf headersAndPayload = m.getHeadersAndPayload().duplicate();

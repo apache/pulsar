@@ -641,9 +641,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Write raw non-batch entries directly to the managed ledger, simulating
-     * messages from C++/Python clients that do not set numMessagesInBatch.
-     * Verifies that null-value tombstones remove keys during compaction.
+     * Write raw non-batch entries directly to the managed ledger without
+     * uncompressedSize, as seen with some non-Java clients. Verifies that
+     * null-value tombstones remove keys during compaction.
      */
     @Test
     public void testNonBatchedMessageWithNullValue() throws Exception {
