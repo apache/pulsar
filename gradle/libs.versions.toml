@@ -23,7 +23,7 @@ pulsar-client-python = "3.10.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.17.3"
+bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
 netty = "4.1.134.Final"
 netty-iouring = "0.0.26.Final"

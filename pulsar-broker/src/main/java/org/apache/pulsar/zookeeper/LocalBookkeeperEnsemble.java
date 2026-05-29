@@ -355,10 +355,10 @@ public class LocalBookkeeperEnsemble {
             } catch (NamespaceNotFoundException nnfe) {
                 log.info("Creating default namespace");
                 try {
+                    NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                    nsConf.setDefaultStreamConf().copyFrom(DEFAULT_STREAM_CONF);
                     NamespaceProperties ns =
-                        FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                            .build()));
+                        FutureUtils.result(admin.createNamespace("default", nsConf));
                     log.info().attr("n", ns).log("Successfully created 'default' namespace :\n");
                 } catch (NamespaceExistsException nee) {
                     // namespace already exists
