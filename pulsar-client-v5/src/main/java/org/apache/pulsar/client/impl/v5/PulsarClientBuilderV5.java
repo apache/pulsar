@@ -113,10 +113,18 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClientBuilder tlsPolicy(TlsPolicy policy) {
-        // TlsPolicy configures TLS settings
-        // For now, just enable TLS — full TLS config adaptation will be
-        // implemented when TlsPolicy internals are defined
         conf.setUseTls(true);
+        if (policy.trustCertsFilePath() != null) {
+            conf.setTlsTrustCertsFilePath(policy.trustCertsFilePath());
+        }
+        if (policy.keyFilePath() != null) {
+            conf.setTlsKeyFilePath(policy.keyFilePath());
+        }
+        if (policy.certificateFilePath() != null) {
+            conf.setTlsCertificateFilePath(policy.certificateFilePath());
+        }
+        conf.setTlsAllowInsecureConnection(policy.allowInsecureConnection());
+        conf.setTlsHostnameVerificationEnable(policy.enableHostnameVerification());
         return this;
     }
 
@@ -143,6 +151,11 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         this.description = description;
         conf.setDescription(description);
         return this;
+    }
+
+    /** @return the underlying v4 configuration data; for tests in this package only. */
+    ClientConfigurationData getConfForTesting() {
+        return conf;
     }
 
     /**

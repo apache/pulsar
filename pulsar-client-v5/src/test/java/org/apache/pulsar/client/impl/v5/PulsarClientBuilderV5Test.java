@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.TlsPolicy;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
 
 /**
@@ -93,6 +97,42 @@ public class PulsarClientBuilderV5Test {
         IllegalArgumentException e = assertThrowsIAE(() -> builder.connectionPolicy(badProxy));
         assertTrue(e.getMessage().contains("proxyServiceUrl"),
                 "error must name the offending field: " + e.getMessage());
+    }
+
+    @Test
+    public void testTlsPolicyFieldsPropagate() {
+        // Build a fully-populated TlsPolicy and confirm every field lands on the underlying
+        // v4 ClientConfigurationData. Used to be a stub that only set useTls=true.
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        TlsPolicy policy = TlsPolicy.builder()
+                .trustCertsFilePath("/path/to/ca.pem")
+                .keyFilePath("/path/to/client.key")
+                .certificateFilePath("/path/to/client.cert")
+                .allowInsecureConnection(true)
+                .enableHostnameVerification(false)
+                .build();
+
+        builder.tlsPolicy(policy);
+
+        ClientConfigurationData conf = builder.getConfForTesting();
+        assertTrue(conf.isUseTls());
+        assertEquals(conf.getTlsTrustCertsFilePath(), "/path/to/ca.pem");
+        assertEquals(conf.getTlsKeyFilePath(), "/path/to/client.key");
+        assertEquals(conf.getTlsCertificateFilePath(), "/path/to/client.cert");
+        assertTrue(conf.isTlsAllowInsecureConnection());
+        assertFalse(conf.isTlsHostnameVerificationEnable());
+    }
+
+    @Test
+    public void testTlsPolicyInsecureShortcut() {
+        // TlsPolicy.ofInsecure() is the dev convenience that disables verification.
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsPolicy(TlsPolicy.ofInsecure());
+
+        ClientConfigurationData conf = builder.getConfForTesting();
+        assertTrue(conf.isUseTls());
+        assertTrue(conf.isTlsAllowInsecureConnection());
+        assertFalse(conf.isTlsHostnameVerificationEnable());
     }
 
     private static IllegalArgumentException assertThrowsIAE(Runnable r) {
