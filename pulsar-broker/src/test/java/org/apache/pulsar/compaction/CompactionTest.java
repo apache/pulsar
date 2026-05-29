@@ -640,6 +640,80 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.get(2).getKey(), "key5");
     }
 
+    /**
+     * Write raw non-batch entries directly to the managed ledger without
+     * uncompressedSize, as seen with some non-Java clients. Verifies that
+     * null-value tombstones remove keys during compaction.
+     */
+    @Test
+    public void testNonBatchedMessageWithNullValue() throws Exception {
+        String topic = "persistent://my-tenant/my-ns/non-batched-message-with-null-value";
+
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .receiverQueueSize(1).readCompacted(true).subscribe().close();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+
+        long seqId = 0;
+
+        // key1: value then null-value tombstone
+        ml.addEntry(buildNonBatchEntry("key1", "my-message-1".getBytes(), seqId++));
+        ml.addEntry(buildNonBatchEntry("key1", null, seqId++));
+
+        // key2: value only (should survive)
+        ml.addEntry(buildNonBatchEntry("key2", "my-message-3".getBytes(), seqId++));
+
+        // key3: value then null-value tombstone
+        ml.addEntry(buildNonBatchEntry("key3", "my-message-4".getBytes(), seqId++));
+        ml.addEntry(buildNonBatchEntry("key3", null, seqId++));
+
+        // key4: value only (should survive)
+        ml.addEntry(buildNonBatchEntry("key4", "my-message-6".getBytes(), seqId++));
+
+        compact(topic);
+
+        List<Message<byte[]>> messages = new ArrayList<>();
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+             .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
+            while (true) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                if (message == null) {
+                    break;
+                }
+                messages.add(message);
+            }
+        }
+
+        assertEquals(messages.size(), 2);
+        assertEquals(messages.get(0).getKey(), "key2");
+        assertEquals(messages.get(1).getKey(), "key4");
+    }
+
+    private byte[] buildNonBatchEntry(String key, byte[] payload, long sequenceId) {
+        org.apache.pulsar.common.api.proto.MessageMetadata metadata =
+                new org.apache.pulsar.common.api.proto.MessageMetadata();
+        metadata.setPartitionKey(key);
+        metadata.setPublishTime(System.currentTimeMillis());
+        metadata.setProducerName("test-non-batch");
+        metadata.setSequenceId(sequenceId);
+        if (payload == null) {
+            metadata.setNullValue(true);
+        }
+        ByteBuf payloadBuf = io.netty.buffer.Unpooled.wrappedBuffer(
+                payload != null ? payload : new byte[0]);
+        ByteBuf entry = org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload(
+                org.apache.pulsar.common.protocol.Commands.ChecksumType.Crc32c,
+                metadata, payloadBuf);
+        byte[] bytes = new byte[entry.readableBytes()];
+        entry.readBytes(bytes);
+        entry.release();
+        payloadBuf.release();
+        return bytes;
+    }
+
     @Test
     public void testWholeBatchCompactedOut() throws Exception {
         String topic = "persistent://my-tenant/my-ns/whole-batch-compacted-out";
