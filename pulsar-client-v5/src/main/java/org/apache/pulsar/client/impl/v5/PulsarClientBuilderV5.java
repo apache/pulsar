@@ -73,6 +73,16 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             throws PulsarClientException {
         conf.setAuthPluginClassName(authPluginClassName);
         conf.setAuthParams(authParamsString);
+        // Instantiate the Authentication and attach it to the conf — the v4 PulsarClientImpl
+        // honors the plugin class name + params strings only as metadata, it reads the actual
+        // Authentication instance via conf.getAuthentication() at connect time.
+        try {
+            conf.setAuthentication(
+                    org.apache.pulsar.client.api.AuthenticationFactory.create(
+                            authPluginClassName, authParamsString));
+        } catch (org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException e) {
+            throw new PulsarClientException(e.getMessage(), e);
+        }
         return this;
     }
 
