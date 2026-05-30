@@ -148,7 +148,15 @@ public class TransactionCoordinatorV5 {
         }
         try {
             sweep.get().get();
+        } catch (InterruptedException ie) {
+            // shutdownNow() interrupted the sweep thread mid-wait — restore the flag and exit
+            // quietly; this is the expected shutdown signal, not a failure.
+            Thread.currentThread().interrupt();
         } catch (Throwable t) {
+            if (closed) {
+                // close() raced with an in-flight async chain; not worth a WARN.
+                return;
+            }
             log.warn().attr("sweep", name).exception(t).log("v5 TC sweep cycle failed; will retry");
         }
     }
@@ -447,11 +455,15 @@ public class TransactionCoordinatorV5 {
      * CAS, so a stale owner sweeping concurrently is harmless.
      */
     private CompletableFuture<Void> ifElectedSweeper(Supplier<CompletableFuture<Void>> action) {
+        if (closed) {
+            return CompletableFuture.completedFuture(null);
+        }
         String assignPartition0 = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
                 .getPartition(0).toString();
         return pulsar.getBrokerService().checkTopicNsOwnership(assignPartition0)
                 .handle((v, ex) -> ex == null)
-                .thenCompose(owned -> owned ? action.get() : CompletableFuture.completedFuture(null));
+                .thenCompose(owned -> (owned && !closed)
+                        ? action.get() : CompletableFuture.completedFuture(null));
     }
 
     /** A {@code (segment, subscription)} ack participant; keys the ack fan-out de-dup set. */
