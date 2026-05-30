@@ -243,9 +243,6 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                     .log("V5 has no exclusive/failover subscription type. Falling back to QueueConsumer "
                             + "(Shared-style work distribution).");
         }
-        if (this.replicatedSubscription) {
-            log.warn("--replicated has no V5 equivalent on QueueConsumerBuilder and will be ignored.");
-        }
 
         PulsarClientBuilder clientBuilder = PerfClientUtils.createV5ClientBuilderFromArguments(this);
         if (!this.isDisableTransaction) {
@@ -370,6 +367,13 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                             }
                         }
 
+                        // V5 transaction-aware sends are queued onto an internal dispatch chain,
+                        // so the v4-side txn-coordinator registration of the send can race the
+                        // commit() if commit fires before the chain drains. We collect each
+                        // per-txn send future here and await them all before committing — this is
+                        // also the semantically-correct ordering (commit only after sends land).
+                        java.util.List<java.util.concurrent.CompletableFuture<?>> pendingSends =
+                                new java.util.ArrayList<>();
                         for (Producer<byte[]> producer : producers) {
                             AsyncProducer<byte[]> asyncProducer = producer.async();
                             for (int j = 0; j < this.numMessagesProducedPerTransaction; j++) {
@@ -378,28 +382,43 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                 if (!this.isDisableTransaction) {
                                     msg.transaction(transaction);
                                 }
-                                msg.send().thenRun(() -> {
-                                    long latencyMicros = NANOSECONDS.toMicros(
-                                            System.nanoTime() - sendTime);
-                                    messageSendRecorder.recordValue(latencyMicros);
-                                    messageSendRCumulativeRecorder.recordValue(latencyMicros);
-                                    numMessagesSendSuccess.increment();
-                                }).exceptionally(exception -> {
-                                    if (PerfClientUtils.hasInterruptedException(exception)) {
-                                        Thread.currentThread().interrupt();
-                                        return null;
+                                pendingSends.add(msg.send().whenComplete((id, ex) -> {
+                                    if (ex == null) {
+                                        long latencyMicros = NANOSECONDS.toMicros(
+                                                System.nanoTime() - sendTime);
+                                        messageSendRecorder.recordValue(latencyMicros);
+                                        messageSendRCumulativeRecorder.recordValue(latencyMicros);
+                                        numMessagesSendSuccess.increment();
+                                    } else {
+                                        if (PerfClientUtils.hasInterruptedException(ex)) {
+                                            Thread.currentThread().interrupt();
+                                            return;
+                                        }
+                                        // Ignore the exception when the producer is closed
+                                        if (ex.getCause()
+                                                instanceof PulsarClientException.AlreadyClosedException) {
+                                            return;
+                                        }
+                                        log.error()
+                                                .exception(ex)
+                                                .log("Send message failed with exception");
+                                        numMessagesSendFailed.increment();
                                     }
-                                    // Ignore the exception when the producer is closed
-                                    if (exception.getCause()
-                                            instanceof PulsarClientException.AlreadyClosedException) {
-                                        return null;
-                                    }
-                                    log.error()
-                                            .exception(exception)
-                                            .log("Send message failed with exception");
-                                    numMessagesSendFailed.increment();
-                                    return null;
-                                });
+                                }));
+                            }
+                        }
+
+                        // Await all pending sends before committing so the txn-coordinator has
+                        // registered every send. allOf().exceptionally() swallows individual send
+                        // failures here — they are already counted in the whenComplete above.
+                        try {
+                            java.util.concurrent.CompletableFuture.allOf(
+                                    pendingSends.toArray(new java.util.concurrent.CompletableFuture[0]))
+                                    .exceptionally(t -> null)
+                                    .join();
+                        } catch (Exception awaitEx) {
+                            if (PerfClientUtils.hasInterruptedException(awaitEx)) {
+                                Thread.currentThread().interrupt();
                             }
                         }
 
@@ -626,6 +645,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                 QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
                         .receiverQueueSize(this.receiverQueueSize)
                         .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                        .replicateSubscriptionState(this.replicatedSubscription)
                         .topic(topic)
                         .subscriptionName(subscriberName);
                 subscriptionFutures.add(b.subscribeAsync());

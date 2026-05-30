@@ -333,6 +333,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                             .receiverQueueSize(this.receiverQueueSize)
                             .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
                             .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                            .replicateSubscriptionState(this.replicatedSubscription)
                             .topic(topicName.toString())
                             .subscriptionName(subscriberName);
                     if (isNotBlank(this.encKeyFile)) {
