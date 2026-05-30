@@ -44,24 +44,34 @@ public class RetryUtil {
     private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                              ScheduledExecutorService scheduledExecutorService,
                                              CompletableFuture<T> callback) {
-        supplier.get().whenComplete((result, e) -> {
-            if (e != null) {
-                long next = backoff.next().toMillis();
-                boolean isMandatoryStop = backoff.isMandatoryStopMade();
-                if (isMandatoryStop) {
-                    callback.completeExceptionally(e);
-                } else {
-                    log.warn().exceptionMessage(e)
-                            .attr("nextMs", next)
-                            .log("Execution with retry failed, will retry");
-                    scheduledExecutorService.schedule(() ->
-                                    executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
-                            next, TimeUnit.MILLISECONDS);
+        try {
+            supplier.get().whenComplete((result, e) -> {
+                if (e != null) {
+                    retryOrCompleteExceptionally(supplier, backoff, scheduledExecutorService, callback, e);
+                    return;
                 }
-                return;
-            }
-            callback.complete(result);
-        });
+                callback.complete(result);
+            });
+        } catch (Throwable e) {
+            retryOrCompleteExceptionally(supplier, backoff, scheduledExecutorService, callback, e);
+        }
+    }
+
+    private static <T> void retryOrCompleteExceptionally(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
+                                                         ScheduledExecutorService scheduledExecutorService,
+                                                         CompletableFuture<T> callback, Throwable e) {
+        long next = backoff.next().toMillis();
+        boolean isMandatoryStop = backoff.isMandatoryStopMade();
+        if (isMandatoryStop) {
+            callback.completeExceptionally(e);
+        } else {
+            log.warn().exceptionMessage(e)
+                    .attr("nextMs", next)
+                    .log("Execution with retry failed, will retry");
+            scheduledExecutorService.schedule(() ->
+                            executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
+                    next, TimeUnit.MILLISECONDS);
+        }
     }
 
 }
