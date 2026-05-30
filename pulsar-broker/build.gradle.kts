@@ -117,6 +117,7 @@ dependencies {
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-io:pulsar-io-batch-discovery-triggerers"))
     testImplementation(libs.zt.zip)
+    testImplementation(libs.re2j)
     testImplementation(libs.asynchttpclient)
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.commons.math3)
