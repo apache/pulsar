@@ -193,6 +193,11 @@ tasks.withType<Test>().configureEach {
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
+        // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
+        // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
+        // loopback interface resolves to an IPv6 link-local address (notably macOS) bookies bound to
+        // loopback would otherwise fail to start.
+        "-Djava.net.preferIPv4Stack=true",
     )
 }
 
