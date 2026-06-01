@@ -55,7 +55,6 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         include(dependency("commons-.*:.*"))
         include(dependency("io.airlift:.*"))
         include(dependency("io.grpc:.*"))
-        include(dependency("io.netty.incubator:.*"))
         include(dependency("io.netty:.*"))
         include(dependency("io.opencensus:.*"))
         include(dependency("io.perfmark:.*"))

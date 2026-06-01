@@ -42,7 +42,6 @@ tasks.shadowJar {
         include(dependency("org.apache.commons:.*"))
         include(dependency("com.fasterxml.jackson.*:.*"))
         include(dependency("io.netty:.*"))
-        include(dependency("io.netty.incubator:.*"))
         include(dependency("com.google.*:.*"))
         include(dependency("javax.servlet:.*"))
         include(dependency("org.reactivestreams:reactive-streams"))
