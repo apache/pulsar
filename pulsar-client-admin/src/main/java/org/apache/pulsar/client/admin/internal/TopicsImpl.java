@@ -912,21 +912,23 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages,
                                               boolean showServerMarker,
                                               TransactionIsolationLevel transactionIsolationLevel)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages, showServerMarker, transactionIsolationLevel));
+        return sync(() -> peekMessagesAsync(topic, subName, messagePosition, numMessages,
+                showServerMarker, transactionIsolationLevel));
     }
 
     @Override
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
-            String topic, String subName, int numMessages,
+            String topic, String subName, int messagePosition, int numMessages,
             boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
-        checkArgument(numMessages > 0);
+        checkArgument(numMessages > 0, "numMessages must be > 0");
+        checkArgument(messagePosition >= 1, "messagePosition must be >= 1");
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
-                future, 1, showServerMarker, transactionIsolationLevel);
+                future, messagePosition, showServerMarker, transactionIsolationLevel);
         return future;
     }
 
