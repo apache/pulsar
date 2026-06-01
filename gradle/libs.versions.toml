@@ -106,7 +106,7 @@ picocli = "4.7.5"
 jline3 = "3.21.0"
 jline2 = "2.14.6"
 javassist = "3.25.0-GA"
-rocksdb = "7.9.2"
+rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
 # Misc
 curator = "5.7.1"
