@@ -1645,6 +1645,9 @@ public interface Topics {
     /**
      * Peek messages from a topic subscription.
      *
+     * <p>Equivalent to {@link #peekMessages(String, String, int, int, boolean, TransactionIsolationLevel)
+     * peekMessages(topic, subName, 1, numMessages, false, TransactionIsolationLevel.READ_COMMITTED)}.
+     *
      * @param topic
      *            topic name
      * @param subName
@@ -1661,11 +1664,79 @@ public interface Topics {
      */
     default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
             throws PulsarAdminException {
-        return peekMessages(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+        return peekMessages(topic, subName, 1, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
     }
 
     /**
-     * Peek messages from a topic subscription.
+     * Peek {@code numMessages} messages from a topic subscription, starting from {@code messagePosition}.
+     *
+     * <p>Use this overload to paginate through a subscription backlog without fetching all
+     * preceding messages. For example, to display the 91st–100th unacknowledged messages in a UI,
+     * call this method with {@code messagePosition=91, numMessages=10}.
+     *
+     * <p>Equivalent to {@link #peekMessages(String, String, int, int, boolean, TransactionIsolationLevel)
+     * peekMessages(topic, subName, messagePosition, numMessages, false,
+     * TransactionIsolationLevel.READ_COMMITTED)}.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param messagePosition
+     *            1-indexed position to start peeking from. Position {@code 1} returns the
+     *            oldest unacknowledged message; position {@code N} returns the N-th unacknowledged
+     *            message and onward. Must be {@code >= 1}.
+     * @param numMessages
+     *            Number of messages to peek. Must be {@code > 0}. Fewer messages may be returned
+     *            if the subscription backlog has fewer remaining messages from {@code messagePosition}.
+     * @return up to {@code numMessages} messages starting at {@code messagePosition}
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, messagePosition, numMessages,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription, with full control over starting position and
+     * transaction isolation.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param messagePosition
+     *            1-indexed position to start peeking from. Must be {@code >= 1}.
+     * @param numMessages
+     *            Number of messages to peek. Must be {@code > 0}.
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return up to {@code numMessages} messages starting at {@code messagePosition}
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages,
+                                       boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException;
+
+    /**
+     * Peek messages from a topic subscription. Backward-compatible overload that uses
+     * {@code messagePosition=1}.
      *
      * @param topic
      *            topic name
@@ -1688,12 +1759,20 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
-                                       boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel)
-            throws PulsarAdminException;
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                               boolean showServerMarker,
+                                               TransactionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, 1, numMessages, showServerMarker, transactionIsolationLevel);
+    }
 
     /**
      * Peek messages from a topic subscription asynchronously.
+     *
+     * <p>Equivalent to
+     * {@link #peekMessagesAsync(String, String, int, int, boolean, TransactionIsolationLevel)
+     * peekMessagesAsync(topic, subName, 1, numMessages, false,
+     * TransactionIsolationLevel.READ_COMMITTED)}.
      *
      * @param topic
      *            topic name
@@ -1704,11 +1783,59 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
-        return peekMessagesAsync(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+        return peekMessagesAsync(topic, subName, 1, numMessages,
+                false, TransactionIsolationLevel.READ_COMMITTED);
     }
 
     /**
-     * Peek messages from a topic subscription asynchronously.
+     * Peek {@code numMessages} messages from a topic subscription asynchronously, starting from
+     * {@code messagePosition}.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param messagePosition
+     *            1-indexed position to start peeking from. Must be {@code >= 1}.
+     * @param numMessages
+     *            Number of messages
+     * @return a future that completes with up to {@code numMessages} messages starting at
+     *         {@code messagePosition}
+     */
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int messagePosition, int numMessages) {
+        return peekMessagesAsync(topic, subName, messagePosition, numMessages,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription asynchronously, with full control over starting
+     * position and transaction isolation.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param messagePosition
+     *            1-indexed position to start peeking from. Must be {@code >= 1}.
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return a future that can be used to track when the messages are returned
+     */
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int messagePosition, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel);
+
+    /**
+     * Peek messages from a topic subscription asynchronously. Backward-compatible overload that
+     * uses {@code messagePosition=1}.
      *
      * @param topic
      *            topic name
@@ -1718,16 +1845,18 @@ public interface Topics {
      *            Number of messages
      * @param showServerMarker
      *            Enables the display of internal server write markers
-      @param transactionIsolationLevel
+     * @param transactionIsolationLevel
      *            Sets the isolation level for peeking messages within transactions.
      *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
      *            - 'READ_UNCOMMITTED' allows peeking all messages,
      *                                 even transactional messages which have been aborted.
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
             String topic, String subName, int numMessages,
-            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel);
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
+        return peekMessagesAsync(topic, subName, 1, numMessages, showServerMarker, transactionIsolationLevel);
+    }
 
     /**
      * Get a message by its messageId via a topic subscription.
