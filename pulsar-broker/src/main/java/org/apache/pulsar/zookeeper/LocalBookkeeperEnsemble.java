@@ -411,6 +411,10 @@ public class LocalBookkeeperEnsemble {
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         log.debug("Local ZK/BK starting ...");
         conf.setAdvertisedAddress(advertisedAddress);
+        // This is an embedded, localhost-only ensemble (advertised address is a loopback address), so
+        // loopback binding must be permitted. BookKeeper forbids binding to a loopback address unless
+        // allowLoopback is set. Mirror the start(boolean) path, which sets this for the same reason.
+        conf.setAllowLoopback(true);
 
         runZookeeper(1000);
         initializeZookeper();
