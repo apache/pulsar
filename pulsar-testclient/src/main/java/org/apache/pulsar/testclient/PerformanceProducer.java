@@ -590,6 +590,11 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             AtomicLong totalSent = new AtomicLong(0);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(this.numMessagesPerTransaction);
+            // Send futures of the in-flight transaction. V5 transaction-aware sends are queued
+            // onto an internal dispatch chain, so the v4-side txn-coordinator registration can
+            // lag the local counter; we await these before committing so commit never races
+            // ahead of the sends (otherwise the broker rejects with InvalidTxnStatusException).
+            final List<java.util.concurrent.CompletableFuture<?>> pendingTxnSends = new ArrayList<>();
             while (!Thread.currentThread().isInterrupted()) {
                 if (produceEnough) {
                     break;
@@ -664,7 +669,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                         messageBuilder.key(String.valueOf(totalSent.get()));
                     }
                     PulsarClient pulsarClient = client;
-                    messageBuilder.send().thenRun(() -> {
+                    var sendFuture = messageBuilder.send().thenRun(() -> {
                         bytesSent.add(payloadData.length);
                         messagesSent.increment();
                         totalSent.incrementAndGet();
@@ -699,8 +704,24 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                         }
                         return null;
                     });
+                    if (this.isEnableTransaction) {
+                        pendingTxnSends.add(sendFuture);
+                    }
                     if (this.isEnableTransaction
                             && numMessageSend.incrementAndGet() == this.numMessagesPerTransaction) {
+                        // Await all sends issued under this transaction before committing, so the
+                        // txn coordinator has registered every send. The chain above already
+                        // swallows per-send failures, so this join never throws on a send error.
+                        try {
+                            java.util.concurrent.CompletableFuture.allOf(
+                                    pendingTxnSends.toArray(new java.util.concurrent.CompletableFuture[0]))
+                                    .join();
+                        } catch (Exception awaitEx) {
+                            if (PerfClientUtils.hasInterruptedException(awaitEx)) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                        pendingTxnSends.clear();
                         if (!this.isAbortTransaction) {
                             transaction.async().commit()
                                     .thenRun(() -> {
