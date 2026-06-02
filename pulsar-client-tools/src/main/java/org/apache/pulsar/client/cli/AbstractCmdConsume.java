@@ -23,9 +23,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -132,14 +130,9 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      */
     protected static ConsumerEncryptionPolicy buildFileDecryptionPolicy(
             String keyUri, ConsumerCryptoFailureAction failureAction) {
-        URI uri = URI.create(keyUri);
-        if (!"file".equalsIgnoreCase(uri.getScheme())) {
-            throw new IllegalArgumentException("This version of pulsar-client supports only file:// "
-                    + "decryption keys (--encryption-key-value); got '" + keyUri + "'.");
-        }
         final byte[] keyBytes;
         try {
-            keyBytes = Files.readAllBytes(Path.of(uri.getPath()));
+            keyBytes = Files.readAllBytes(fileUriToPath(keyUri));
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to read decryption key from " + keyUri, e);
         }

@@ -371,14 +371,9 @@ public class CmdProduce extends AbstractCmd {
     }
 
     private static ProducerEncryptionPolicy buildEncryptionPolicy(String keyName, String keyUri) {
-        java.net.URI uri = java.net.URI.create(keyUri);
-        if (!"file".equalsIgnoreCase(uri.getScheme())) {
-            throw new IllegalArgumentException("This version of pulsar-client supports only file:// "
-                    + "encryption keys (--encryption-key-value); got '" + keyUri + "'.");
-        }
         return ProducerEncryptionPolicy.builder()
                 .publicKeyProvider(org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider.builder()
-                        .publicKey(keyName, java.nio.file.Path.of(uri.getPath()))
+                        .publicKey(keyName, fileUriToPath(keyUri))
                         .build())
                 .keyName(keyName)
                 .build();

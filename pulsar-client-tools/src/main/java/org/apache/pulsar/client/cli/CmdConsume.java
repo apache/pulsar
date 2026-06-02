@@ -30,12 +30,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
 import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
-import org.apache.pulsar.client.api.v5.StreamConsumer;
-import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
 import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
@@ -59,9 +56,11 @@ import picocli.CommandLine.Spec;
 public class CmdConsume extends AbstractCmdConsume {
 
     /**
-     * v4-compatible subscription-type flag. V5 has no single SubscriptionType: Shared / Key_Shared
-     * map to a {@link QueueConsumer} (work-queue semantics) and Exclusive / Failover map to a
-     * {@link StreamConsumer} (single-reader ordered stream).
+     * v4-compatible subscription-type flag. This version of pulsar-client consumes through a V5
+     * {@link QueueConsumer} for all types, since it is the only consumer that works against both
+     * regular and scalable topics (the ordered StreamConsumer requires a scalable-topic
+     * controller). Exclusive / Failover therefore get work-queue (Shared-style) semantics and log
+     * a warning rather than preserving single-reader ordering.
      */
     public enum SubscriptionType {
         Exclusive,
@@ -193,6 +192,15 @@ public class CmdConsume extends AbstractCmdConsume {
             LOG.warn("--subscription-mode NonDurable is not supported by this version of pulsar-client; "
                     + "a durable subscription is used instead.");
         }
+        if (subscriptionType == SubscriptionType.Exclusive || subscriptionType == SubscriptionType.Failover) {
+            // The V5 StreamConsumer (ordered, single-reader) requires a scalable-topic subscription
+            // controller, which regular topics do not have; only the QueueConsumer works against
+            // both regular and scalable topics. So all subscription types use a QueueConsumer here
+            // and Exclusive/Failover get work-queue (Shared-style) semantics rather than ordered.
+            LOG.warn("--subscription-type {} : this version of pulsar-client consumes via a work-queue "
+                    + "(Shared-style) subscription; exclusive/failover ordering is not preserved.",
+                    subscriptionType);
+        }
         if (maxPendingChunkedMessage > 0 || autoAckOldestChunkedMessageOnQueueFull) {
             LOG.warn("Chunked-message knobs (--max_chunked_msg / --auto_ack_chunk_q_full) have no effect "
                     + "on this version of pulsar-client.");
@@ -200,10 +208,19 @@ public class CmdConsume extends AbstractCmdConsume {
 
         try (PulsarClient client = clientBuilder.build()) {
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            // Shared / Key_Shared -> work-queue consumer; Exclusive / Failover -> ordered stream.
-            boolean streaming = subscriptionType == SubscriptionType.Exclusive
-                    || subscriptionType == SubscriptionType.Failover;
-            try (V5Consumer consumer = streaming ? buildStreamConsumer(client) : buildQueueConsumer(client)) {
+            QueueConsumerBuilder<byte[]> builder = client.newQueueConsumer(Schema.bytes())
+                    .subscriptionName(this.subscriptionName)
+                    .subscriptionInitialPosition(subscriptionInitialPosition)
+                    .replicateSubscriptionState(replicateSubscriptionState);
+            if (this.receiverQueueSize > 0) {
+                builder.receiverQueueSize(this.receiverQueueSize);
+            }
+            if (isNotBlank(this.encKeyValue)) {
+                builder.encryptionPolicy(buildConsumerEncryptionPolicy());
+            }
+            applyTopicSelection(builder::topic, builder::namespace);
+
+            try (QueueConsumer<byte[]> consumer = builder.subscribe()) {
                 while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                     if (limiter != null) {
                         limiter.acquire();
@@ -235,73 +252,6 @@ public class CmdConsume extends AbstractCmdConsume {
         }
 
         return returnCode;
-    }
-
-    /** Uniform handle over the V5 queue / stream consumers so the receive loop is shared. */
-    private interface V5Consumer extends AutoCloseable {
-        Message<byte[]> receive(Duration timeout) throws Exception;
-        void acknowledge(MessageId id);
-        @Override
-        void close() throws Exception;
-    }
-
-    private V5Consumer buildQueueConsumer(PulsarClient client) throws Exception {
-        QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
-                .subscriptionName(this.subscriptionName)
-                .subscriptionInitialPosition(subscriptionInitialPosition)
-                .replicateSubscriptionState(replicateSubscriptionState);
-        if (this.receiverQueueSize > 0) {
-            b.receiverQueueSize(this.receiverQueueSize);
-        }
-        if (isNotBlank(this.encKeyValue)) {
-            b.encryptionPolicy(buildConsumerEncryptionPolicy());
-        }
-        applyTopicSelection(b::topic, b::namespace);
-        QueueConsumer<byte[]> consumer = b.subscribe();
-        return new V5Consumer() {
-            @Override
-            public Message<byte[]> receive(Duration timeout) throws Exception {
-                return consumer.receive(timeout);
-            }
-
-            @Override
-            public void acknowledge(MessageId id) {
-                consumer.acknowledge(id);
-            }
-
-            @Override
-            public void close() throws Exception {
-                consumer.close();
-            }
-        };
-    }
-
-    private V5Consumer buildStreamConsumer(PulsarClient client) throws Exception {
-        StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
-                .subscriptionName(this.subscriptionName)
-                .subscriptionInitialPosition(subscriptionInitialPosition)
-                .replicateSubscriptionState(replicateSubscriptionState);
-        if (isNotBlank(this.encKeyValue)) {
-            b.encryptionPolicy(buildConsumerEncryptionPolicy());
-        }
-        applyTopicSelection(b::topic, b::namespace);
-        StreamConsumer<byte[]> consumer = b.subscribe();
-        return new V5Consumer() {
-            @Override
-            public Message<byte[]> receive(Duration timeout) throws Exception {
-                return consumer.receive(timeout);
-            }
-
-            @Override
-            public void acknowledge(MessageId id) {
-                consumer.acknowledgeCumulative(id);
-            }
-
-            @Override
-            public void close() throws Exception {
-                consumer.close();
-            }
-        };
     }
 
     /**
