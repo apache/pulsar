@@ -39,7 +39,7 @@ dependencyResolutionManagement {
         // Remove once BookKeeper 4.18.0 is released to Maven Central.
         maven {
             name = "bk-staging"
-            url = uri("https://repository.apache.org/content/repositories/orgapachebookkeeper-1104/")
+            url = uri("https://repository.apache.org/content/repositories/orgapachebookkeeper-1105/")
             mavenContent {
                 releasesOnly()
             }
