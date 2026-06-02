@@ -98,7 +98,6 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         }
         final PulsarClient client = clientBuilder.build();
-        failover.initialize(client);
         final EventLoopGroup executor = WhiteboxImpl.getInternalState(failover, "executor");
         final PulsarServiceState[] stateArray =
                 WhiteboxImpl.getInternalState(failover, "pulsarServiceStateArray");
