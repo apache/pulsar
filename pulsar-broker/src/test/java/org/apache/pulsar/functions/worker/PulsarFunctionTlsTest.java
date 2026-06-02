@@ -268,9 +268,6 @@ public class PulsarFunctionTlsTest {
                     .ignoreExceptionsMatching(PulsarFunctionTlsTest::isLeaderNotReady)
                     .untilAsserted(() -> createAdmin.functions()
                             .createFunctionWithUrl(functionConfig, jarFilePathUrl));
-            pulsarAdmins[i].functions().createFunctionWithUrl(
-                functionConfig, jarFilePathUrl
-            );
 
             // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
             // does not have retries.
