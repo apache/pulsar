@@ -19,6 +19,12 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.broker.web.GzipHandlerUtil.isGzipCompressionEnabledForEndpoint;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -27,15 +33,9 @@ import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
-import org.eclipse.jetty.ee8.nested.HttpOutput;
+import org.eclipse.jetty.ee10.servlet.HttpOutput;
 
 @CustomLog
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {

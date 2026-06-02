@@ -73,8 +73,8 @@ dependencies {
 
     implementation(libs.jetty.server)
     implementation(libs.jetty.alpn.conscrypt.server)
-    implementation(libs.jetty.ee8.servlet)
-    implementation(libs.jetty.ee8.servlets)
+    implementation(libs.jetty.ee10.servlet)
+    implementation(libs.jetty.ee10.servlets)
 
     implementation(libs.jakarta.activation.api)
     implementation(libs.jakarta.ws.rs.api)

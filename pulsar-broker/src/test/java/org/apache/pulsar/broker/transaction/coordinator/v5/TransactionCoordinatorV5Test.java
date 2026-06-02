@@ -27,8 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
+import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
@@ -57,6 +59,7 @@ public class TransactionCoordinatorV5Test {
     private MetadataStoreExtended store;
     private TxnMetadataStore txnStore;
     private PulsarService pulsar;
+    private BrokerService brokerService;
     private TransactionCoordinatorV5 tc;
 
     @BeforeMethod
@@ -66,7 +69,11 @@ public class TransactionCoordinatorV5Test {
         txnStore = new TxnMetadataStore(store);
         pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
-        BrokerService brokerService = mock(BrokerService.class);
+        ServiceConfiguration cfg = new ServiceConfiguration();
+        // GC sweep tests assume retention has already elapsed.
+        cfg.setTransactionCoordinatorScalableTopicsGcRetentionSeconds(0);
+        when(pulsar.getConfiguration()).thenReturn(cfg);
+        brokerService = mock(BrokerService.class);
         when(pulsar.getBrokerService()).thenReturn(brokerService);
         // Default: owned. Tests that want to assert the not-owned path can override.
         when(brokerService.checkTopicNsOwnership(any())).thenReturn(CompletableFuture.completedFuture(null));
@@ -75,6 +82,9 @@ public class TransactionCoordinatorV5Test {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
+        if (tc != null) {
+            tc.close();
+        }
         if (store != null) {
             store.close();
         }
@@ -239,5 +249,87 @@ public class TransactionCoordinatorV5Test {
         // Different tcIds → different mostSigBits, independent leastSigBits sequences.
         assertThat(a.getMostSigBits()).isEqualTo(1L);
         assertThat(b.getMostSigBits()).isEqualTo(2L);
+    }
+
+    @Test
+    public void sweepTimeouts_abortsExpiredOpenTxnAndFansOut() throws Exception {
+        // 1ms timeout → deadline already in the past when the sweep runs.
+        TxnID txnId = tc.newTransaction(TC_ID, 1L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        txnStore.appendOp(txnIdKey,
+                new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
+
+        List<String> received = new ArrayList<>();
+        try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
+            tc.sweepTimeouts().get();
+            var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
+            assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            // Fan-out fires for the participant.
+            Awaitility.await().untilAsserted(() -> assertThat(received).isNotEmpty());
+        }
+    }
+
+    @Test
+    public void sweepTimeouts_leavesUnexpiredOpenTxnAlone() throws Exception {
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        tc.sweepTimeouts().get();
+        var header = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
+        assertThat(header.value().getState()).isEqualTo(TxnState.OPEN);
+    }
+
+    @Test
+    public void sweepGc_deletesHeaderWhenNoOpsRemain() throws Exception {
+        // No participants → fan-out wrote no events → no /txn/op records to clean up → GC may
+        // delete the header straight away.
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+
+        tc.sweepGc().get();
+
+        assertThat(txnStore.getHeader(txnIdKey).get()).isEmpty();
+    }
+
+    @Test
+    public void sweepGc_repairsAndRetainsHeaderWhenOpsRemain() throws Exception {
+        // A finalized txn with a leftover /txn/op record — the participant either hasn't applied
+        // the outcome yet, or never received the event (TC crashed between header CAS and publish).
+        // GC must re-drive the fan-out so the participant re-reads the true outcome, and must NOT
+        // delete the header while it could still be re-read (else a COMMITTED txn's data would
+        // default to ABORTED).
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        txnStore.appendOp(txnIdKey,
+                new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
+
+        List<String> received = new ArrayList<>();
+        try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
+            tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(1));
+
+            tc.sweepGc().get();
+
+            // Header retained — participant may still need to re-read.
+            TxnHeader header = txnStore.getHeader(txnIdKey).get().orElseThrow().value();
+            assertThat(header.getState()).isEqualTo(TxnState.COMMITTED);
+            // Repair re-published the event.
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(2));
+        }
+    }
+
+    @Test
+    public void sweeps_skipWhenNotElected() throws Exception {
+        // Override the owned-default with a failure → not the elected sweeper → action skipped.
+        when(brokerService.checkTopicNsOwnership(any())).thenReturn(
+                CompletableFuture.failedFuture(new RuntimeException("not owner")));
+
+        TxnID expired = tc.newTransaction(TC_ID, 1L, "owner").get();
+        tc.sweepTimeouts().get();
+
+        // Still OPEN — the sweep never ran because we don't own assign-partition 0.
+        var header = txnStore.getHeader(TxnIds.toKey(expired)).get().orElseThrow();
+        assertThat(header.value().getState()).isEqualTo(TxnState.OPEN);
     }
 }

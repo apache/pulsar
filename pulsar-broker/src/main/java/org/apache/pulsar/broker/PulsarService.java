@@ -32,6 +32,8 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import jakarta.servlet.ServletException;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
@@ -66,9 +68,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import javax.servlet.Servlet;
-import javax.servlet.ServletException;
-import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -207,8 +206,8 @@ import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.zookeeper.DefaultMetadataNodeSizeStats;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
 
 /**
  * Main class for Pulsar broker service.
@@ -706,6 +705,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (transactionTimer != null) {
                 transactionTimer.stop();
             }
+            if (transactionCoordinatorV5 != null) {
+                transactionCoordinatorV5.close();
+                transactionCoordinatorV5 = null;
+            }
             MLPendingAckStoreProvider.closeBufferedWriterMetrics();
             MLTransactionMetadataStoreProvider.closeBufferedWriterMetrics();
             if (this.offloaderStats != null) {
@@ -1047,6 +1050,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
                 if (config.isTransactionCoordinatorScalableTopicsEnabled()) {
                     transactionCoordinatorV5 = new TransactionCoordinatorV5(this);
+                    transactionCoordinatorV5.start();
                 }
 
                 transactionBufferProvider = TransactionBufferProvider
@@ -1280,6 +1284,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
                 switch (servletWithClassLoader.getServletType()) {
                     case JAVAX_SERVLET -> {
+                        // Legacy javax.servlet handlers are routed to Jetty's ee8 environment (PIP-472).
                         Object servletInstance = servletWithClassLoader.getServletInstance();
                         if (!(servletInstance instanceof javax.servlet.Servlet)) {
                             log.error()
@@ -1298,8 +1303,37 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             }
                             continue;
                         }
+                        org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder =
+                                new org.eclipse.jetty.ee8.servlet.ServletHolder(
+                                        (javax.servlet.Servlet) servletInstance);
+                        webService.addServletEe8(servletWithClassLoader.getBasePath(), servletHolder,
+                                config.isAuthenticationEnabled(), attributeMap);
+                        log.info()
+                                .attr("basePath", servletWithClassLoader.getBasePath())
+                                .log("Broker add additional servlet basePath");
+                    }
+                    case JAKARTA_SERVLET -> {
+                        // jakarta.servlet handlers are routed to Jetty's ee10 environment (PIP-472).
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof jakarta.servlet.Servlet)) {
+                            log.error()
+                                    .attr("servlet", servletWithClassLoader)
+                                    .attr("type", servletInstance.getClass().getName())
+                                    .attr("match", servletWithClassLoader.getServletType())
+                                    .log("AdditionalServletWithClassLoader has invalid servlet instance type which"
+                                            + " doesn't match . Skipping.");
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                log.error()
+                                        .attr("servlet", servletWithClassLoader)
+                                        .exception(e)
+                                        .log("Failed to close servlet .");
+                            }
+                            continue;
+                        }
                         ServletHolder servletHolder =
-                                new ServletHolder((Servlet) servletInstance);
+                                new ServletHolder((jakarta.servlet.Servlet) servletInstance);
                         webService.addServlet(servletWithClassLoader.getBasePath(), servletHolder,
                                 config.isAuthenticationEnabled(), attributeMap);
                         log.info()

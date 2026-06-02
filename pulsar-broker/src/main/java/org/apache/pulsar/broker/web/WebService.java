@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static org.eclipse.jetty.ee8.nested.Request.getBaseRequest;
 import io.prometheus.client.CollectorRegistry;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -32,14 +39,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -54,13 +53,12 @@ import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.ee8.nested.ContextHandler;
-import org.eclipse.jetty.ee8.nested.ResourceHandler;
-import org.eclipse.jetty.ee8.servlet.FilterHolder;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.ee8.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletContextRequest;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Connector;
@@ -75,9 +73,11 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.QoSHandler;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -390,7 +390,8 @@ public class WebService implements AutoCloseable {
         @Override
         public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
                 throws IOException, ServletException {
-            Connector connector = getBaseRequest(request).getHttpChannel().getConnector();
+            Connector connector = ServletContextRequest.getServletContextRequest(request)
+                    .getConnectionMetaData().getConnector();
             BindAddress bindAddress = connectorToBindAddress.get(connector);
             if (bindAddress != null) {
                 request.setAttribute(ATTRIBUTE_LISTENER_NAME, bindAddress.getListenerName());
@@ -410,11 +411,38 @@ public class WebService implements AutoCloseable {
         // Notice: each context path should be unique, but there's nothing here to verify that
         servletContextHandler.setContextPath(path);
         servletContextHandler.addServlet(servletHolder, MATCH_ALL);
+        // Jetty 12 ee10 rejects ambiguous URIs (e.g. %2F-encoded path separators) at the servlet layer by
+        // default, independent of the connector's UriCompliance. Pulsar admin paths embed encoded separators
+        // (e.g. topic names), so the servlet handler must be allowed to decode them (PIP-472 / Jetty 12).
+        servletContextHandler.getServletHandler().setDecodeAmbiguousURIs(true);
         if (attributeMap != null) {
             attributeMap.forEach(servletContextHandler::setAttribute);
         }
         filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
 
+        // The ee10 ServletContextHandler is itself an org.eclipse.jetty.server.Handler
+        handlers.add(servletContextHandler);
+    }
+
+    /**
+     * Registers a legacy {@code javax.servlet}-based servlet in Jetty's ee8 environment. This path exists
+     * solely to keep existing {@code AdditionalServlet} plugins that report
+     * {@link org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet.AdditionalServletType#JAVAX_SERVLET}
+     * working without recompilation (PIP-472). Pulsar's own servlets and {@code jakarta.servlet} additional
+     * servlets use {@link #addServlet} (ee10). The broker filter chain is jakarta-typed (ee10) and is therefore
+     * not applied to the ee8 environment; legacy javax additional servlets run without the broker filter chain.
+     */
+    public void addServletEe8(String path, org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder,
+                              boolean requiresAuthentication, Map<String, Object> attributeMap) {
+        org.eclipse.jetty.ee8.servlet.ServletContextHandler servletContextHandler =
+                new org.eclipse.jetty.ee8.servlet.ServletContextHandler(
+                        org.eclipse.jetty.ee8.servlet.ServletContextHandler.SESSIONS);
+        servletContextHandler.setContextPath(path);
+        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
+        if (attributeMap != null) {
+            attributeMap.forEach(servletContextHandler::setAttribute);
+        }
+        // The ee8 ServletContextHandler.get() bridges the ee8 context to a core org.eclipse.jetty.server.Handler
         handlers.add(servletContextHandler.get());
     }
 
@@ -425,7 +453,7 @@ public class WebService implements AutoCloseable {
         JettyWebSocketServletContainerInitializer.configure(servletContextHandler, null);
         ServletHolder servletHolder = new ServletHolder(webSocketServlet);
         servletContextHandler.addServlet(servletHolder, MATCH_ALL);
-        handlers.add(servletContextHandler.get());
+        handlers.add(servletContextHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
@@ -437,7 +465,7 @@ public class WebService implements AutoCloseable {
         resHandler.setEtags(true);
         resHandler.setCacheControl(WebService.HANDLER_CACHE_CONTROL);
         capHandler.setHandler(resHandler);
-        handlers.add(capHandler.get());
+        handlers.add(capHandler);
     }
 
     public void start() throws PulsarServerException {

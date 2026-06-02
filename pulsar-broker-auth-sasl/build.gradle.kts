@@ -37,7 +37,7 @@ dependencies {
     implementation(libs.caffeine)
     implementation(libs.commons.lang3)
     implementation(libs.commons.codec)
-    implementation(libs.javax.servlet.api)
+    implementation(libs.jakarta.servlet.api)
     implementation(libs.simpleclient.caffeine)
 
     testImplementation(libs.commons.io)

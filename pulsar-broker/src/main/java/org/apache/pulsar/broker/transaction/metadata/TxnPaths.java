@@ -294,5 +294,19 @@ public final class TxnPaths {
         return name.substring(0, dash);
     }
 
+    /**
+     * Extract the {@code txnId} key from a header path under {@link #TXN_HEADER_PREFIX}. The layout
+     * is {@code /txn/id/<txnId>}, so the txnId key is the trailing path component.
+     *
+     * @return the txnId key, or {@code null} if {@code headerPath} doesn't have the expected shape
+     */
+    public static String txnIdFromHeaderPath(String headerPath) {
+        int lastSlash = headerPath.lastIndexOf('/');
+        if (lastSlash < 0 || lastSlash == headerPath.length() - 1) {
+            return null;
+        }
+        return headerPath.substring(lastSlash + 1);
+    }
+
     private TxnPaths() {}
 }

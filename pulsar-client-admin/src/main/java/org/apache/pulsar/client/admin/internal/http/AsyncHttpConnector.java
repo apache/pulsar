@@ -35,6 +35,10 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -53,10 +57,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
@@ -318,7 +318,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             } else {
                 ClientResponse jerseyResponse =
                         new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
-                jerseyResponse.setStatusInfo(new javax.ws.rs.core.Response.StatusType() {
+                jerseyResponse.setStatusInfo(new jakarta.ws.rs.core.Response.StatusType() {
                     @Override
                     public int getStatusCode() {
                         return response.getStatusCode();

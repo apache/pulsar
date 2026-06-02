@@ -20,7 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
