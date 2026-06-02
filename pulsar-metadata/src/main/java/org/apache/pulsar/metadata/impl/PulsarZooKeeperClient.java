@@ -1163,7 +1163,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, setStats) {
 
             final VoidCallback vCb = new VoidCallback() {
@@ -1174,7 +1174,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
                     } else {
-                        vCb.processResult(rc, basePath, ctx);
+                        cb.processResult(rc, path, context);
                     }
                 }
 
@@ -1184,15 +1184,15 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             void zkRun() {
                 ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
-                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, cb, ctx);
+                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, vCb, worker);
                 } else {
-                    zkHandle.addWatch(basePath, watcher, mode, cb, ctx);
+                    zkHandle.addWatch(basePath, watcher, mode, vCb, worker);
                 }
             }
 
             @Override
             public String toString() {
-                return String.format("setData (%s, mode = %s)", basePath, mode.name());
+                return String.format("addWatch (%s, mode = %s)", basePath, mode.name());
             }
         };
         // execute it immediately
