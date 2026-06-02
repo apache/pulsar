@@ -430,7 +430,6 @@ The Apache Software License, Version 2.0
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
- * Protocol Buffers -- protobuf-java-3.25.5.jar -- ../licenses/LICENSE-protobuf.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
