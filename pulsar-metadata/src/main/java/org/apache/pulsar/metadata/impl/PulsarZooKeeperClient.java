@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -122,16 +123,42 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         log.info("Reconnecting zookeeper {}.", connectString);
                         // close the previous one
                         closeZkHandle();
+
+                        // ZooKeeper can deliver SyncConnected after createZooKeeper() returns but before zk.set(newZk)
+                        // publishes the new instance. Hold these events until the new instance is published, so child
+                        // watchers never observe a new-session event while PulsarZooKeeperClient still points at the
+                        // old handle.
+                        CountDownLatch newZkSetLatch = new CountDownLatch(1);
+                        Watcher forwardEventsWatcher = event -> {
+                            try {
+                                boolean awaited = newZkSetLatch.await(sessionTimeoutMs, TimeUnit.MILLISECONDS);
+                                if (!awaited) {
+                                    log.warn("Timed out waiting for ZooKeeper instance to be published before "
+                                            + "forwarding event {}", event);
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                log.warn("Interrupted while waiting for ZooKeeper instance to be published, event {}",
+                                        event, e);
+                                return;
+                            }
+                            watcherManager.process(event);
+                        };
+
                         ZooKeeper newZk;
                         try {
-                            newZk = createZooKeeper();
+                            newZk = createZooKeeper(forwardEventsWatcher);
                         } catch (IOException | QuorumPeerConfig.ConfigException e) {
                             log.error("Failed to create zookeeper instance to {} with config path {}",
                                     connectString, configPath, e);
                             throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
                         }
-                        waitForConnection();
+
+                        // Publish the new instance before releasing the forwarding watcher. waitForConnection() must
+                        // happen after countDown(), since it depends on the forwarded SyncConnected event.
                         zk.set(newZk);
+                        newZkSetLatch.countDown();
+                        waitForConnection();
                         log.info("ZooKeeper session {} is created to {}.",
                                 Long.toHexString(newZk.getSessionId()), connectString);
                         return newZk;
@@ -354,12 +381,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         watcherManager.waitForConnection();
     }
 
-    protected ZooKeeper createZooKeeper() throws IOException, QuorumPeerConfig.ConfigException {
+    protected ZooKeeper createZooKeeper(Watcher watcher) throws IOException, QuorumPeerConfig.ConfigException {
         if (null != configPath) {
-            return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,
+            return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode,
                     new ZKClientConfig(configPath));
         }
-        return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
+        return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode);
     }
 
     @Override
