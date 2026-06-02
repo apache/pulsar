@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
@@ -96,6 +97,8 @@ public class TransactionCoordinatorV5 {
     private final long gcRetentionMs;
     private volatile ScheduledExecutorService sweepExecutor;
     private volatile boolean closed;
+    private final AtomicBoolean timeoutSweepRunning = new AtomicBoolean(false);
+    private final AtomicBoolean gcSweepRunning = new AtomicBoolean(false);
 
     public TransactionCoordinatorV5(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -122,9 +125,11 @@ public class TransactionCoordinatorV5 {
         }
         sweepExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-txn-v5-sweep"));
-        sweepExecutor.scheduleWithFixedDelay(() -> runSweep("timeout", this::sweepTimeouts),
+        sweepExecutor.scheduleWithFixedDelay(
+                () -> runSweep("timeout", timeoutSweepRunning, this::sweepTimeouts),
                 timeoutSweepIntervalMs, timeoutSweepIntervalMs, TimeUnit.MILLISECONDS);
-        sweepExecutor.scheduleWithFixedDelay(() -> runSweep("gc", this::sweepGc),
+        sweepExecutor.scheduleWithFixedDelay(
+                () -> runSweep("gc", gcSweepRunning, this::sweepGc),
                 gcSweepIntervalMs, gcSweepIntervalMs, TimeUnit.MILLISECONDS);
     }
 
@@ -139,11 +144,14 @@ public class TransactionCoordinatorV5 {
 
     /**
      * Run one sweep cycle on the scheduler thread and block until it completes, so the
-     * fixed-delay scheduling never overlaps two cycles. Errors are logged and swallowed — the next
-     * tick retries.
+     * fixed-delay scheduling never overlaps two cycles. The {@code running} flag is a
+     * defense-in-depth guard: the single-thread scheduler plus the blocking {@code get()} already
+     * serialise cycles, but the flag makes overlap impossible even if the scheduling were later
+     * changed (e.g. to a fixed-rate or multi-threaded executor). Errors are logged and swallowed —
+     * the next tick retries.
      */
-    private void runSweep(String name, Supplier<CompletableFuture<Void>> sweep) {
-        if (closed) {
+    private void runSweep(String name, AtomicBoolean running, Supplier<CompletableFuture<Void>> sweep) {
+        if (closed || !running.compareAndSet(false, true)) {
             return;
         }
         try {
@@ -158,6 +166,8 @@ public class TransactionCoordinatorV5 {
                 return;
             }
             log.warn().attr("sweep", name).exception(t).log("v5 TC sweep cycle failed; will retry");
+        } finally {
+            running.set(false);
         }
     }
 
