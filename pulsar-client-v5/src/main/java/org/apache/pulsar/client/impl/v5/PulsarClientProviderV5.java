@@ -124,6 +124,18 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
         return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES());
     }
 
+    @Override
+    public Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo) {
+        var v4Info = SchemaAdapter.toV4SchemaInfo(schemaInfo);
+        return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.generic(v4Info));
+    }
+
+    @Override
+    public Schema<byte[]> autoProduceBytesSchema(Schema<?> base) {
+        var v4Base = SchemaAdapter.toV4(base);
+        return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES(v4Base));
+    }
+
     // --- Checkpoint ---
 
     @Override

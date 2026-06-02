@@ -23,21 +23,23 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.MessageId;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
+import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
+import org.apache.pulsar.client.api.v5.StreamConsumer;
+import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
+import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -56,6 +58,25 @@ import picocli.CommandLine.Spec;
 @Command(description = "Consume messages from a specified topic")
 public class CmdConsume extends AbstractCmdConsume {
 
+    /**
+     * v4-compatible subscription-type flag. V5 has no single SubscriptionType: Shared / Key_Shared
+     * map to a {@link QueueConsumer} (work-queue semantics) and Exclusive / Failover map to a
+     * {@link StreamConsumer} (single-reader ordered stream).
+     */
+    public enum SubscriptionType {
+        Exclusive,
+        Shared,
+        Failover,
+        Key_Shared
+    }
+
+    /** v4-compatible subscription-mode flag. Only honored by the WebSocket path; the V5 binary
+     *  consumer is always durable, so NonDurable logs a warning. */
+    public enum SubscriptionMode {
+        Durable,
+        NonDurable
+    }
+
     @Parameters(description = "TopicName", arity = "1")
     private String topic;
 
@@ -66,7 +87,7 @@ public class CmdConsume extends AbstractCmdConsume {
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @Option(names = { "-p", "--subscription-position" }, description = "Subscription position.")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.LATEST;
 
     @Option(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
     private String subscriptionName;
@@ -119,9 +140,6 @@ public class CmdConsume extends AbstractCmdConsume {
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
     private boolean printMetadata = false;
 
-    @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
-    private long startTimestamp = 0L;
-
     @Option(names = { "-etp", "--end-timestamp" }, description = "End timestamp for consuming messages")
     private long endTimestamp = Long.MAX_VALUE;
 
@@ -146,17 +164,9 @@ public class CmdConsume extends AbstractCmdConsume {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "Number of messages should be zero or positive.");
         }
-        if (this.startTimestamp < 0) {
-            throw new CommandLine.ParameterException(commandSpec.commandLine(),
-                    "start timestamp should be positive.");
-        }
         if (this.endTimestamp < 0) {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "end timestamp should be positive.");
-        }
-        if (this.endTimestamp < startTimestamp) {
-            throw new CommandLine.ParameterException(commandSpec.commandLine(),
-                    "end timestamp should larger than start timestamp.");
         }
 
         if (this.serviceURL.startsWith("ws")) {
@@ -170,71 +180,49 @@ public class CmdConsume extends AbstractCmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
+        if ("auto_consume".equals(schemaType)) {
+            throw new IllegalArgumentException("schema type 'auto_consume' is not supported by this "
+                    + "version of pulsar-client; consume with 'bytes' (the default).");
+        } else if (!"bytes".equals(schemaType)) {
+            throw new IllegalArgumentException("schema type must be 'bytes'");
+        }
+        if (!poolMessages) {
+            LOG.info("--pool-messages has no effect on this version of pulsar-client.");
+        }
+        if (subscriptionMode == SubscriptionMode.NonDurable) {
+            LOG.warn("--subscription-mode NonDurable is not supported by this version of pulsar-client; "
+                    + "a durable subscription is used instead.");
+        }
+        if (maxPendingChunkedMessage > 0 || autoAckOldestChunkedMessageOnQueueFull) {
+            LOG.warn("Chunked-message knobs (--max_chunked_msg / --auto_ack_chunk_q_full) have no effect "
+                    + "on this version of pulsar-client.");
+        }
+
         try (PulsarClient client = clientBuilder.build()) {
-            ConsumerBuilder<?> builder;
-            Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
-            if ("auto_consume".equals(schemaType)) {
-                schema = Schema.AUTO_CONSUME();
-            } else if (!"bytes".equals(schemaType)) {
-                throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
-            }
-            builder = client.newConsumer(schema)
-                    .subscriptionName(this.subscriptionName)
-                    .subscriptionType(subscriptionType)
-                    .subscriptionMode(subscriptionMode)
-                    .subscriptionInitialPosition(subscriptionInitialPosition)
-                    .poolMessages(poolMessages)
-                    .replicateSubscriptionState(replicateSubscriptionState);
-
-            if (isRegex) {
-                builder.topicsPattern(Pattern.compile(topic));
-            } else {
-                builder.topic(topic);
-            }
-
-            if (this.maxPendingChunkedMessage > 0) {
-                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
-            }
-            if (this.receiverQueueSize > 0) {
-                builder.receiverQueueSize(this.receiverQueueSize);
-            }
-
-            builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
-            builder.cryptoFailureAction(cryptoFailureAction);
-
-            if (isNotBlank(this.encKeyValue)) {
-                builder.defaultCryptoKeyReader(this.encKeyValue);
-            }
-
-            try (Consumer<?> consumer = builder.subscribe();) {
-                if (startTimestamp > 0L) {
-                    consumer.seek(startTimestamp);
-                }
-                RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
+            RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
+            // Shared / Key_Shared -> work-queue consumer; Exclusive / Failover -> ordered stream.
+            boolean streaming = subscriptionType == SubscriptionType.Exclusive
+                    || subscriptionType == SubscriptionType.Failover;
+            try (V5Consumer consumer = streaming ? buildStreamConsumer(client) : buildQueueConsumer(client)) {
                 while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-                    Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
+                    Message<byte[]> msg = consumer.receive(Duration.ofSeconds(5));
                     if (msg == null) {
                         LOG.debug("No message to consume after waiting for 5 seconds.");
                     } else {
-                        try {
-                            if (msg.getPublishTime() > endTimestamp) {
-                                break;
-                            }
-                            numMessagesConsumed += 1;
-                            if (!hideContent) {
-                                System.out.println(MESSAGE_BOUNDARY);
-                                String output = this.interpretMessage(msg, displayHex, printMetadata);
-                                System.out.println(output);
-                            } else if (numMessagesConsumed % 1000 == 0) {
-                                System.out.println("Received " + numMessagesConsumed + " messages");
-                            }
-                            consumer.acknowledge(msg);
-                        } finally {
-                            msg.release();
+                        if (msg.publishTime().toEpochMilli() > endTimestamp) {
+                            break;
                         }
+                        numMessagesConsumed += 1;
+                        if (!hideContent) {
+                            System.out.println(MESSAGE_BOUNDARY);
+                            System.out.println(this.interpretMessage(msg, displayHex, printMetadata));
+                        } else if (numMessagesConsumed % 1000 == 0) {
+                            System.out.println("Received " + numMessagesConsumed + " messages");
+                        }
+                        consumer.acknowledge(msg.id());
                     }
                 }
             }
@@ -247,7 +235,108 @@ public class CmdConsume extends AbstractCmdConsume {
         }
 
         return returnCode;
+    }
 
+    /** Uniform handle over the V5 queue / stream consumers so the receive loop is shared. */
+    private interface V5Consumer extends AutoCloseable {
+        Message<byte[]> receive(Duration timeout) throws Exception;
+        void acknowledge(MessageId id);
+        @Override
+        void close() throws Exception;
+    }
+
+    private V5Consumer buildQueueConsumer(PulsarClient client) throws Exception {
+        QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
+                .subscriptionName(this.subscriptionName)
+                .subscriptionInitialPosition(subscriptionInitialPosition)
+                .replicateSubscriptionState(replicateSubscriptionState);
+        if (this.receiverQueueSize > 0) {
+            b.receiverQueueSize(this.receiverQueueSize);
+        }
+        if (isNotBlank(this.encKeyValue)) {
+            b.encryptionPolicy(buildConsumerEncryptionPolicy());
+        }
+        applyTopicSelection(b::topic, b::namespace);
+        QueueConsumer<byte[]> consumer = b.subscribe();
+        return new V5Consumer() {
+            @Override
+            public Message<byte[]> receive(Duration timeout) throws Exception {
+                return consumer.receive(timeout);
+            }
+
+            @Override
+            public void acknowledge(MessageId id) {
+                consumer.acknowledge(id);
+            }
+
+            @Override
+            public void close() throws Exception {
+                consumer.close();
+            }
+        };
+    }
+
+    private V5Consumer buildStreamConsumer(PulsarClient client) throws Exception {
+        StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
+                .subscriptionName(this.subscriptionName)
+                .subscriptionInitialPosition(subscriptionInitialPosition)
+                .replicateSubscriptionState(replicateSubscriptionState);
+        if (isNotBlank(this.encKeyValue)) {
+            b.encryptionPolicy(buildConsumerEncryptionPolicy());
+        }
+        applyTopicSelection(b::topic, b::namespace);
+        StreamConsumer<byte[]> consumer = b.subscribe();
+        return new V5Consumer() {
+            @Override
+            public Message<byte[]> receive(Duration timeout) throws Exception {
+                return consumer.receive(timeout);
+            }
+
+            @Override
+            public void acknowledge(MessageId id) {
+                consumer.acknowledgeCumulative(id);
+            }
+
+            @Override
+            public void close() throws Exception {
+                consumer.close();
+            }
+        };
+    }
+
+    /**
+     * Apply the topic argument to the consumer. A plain topic uses {@code topic(...)}; a
+     * {@code --regex} pattern is mapped to a namespace subscription over the pattern's
+     * {@code tenant/namespace} (V5 has no topic-regex; namespace subscriptions follow the
+     * namespace live).
+     */
+    private void applyTopicSelection(java.util.function.Consumer<String> topicFn,
+                                     java.util.function.Consumer<String> namespaceFn) {
+        if (isRegex) {
+            namespaceFn.accept(namespaceFromPattern(topic));
+        } else {
+            topicFn.accept(topic);
+        }
+    }
+
+    static String namespaceFromPattern(String pattern) {
+        // Strip an optional persistent:// / non-persistent:// domain prefix, then take the first
+        // two path segments as tenant/namespace.
+        String rest = pattern;
+        int scheme = rest.indexOf("://");
+        if (scheme >= 0) {
+            rest = rest.substring(scheme + 3);
+        }
+        String[] parts = rest.split("/");
+        if (parts.length < 2) {
+            throw new IllegalArgumentException("Cannot derive a tenant/namespace from --regex pattern '"
+                    + pattern + "'. Use a fully-qualified pattern, e.g. persistent://tenant/namespace/.*");
+        }
+        return parts[0] + "/" + parts[1];
+    }
+
+    private ConsumerEncryptionPolicy buildConsumerEncryptionPolicy() {
+        return buildFileDecryptionPolicy(this.encKeyValue, cryptoFailureAction);
     }
 
     @VisibleForTesting

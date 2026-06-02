@@ -78,6 +78,10 @@ public interface PulsarClientProvider {
 
     Schema<byte[]> autoProduceBytesSchema();
 
+    Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo);
+
+    Schema<byte[]> autoProduceBytesSchema(Schema<?> base);
+
     // --- Checkpoint ---
 
     Checkpoint checkpointFromBytes(byte[] data) throws IOException;

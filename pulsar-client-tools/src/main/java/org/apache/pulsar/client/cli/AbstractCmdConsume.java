@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.client.cli;
 
-import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -36,14 +34,12 @@ import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.commons.io.HexDump;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.auth.EncryptionKey;
+import org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
@@ -63,7 +59,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
     protected static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     protected static final String MESSAGE_BOUNDARY = "----- got message -----";
 
-    protected ClientBuilder clientBuilder;
+    protected PulsarClientBuilder clientBuilder;
     protected Authentication authentication;
     protected String serviceURL;
 
@@ -75,7 +71,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      * Set client configuration.
      *
      */
-    public void updateConfig(ClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
+    public void updateConfig(PulsarClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
         this.clientBuilder = clientBuilder;
         this.authentication = authentication;
         this.serviceURL = serviceURL;
@@ -90,145 +86,69 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    protected String interpretMessage(Message<?> message, boolean displayHex, boolean printMetadata)
+    protected String interpretMessage(Message<byte[]> message, boolean displayHex, boolean printMetadata)
             throws IOException {
         StringBuilder sb = new StringBuilder();
 
-        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
+        String properties = Arrays.toString(message.properties().entrySet().toArray());
 
-        String data;
-        Object value = message.getValue();
-        if (value == null) {
-            data = "null";
-        } else if (value instanceof byte[]) {
-            byte[] msgData = (byte[]) value;
-            data = interpretByteArray(displayHex, msgData);
-        } else if (value instanceof GenericObject) {
-            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
-            data = asMap.toString();
-        } else if (value instanceof ByteBuffer) {
-            data = new String(getBytes((ByteBuffer) value));
-        } else {
-            data = value.toString();
-        }
+        byte[] value = message.value();
+        String data = value == null ? "null" : interpretByteArray(displayHex, value);
 
-        sb.append("publishTime:[").append(message.getPublishTime()).append("], ");
-        sb.append("eventTime:[").append(message.getEventTime()).append("], ");
-
-        String key = null;
-        if (message.hasKey()) {
-            key = message.getKey();
-        }
-
-        sb.append("key:[").append(key).append("], ");
+        sb.append("publishTime:[").append(message.publishTime()).append("], ");
+        sb.append("eventTime:[").append(message.eventTime().orElse(null)).append("], ");
+        sb.append("key:[").append(message.key().orElse(null)).append("], ");
         if (!properties.isEmpty()) {
             sb.append("properties:").append(properties).append(", ");
         }
         sb.append("content:").append(data);
 
         if (printMetadata) {
-            if (message.getEncryptionCtx().isPresent()) {
-                EncryptionContext encContext = message.getEncryptionCtx().get();
-                if (encContext.getKeys() != null && !encContext.getKeys().isEmpty()) {
-                    sb.append(", ");
-                    sb.append("encryption-keys:").append(", ");
-                    encContext.getKeys().forEach((keyName, keyInfo) -> {
-                        String metadata = Arrays.toString(keyInfo.getMetadata().entrySet().toArray());
-                        sb.append("name:").append(keyName).append(", ").append("key-value:")
-                                .append(Base64.getEncoder().encodeToString(keyInfo.getKeyValue())).append(", ")
-                                .append("metadata:").append(metadata).append(", ");
-
-                    });
-                    sb.append(", ").append("param:").append(Base64.getEncoder().encodeToString(encContext.getParam()))
-                            .append(", ").append("algorithm:").append(encContext.getAlgorithm()).append(", ")
-                            .append("compression-type:").append(encContext.getCompressionType()).append(", ")
-                            .append("uncompressed-size").append(encContext.getUncompressedMessageSize()).append(", ")
-                            .append("batch-size")
-                            .append(encContext.getBatchSize().isPresent() ? encContext.getBatchSize().get() : 1);
-                }
-            }
-            if (message.hasBrokerPublishTime()) {
-                sb.append(", ").append("publish-time:").append(DateFormatter.format(message.getPublishTime()));
-            }
-            sb.append(", ").append("event-time:").append(DateFormatter.format(message.getEventTime()));
-            sb.append(", ").append("message-id:").append(message.getMessageId());
-            sb.append(", ").append("producer-name:").append(message.getProducerName());
-            sb.append(", ").append("sequence-id:").append(message.getSequenceId());
-            sb.append(", ").append("replicated-from:").append(message.getReplicatedFrom());
-            sb.append(", ").append("redelivery-count:").append(message.getRedeliveryCount());
-            sb.append(", ").append("ordering-key:")
-                    .append(message.getOrderingKey() != null ? new String(message.getOrderingKey()) : "");
-            sb.append(", ").append("schema-version:")
-                    .append(message.getSchemaVersion() != null ? new String(message.getSchemaVersion()) : "");
-            if (message.hasIndex()) {
-                sb.append(", ").append("index:").append(message.getIndex());
-            }
+            sb.append(", ").append("message-id:").append(message.id());
+            sb.append(", ").append("producer-name:").append(message.producerName().orElse(null));
+            sb.append(", ").append("sequence-id:").append(message.sequenceId());
+            sb.append(", ").append("replicated-from:").append(message.replicatedFrom().orElse(null));
+            sb.append(", ").append("redelivery-count:").append(message.redeliveryCount());
         }
 
         return sb.toString();
     }
 
     protected static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
-        String data;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
             return new String(msgData);
         } else {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             HexDump.dump(msgData, 0, out, 0);
             return out.toString();
         }
     }
 
-    protected static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex)
-            throws IOException {
-        switch (value.getSchemaType()) {
-            case AVRO:
-            case JSON:
-            case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
-            case KEY_VALUE:
-                    return keyValueToMap((KeyValue<?, ?>) value.getNativeObject(), displayHex);
-            default:
-                return primitiveValueToMap(value.getNativeObject(), displayHex);
+    /**
+     * Build a consumer-side decryption policy from a {@code file://} key URI, mirroring the v4
+     * {@code defaultCryptoKeyReader(uri)} semantics: the private key is loaded once and returned
+     * for any key name. (The producer's logical key name travels in the message metadata, so a
+     * name-keyed provider would not resolve it; the CLI's file-based flow has a single key.)
+     */
+    protected static ConsumerEncryptionPolicy buildFileDecryptionPolicy(
+            String keyUri, ConsumerCryptoFailureAction failureAction) {
+        URI uri = URI.create(keyUri);
+        if (!"file".equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("This version of pulsar-client supports only file:// "
+                    + "decryption keys (--encryption-key-value); got '" + keyUri + "'.");
         }
-    }
-
-    protected static Map<String, Object> keyValueToMap(KeyValue<?, ?> value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return Map.of("value", "NULL");
+        final byte[] keyBytes;
+        try {
+            keyBytes = Files.readAllBytes(Path.of(uri.getPath()));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read decryption key from " + keyUri, e);
         }
-        return Map.of("key", primitiveValueToMap(value.getKey(), displayHex),
-                "value", primitiveValueToMap(value.getValue(), displayHex));
-    }
-
-    protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return Map.of("value", "NULL");
-        }
-        if (value instanceof GenericObject) {
-            return genericObjectToMap((GenericObject) value, displayHex);
-        }
-        if (value instanceof byte[]) {
-            value = interpretByteArray(displayHex, (byte[]) value);
-        }
-        return Map.of("value", value.toString(), "type", value.getClass());
-    }
-
-    protected static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex)
-            throws IOException {
-        Map<String, Object> res = new HashMap<>();
-        for (Field f : value.getFields()) {
-            Object fieldValue = value.getField(f);
-            if (fieldValue instanceof GenericRecord) {
-                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
-            } else if (fieldValue == null) {
-                fieldValue =  "NULL";
-            } else if (fieldValue instanceof byte[]) {
-                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
-            }
-            res.put(f.getName(), fieldValue);
-        }
-        return res;
+        PrivateKeyProvider provider = (keyName, metadata) ->
+                CompletableFuture.completedFuture(EncryptionKey.of(keyBytes));
+        return ConsumerEncryptionPolicy.builder()
+                .privateKeyProvider(provider)
+                .failureAction(failureAction)
+                .build();
     }
 
     @WebSocket
