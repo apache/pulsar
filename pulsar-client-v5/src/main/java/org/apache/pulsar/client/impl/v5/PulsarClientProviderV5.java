@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 
 /**
@@ -138,7 +139,7 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
 
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Schema<org.apache.pulsar.client.api.v5.schema.GenericRecord> autoConsumeSchema() {
+    public Schema<GenericRecord> autoConsumeSchema() {
         // Wrap the genuine v4 AUTO_CONSUME schema so the v5 consumer passes it straight through to
         // the v4 layer (which special-cases AutoConsumeSchema for runtime schema fetching). The
         // decoded v4 GenericRecord is converted to a v5 GenericRecord in MessageV5#value().
