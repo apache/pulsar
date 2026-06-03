@@ -36,10 +36,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
+import org.apache.pulsar.common.naming.TopicName;
 
 @CustomLog
 public class UnAckedMessageTracker implements Closeable {
@@ -303,5 +305,13 @@ public class UnAckedMessageTracker implements Closeable {
     @Override
     public void close() {
         stop();
+    }
+
+    protected static boolean messageBelongsToTopic(MessageId messageId, String topicName) {
+        if (!(messageId instanceof TopicMessageId topicMessageId)) {
+            return false;
+        }
+        return TopicName.get(topicMessageId.getOwnerTopic()).getPartitionedTopicName()
+                .equals(TopicName.get(topicName).getPartitionedTopicName());
     }
 }
