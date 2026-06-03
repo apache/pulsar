@@ -511,6 +511,12 @@ jobs:
           - name: Kubernetes
             group: PULSAR_K8S
 
+          - name: Native Image
+            group: NATIVE_IMAGE
+            # Native image compilation (even in quick build mode) is slower than a
+            # regular test group, so allow extra headroom over the default timeout.
+            timeout: 40
+
     steps:
       - name: checkout
         uses: actions/checkout@v6
@@ -532,6 +538,16 @@ jobs:
           java-version: |
             ${{ matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && matrix.runtime_jdk || '' }}
             ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      # The NATIVE_IMAGE group compiles a native binary with GraalVM native-build-tools,
+      # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
+      - name: Set up GraalVM
+        if: ${{ matrix.group == 'NATIVE_IMAGE' }}
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'graalvm-community'
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle

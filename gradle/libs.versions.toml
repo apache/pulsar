@@ -145,6 +145,7 @@ jakarta-servlet = "6.0.0"
 oxia = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
+graalvm-buildtools = "0.10.6"
 errorprone = "2.45.0"
 spotbugs = "4.9.6"
 checkerframework = "3.33.0"
@@ -470,6 +471,7 @@ datasketches-java = "org.apache.datasketches:datasketches-java:6.1.1"
 
 [plugins]
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-buildtools" }
 nar = "io.github.merlimat.nar:0.1.3"
 protobuf = "com.google.protobuf:0.9.6"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
