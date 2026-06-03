@@ -25,7 +25,7 @@ checkstyle = "13.3.0"
 # Major frameworks
 bookkeeper = "4.17.3"
 zookeeper = "3.9.5"
-netty = "4.1.134.Final"
+netty = "4.1.135.Final"
 netty-iouring = "0.0.26.Final"
 jetty = "12.1.9"
 jersey = "3.1.10"

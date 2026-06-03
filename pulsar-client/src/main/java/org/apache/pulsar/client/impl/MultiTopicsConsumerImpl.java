@@ -1300,8 +1300,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     removeTopic(topicName);
-                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
-                        ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker tracker) {
+                        tracker.removeTopicMessages(topicName);
+                    } else if (unAckedMessageTracker instanceof UnAckedTopicMessageRedeliveryTracker tracker){
+                        tracker.removeTopicMessages(topicName);
                     }
 
                     unsubscribeFuture.complete(null);
