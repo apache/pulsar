@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,8 +34,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -57,12 +57,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
-import org.eclipse.jetty.ee8.websocket.api.Session;
-import org.eclipse.jetty.ee8.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Session;
 
 @CustomLog
-public abstract class AbstractWebSocketHandler extends WebSocketAdapter implements Closeable {
+public abstract class AbstractWebSocketHandler extends Session.Listener.AbstractAutoDemanding implements Closeable {
 
     protected final WebSocketService service;
     protected final HttpServletRequest request;
@@ -218,27 +218,26 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
+    public void onWebSocketOpen(Session session) {
         if (!allowConnect) {
             throw new IllegalStateException("allowConnect is false. "
                     + "JettyWebSocketCreator should have returned null to prevent connecting.");
         }
-        super.onWebSocketConnect(session);
+        super.onWebSocketOpen(session);
         int webSocketPingDurationSeconds = service.getConfig().getWebSocketPingDurationSeconds();
         if (webSocketPingDurationSeconds > 0) {
             pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                try {
-                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                } catch (IOException e) {
-                    log.warn()
-                            .attr("remoteAddress", getSession().getRemoteAddress())
-                            .exception(e)
-                            .log("WebSocket send ping");
-                }
+                session.sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)),
+                        Callback.from(() -> { }, e -> {
+                            log.warn()
+                                    .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                                    .exception(e)
+                                    .log("WebSocket send ping");
+                        }));
             }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
         }
         log.info()
-                .attr("remoteAddress", session.getRemoteAddress())
+                .attr("remoteAddress", session.getRemoteSocketAddress())
                 .attr("topic", topic)
                 .log("New WebSocket session on topic");
     }
@@ -247,7 +246,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     public void onWebSocketError(Throwable cause) {
         super.onWebSocketError(cause);
         log.info()
-                .attr("remoteAddress", getSession().getRemoteAddress())
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
                 .attr("message", cause.getMessage())
                 .log("WebSocket error on topic");
@@ -265,7 +264,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketClose(int statusCode, String reason) {
         log.info()
-                .attr("remoteAddress", getSession().getRemoteAddress())
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
                 .attr("status", statusCode)
                 .attr("reason", reason)
@@ -275,7 +274,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             close();
         } catch (IOException e) {
             log.warn()
-                    .attr("remoteAddress", getSession().getRemoteAddress())
+                    .attr("remoteAddress", getSession().getRemoteSocketAddress())
                     .attr("topic", topic)
                     .exception(e)
                     .log("Failed to close handler for topic");
@@ -284,22 +283,22 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     public void close(WebSocketError error) {
         log.warn()
-                .attr("remoteAddress", getSession().getRemoteAddress())
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
                 .attr("code", error.getCode())
                 .attr("reason", error.getDescription())
                 .log("Closing WebSocket session for topic - code: , reason");
-        getSession().close(error.getCode(), error.getDescription());
+        getSession().close(error.getCode(), error.getDescription(), Callback.NOOP);
     }
 
     public void close(WebSocketError error, String message) {
         log.warn()
-                .attr("remoteAddress", getSession().getRemoteAddress())
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
                 .attr("code", error.getCode())
                 .attr("reason", error.getDescription() + ": " + message)
                 .log("Closing WebSocket session for topic - code: , reason");
-        getSession().close(error.getCode(), error.getDescription() + ": " + message);
+        getSession().close(error.getCode(), error.getDescription() + ": " + message, Callback.NOOP);
     }
 
     protected String checkAuthentication() {

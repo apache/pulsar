@@ -19,6 +19,9 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -30,9 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -47,8 +47,9 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
-import org.eclipse.jetty.ee8.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
@@ -120,12 +121,40 @@ class AdminProxyHandler extends ProxyServlet {
 
         ProtocolHandlers protocolHandlers = httpClient.getProtocolHandlers();
         if (protocolHandlers != null) {
-            protocolHandlers.put(new RedirectProtocolHandler(httpClient));
+            protocolHandlers.put(new NonAbortingRedirectProtocolHandler(httpClient));
         }
 
         httpClient.setIdleTimeout(config.getHttpProxyIdleTimeout());
 
         setTimeout(config.getHttpProxyTimeout());
+    }
+
+    /**
+     * A {@link RedirectProtocolHandler} that does not abort the in-flight request when a redirect
+     * response is received.
+     *
+     * <p>Jetty's default {@link RedirectProtocolHandler#onSuccess(Response)} aborts a request that
+     * still has a body to send when a redirect status is received, raising
+     * {@code HttpRequestException: "Aborting request after receiving a NNN response"}. When a broker
+     * returns a 307 (to redirect an admin request to the bundle-owner broker) before the proxy has
+     * finished streaming the request body, that abort can race ahead of the redirect continuation in
+     * {@link RedirectProtocolHandler#onComplete} and surface to the proxy as a spurious HTTP 502 Bad
+     * Gateway. The redirect itself is driven by {@code onComplete} from the response (its status and
+     * {@code Location} header) and does not depend on the abort, so skipping it lets the redirect
+     * always be followed on a fresh request (with the body replayed by
+     * {@link ReplayableProxyContentProvider}), which is the behavior this proxy needs.
+     */
+    static class NonAbortingRedirectProtocolHandler extends RedirectProtocolHandler {
+        NonAbortingRedirectProtocolHandler(HttpClient client) {
+            super(client);
+        }
+
+        @Override
+        public void onSuccess(Response response) {
+            // Intentionally do NOT abort the request here. The redirect is followed in onComplete();
+            // aborting the in-flight request only races a 502 to the proxy when the broker returns a
+            // redirect before the request body has finished sending.
+        }
     }
 
     // This class allows the request body to be replayed, the default implementation

@@ -211,6 +211,11 @@ public class ClientCnx extends PulsarHandler {
     protected final int protocolVersion;
     private final long operationTimeoutMs;
 
+    // Value set as proxyToTargetBrokerAddress to ask the proxy to pair this connection to any broker
+    // it selects. It must be present-but-empty on the wire: a null proxyToBrokerUrl would be omitted
+    // entirely, leaving the proxy in plain lookup mode instead of pairing the connection.
+    static final String PROXY_TO_ANY_BROKER_URL = "";
+
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
     protected String remoteHostName = null;
@@ -1583,6 +1588,20 @@ public class ClientCnx extends PulsarHandler {
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {
         this.proxyToTargetBrokerAddress = String.format("%s:%d", targetBrokerAddress.getHostString(),
                 targetBrokerAddress.getPort());
+    }
+
+    void setProxyToAnyBroker() {
+        this.proxyToTargetBrokerAddress = PROXY_TO_ANY_BROKER_URL;
+    }
+
+    /**
+     * Whether this connection goes through a proxy. True for both a specific-broker proxy connection
+     * (proxyToTargetBrokerAddress is a {@code host:port}) and an any-broker pairing
+     * ({@link #PROXY_TO_ANY_BROKER_URL}, the empty string); only a direct, non-proxied connection
+     * leaves it null. Hence the null check rather than a comparison against the any-broker sentinel.
+     */
+    public boolean isProxied() {
+        return proxyToTargetBrokerAddress != null;
     }
 
      void setRemoteHostName(String remoteHostName) {

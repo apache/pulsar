@@ -99,7 +99,6 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         }
         final PulsarClient client = clientBuilder.build();
-        failover.initialize(client);
         final EventLoopGroup executor = WhiteboxImpl.getInternalState(failover, "executor");
         final PulsarServiceState[] stateArray =
                 WhiteboxImpl.getInternalState(failover, "pulsarServiceStateArray");
@@ -139,6 +138,20 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         producer.close();
         client.close();
         dummyServer.close();
+    }
+
+    @Test
+    public void testInitializeCanOnlyBeCalledOnce() throws Exception {
+        setup();
+        final SameAuthParamsLookupAutoClusterFailover failover = SameAuthParamsLookupAutoClusterFailover.builder()
+                .pulsarServiceUrlArray(new String[]{pulsar1.getBrokerServiceUrl()})
+                .checkHealthyIntervalMs(1000)
+                .build();
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrlProvider(failover).build()) {
+            Throwable error = Assert.expectThrows(IllegalStateException.class, () -> failover.initialize(client));
+            Assert.assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        }
     }
 
     /**

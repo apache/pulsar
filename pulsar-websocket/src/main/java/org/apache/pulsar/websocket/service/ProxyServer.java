@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,8 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.Servlet;
-import javax.servlet.ServletException;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
@@ -40,9 +40,8 @@ import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
-import org.eclipse.jetty.ee8.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
@@ -150,14 +149,17 @@ public class ProxyServer {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
+    // WebSocket endpoints use the modern Jetty 12 WebSocket API on the ee10 / jakarta.servlet stack
+    // (PIP-472), registered into an ee10 Jetty context that coexists with the ee10 REST contexts.
     public void addWebSocketServlet(String basePath, Servlet socketServlet)
             throws ServletException {
         ServletHolder servletHolder = new ServletHolder("ws-events", socketServlet);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, MATCH_ALL);
-        JettyWebSocketServletContainerInitializer.configure(context, null);
-        handlers.add(context.get());
+        org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer
+                .configure(context, null);
+        handlers.add(context);
     }
 
     public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
@@ -170,7 +172,7 @@ public class ProxyServer {
         context.setContextPath(basePath);
         context.addServlet(servletHolder, MATCH_ALL);
         context.setAttribute(attribute, attributeValue);
-        handlers.add(context.get());
+        handlers.add(context);
     }
 
     public void start() throws PulsarServerException {

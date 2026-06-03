@@ -20,6 +20,12 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.CompletionCallback;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -43,12 +49,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.CompletionCallback;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -1424,31 +1425,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
         String leaderBrokerId = leaderBroker.getBrokerId();
+        LookupOptions lookupOptions = LookupOptions.builder()
+                .webServiceAdvertisedListenerName(getWebServiceListenerName()).build();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerId, false, null)
+                .createLookupResult(leaderBrokerId, false, lookupOptions)
                 .thenCompose(lookupResult -> {
-                    String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
-                            : lookupResult.getLookupData().getHttpUrl();
-                    if (redirectUrl == null) {
-                        log.error("Redirected broker's service url is not configured");
-                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Redirected broker's service url is not configured."));
-                    }
-
-                    try {
-                        URL url = new URL(redirectUrl);
-                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
-                                .port(url.getPort())
-                                .replaceQueryParam("authoritative",
-                                        false).build();
-                        // Redirect
-                            log.debug().attr("leader", redirect).log("Redirecting the request call to leader -");
-                                                return FutureUtil.failedFuture((
-                                new WebApplicationException(Response.temporaryRedirect(redirect).build())));
-                    } catch (MalformedURLException exception) {
-                        log.error().attr("malformed", redirectUrl).log("The redirect url is malformed -");
-                        return FutureUtil.failedFuture(new RestException(exception));
-                    }
+                    URI redirectUri = lookupResult.toRedirectUri(uri.getRequestUri());
+                    log.debug()
+                            .attr("leaderBrokerId", leaderBrokerId)
+                            .attr("redirectUri", redirectUri).log("Redirecting the request call to leader broker");
+                    return FutureUtil.failedFuture(
+                            new WebApplicationException(Response.temporaryRedirect(redirectUri).build()));
                 });
     }
 

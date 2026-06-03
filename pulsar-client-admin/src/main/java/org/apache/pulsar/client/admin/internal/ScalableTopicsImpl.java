@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
@@ -112,6 +112,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                 ? Entity.entity(properties, MediaType.APPLICATION_JSON)
                 : Entity.entity("", MediaType.APPLICATION_JSON);
         return asyncPutRequest(path, entity);
+    }
+
+    // --- Migrate ---
+
+    @Override
+    public void migrateToScalable(String topic, boolean force) throws PulsarAdminException {
+        sync(() -> migrateToScalableAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> migrateToScalableAsync(String topic, boolean force) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("migrate").queryParam("force", force);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     // --- Get metadata ---

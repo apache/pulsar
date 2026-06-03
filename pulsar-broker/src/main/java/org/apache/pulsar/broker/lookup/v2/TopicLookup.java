@@ -22,17 +22,17 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.lookup.TopicLookupBase;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -43,6 +43,7 @@ import org.apache.pulsar.common.naming.TopicName;
 public class TopicLookup extends TopicLookupBase {
 
     static final String LISTENERNAME_HEADER = "X-Pulsar-ListenerName";
+    public static final String LISTENERNAME_PARAM = "listenerName";
 
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
@@ -58,7 +59,7 @@ public class TopicLookup extends TopicLookupBase {
             @PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("listenerName") String listenerName,
+            @QueryParam(LISTENERNAME_PARAM) String listenerName,
             @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         if (StringUtils.isEmpty(listenerName) && StringUtils.isNotEmpty(listenerNameHeader)) {

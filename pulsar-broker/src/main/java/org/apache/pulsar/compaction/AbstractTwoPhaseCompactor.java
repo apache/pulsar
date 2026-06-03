@@ -462,14 +462,24 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return bkf;
   }
 
+  /**
+   * Extract the partition key and the payload size for a non-batch message.
+   *
+   * @return a pair of (partitionKey, payloadSize), or null if the message has no partition key.
+   */
   protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
     if (msgMetadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (msgMetadata.hasUncompressedSize()) {
-        size = msgMetadata.getUncompressedSize();
+      int payloadSize;
+      if (msgMetadata.hasNullValue() && msgMetadata.isNullValue()) {
+        payloadSize = 0;
+      } else if (msgMetadata.hasUncompressedSize()) {
+        payloadSize = msgMetadata.getUncompressedSize();
+      } else {
+        ByteBuf headersAndPayload = m.getHeadersAndPayload().duplicate();
+        Commands.skipMessageMetadata(headersAndPayload);
+        payloadSize = headersAndPayload.readableBytes();
       }
-      return Pair.of(msgMetadata.getPartitionKey(), size);
+      return Pair.of(msgMetadata.getPartitionKey(), payloadSize);
     } else {
       return null;
     }

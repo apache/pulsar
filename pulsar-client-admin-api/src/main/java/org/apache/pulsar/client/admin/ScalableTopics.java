@@ -109,6 +109,27 @@ public interface ScalableTopics {
                                                       Map<String, String> properties);
 
     /**
+     * Migrate an existing regular (partitioned or non-partitioned) topic to a scalable topic.
+     *
+     * <p>The old partitions become sealed parent segments of the new scalable topic and the
+     * old topics are terminated; new active segments take over. Fails if the topic is already
+     * scalable, if it doesn't exist, or if any legacy v4 client is still connected (unless
+     * {@code force} is set).
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param force Migrate even if legacy v4 clients are still connected
+     */
+    void migrateToScalable(String topic, boolean force) throws PulsarAdminException;
+
+    /**
+     * Migrate an existing regular topic to a scalable topic asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param force Migrate even if legacy v4 clients are still connected
+     */
+    CompletableFuture<Void> migrateToScalableAsync(String topic, boolean force);
+
+    /**
      * Get scalable topic metadata.
      *
      * @param topic Topic name in the format "tenant/namespace/topic"

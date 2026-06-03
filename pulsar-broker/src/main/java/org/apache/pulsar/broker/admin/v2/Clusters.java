@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import io.swagger.annotations.Api;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.ClustersBase;
 
 @Path("/clusters")

@@ -53,7 +53,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -197,10 +196,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(lookupResult.isPresent());
         assertEquals(lookupResult.get().getLookupData().getHttpUrl(), brokerLookupData.get().getWebServiceUrl());
 
-        Optional<URL> webServiceUrl = pulsar2.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(false).build());
+        Optional<LookupResult> webServiceUrl = pulsar2.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().build());
         assertTrue(webServiceUrl.isPresent());
-        assertEquals(webServiceUrl.get().toString(), brokerLookupData.get().getWebServiceUrl());
+        assertEquals(webServiceUrl.get().getLookupData().getHttpUrl(), brokerLookupData.get().getWebServiceUrl());
     }
 
     // Test that the load manager will use round-robin assignment
@@ -248,30 +247,25 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         admin.topics().createPartitionedTopic(topicName.toString(), 1);
 
         // Test LookupOptions.readOnly = true when the bundle is not owned by any broker.
-        Optional<URL> webServiceUrlReadOnlyTrue = pulsar1.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(true).requestHttps(false).build());
+        Optional<LookupResult> webServiceUrlReadOnlyTrue = pulsar1.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().readOnly(true).build());
         assertTrue(webServiceUrlReadOnlyTrue.isEmpty());
 
         // Test LookupOptions.readOnly = false and the bundle assign to some broker.
-        Optional<URL> webServiceUrlReadOnlyFalse = pulsar1.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(false).requestHttps(false).build());
+        Optional<LookupResult> webServiceUrlReadOnlyFalse = pulsar1.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().readOnly(false).build());
         assertTrue(webServiceUrlReadOnlyFalse.isPresent());
-
-        // Test LookupOptions.requestHttps = true
-        Optional<URL> webServiceUrlHttps = pulsar2.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(true).build());
-        assertTrue(webServiceUrlHttps.isPresent());
-        assertTrue(webServiceUrlHttps.get().toString().startsWith("https"));
 
         // TODO: Support LookupOptions.loadTopicsInBundle = true
 
-        // Test LookupOptions.advertisedListenerName = internal but the broker do not have internal listener.
+        // Test LookupOptions.advertisedListenerName = otherlistener but the broker does not have it.
         try {
             pulsar2.getNamespaceService()
-                    .getWebServiceUrl(bundle, LookupOptions.builder().advertisedListenerName("internal").build());
+                    .getLookupResultForWebRequest(bundle,
+                            LookupOptions.builder().advertisedListenerName("otherlistener").build());
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("the broker do not have internal listener"));
+            assertTrue(e.getMessage().contains("the broker do not have otherlistener listener"));
         }
     }
 
@@ -1142,12 +1136,21 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
     @Test(priority = 200)
     public void testDeployAndRollbackLoadManager() throws Exception {
+        // The migration redirect (RedirectManagerForLoadManagerMigration) is gated by
+        // loadManagerMigrationEnabled; enable it on the existing brokers so they redirect
+        // requests to the newly added broker that uses a different load manager.
+        boolean prevMigration1 = pulsar1.getConfiguration().isLoadManagerMigrationEnabled();
+        boolean prevMigration2 = pulsar2.getConfiguration().isLoadManagerMigrationEnabled();
+        pulsar1.getConfiguration().setLoadManagerMigrationEnabled(true);
+        pulsar2.getConfiguration().setLoadManagerMigrationEnabled(true);
+        try {
         // Test rollback to modular load manager.
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setLoadManagerMigrationEnabled(true);
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             // start pulsar3 with old load manager
             @Cleanup
@@ -1168,23 +1171,24 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
             LookupOptions options = LookupOptions.builder()
                     .authoritative(false)
-                    .requestHttps(false)
                     .readOnly(false)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webServiceUrl1 =
-                    pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+                    .build();
+            Optional<LookupResult> webServiceUrl1 =
+                    pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl1.isPresent());
-            assertEquals(webServiceUrl1.get().toString(), pulsar3.getWebServiceAddress());
+            assertEquals(webServiceUrl1.get().getLookupData().getHttpUrl(), pulsar3.getWebServiceAddress());
 
-            Optional<URL> webServiceUrl2 =
-                    pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+            Optional<LookupResult> webServiceUrl2 =
+                    pulsar2.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl2.isPresent());
-            assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+            assertEquals(webServiceUrl2.get().getLookupData().getHttpUrl(),
+                    webServiceUrl1.get().getLookupData().getHttpUrl());
 
-            Optional<URL> webServiceUrl3 =
-                    pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+            Optional<LookupResult> webServiceUrl3 =
+                    pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl3.isPresent());
-            assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
+            assertEquals(webServiceUrl3.get().getLookupData().getHttpUrl(),
+                    webServiceUrl1.get().getLookupData().getHttpUrl());
 
             List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
             for (PulsarService pulsarService : pulsarServices) {
@@ -1207,6 +1211,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
             conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
             conf.setLoadManagerServiceUnitStateTableViewClassName(serviceUnitStateTableViewClassName);
+            conf.setLoadManagerMigrationEnabled(true);
             try (var additionPulsarTestContext = createAdditionalPulsarTestContext(conf)) {
                 @Cleanup
                 var pulsar4 = additionPulsarTestContext.getPulsarService();
@@ -1229,26 +1234,28 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                         pulsar4.getWebServiceAddress());
 
                 webServiceUrl1 =
-                        pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl1.isPresent());
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().toString()));
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().getLookupData().getHttpUrl()));
 
                 webServiceUrl2 =
-                        pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar2.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl2.isPresent());
-                assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+                assertEquals(webServiceUrl2.get().getLookupData().getHttpUrl(),
+                        webServiceUrl1.get().getLookupData().getHttpUrl());
 
                 // The pulsar3 will redirect to pulsar4
                 webServiceUrl3 =
-                        pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl3.isPresent());
                 // It will redirect to pulsar4
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().toString()));
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().getLookupData().getHttpUrl()));
 
                 var webServiceUrl4 =
-                        pulsar4.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar4.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl4.isPresent());
-                assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
+                assertEquals(webServiceUrl4.get().getLookupData().getHttpUrl(),
+                        webServiceUrl1.get().getLookupData().getHttpUrl());
 
                 pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
                 for (PulsarService pulsarService : pulsarServices) {
@@ -1333,6 +1340,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertEquals(consumer.receive().getValue(), "t3");
             }
         }
+        } finally {
+            pulsar1.getConfiguration().setLoadManagerMigrationEnabled(prevMigration1);
+            pulsar2.getConfiguration().setLoadManagerMigrationEnabled(prevMigration2);
+        }
     }
 
     @Test(priority = 200)
@@ -1347,13 +1358,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
-                .requestHttps(false)
                 .readOnly(false)
-                .loadTopicsInBundle(false).build();
+                .build();
 
         String ownershipBefore = pulsar1.getAdminClient().lookups().lookupTopic(topic);
         assertEquals(pulsar2.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
-        Optional<URL> webUrlBefore = pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+        Optional<LookupResult> webUrlBefore =
+                pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
         assertTrue(webUrlBefore.isPresent());
 
         // === Phase 1: enable the syncer and verify it activates on the leader only ===
@@ -1397,9 +1408,11 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             // All three brokers (across both impls) must agree on topic ownership.
             assertEquals(pulsar2.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
             assertEquals(pulsar3.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
-            Optional<URL> webUrlPulsar3 = pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+            Optional<LookupResult> webUrlPulsar3 =
+                    pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webUrlPulsar3.isPresent());
-            assertEquals(webUrlPulsar3.get().toString(), webUrlBefore.get().toString());
+            assertEquals(webUrlPulsar3.get().getLookupData().getHttpUrl(),
+                    webUrlBefore.get().getLookupData().getHttpUrl());
 
             // SLA monitor and heartbeat lookups must agree across impls in every direction.
             List<PulsarService> brokers = List.of(pulsar1, pulsar2, pulsar3);

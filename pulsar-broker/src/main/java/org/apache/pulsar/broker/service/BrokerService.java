@@ -120,6 +120,7 @@ import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -231,9 +232,6 @@ public class BrokerService implements Closeable {
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
     private final Map<String, Map<String, Map<String, Topic>>> multiLayerTopicsMap = new ConcurrentHashMap<>();
-    // Keep track of topics and partitions served by this broker for fast lookup.
-    @Getter
-    private final Map<String, Set<Integer>> owningTopics = new ConcurrentHashMap<>();
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -3910,6 +3908,28 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(false);
         }
 
+        // PIP-475: never auto-create a persistent:// topic that has been migrated to a
+        // scalable topic — recreating it would shadow the scalable topic and let a stray v4
+        // client write to a name that is now owned by topic://t/n/x. The migrated topic's
+        // old ledgers are terminated (not deleted) at migration time, so this only bites
+        // once retention GC removes them and a v4 client looks the name up again. The check
+        // is metadata-cache-backed (present and absent verdicts are both cached).
+        if (topicName.getDomain() == TopicDomain.persistent
+                && pulsar.getConfiguration().isScalableTopicsEnabled()) {
+            ScalableTopicResources scalableResources =
+                    pulsar.getPulsarResources().getScalableTopicResources();
+            if (scalableResources != null) {
+                return scalableResources.getScalableTopicMetadataAsync(topicName.toScalableTopic())
+                        .thenCompose(scalableMetadata -> scalableMetadata.isPresent()
+                                ? CompletableFuture.completedFuture(false)
+                                : isAllowAutoTopicCreationResolvedAsync(topicName, policies));
+            }
+        }
+        return isAllowAutoTopicCreationResolvedAsync(topicName, policies);
+    }
+
+    private CompletableFuture<Boolean> isAllowAutoTopicCreationResolvedAsync(
+            final TopicName topicName, final Optional<Policies> policies) {
         //Other system topics can be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);

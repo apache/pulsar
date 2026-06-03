@@ -51,12 +51,12 @@ public class TxnMetadataStoreTest {
 
     private static TxnHeader open(long createdMs, long timeoutMs) {
         return new TxnHeader(TxnState.OPEN, Duration.ofMillis(timeoutMs),
-                Instant.ofEpochMilli(createdMs), null);
+                Instant.ofEpochMilli(createdMs), null, null);
     }
 
     private static TxnHeader finalized(TxnState state, long createdMs, long timeoutMs, long finalizedMs) {
         return new TxnHeader(state, Duration.ofMillis(timeoutMs),
-                Instant.ofEpochMilli(createdMs), Instant.ofEpochMilli(finalizedMs));
+                Instant.ofEpochMilli(createdMs), Instant.ofEpochMilli(finalizedMs), null);
     }
 
     @Test

@@ -1281,6 +1281,20 @@ public class PulsarClientImpl implements PulsarClient {
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
     }
 
+    /**
+     * Open a connection to the proxy and ask it to pair the connection to any broker it selects
+     * (an empty proxyToBrokerUrl). Used for control-plane operations that aren't tied to a specific
+     * broker (e.g. scalable-topic subscribe/namespace-watch) when connecting through a proxy.
+     */
+    public CompletableFuture<ClientCnx> getAnyBrokerProxyConnection() {
+        if (!lookup.isBinaryProtoLookupService()) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Can't pair to any broker through an HTTP service URL", null));
+        }
+        return getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, lookup.resolveHost(),
+                cnxPool.genRandomKeyToSelectCon());
+    }
+
     public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
                                                            final int randomKeyForSelectConnection) {
         if (!lookup.isBinaryProtoLookupService()) {

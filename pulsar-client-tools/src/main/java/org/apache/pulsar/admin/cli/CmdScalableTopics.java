@@ -83,6 +83,24 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
+    @Command(description = "Migrate an existing regular (partitioned or non-partitioned) topic"
+            + " to a scalable topic. Fails if legacy v4 clients are still connected unless"
+            + " --force is set.")
+    private class MigrateCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-f", "--force"},
+                description = "Migrate even if legacy v4 clients are still connected")
+        private boolean force;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().migrateToScalable(topic, force);
+            print("Migrated topic " + topic + " to a scalable topic");
+        }
+    }
+
     @Command(description = "Get scalable topic metadata")
     private class GetMetadataCmd extends CliCommand {
         @Parameters(description = "tenant/namespace/topic", arity = "1")
@@ -204,6 +222,7 @@ public class CmdScalableTopics extends CmdBase {
         super("scalable-topics", admin);
         addCommand("list", new ListCmd());
         addCommand("create", new CreateCmd());
+        addCommand("migrate", new MigrateCmd());
         addCommand("get-metadata", new GetMetadataCmd());
         addCommand("stats", new GetStatsCmd());
         addCommand("delete", new DeleteCmd());
