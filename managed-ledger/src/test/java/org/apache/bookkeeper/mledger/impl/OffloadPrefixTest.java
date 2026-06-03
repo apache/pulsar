@@ -1213,21 +1213,21 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
         config.setLedgerOffloader(offloader);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
 
         for (int i = 0; i < 25; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
         }
         assertTrue(offloadRunning.await(5, TimeUnit.SECONDS));
 
+        // Repeated automatic triggers should stop at the controller and avoid another policy lookup.
         int callsBeforeRepeatedTriggers = offloadPolicyCalls.get();
         for (int i = 0; i < 20; i++) {
             ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
         }
 
-        Thread.sleep(300);
-        assertTrue(offloadPolicyCalls.get() < callsBeforeRepeatedTriggers + 5,
-                "Repeated automatic triggers should not create independent retry loops");
+        assertEquals(offloadPolicyCalls.get(), callsBeforeRepeatedTriggers);
 
         slowOffload.complete(null);
 
@@ -1258,7 +1258,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
         config.setLedgerOffloader(offloader);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
 
         for (int i = 0; i < 11; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
@@ -1289,7 +1290,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
         config.setLedgerOffloader(offloader);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
 
         for (int i = 0; i < 25; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
@@ -1297,7 +1299,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
         assertEquals(offloader.offloadedLedgers().size(), 0);
 
-        // A disabled automatic trigger must complete internally so a later enabled trigger can run.
+        // A disabled automatic trigger must complete internally so a later valid trigger can run.
         offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
         ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
 

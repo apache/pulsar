@@ -231,10 +231,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final CallbackMutex trimmerMutex = new CallbackMutex();
 
     protected final CallbackMutex offloadMutex = new CallbackMutex();
-    // Automatic offload has no caller-visible future. Coalesce concurrent automatic triggers into at most one
-    // running offload and one follow-up run.
-    private final AtomicBoolean automaticOffloadInProgress = new AtomicBoolean(false);
-    private final AtomicBoolean automaticOffloadRerunRequested = new AtomicBoolean(false);
+    private final AutomaticOffloadTriggerController automaticOffloadTriggerController =
+            new AutomaticOffloadTriggerController();
     // Identity sentinel for automatic offload requests. The completed Position value is not used.
     public static final CompletableFuture<Position> AUTOMATIC_OFFLOAD_TRIGGER = CompletableFuture
             .completedFuture(PositionFactory.LATEST);
@@ -242,6 +240,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private enum OffloadRequestSource {
         AUTOMATIC,
         EXPLICIT
+    }
+
+    private record OffloadThresholds(long thresholdInBytes, long thresholdInSeconds) {
     }
 
     @VisibleForTesting
@@ -2816,36 +2817,44 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void maybeOffloadInBackground(CompletableFuture<Position> promise) {
         if (promise == AUTOMATIC_OFFLOAD_TRIGGER) {
-            if (!automaticOffloadInProgress.compareAndSet(false, true)) {
-                automaticOffloadRerunRequested.set(true);
-                return;
+            if (automaticOffloadTriggerController.requestRun()) {
+                startAutomaticOffload();
             }
-            CompletableFuture<Position> automaticOffloadCompletion = new CompletableFuture<>();
-            automaticOffloadCompletion.whenComplete((res, ex) -> finishAutomaticOffload(ex));
-            maybeOffloadInBackground(automaticOffloadCompletion, OffloadRequestSource.AUTOMATIC);
             return;
         }
 
         maybeOffloadInBackground(promise, OffloadRequestSource.EXPLICIT);
     }
 
+    private void startAutomaticOffload() {
+        CompletableFuture<Position> automaticOffloadCompletion = new CompletableFuture<>();
+        automaticOffloadCompletion.whenComplete((res, ex) -> finishAutomaticOffload(ex));
+        try {
+            maybeOffloadInBackground(automaticOffloadCompletion, OffloadRequestSource.AUTOMATIC);
+        } catch (RuntimeException e) {
+            automaticOffloadCompletion.completeExceptionally(e);
+        }
+    }
+
     private void maybeOffloadInBackground(CompletableFuture<Position> promise, OffloadRequestSource source) {
-        Optional<Pair<Long, Long>> offloadThresholds = getOffloadThresholds();
+        Optional<OffloadThresholds> offloadThresholds = getOffloadThresholds();
         if (offloadThresholds.isEmpty()) {
-            // Explicit callers keep the previous no-completion behavior. The internal automatic completion must be
-            // finished so automaticOffloadInProgress can be cleared.
             if (source == OffloadRequestSource.AUTOMATIC) {
                 promise.complete(PositionFactory.LATEST);
             }
             return;
         }
 
-        Pair<Long, Long> thresholds = offloadThresholds.get();
-        executor.execute(() -> maybeOffload(thresholds.getLeft(), thresholds.getRight(), promise,
-                source));
+        OffloadThresholds thresholds = offloadThresholds.get();
+        try {
+            executor.execute(() -> maybeOffload(thresholds.thresholdInBytes(), thresholds.thresholdInSeconds(),
+                    promise, source));
+        } catch (RuntimeException e) {
+            promise.completeExceptionally(e);
+        }
     }
 
-    private Optional<Pair<Long, Long>> getOffloadThresholds() {
+    private Optional<OffloadThresholds> getOffloadThresholds() {
         Optional<OffloadPolicies> optionalOffloadPolicies = getOffloadPoliciesIfAppendable();
         if (optionalOffloadPolicies.isEmpty()) {
             return Optional.empty();
@@ -2857,7 +2866,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final long offloadThresholdInSeconds =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
         if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
-            return Optional.of(Pair.of(offloadThresholdInBytes, offloadThresholdInSeconds));
+            return Optional.of(new OffloadThresholds(offloadThresholdInBytes, offloadThresholdInSeconds));
         }
 
         return Optional.empty();
@@ -2865,11 +2874,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void finishAutomaticOffload(Throwable exception) {
         if (exception != null) {
-            log.warn().exception(exception).log("Failed to automatically offload ledgers");
+            log.debug().exception(exception).log("Failed to automatically offload ledgers");
         }
-        automaticOffloadInProgress.set(false);
-        if (automaticOffloadRerunRequested.getAndSet(false)) {
-            maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
+        if (automaticOffloadTriggerController.completeRun()) {
+            startAutomaticOffload();
         }
     }
 
@@ -2889,8 +2897,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(() -> maybeOffloadInBackground(finalPromise, source),
-                    100, TimeUnit.MILLISECONDS);
+            try {
+                scheduledExecutor.schedule(() -> maybeOffloadInBackground(finalPromise, source),
+                        100, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException e) {
+                finalPromise.completeExceptionally(e);
+            }
             return;
         }
 
