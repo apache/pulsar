@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
@@ -39,7 +40,8 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
             while (iterator.hasNext()) {
                 Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
                 MessageId messageId = entry.getKey();
-                if (messageBelongsToTopic(messageId, topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;

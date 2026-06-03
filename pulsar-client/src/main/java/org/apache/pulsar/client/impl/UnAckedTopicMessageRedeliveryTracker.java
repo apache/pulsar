@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
@@ -41,7 +42,8 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                 Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
                 UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
-                if (messageBelongsToTopic(messageId, topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
@@ -52,7 +54,8 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
             while (iteratorAckTimeOut.hasNext()) {
                 MessageId messageId = iteratorAckTimeOut.next();
-                if (messageBelongsToTopic(messageId, topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
                     iteratorAckTimeOut.remove();
                     removed++;
                 }

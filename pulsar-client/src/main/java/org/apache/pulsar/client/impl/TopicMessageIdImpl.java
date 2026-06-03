@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TraceableMessageId;
+import org.apache.pulsar.common.naming.TopicName;
 
 public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId, TraceableMessageId {
     private static final long serialVersionUID = 1L;
@@ -90,6 +91,12 @@ public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId, Traceab
     @Override
     public String getOwnerTopic() {
         return ownerTopic;
+    }
+
+    @Override
+    public boolean hasSameBasePartitionedTopic(String topicName) {
+        return TopicName.get(getOwnerTopic()).getPartitionedTopicName()
+                .equals(TopicName.get(topicName).getPartitionedTopicName());
     }
 
     @Override
