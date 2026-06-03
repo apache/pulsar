@@ -130,10 +130,28 @@ public class PulsarClientTool implements CommandHook {
         commander.addSubcommand("consume", consumeCommand);
         commander.addSubcommand("read", readCommand);
         commander.addSubcommand("generate_documentation", generateDocumentation);
+        enableCaseInsensitiveEnums();
+    }
+
+    /**
+     * Accept enum flag values regardless of case across the root command and all subcommands. The
+     * V5 client enums are uppercase (LATEST, EARLIEST, FAIL, ...) while users have long passed the
+     * mixed-case v4 spellings (Latest, Earliest, ...); case-insensitive parsing keeps that flag UX
+     * working. Picocli's {@code setCaseInsensitiveEnumValuesAllowed} does not propagate to
+     * subcommands, so it must be applied to each command explicitly.
+     */
+    private void enableCaseInsensitiveEnums() {
+        applyCaseInsensitiveEnums(commander);
+    }
+
+    private static void applyCaseInsensitiveEnums(CommandLine cmd) {
+        cmd.setCaseInsensitiveEnumValuesAllowed(true);
+        cmd.getSubcommands().values().forEach(PulsarClientTool::applyCaseInsensitiveEnums);
     }
 
     protected void addCommand(String name, Object cmd) {
         commander.addSubcommand(name, cmd);
+        enableCaseInsensitiveEnums();
     }
 
     private int updateConfig() throws UnsupportedAuthenticationException {
@@ -256,6 +274,7 @@ public class PulsarClientTool implements CommandHook {
             commander.getCommandSpec().removeSubcommand("produce");
         }
         commander.addSubcommand("produce", this.produceCommand);
+        enableCaseInsensitiveEnums();
     }
 
     @VisibleForTesting

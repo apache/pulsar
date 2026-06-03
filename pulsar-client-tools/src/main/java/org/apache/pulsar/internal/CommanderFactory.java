@@ -67,10 +67,6 @@ public class CommanderFactory {
      */
     public static CommandLine createRootCommanderWithHook(Object object, IDefaultValueProvider defaultValueProvider) {
         CommandLine commander = new CommandLine(object);
-        // Accept enum flag values regardless of case. The V5 client enums are uppercase
-        // (LATEST, EARLIEST, FAIL, ...) while users have long passed the mixed-case v4 spellings
-        // (Latest, Earliest, ...); case-insensitive parsing keeps that flag UX working.
-        commander.setCaseInsensitiveEnumValuesAllowed(true);
         commander.setExecutionStrategy(new CommandExecutionStrategy());
         commander.setExecutionExceptionHandler((ex, commandLine, parseResult) -> {
             PrintWriter errPrinter = commandLine.getErr();
