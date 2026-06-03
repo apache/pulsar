@@ -74,11 +74,7 @@ jobs:
           languages: ${{ matrix.language }}
 
       - name: Build Java code
-        # Disable the Gradle build cache so the Java sources are actually compiled by javac.
-        # CodeQL's extractor traces javac invocations; when the Develocity remote cache is warm
-        # (populated by other jobs on the same commit), every compileJava task is served
-        # FROM-CACHE, no javac runs, and CodeQL fails with "no source code seen during build".
-        run: ./gradlew assemble --no-build-cache
+        run: ./gradlew assemble
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
