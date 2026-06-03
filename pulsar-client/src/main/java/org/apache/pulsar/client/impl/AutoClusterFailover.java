@@ -39,6 +39,14 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 
+/**
+ * A service URL provider that automatically fails over from the primary Pulsar service URL to one of
+ * the secondary service URLs and switches back after the primary service recovers.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
 @Slf4j
 @Data
 public class AutoClusterFailover implements ServiceUrlProvider {
@@ -84,7 +92,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.pulsarClient = (PulsarClientImpl) client;
         ClientConfigurationData config = pulsarClient.getConfiguration();
         if (config != null) {
@@ -120,7 +131,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         this.executor.shutdown();
     }
 
