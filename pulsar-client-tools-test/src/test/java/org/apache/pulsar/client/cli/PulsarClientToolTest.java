@@ -23,7 +23,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Properties;
@@ -40,6 +43,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -257,6 +261,41 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .ignoreExceptions()
                 .atMost(Duration.ofMillis(20000))
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testAutoConsumeSchema() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("auto-consume");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Produce a JSON-schema message with the v4 client so the topic carries a real schema; the
+        // CLI then consumes it with `-st auto_consume`, exercising the V5 generic-record path.
+        @Cleanup
+        Producer<TestKey> producer = pulsarClient.newProducer(Schema.JSON(TestKey.class))
+                .topic(topicName).create();
+        producer.send(new TestKey("my-key", Integer.MAX_VALUE));
+
+        ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(consoleOutput, true, StandardCharsets.UTF_8));
+        try {
+            PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+            String[] args = {"consume", "-s", "sub-name", "-n", "1", "-st", "auto_consume",
+                    "-p", "Earliest", topicName};
+            Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String output = consoleOutput.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("keyA"), output);
+        assertTrue(output.contains("my-key"), output);
+        assertTrue(output.contains("keyB"), output);
+        assertTrue(output.contains(Integer.toString(Integer.MAX_VALUE)), output);
     }
 
     @Test(timeOut = 20000)

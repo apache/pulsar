@@ -230,4 +230,16 @@ public interface Schema<T> {
     static Schema<byte[]> autoProduceBytesOf(Schema<?> base) {
         return PulsarClientProvider.get().autoProduceBytesSchema(base);
     }
+
+    /**
+     * Get a schema that auto-detects the topic schema at runtime and decodes each message into a
+     * {@link GenericRecord}. Use this on the consumer side when the value type is not known at
+     * compile time (e.g. a generic consume tool). The decoded {@link GenericRecord} exposes the
+     * value's runtime {@link SchemaType} and, for structured types, its fields.
+     *
+     * @return a {@link Schema} that decodes messages into {@link GenericRecord} values
+     */
+    static Schema<GenericRecord> autoConsume() {
+        return PulsarClientProvider.get().autoConsumeSchema();
+    }
 }

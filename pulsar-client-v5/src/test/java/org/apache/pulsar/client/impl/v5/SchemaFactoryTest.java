@@ -20,10 +20,17 @@ package org.apache.pulsar.client.impl.v5;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
+import org.apache.pulsar.client.api.v5.schema.KeyValue;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.api.v5.schema.SchemaInfo;
 import org.apache.pulsar.client.api.v5.schema.SchemaType;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.testng.annotations.Test;
 
 /**
@@ -64,5 +71,82 @@ public class SchemaFactoryTest {
         // AUTO_PRODUCE_BYTES encodes raw bytes straight through.
         byte[] payload = "hello".getBytes(StandardCharsets.UTF_8);
         assertEquals(wrapped.encode(payload), payload);
+    }
+
+    @Test
+    public void testAutoConsumeUnwrapsToV4AutoConsumeSchema() {
+        // The v5 auto-consume schema must pass the genuine v4 AutoConsumeSchema down to the v4
+        // consumer, which special-cases it for runtime schema fetching.
+        Schema<GenericRecord> autoConsume = Schema.autoConsume();
+        assertNotNull(autoConsume);
+        // The v4 AutoConsumeSchema reports no SchemaInfo until it fetches the topic's schema at
+        // runtime, so we only assert the unwrapped v4 schema is the genuine AutoConsumeSchema.
+        assertTrue((Object) SchemaAdapter.toV4(autoConsume) instanceof AutoConsumeSchema);
+    }
+
+    @Test
+    public void testGenericRecordConversion() {
+        // A nested v4 GenericRecord field is surfaced as a v5 GenericRecord.
+        org.apache.pulsar.client.api.schema.GenericRecord v4Nested = v4Record(
+                org.apache.pulsar.common.schema.SchemaType.AVRO,
+                List.of(new Field("inner", 0)), Map.of("inner", "x"), null);
+        org.apache.pulsar.client.api.schema.GenericRecord v4Outer = v4Record(
+                org.apache.pulsar.common.schema.SchemaType.AVRO,
+                List.of(new Field("a", 0), new Field("nested", 1)),
+                Map.of("a", "hello", "nested", v4Nested), null);
+
+        GenericRecord outer = (GenericRecord) GenericRecordV5.convert(v4Outer);
+        assertEquals(outer.schemaType(), SchemaType.AVRO);
+        assertEquals(outer.fields().size(), 2);
+        assertEquals(outer.field("a"), "hello");
+        assertTrue(outer.field("nested") instanceof GenericRecord);
+        assertEquals(((GenericRecord) outer.field("nested")).field("inner"), "x");
+    }
+
+    @Test
+    public void testKeyValueConversion() {
+        // A KEY_VALUE wrapper's native object is surfaced as a v5 KeyValue.
+        org.apache.pulsar.common.schema.KeyValue<String, String> v4Kv =
+                new org.apache.pulsar.common.schema.KeyValue<>("k", "v");
+        org.apache.pulsar.client.api.schema.GenericRecord v4Record = v4Record(
+                org.apache.pulsar.common.schema.SchemaType.KEY_VALUE, List.of(), Map.of(), v4Kv);
+
+        GenericRecord record = (GenericRecord) GenericRecordV5.convert(v4Record);
+        assertEquals(record.schemaType(), SchemaType.KEY_VALUE);
+        assertTrue(record.nativeObject() instanceof KeyValue);
+        KeyValue<?, ?> kv = (KeyValue<?, ?>) record.nativeObject();
+        assertEquals(kv.key(), "k");
+        assertEquals(kv.value(), "v");
+    }
+
+    private static org.apache.pulsar.client.api.schema.GenericRecord v4Record(
+            org.apache.pulsar.common.schema.SchemaType type, List<Field> fields,
+            Map<String, Object> values, Object nativeObject) {
+        return new org.apache.pulsar.client.api.schema.GenericRecord() {
+            @Override
+            public byte[] getSchemaVersion() {
+                return null;
+            }
+
+            @Override
+            public List<Field> getFields() {
+                return fields;
+            }
+
+            @Override
+            public Object getField(String fieldName) {
+                return values.get(fieldName);
+            }
+
+            @Override
+            public org.apache.pulsar.common.schema.SchemaType getSchemaType() {
+                return type;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return nativeObject;
+            }
+        };
     }
 }

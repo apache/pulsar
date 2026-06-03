@@ -139,11 +139,13 @@ public class CmdRead extends AbstractCmdConsume {
         int numMessagesRead = 0;
         int returnCode = 0;
 
+        final Schema<?> schema;
         if ("auto_consume".equals(schemaType)) {
-            throw new IllegalArgumentException("schema type 'auto_consume' is not supported by this "
-                    + "version of pulsar-client; read with 'bytes' (the default).");
-        } else if (!"bytes".equals(schemaType)) {
-            throw new IllegalArgumentException("schema type must be 'bytes'");
+            schema = Schema.autoConsume();
+        } else if ("bytes".equals(schemaType)) {
+            schema = Schema.bytes();
+        } else {
+            throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
         }
         if (!poolMessages) {
             LOG.info("--pool-messages has no effect on this version of pulsar-client.");
@@ -160,21 +162,21 @@ public class CmdRead extends AbstractCmdConsume {
                 ? Checkpoint.earliest() : Checkpoint.latest();
 
         try (PulsarClient client = clientBuilder.build()) {
-            CheckpointConsumerBuilder<byte[]> builder = client.newCheckpointConsumer(Schema.bytes())
+            CheckpointConsumerBuilder<?> builder = client.newCheckpointConsumer(schema)
                     .topic(topic)
                     .startPosition(startPosition);
             if (isNotBlank(this.encKeyValue)) {
                 builder.encryptionPolicy(buildConsumerEncryptionPolicy());
             }
 
-            try (CheckpointConsumer<byte[]> reader = builder.create()) {
+            try (CheckpointConsumer<?> reader = builder.create()) {
                 RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
                 while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
 
-                    Message<byte[]> msg = reader.receive(Duration.ofSeconds(5));
+                    Message<?> msg = reader.receive(Duration.ofSeconds(5));
                     if (msg == null) {
                         LOG.debug("No message to read after waiting for 5 seconds.");
                     } else {

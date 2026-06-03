@@ -179,11 +179,13 @@ public class CmdConsume extends AbstractCmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
+        final Schema<?> schema;
         if ("auto_consume".equals(schemaType)) {
-            throw new IllegalArgumentException("schema type 'auto_consume' is not supported by this "
-                    + "version of pulsar-client; consume with 'bytes' (the default).");
-        } else if (!"bytes".equals(schemaType)) {
-            throw new IllegalArgumentException("schema type must be 'bytes'");
+            schema = Schema.autoConsume();
+        } else if ("bytes".equals(schemaType)) {
+            schema = Schema.bytes();
+        } else {
+            throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
         }
         if (!poolMessages) {
             LOG.info("--pool-messages has no effect on this version of pulsar-client.");
@@ -208,7 +210,7 @@ public class CmdConsume extends AbstractCmdConsume {
 
         try (PulsarClient client = clientBuilder.build()) {
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            QueueConsumerBuilder<byte[]> builder = client.newQueueConsumer(Schema.bytes())
+            QueueConsumerBuilder<?> builder = client.newQueueConsumer(schema)
                     .subscriptionName(this.subscriptionName)
                     .subscriptionInitialPosition(subscriptionInitialPosition)
                     .replicateSubscriptionState(replicateSubscriptionState);
@@ -220,12 +222,12 @@ public class CmdConsume extends AbstractCmdConsume {
             }
             applyTopicSelection(builder::topic, builder::namespace);
 
-            try (QueueConsumer<byte[]> consumer = builder.subscribe()) {
+            try (QueueConsumer<?> consumer = builder.subscribe()) {
                 while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-                    Message<byte[]> msg = consumer.receive(Duration.ofSeconds(5));
+                    Message<?> msg = consumer.receive(Duration.ofSeconds(5));
                     if (msg == null) {
                         LOG.debug("No message to consume after waiting for 5 seconds.");
                     } else {

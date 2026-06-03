@@ -25,6 +25,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -38,6 +40,9 @@ import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.v5.auth.EncryptionKey;
 import org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider;
 import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Field;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
+import org.apache.pulsar.client.api.v5.schema.KeyValue;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
@@ -84,14 +89,23 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    protected String interpretMessage(Message<byte[]> message, boolean displayHex, boolean printMetadata)
+    protected String interpretMessage(Message<?> message, boolean displayHex, boolean printMetadata)
             throws IOException {
         StringBuilder sb = new StringBuilder();
 
         String properties = Arrays.toString(message.properties().entrySet().toArray());
 
-        byte[] value = message.value();
-        String data = value == null ? "null" : interpretByteArray(displayHex, value);
+        Object value = message.value();
+        String data;
+        if (value == null) {
+            data = "null";
+        } else if (value instanceof byte[]) {
+            data = interpretByteArray(displayHex, (byte[]) value);
+        } else if (value instanceof GenericRecord) {
+            data = genericObjectToMap((GenericRecord) value, displayHex).toString();
+        } else {
+            data = value.toString();
+        }
 
         sb.append("publishTime:[").append(message.publishTime()).append("], ");
         sb.append("eventTime:[").append(message.eventTime().orElse(null)).append("], ");
@@ -120,6 +134,66 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             HexDump.dump(msgData, 0, out, 0);
             return out.toString();
         }
+    }
+
+    /**
+     * Render an {@code auto_consume} {@link GenericRecord} value into a {@link Map} for display.
+     * The shape is dispatched on the record's runtime schema type: structured records become a map
+     * of their fields, key/value records become a {@code {key, value}} map, and primitives are
+     * wrapped in a single {@code value} entry.
+     */
+    protected static Map<String, Object> genericObjectToMap(GenericRecord value, boolean displayHex)
+            throws IOException {
+        switch (value.schemaType()) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF_NATIVE:
+                return genericRecordToMap(value, displayHex);
+            case KEY_VALUE:
+                return keyValueToMap((KeyValue<?, ?>) value.nativeObject(), displayHex);
+            default:
+                return primitiveValueToMap(value.nativeObject(), displayHex);
+        }
+    }
+
+    protected static Map<String, Object> keyValueToMap(KeyValue<?, ?> value, boolean displayHex)
+            throws IOException {
+        if (value == null) {
+            return Map.of("value", "NULL");
+        }
+        return Map.of("key", primitiveValueToMap(value.key(), displayHex),
+                "value", primitiveValueToMap(value.value(), displayHex));
+    }
+
+    protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex)
+            throws IOException {
+        if (value == null) {
+            return Map.of("value", "NULL");
+        }
+        if (value instanceof GenericRecord) {
+            return genericObjectToMap((GenericRecord) value, displayHex);
+        }
+        if (value instanceof byte[]) {
+            value = interpretByteArray(displayHex, (byte[]) value);
+        }
+        return Map.of("value", value.toString(), "type", value.getClass());
+    }
+
+    protected static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex)
+            throws IOException {
+        Map<String, Object> res = new HashMap<>();
+        for (Field f : value.fields()) {
+            Object fieldValue = value.field(f);
+            if (fieldValue instanceof GenericRecord) {
+                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
+            } else if (fieldValue == null) {
+                fieldValue = "NULL";
+            } else if (fieldValue instanceof byte[]) {
+                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
+            }
+            res.put(f.name(), fieldValue);
+        }
+        return res;
     }
 
     /**

@@ -84,8 +84,15 @@ final class MessageV5<T> implements Message<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public T value() {
-        return v4Message.getValue();
+        Object value = v4Message.getValue();
+        // The v4 AUTO_CONSUME / generic schemas decode into a v4 GenericRecord; surface it through
+        // the v5 API as a v5 GenericRecord. All other values pass through unchanged.
+        if (value instanceof org.apache.pulsar.client.api.schema.GenericRecord) {
+            return (T) GenericRecordV5.convert(value);
+        }
+        return (T) value;
     }
 
     @Override

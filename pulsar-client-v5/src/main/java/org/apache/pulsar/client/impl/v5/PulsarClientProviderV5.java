@@ -136,6 +136,16 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
         return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES(v4Base));
     }
 
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Schema<org.apache.pulsar.client.api.v5.schema.GenericRecord> autoConsumeSchema() {
+        // Wrap the genuine v4 AUTO_CONSUME schema so the v5 consumer passes it straight through to
+        // the v4 layer (which special-cases AutoConsumeSchema for runtime schema fetching). The
+        // decoded v4 GenericRecord is converted to a v5 GenericRecord in MessageV5#value().
+        return SchemaAdapter.toV5((org.apache.pulsar.client.api.Schema)
+                org.apache.pulsar.client.api.Schema.AUTO_CONSUME());
+    }
+
     // --- Checkpoint ---
 
     @Override
