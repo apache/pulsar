@@ -1131,6 +1131,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 .log("Added consumer");
     }
 
+    public void handleRandomReaderAdded(BrokerRandomReader reader) {
+        USAGE_COUNT_UPDATER.incrementAndGet(this);
+        log.debug()
+                .attr("randomReaderId", reader.randomReaderId())
+                .attr("readerName", reader.readerName())
+                .attr("usageCount", USAGE_COUNT_UPDATER.get(this))
+                .log("Added random reader");
+    }
+
     public void decrementUsageCount() {
         USAGE_COUNT_UPDATER.decrementAndGet(this);
     }

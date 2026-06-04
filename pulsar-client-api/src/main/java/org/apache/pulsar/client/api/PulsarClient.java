@@ -223,6 +223,27 @@ public interface PulsarClient extends Closeable {
     <T> ReaderBuilder<T> newReader(Schema<T> schema);
 
     /**
+     * Create a {@link RandomReaderBuilder} for creating a {@link RandomReader}.
+     *
+     * <p>RandomReader reads messages directly from managed ledgers without creating subscriptions
+     * or managed cursors.
+     *
+     * @return a RandomReaderBuilder for byte array messages
+     * @since 4.2.0
+     */
+    RandomReaderBuilder<byte[]> newRandomReader();
+
+    /**
+     * Create a {@link RandomReaderBuilder} with a specific schema for creating a {@link RandomReader}.
+     *
+     * @param schema the schema to use for decoding messages
+     * @param <T> the message payload type
+     * @return a RandomReaderBuilder for the specified schema type
+     * @since 4.2.0
+     */
+    <T> RandomReaderBuilder<T> newRandomReader(Schema<T> schema);
+
+    /**
      * Create a table view builder with a specific schema for subscribing on a specific topic.
      *
      * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will

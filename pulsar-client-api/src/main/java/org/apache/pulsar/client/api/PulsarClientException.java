@@ -691,6 +691,27 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Message invisible exception thrown when a RandomReader result slot does not contain visible messages.
+     */
+    @Getter
+    public static class MessageInvisibleException extends PulsarClientException {
+        private final MessageId messageId;
+        private final MessageInvisibleReason reason;
+
+        public MessageInvisibleException(MessageId messageId, MessageInvisibleReason reason) {
+            super("Message " + messageId + " is invisible: " + reason);
+            this.messageId = messageId;
+            this.reason = reason;
+        }
+
+        public MessageInvisibleException(String msg, MessageId messageId, MessageInvisibleReason reason) {
+            super(msg);
+            this.messageId = messageId;
+            this.reason = reason;
+        }
+    }
+
+    /**
      * Invalid topic name exception thrown by Pulsar client.
      */
     public static class InvalidTopicNameException extends PulsarClientException {
@@ -1013,6 +1034,9 @@ public class PulsarClientException extends IOException {
             return new NotConnectedException();
         } else if (t instanceof InvalidMessageException) {
             return new InvalidMessageException(msg);
+        } else if (t instanceof MessageInvisibleException) {
+            MessageInvisibleException ex = (MessageInvisibleException) t;
+            return new MessageInvisibleException(msg, ex.getMessageId(), ex.getReason());
         } else if (t instanceof InvalidTopicNameException) {
             return new InvalidTopicNameException(msg);
         } else if (t instanceof NotSupportedException) {
@@ -1105,6 +1129,9 @@ public class PulsarClientException extends IOException {
             newException = new NotConnectedException();
         } else if (cause instanceof InvalidMessageException) {
             newException = new InvalidMessageException(msg);
+        } else if (cause instanceof MessageInvisibleException) {
+            MessageInvisibleException ex = (MessageInvisibleException) cause;
+            newException = new MessageInvisibleException(msg, ex.getMessageId(), ex.getReason());
         } else if (cause instanceof InvalidTopicNameException) {
             newException = new InvalidTopicNameException(msg);
         } else if (cause instanceof NotSupportedException) {
@@ -1164,6 +1191,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof SubscriptionNotFoundException
                 || t instanceof UnsupportedAuthenticationException
                 || t instanceof InvalidMessageException
+                || t instanceof MessageInvisibleException
                 || t instanceof InvalidTopicNameException
                 || t instanceof NotSupportedException
                 || t instanceof NotAllowedException

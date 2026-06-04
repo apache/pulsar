@@ -88,6 +88,10 @@ import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRandomReadEntryResult;
+import org.apache.pulsar.common.api.proto.CommandRandomReadMessage;
+import org.apache.pulsar.common.api.proto.CommandRandomReadResponse;
+import org.apache.pulsar.common.api.proto.CommandRandomReaderSuccess;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -190,6 +194,12 @@ public class ClientCnx extends PulsarHandler {
                     .concurrencyLevel(1)
                     .build();
 
+    private final ConcurrentLongHashMap<RandomReaderImpl.RandomReaderSession<?>> randomReaders =
+            ConcurrentLongHashMap.<RandomReaderImpl.RandomReaderSession<?>>newBuilder()
+                    .expectedItems(8)
+                    .concurrencyLevel(1)
+                    .build();
+
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
 
@@ -280,7 +290,9 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup;
+        Lookup,
+        RandomReaderCreate,
+        RandomRead;
 
         String getDescription() {
             if (this == Command) {
@@ -394,10 +406,13 @@ public class ClientCnx extends PulsarHandler {
         scalableConsumerSessions.forEach((__, session) -> session.connectionClosed());
         scalableTopicsWatchers.forEach((__, session) -> session.connectionClosed());
 
+        randomReaders.forEach((id, session) ->
+                session.connectionClosed(this, Optional.empty(), Optional.empty()));
         waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
+        randomReaders.clear();
         topicListWatchers.clear();
         dagWatchSessions.clear();
         scalableConsumerSessions.clear();
@@ -781,21 +796,40 @@ public class ClientCnx extends PulsarHandler {
         final String serviceUrlTls = commandTopicMigrated.hasBrokerServiceUrlTls()
                 ? commandTopicMigrated.getBrokerServiceUrlTls()
                 : null;
-        HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
-                ? producers.get(resourceId)
-                : consumers.get(resourceId);
-        log.info().attr("resourceType", commandTopicMigrated.getResourceType().name())
+        final ResourceType resourceType = commandTopicMigrated.getResourceType();
+        log.info().attr("resourceType", resourceType.name())
                 .attr("serviceUrl", serviceUrl)
                 .attr("serviceUrlTls", serviceUrlTls)
                 .log("Resource migrated to new service url");
-        if (resource != null) {
-            try {
-                resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
-            } catch (URISyntaxException e) {
-                log.info().attr("serviceUrl", serviceUrl)
-                        .attr("serviceUrlTls", serviceUrlTls)
-                        .attr("resourceId", resourceId)
-                        .log("Invalid redirect URL");
+
+        if (resourceType == ResourceType.RandomReader) {
+            RandomReaderImpl.RandomReaderSession<?> session = randomReaders.remove(resourceId);
+            if (session != null) {
+                try {
+                    session.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
+                } catch (URISyntaxException e) {
+                    log.info().attr("serviceUrl", serviceUrl)
+                            .attr("serviceUrlTls", serviceUrlTls)
+                            .attr("resourceId", resourceId)
+                            .log("Invalid redirect URL for RandomReader");
+                }
+                Optional<URI> hostUri = Optional.ofNullable(session.redirectedClusterURI);
+                Optional<Long> initialDelay = hostUri.isPresent() ? Optional.of(0L) : Optional.empty();
+                session.connectionClosed(this, initialDelay, hostUri);
+            }
+        } else {
+            HandlerState resource = resourceType == ResourceType.Producer
+                    ? producers.get(resourceId)
+                    : consumers.get(resourceId);
+            if (resource != null) {
+                try {
+                    resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
+                } catch (URISyntaxException e) {
+                    log.info().attr("serviceUrl", serviceUrl)
+                            .attr("serviceUrlTls", serviceUrlTls)
+                            .attr("resourceId", resourceId)
+                            .log("Invalid redirect URL");
+                }
             }
         }
     }
@@ -1581,6 +1615,76 @@ public class ClientCnx extends PulsarHandler {
         consumers.remove(consumerId);
     }
 
+    void registerRandomReader(final long randomReaderId,
+                              final RandomReaderImpl.RandomReaderSession<?> session) {
+        randomReaders.put(randomReaderId, session);
+    }
+
+    void removeRandomReader(final long randomReaderId) {
+        randomReaders.remove(randomReaderId);
+    }
+
+    void registerPendingReadTimeout(long requestId, TimedCompletableFuture<?> future) {
+        pendingRequests.put(requestId, future);
+        requestTimeoutQueue.add(new RequestTime(requestId, RequestType.RandomRead));
+    }
+
+    void removePendingReadTimeout(long requestId, TimedCompletableFuture<?> future) {
+        pendingRequests.remove(requestId, future);
+    }
+
+    CompletableFuture<CommandRandomReaderSuccess> sendRandomReaderCreate(ByteBuf command, long requestId) {
+        TimedCompletableFuture<CommandRandomReaderSuccess> future = new TimedCompletableFuture<>();
+        sendRequestAndHandleTimeout(command, requestId, RequestType.RandomReaderCreate, true, future);
+        return future;
+    }
+
+    @Override
+    protected void handleRandomReaderSuccess(CommandRandomReaderSuccess success) {
+        long requestId = success.getRequestId();
+        @SuppressWarnings("unchecked")
+        TimedCompletableFuture<CommandRandomReaderSuccess> future =
+                (TimedCompletableFuture<CommandRandomReaderSuccess>) pendingRequests.remove(requestId);
+        if (future != null) {
+            future.complete(success);
+        }
+    }
+
+    @Override
+    protected void handleRandomReadMessage(CommandRandomReadMessage command, ByteBuf headersAndPayload) {
+        RandomReaderImpl.RandomReaderSession<?> session = randomReaders.get(command.getRandomReaderId());
+        if (session != null) {
+            session.messageReceived(command, headersAndPayload, this);
+        }
+    }
+
+    @Override
+    protected void handleRandomReadEntryResult(CommandRandomReadEntryResult command) {
+        RandomReaderImpl.RandomReaderSession<?> session = randomReaders.get(command.getRandomReaderId());
+        if (session != null) {
+            session.entryResultReceived(command);
+        }
+    }
+
+    @Override
+    protected void handleRandomReadResponse(CommandRandomReadResponse response) {
+        long requestId = response.getRequestId();
+        RandomReaderImpl.RandomReaderSession<?> session = randomReaders.get(response.getRandomReaderId());
+        if (session == null || !session.hasPendingRead(requestId)) {
+            return;
+        }
+        TimedCompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.markAsResponded();
+        }
+        if (response.hasError()) {
+            session.failPendingRead(response.getRequestId(),
+                    getPulsarClientException(response.getError(), response.getMessage()));
+        } else {
+            session.completePendingRead(response.getRequestId(), response.getNumberOfEntries());
+        }
+    }
+
     void removeTopicListWatcher(final long watcherId) {
         topicListWatchers.remove(watcherId);
     }
@@ -1775,6 +1879,9 @@ public class ClientCnx extends PulsarHandler {
             return false;
         }
         if (!scalableTopicsWatchers.isEmpty()) {
+            return false;
+        }
+        if (!randomReaders.isEmpty()) {
             return false;
         }
         return true;

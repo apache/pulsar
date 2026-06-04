@@ -45,6 +45,10 @@ import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRandomReadEntryResult;
+import org.apache.pulsar.common.api.proto.CommandRandomReadMessage;
+import org.apache.pulsar.common.api.proto.CommandRandomReadResponse;
+import org.apache.pulsar.common.api.proto.CommandRandomReaderSuccess;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
@@ -161,6 +165,26 @@ public class ClientChannelHelper {
         @Override
         protected void handleProducerSuccess(CommandProducerSuccess success) {
             queue.offer(new CommandProducerSuccess().copyFrom(success));
+        }
+
+        @Override
+        protected void handleRandomReaderSuccess(CommandRandomReaderSuccess success) {
+            queue.offer(new CommandRandomReaderSuccess().copyFrom(success));
+        }
+
+        @Override
+        protected void handleRandomReadMessage(CommandRandomReadMessage command, ByteBuf headersAndPayload) {
+            queue.offer(new CommandRandomReadMessage().copyFrom(command));
+        }
+
+        @Override
+        protected void handleRandomReadEntryResult(CommandRandomReadEntryResult command) {
+            queue.offer(new CommandRandomReadEntryResult().copyFrom(command));
+        }
+
+        @Override
+        protected void handleRandomReadResponse(CommandRandomReadResponse response) {
+            queue.offer(new CommandRandomReadResponse().copyFrom(response));
         }
 
         @Override

@@ -85,6 +85,12 @@ import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRandomRead;
+import org.apache.pulsar.common.api.proto.CommandRandomReadEntryResult;
+import org.apache.pulsar.common.api.proto.CommandRandomReadMessage;
+import org.apache.pulsar.common.api.proto.CommandRandomReadResponse;
+import org.apache.pulsar.common.api.proto.CommandRandomReader;
+import org.apache.pulsar.common.api.proto.CommandRandomReaderSuccess;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
@@ -105,6 +111,7 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.RandomReadInvisibleReason;
 import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
@@ -2410,5 +2417,123 @@ public class Commands {
 
     public static boolean peerSupportsBrokerMetadata(int peerVersion) {
         return peerVersion >= ProtocolVersion.v16.getValue();
+    }
+
+    public static ByteBuf newRandomReader(String topic, long randomReaderId, long requestId, String readerName,
+                                          SchemaInfo schemaInfo, Map<String, String> metadata,
+                                          boolean readCommitted) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READER);
+        CommandRandomReader reader = cmd.setRandomReader()
+                .setTopic(topic)
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId);
+        if (readerName != null) {
+            reader.setReaderName(readerName);
+        }
+        if (schemaInfo != null) {
+            convertSchema(schemaInfo, reader.setSchema());
+        }
+        metadata.forEach((key, value) -> reader.addMetadata().setKey(key).setValue(value));
+        if (readCommitted) {
+            reader.setReadCommitted(true);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newRandomReaderSuccessCommand(long requestId, long randomReaderId, String readerName) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READER_SUCCESS);
+        CommandRandomReaderSuccess success = cmd.setRandomReaderSuccess()
+                .setRequestId(requestId)
+                .setRandomReaderId(randomReaderId);
+        if (readerName != null) {
+            success.setReaderName(readerName);
+        }
+        return cmd;
+    }
+
+    public static ByteBuf newRandomRead(long randomReaderId, long requestId, long ledgerId, long entryId,
+                                        int partitionIndex, int numberOfEntries) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READ);
+        CommandRandomRead read = cmd.setRandomRead()
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId)
+                .setNumberOfEntries(numberOfEntries);
+        read.setStartMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
+        if (partitionIndex >= 0) {
+            read.getStartMessageId().setPartition(partitionIndex);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newRandomReadMessageCommand(long randomReaderId, long requestId, long ledgerId,
+                                                          long entryId, int partition) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READ_MESSAGE);
+        CommandRandomReadMessage msg = cmd.setRandomReadMessage()
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId);
+        msg.setMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
+        if (partition >= 0) {
+            msg.getMessageId().setPartition(partition);
+        }
+        return cmd;
+    }
+
+    public static ByteBufPair newRandomReadMessage(long randomReaderId, long requestId, long ledgerId, long entryId,
+                                                   int partition, ByteBuf metadataAndPayload) {
+        return serializeCommandMessageWithSize(
+                newRandomReadMessageCommand(randomReaderId, requestId, ledgerId, entryId, partition),
+                metadataAndPayload);
+    }
+
+    public static BaseCommand newRandomReadEntryResultCommand(long randomReaderId, long requestId, long ledgerId,
+                                                              long entryId, int partition,
+                                                              RandomReadInvisibleReason invisibleReason) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READ_ENTRY_RESULT);
+        CommandRandomReadEntryResult result = cmd.setRandomReadEntryResult()
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId)
+                .setInvisibleReason(invisibleReason);
+        result.setMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
+        if (partition >= 0) {
+            result.getMessageId().setPartition(partition);
+        }
+        return cmd;
+    }
+
+    public static ByteBuf newRandomReadEntryResult(long randomReaderId, long requestId, long ledgerId,
+                                                   long entryId, int partition,
+                                                   RandomReadInvisibleReason invisibleReason) {
+        return serializeWithSize(newRandomReadEntryResultCommand(randomReaderId, requestId, ledgerId,
+                entryId, partition, invisibleReason));
+    }
+
+    public static ByteBuf newRandomReadResponse(long randomReaderId, long requestId, int numberOfEntries,
+                                                ServerError error, String message) {
+        BaseCommand cmd = localCmd(Type.RANDOM_READ_RESPONSE);
+        CommandRandomReadResponse response = cmd.setRandomReadResponse()
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId)
+                .setNumberOfEntries(numberOfEntries);
+        if (error != null) {
+            response.setError(error);
+        }
+        if (message != null) {
+            response.setMessage(message);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newCloseRandomReader(long randomReaderId, long requestId) {
+        BaseCommand cmd = localCmd(Type.CLOSE_RANDOM_READER);
+        cmd.setCloseRandomReader()
+                .setRandomReaderId(randomReaderId)
+                .setRequestId(requestId);
+        return serializeWithSize(cmd);
     }
 }

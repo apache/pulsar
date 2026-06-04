@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandRandomReader;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.KeyValue;
 
@@ -39,6 +40,10 @@ public final class CommandUtils {
 
     public static Map<String, String> metadataFromCommand(CommandSubscribe commandSubscribe) {
         return toMap(commandSubscribe.getMetadatasList());
+    }
+
+    public static Map<String, String> metadataFromCommand(CommandRandomReader commandRandomReader) {
+        return toMap(commandRandomReader.getMetadatasList());
     }
 
     private static Map<String, String> toMap(List<KeyValue> keyValues) {

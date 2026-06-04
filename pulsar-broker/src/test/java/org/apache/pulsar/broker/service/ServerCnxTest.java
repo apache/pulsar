@@ -138,6 +138,9 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRandomReadEntryResult;
+import org.apache.pulsar.common.api.proto.CommandRandomReadResponse;
+import org.apache.pulsar.common.api.proto.CommandRandomReaderSuccess;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSendError;
@@ -149,6 +152,7 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.RandomReadInvisibleReason;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.Subscription;
@@ -2846,6 +2850,59 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+
+    @Test(timeOut = 30000)
+    public void testRandomReadCoversEntryAfterMaxVisiblePosition() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        PersistentTopic topic = mock(PersistentTopic.class);
+        ManagedLedger managedLedger = mock(ManagedLedger.class);
+        Position start = PositionFactory.create(3L, 2L);
+        ByteBuf data = Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,
+                new MessageMetadata()
+                        .setProducerName("p")
+                        .setSequenceId(0)
+                        .setPublishTime(System.currentTimeMillis()),
+                Unpooled.EMPTY_BUFFER);
+        org.apache.bookkeeper.mledger.impl.EntryImpl entry =
+                org.apache.bookkeeper.mledger.impl.EntryImpl.create(3L, 2L, data);
+        data.release();
+        try {
+            doReturn(managedLedger).when(topic).getManagedLedger();
+            doReturn(successTopicName).when(topic).getName();
+            doReturn(CompletableFuture.completedFuture(null)).when(topic).checkIfTransactionBufferRecoverCompletely();
+            doReturn(CompletableFuture.completedFuture(PositionFactory.create(3L, 1L)))
+                    .when(topic).getLastDispatchablePosition();
+            doReturn(CompletableFuture.completedFuture(null)).when(topic).addSchemaIfIdleOrCheckCompatible(any());
+            doReturn(CompletableFuture.completedFuture(List.of(entry))).when(managedLedger).readEntries(start, 1);
+            doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
+                    .getTopic(eq(successTopicName), eq(false));
+
+            channel.writeInbound(Commands.newRandomReader(successTopicName, 7L, 11L, "rr",
+                    null, Collections.emptyMap(), true));
+            Object createResponse = getResponse();
+            assertTrue(createResponse instanceof CommandRandomReaderSuccess);
+
+            channel.writeInbound(Commands.newRandomRead(7L, 12L, 3L, 2L, -1, 1));
+            Object entryResult = getResponse();
+            assertTrue(entryResult instanceof CommandRandomReadEntryResult);
+            assertEquals(((CommandRandomReadEntryResult) entryResult).getInvisibleReason(),
+                    RandomReadInvisibleReason.EXCEEDED_MAX_VISIBLE_POSITION);
+
+            Object response = getResponse();
+            assertTrue(response instanceof CommandRandomReadResponse);
+            CommandRandomReadResponse readResponse = (CommandRandomReadResponse) response;
+            assertEquals(readResponse.getRequestId(), 12L);
+            assertEquals(readResponse.getNumberOfEntries(), 1);
+            assertFalse(readResponse.hasError());
+        } finally {
+            if (entry.refCnt() > 0) {
+                entry.release();
+            }
+            channel.finish();
+        }
+    }
+
     @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)

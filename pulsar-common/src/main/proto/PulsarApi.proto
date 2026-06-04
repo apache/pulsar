@@ -277,6 +277,7 @@ enum ProtocolVersion {
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
     v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
     v21 = 21; // Carry the AUTO_CONSUME schema to the Broker after this version
+    v22 = 22; // Add RandomReader commands
 }
 
 message CommandConnect {
@@ -646,10 +647,69 @@ message CommandReachedEndOfTopic {
     required uint64 consumer_id = 1;
 }
 
+message CommandRandomReader {
+    required string topic = 1;
+    required uint64 random_reader_id = 2;
+    required uint64 request_id = 3;
+    optional string reader_name = 4;
+    optional Schema schema = 5;
+    repeated KeyValue metadata = 6;
+    optional bool read_committed = 7;
+}
+
+message CommandRandomReaderSuccess {
+    required uint64 request_id = 1;
+    required uint64 random_reader_id = 2;
+    optional string reader_name = 3;
+}
+
+message CommandRandomRead {
+    required uint64 random_reader_id = 1;
+    required uint64 request_id = 2;
+    required MessageIdData start_message_id = 3;
+    required uint32 number_of_entries = 4;
+}
+
+message CommandRandomReadMessage {
+    required uint64 random_reader_id = 1;
+    required uint64 request_id = 2;
+    required MessageIdData message_id = 3;
+}
+
+enum RandomReadInvisibleReason {
+    UNKNOWN = 0;
+    SERVER_ONLY_MARKER = 1;
+    TRANSACTION_MARKER = 2;
+    ABORTED_TRANSACTION = 3;
+    DELAYED_DELIVERY = 4;
+    EXCEEDED_MAX_VISIBLE_POSITION = 5;
+}
+
+message CommandRandomReadEntryResult {
+    required uint64 random_reader_id = 1;
+    required uint64 request_id = 2;
+    required MessageIdData message_id = 3;
+    required RandomReadInvisibleReason invisible_reason = 4;
+}
+
+message CommandRandomReadResponse {
+    required uint64 random_reader_id = 1;
+    required uint64 request_id = 2;
+    required uint32 number_of_entries = 3;
+    optional ServerError error = 4;
+    optional string message = 5;
+}
+
+message CommandCloseRandomReader {
+    required uint64 random_reader_id = 1;
+    required uint64 request_id = 2;
+}
+
 message CommandTopicMigrated {
 	enum ResourceType {
         Producer = 0;
         Consumer = 1;
+        RandomReader = 2;
     }
     required uint64 resource_id = 1;
     required ResourceType resource_type = 2;
@@ -1262,6 +1322,14 @@ message BaseCommand {
         WATCH_SCALABLE_TOPICS                 = 76;
         WATCH_SCALABLE_TOPICS_UPDATE          = 77;
         WATCH_SCALABLE_TOPICS_CLOSE           = 78;
+
+        RANDOM_READER                          = 79;
+        RANDOM_READER_SUCCESS                  = 80;
+        RANDOM_READ                           = 81;
+        RANDOM_READ_MESSAGE                   = 82;
+        RANDOM_READ_RESPONSE                  = 83;
+        CLOSE_RANDOM_READER                   = 84;
+        RANDOM_READ_ENTRY_RESULT              = 85;
     }
 
 
@@ -1357,4 +1425,12 @@ message BaseCommand {
     optional CommandWatchScalableTopics watchScalableTopics                           = 76;
     optional CommandWatchScalableTopicsUpdate watchScalableTopicsUpdate               = 77;
     optional CommandWatchScalableTopicsClose watchScalableTopicsClose                 = 78;
+
+    optional CommandRandomReader randomReader = 79;
+    optional CommandRandomReaderSuccess randomReaderSuccess = 80;
+    optional CommandRandomRead randomRead = 81;
+    optional CommandRandomReadMessage randomReadMessage = 82;
+    optional CommandRandomReadResponse randomReadResponse = 83;
+    optional CommandCloseRandomReader closeRandomReader = 84;
+    optional CommandRandomReadEntryResult randomReadEntryResult = 85;
 }

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -715,6 +716,21 @@ public interface ManagedLedger {
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
+
+    /**
+     * Read raw entries starting from {@code start}, inclusive, without using a ManagedCursor.
+     *
+     * <p/>The returned entries are retained for the caller. The caller must release every returned entry.
+     * Broker-level visibility rules such as transaction, marker, and delayed-delivery filtering are not applied here.
+     *
+     * @param start the position to start reading from, inclusive
+     * @param numberOfEntries maximum number of entries to read
+     * @return a future that completes with the list of entries, or fails if the read cannot be performed
+     */
+    default CompletableFuture<List<Entry>> readEntries(Position start, int numberOfEntries) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("ManagedLedger random reads are not implemented"));
+    }
 
     /**
      * Get basic ledger summary.

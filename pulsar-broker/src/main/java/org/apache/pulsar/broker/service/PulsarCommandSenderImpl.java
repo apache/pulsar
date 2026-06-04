@@ -32,6 +32,7 @@ import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.BrokerRandomReader.EntryResult;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -319,6 +320,62 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
             }
         });
 
+        return writePromise;
+    }
+
+    @Override
+    public void sendRandomReaderSuccessResponse(long requestId, long randomReaderId, String readerName) {
+        BaseCommand command = Commands.newRandomReaderSuccessCommand(requestId, randomReaderId, readerName);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        writeAndFlush(outBuf);
+    }
+
+    @Override
+    public ChannelPromise sendRandomReadMessages(long randomReaderId, long requestId, String topicName,
+                                                 int partitionIdx, List<EntryResult> results,
+                                                 int numberOfEntries,
+                                                 Runnable afterFinalResponseWriteDone) {
+        final ChannelHandlerContext ctx = cnx.ctx();
+        final ChannelPromise writePromise = ctx.newPromise();
+        ctx.channel().eventLoop().execute(() -> {
+            try {
+                for (EntryResult result : results) {
+                    Entry entry = result.entry();
+                    if (entry == null) {
+                        continue;
+                    }
+                    if (!result.isVisible()) {
+                        ctx.write(Commands.newRandomReadEntryResult(randomReaderId, requestId, entry.getLedgerId(),
+                                entry.getEntryId(), partitionIdx, result.invisibleReason()), ctx.voidPromise());
+                        continue;
+                    }
+
+                    ByteBuf metadataAndPayload = entry.getDataBuffer().retainedDuplicate();
+                    if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
+                            || !cnx.supportBrokerMetadata()
+                            || !cnx.getBrokerService().getPulsar().getConfig()
+                                    .isExposingBrokerEntryMetadataToClientEnabled()) {
+                        Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
+                    }
+                    if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getValue()) {
+                        Commands.skipChecksumIfPresent(metadataAndPayload);
+                    }
+
+                    ctx.write(Commands.newRandomReadMessage(randomReaderId, requestId, entry.getLedgerId(),
+                            entry.getEntryId(), partitionIdx, metadataAndPayload), ctx.voidPromise());
+                }
+
+                ctx.writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, numberOfEntries,
+                        null, null), writePromise);
+            } catch (Throwable t) {
+                writePromise.setFailure(t);
+            }
+            writePromise.addListener(future -> {
+                results.forEach(EntryResult::release);
+                afterFinalResponseWriteDone.run();
+            });
+        });
         return writePromise;
     }
 

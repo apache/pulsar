@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.service.BrokerRandomReader.toServerError;
 import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
@@ -123,6 +124,7 @@ import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandCloseRandomReader;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.CommandEndTxn;
@@ -137,6 +139,8 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandNewTxn;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducer;
+import org.apache.pulsar.common.api.proto.CommandRandomRead;
+import org.apache.pulsar.common.api.proto.CommandRandomReader;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
@@ -222,6 +226,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final Map<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
+    private final ConcurrentLongHashMap<CompletableFuture<BrokerRandomReader>> randomReaders;
     private final boolean enableSubscriptionPatternEvaluation;
     private final boolean enableTopicListWatcher;
     private final boolean scalableTopicsEnabled;
@@ -373,6 +378,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
+        this.randomReaders = ConcurrentLongHashMap.<CompletableFuture<BrokerRandomReader>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.recentlyClosedProducers = new ConcurrentHashMap<>();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
@@ -482,6 +491,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
         });
+
+        randomReaders.forEach((__, readerFuture) -> {
+            if (!readerFuture.isDone()
+                    && readerFuture.completeExceptionally(new IllegalStateException("Connection closed."))) {
+                return;
+            }
+            if (readerFuture.isDone() && !readerFuture.isCompletedExceptionally()) {
+                BrokerRandomReader reader = readerFuture.getNow(null);
+                reader.close();
+                reader.topic().removeRandomReader(reader);
+            }
+        });
+        randomReaders.clear();
+
         this.topicListService.inactivate();
 
         // Close any outstanding scalable-topic DAG watch sessions held by this connection.
@@ -2790,6 +2813,221 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public int hashCode() {
         return Objects.hash(ctx().channel().id());
+    }
+
+    @Override
+    protected void handleRandomReader(CommandRandomReader command) {
+        checkArgument(state == State.Connected);
+        long requestId = command.getRequestId();
+        long randomReaderId = command.getRandomReaderId();
+        String topic = command.getTopic();
+        String readerName = command.hasReaderName() ? command.getReaderName() : "";
+        SchemaData schema = command.hasSchema() ? getSchema(command.getSchema()) : null;
+        boolean readCommitted = command.hasReadCommitted() && command.isReadCommitted();
+        Map<String, String> metadata = CommandUtils.metadataFromCommand(command);
+
+        CompletableFuture<BrokerRandomReader> future = new CompletableFuture<>();
+        if (randomReaders.putIfAbsent(randomReaderId, future) != null) {
+            commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
+                    "RandomReader is already present on the connection");
+            return;
+        }
+
+        try {
+            Metadata.validateMetadata(metadata, service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
+        } catch (IllegalArgumentException e) {
+            randomReaders.remove(randomReaderId, future);
+            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, e.getMessage());
+            return;
+        }
+
+        TopicName topicName;
+        try {
+            topicName = TopicName.get(topic);
+        } catch (IllegalArgumentException e) {
+            randomReaders.remove(randomReaderId, future);
+            commandSender.sendErrorResponse(requestId, ServerError.InvalidTopicName, e.getMessage());
+            return;
+        }
+
+        isTopicOperationAllowed(topicName, null, TopicOperation.CONSUME)
+                .thenCompose(isAllowed -> {
+                    if (!isAllowed) {
+                        return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException(
+                                "Client is not authorized to RandomReader"));
+                    }
+                    return service.getTopic(topic, false);
+                })
+                .thenCompose(optionalTopic -> {
+                    if (optionalTopic.isEmpty()) {
+                        return FutureUtil.failedFuture(
+                                new TopicNotFoundException("Topic " + topic + " does not exist"));
+                    }
+                    Topic resolved = optionalTopic.get();
+                    return BrokerRandomReader.validatePersistentTopic(resolved);
+                })
+                .thenCompose(persistentTopic -> {
+                    CompletableFuture<Void> schemaFuture = schema != null
+                            && schema.getType() != SchemaType.AUTO_CONSUME
+                            ? persistentTopic.addSchemaIfIdleOrCheckCompatible(schema)
+                            : CompletableFuture.completedFuture(null);
+                    return schemaFuture.thenApply(ignored -> persistentTopic);
+                })
+                .thenAcceptAsync(persistentTopic -> {
+                    BrokerRandomReader reader = new BrokerRandomReader(randomReaderId,
+                            readerName, metadata, persistentTopic, this, readCommitted);
+                    if (randomReaders.get(randomReaderId) != future || future.isDone()) {
+                        reader.close();
+                        return;
+                    }
+                    try {
+                        persistentTopic.addRandomReader(reader);
+                        if (future.complete(reader)) {
+                            commandSender.sendRandomReaderSuccessResponse(requestId, randomReaderId,
+                                    reader.readerName());
+                        } else {
+                            persistentTopic.removeRandomReader(reader);
+                        }
+                    } catch (Throwable t) {
+                        randomReaders.remove(randomReaderId, future);
+                        persistentTopic.removeRandomReader(reader);
+                        future.completeExceptionally(t);
+                        commandSender.sendErrorResponse(requestId,
+                                BrokerServiceException.getClientErrorCode(t), t.getMessage());
+                    }
+                }, ctx.executor())
+                .exceptionallyAsync(ex -> {
+                    randomReaders.remove(randomReaderId, future);
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (future.completeExceptionally(cause)) {
+                        commandSender.sendErrorResponse(requestId,
+                                BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
+                    }
+                    return null;
+                }, ctx.executor());
+    }
+
+    @Override
+    protected void handleRandomRead(CommandRandomRead command) {
+        checkArgument(state == State.Connected);
+        long randomReaderId = command.getRandomReaderId();
+        long requestId = command.getRequestId();
+        CompletableFuture<BrokerRandomReader> readerFuture = randomReaders.get(randomReaderId);
+        if (readerFuture == null || !readerFuture.isDone() || readerFuture.isCompletedExceptionally()) {
+            writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                    ServerError.ConsumerNotFound, "RandomReader not found"));
+            return;
+        }
+
+        BrokerRandomReader reader = readerFuture.getNow(null);
+        if (!reader.beginRead(requestId)) {
+            writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                    ServerError.TooManyRequests, "RandomReader already has a read in flight"));
+            return;
+        }
+
+        try {
+            MessageIdData start = command.getStartMessageId();
+            if (start.hasBatchIndex() && start.getBatchIndex() >= 0) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError, "RandomReader does not support batch-index message ids"));
+                return;
+            }
+            int maxEntries = service.getPulsar().getConfiguration().getDispatcherMaxReadBatchSize();
+            int numberOfEntries = Math.min(command.getNumberOfEntries(), maxEntries);
+            if (numberOfEntries <= 0) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError, "number_of_entries must be positive"));
+                return;
+            }
+
+            PersistentTopic topic = reader.topic();
+            int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            if (partitionIndex >= 0 && (!start.hasPartition() || start.getPartition() != partitionIndex)) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError,
+                        "Partitioned RandomReader requires matching MessageId partition"));
+                return;
+            }
+            if (partitionIndex < 0 && start.hasPartition() && start.getPartition() >= 0) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError,
+                        "MessageId partition does not match the RandomReader topic"));
+                return;
+            }
+
+            if (!start.hasLedgerId() || !start.hasEntryId()) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError, "RandomReader requires ledgerId and entryId"));
+                return;
+            }
+            if (start.getLedgerId() < 0 || start.getEntryId() < 0) {
+                reader.endRead(requestId);
+                writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                        ServerError.MetadataError, "RandomReader requires non-negative ledgerId and entryId"));
+                return;
+            }
+            Position startPosition = PositionFactory.create(start.getLedgerId(), start.getEntryId());
+            topic.checkIfTransactionBufferRecoverCompletely()
+                    .thenApply(ignored ->
+                            reader.isReadCommitted() ? topic.getMaxReadPosition() : PositionFactory.LATEST
+                    )
+                    .thenCompose(maxVisible -> reader.readEntries(startPosition, numberOfEntries, maxVisible))
+                    .thenAccept(entries ->
+                            commandSender.sendRandomReadMessages(randomReaderId, requestId, topic.getName(),
+                                            partitionIndex, entries, entries.size(), () -> reader.endRead(requestId))
+                                    .addListener(future -> {
+                                        if (!future.isSuccess()) {
+                                            reader.endRead(requestId);
+                                        }
+                                    }))
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                                toServerError(cause), cause.getMessage()));
+                        reader.endRead(requestId);
+                        return null;
+                    });
+        } catch (Throwable t) {
+            reader.endRead(requestId);
+            writeAndFlush(Commands.newRandomReadResponse(randomReaderId, requestId, 0,
+                    ServerError.UnknownError, t.getMessage()));
+        }
+    }
+
+    @Override
+    protected void handleCloseRandomReader(CommandCloseRandomReader command) {
+        checkArgument(state == State.Connected);
+        CompletableFuture<BrokerRandomReader> future = randomReaders.remove(command.getRandomReaderId());
+        if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
+            BrokerRandomReader reader = future.getNow(null);
+            reader.topic().removeRandomReader(reader);
+        } else if (future != null && !future.isDone()) {
+            future.completeExceptionally(
+                    new IllegalStateException("Closed RandomReader before creation completed"));
+        }
+        commandSender.sendSuccessResponse(command.getRequestId());
+    }
+
+    public void disconnectRandomReader(long randomReaderId,
+                                        String brokerServiceUrl, String brokerServiceUrlTls) {
+        CompletableFuture<BrokerRandomReader> future = randomReaders.remove(randomReaderId);
+        if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
+            BrokerRandomReader reader = future.getNow(null);
+            reader.close();
+            if (brokerServiceUrl != null) {
+                commandSender.sendTopicMigrated(ResourceType.RandomReader, randomReaderId,
+                        brokerServiceUrl, brokerServiceUrlTls);
+            }
+        } else if (future != null && !future.isDone()) {
+            future.completeExceptionally(
+                    new IllegalStateException("RandomReader disconnected before creation completed"));
+        }
     }
 
     @Override

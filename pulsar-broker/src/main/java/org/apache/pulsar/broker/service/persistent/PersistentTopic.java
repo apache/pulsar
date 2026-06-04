@@ -107,6 +107,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerRandomReader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
@@ -223,6 +224,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private final Map<String/*RemoteCluster*/, Replicator> replicators = new ConcurrentHashMap<>();
     private final Map<String/*ShadowTopic*/, Replicator> shadowReplicators = new ConcurrentHashMap<>();
+    private final Map<Long, BrokerRandomReader> randomReaders = new ConcurrentHashMap<>();
     @Getter
     private volatile List<String> shadowTopics;
     private final TopicName shadowSourceTopic;
@@ -1740,6 +1742,56 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     }
 
+    public void addRandomReader(BrokerRandomReader reader) throws BrokerServiceException {
+        lock.writeLock().lock();
+        try {
+            if (isFenced) {
+                throw new TopicFencedException("Topic is temporarily unavailable");
+            }
+            if (isMigrated()) {
+                throw new TopicMigratedException("Topic was already migrated");
+            }
+            if (randomReaders.putIfAbsent(reader.randomReaderId(), reader) == null) {
+                handleRandomReaderAdded(reader);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void removeRandomReader(BrokerRandomReader reader) {
+        lock.writeLock().lock();
+        try {
+            BrokerRandomReader removed = randomReaders.remove(reader.randomReaderId());
+            if (removed != null) {
+                removed.close();
+                decrementUsageCount();
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public List<CompletableFuture<Void>> disconnectRandomReaders(String brokerServiceUrl,
+                                                                  String brokerServiceUrlTls) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<BrokerRandomReader> readers;
+        lock.writeLock().lock();
+        try {
+            readers = new ArrayList<>(randomReaders.values());
+            for (BrokerRandomReader reader : readers) {
+                decrementUsageCount();
+                reader.close();
+            }
+            randomReaders.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
+        readers.forEach(reader -> futures.add(
+                reader.disconnect(brokerServiceUrl, brokerServiceUrlTls)));
+        return futures;
+    }
+
     public CompletableFuture<Void> close() {
         return close(true, false);
     }
@@ -1828,10 +1880,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     } else {
                         subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
                     }
+                    futures.addAll(disconnectRandomReaders(
+                            lookupData.map(ld -> ld.getPulsarServiceUrl()).orElse(null),
+                            lookupData.map(ld -> ld.getPulsarServiceUrlTls()).orElse(null)));
                 }
             ));
         } else {
             subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
+            futures.addAll(disconnectRandomReaders(null, null));
         }
 
         //close entry filters

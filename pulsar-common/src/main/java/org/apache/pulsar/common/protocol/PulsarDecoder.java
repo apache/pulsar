@@ -39,6 +39,7 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandCloseRandomReader;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
@@ -70,6 +71,12 @@ import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandRandomRead;
+import org.apache.pulsar.common.api.proto.CommandRandomReadEntryResult;
+import org.apache.pulsar.common.api.proto.CommandRandomReadMessage;
+import org.apache.pulsar.common.api.proto.CommandRandomReadResponse;
+import org.apache.pulsar.common.api.proto.CommandRandomReader;
+import org.apache.pulsar.common.api.proto.CommandRandomReaderSuccess;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
@@ -529,6 +536,60 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandWatchScalableTopicsClose(cmd.getWatchScalableTopicsClose());
                 break;
 
+            case RANDOM_READER:
+                checkArgument(cmd.hasRandomReader());
+                try {
+                    interceptCommand(cmd);
+                    handleRandomReader(cmd.getRandomReader());
+                } catch (InterceptException e) {
+                    writeAndFlush(ctx, Commands.newError(cmd.getRandomReader().getRequestId(),
+                            getServerError(e.getErrorCode()), e.getMessage()));
+                }
+                break;
+
+            case RANDOM_READER_SUCCESS:
+                checkArgument(cmd.hasRandomReaderSuccess());
+                handleRandomReaderSuccess(cmd.getRandomReaderSuccess());
+                break;
+
+            case RANDOM_READ:
+                checkArgument(cmd.hasRandomRead());
+                try {
+                    interceptCommand(cmd);
+                    handleRandomRead(cmd.getRandomRead());
+                } catch (InterceptException e) {
+                    writeAndFlush(ctx, Commands.newRandomReadResponse(cmd.getRandomRead().getRandomReaderId(),
+                            cmd.getRandomRead().getRequestId(), 0, getServerError(e.getErrorCode()), e.getMessage()));
+                }
+                break;
+
+            case RANDOM_READ_MESSAGE: {
+                checkArgument(cmd.hasRandomReadMessage());
+                handleRandomReadMessage(cmd.getRandomReadMessage(), buffer);
+                break;
+            }
+
+            case RANDOM_READ_ENTRY_RESULT:
+                checkArgument(cmd.hasRandomReadEntryResult());
+                handleRandomReadEntryResult(cmd.getRandomReadEntryResult());
+                break;
+
+            case RANDOM_READ_RESPONSE:
+                checkArgument(cmd.hasRandomReadResponse());
+                handleRandomReadResponse(cmd.getRandomReadResponse());
+                break;
+
+            case CLOSE_RANDOM_READER:
+                checkArgument(cmd.hasCloseRandomReader());
+                try {
+                    interceptCommand(cmd);
+                    handleCloseRandomReader(cmd.getCloseRandomReader());
+                } catch (InterceptException e) {
+                    writeAndFlush(ctx, Commands.newError(cmd.getCloseRandomReader().getRequestId(),
+                            getServerError(e.getErrorCode()), e.getMessage()));
+                }
+                break;
+
             default:
                 break;
             }
@@ -862,5 +923,33 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             }
         }
         ctx.fireUserEventTriggered(evt);
+    }
+
+    protected void handleRandomReader(CommandRandomReader randomReader) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRandomReaderSuccess(CommandRandomReaderSuccess success) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRandomRead(CommandRandomRead randomRead) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRandomReadMessage(CommandRandomReadMessage randomReadMessage, ByteBuf headersAndPayload) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRandomReadEntryResult(CommandRandomReadEntryResult randomReadEntryResult) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleRandomReadResponse(CommandRandomReadResponse randomReadResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCloseRandomReader(CommandCloseRandomReader closeRandomReader) {
+        throw new UnsupportedOperationException();
     }
 }
