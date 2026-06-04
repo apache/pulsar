@@ -98,12 +98,15 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
             return CompletableFuture.completedFuture(new AssignTopicTcDiscovery(pulsarClient));
         }
-        // Probe one broker connection to read the feature flag. If the probe fails (e.g. a bad host
-        // in a multi-host service URL), fall back to the assign-topic flow, whose own lookup retries
-        // across hosts — so a single bad endpoint never fails startup. The assign-topic flow also
-        // works against v5 brokers (the assign topic still exists during the deprecation window),
+        // Probe a broker connection to read the feature flag. Use getAnyBrokerProxyConnection() (not
+        // getConnectionToServiceUrl()): when connecting through a proxy, the latter yields the proxy's
+        // own CONNECTED, which carries the proxy lookup handshake's flags rather than a broker's;
+        // getAnyBrokerProxyConnection() pairs to an actual broker (directly or proxied) so the
+        // forwarded feature flags reflect the broker — the same connection the watch itself uses.
+        // If the probe fails, fall back to the assign-topic flow, whose lookup retries across hosts
+        // and still works against v5 brokers (the assign topic exists during the deprecation window),
         // so falling back is always safe.
-        return pulsarClient.getConnectionToServiceUrl()
+        return pulsarClient.getAnyBrokerProxyConnection()
                 .thenApply(cnx -> cnx.isSupportsTcMetadataDiscovery()
                         ? (TcDiscovery) new WatchTcAssignmentsDiscovery(pulsarClient)
                         : new AssignTopicTcDiscovery(pulsarClient))
