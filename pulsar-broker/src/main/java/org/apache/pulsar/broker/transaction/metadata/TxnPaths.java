@@ -121,6 +121,14 @@ public final class TxnPaths {
         return TXN_TC_LEADER_PREFIX + "/" + partition;
     }
 
+    /**
+     * Cluster-wide record of the scalable-topics TC parallelism, written once by the first broker to
+     * start. Every broker verifies its configured value against this and refuses to start on a
+     * mismatch, so the coordinator-count encoded in transaction ids stays stable for the cluster's
+     * lifetime.
+     */
+    public static final String TXN_TC_PARALLELISM_PATH = "/txn/tc/parallelism";
+
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 

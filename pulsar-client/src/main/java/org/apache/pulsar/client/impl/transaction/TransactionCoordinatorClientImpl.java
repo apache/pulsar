@@ -271,4 +271,14 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public Collection<TransactionMetaStoreHandler> getHandlers() {
         return discovery == null ? List.of() : discovery.handlers();
     }
+
+    /**
+     * @return {@code true} if coordinator discovery uses the metadata-store assignment watch (rather
+     *     than the assign-topic fallback). Visible for testing so integration tests can assert the
+     *     watch path was actually exercised.
+     */
+    @VisibleForTesting
+    public boolean isUsingMetadataDiscovery() {
+        return discovery instanceof WatchTcAssignmentsDiscovery;
+    }
 }

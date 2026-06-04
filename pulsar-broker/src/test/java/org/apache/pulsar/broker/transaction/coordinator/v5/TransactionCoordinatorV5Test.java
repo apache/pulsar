@@ -371,11 +371,11 @@ public class TransactionCoordinatorV5Test {
 
     @Test
     public void buildAssignmentsSnapshot_reportsAllLedPartitions() {
-        var snapshot = tc.buildAssignmentsSnapshot();
-        assertThat(snapshot.partitionCount()).isEqualTo(4);
+        assertThat(tc.buildAssignmentsSnapshot().join().partitionCount()).isEqualTo(4);
         Awaitility.await().untilAsserted(() -> {
-            var snap = tc.buildAssignmentsSnapshot();
+            var snap = tc.buildAssignmentsSnapshot().join();
             assertThat(snap.assignments()).hasSize(4);
+            assertThat(snap.isComplete()).isTrue();
             assertThat(snap.assignments().get(0).brokerServiceUrl())
                     .isEqualTo("pulsar://broker-test:6650");
             assertThat(snap.assignments().get(0).brokerId()).isEqualTo("broker-test:8080");
@@ -395,5 +395,33 @@ public class TransactionCoordinatorV5Test {
     public void handleClientConnect_acceptsWhenLeader() throws Exception {
         // We lead partition 0, so connect is accepted without consulting assign-topic ownership.
         tc.handleClientConnect(TC_ID).get();
+    }
+
+    @Test
+    public void start_failsOnParallelismMismatch() throws Exception {
+        // The running tc (from setUp) persisted parallelism=4. A second coordinator configured with a
+        // different value against the same metadata store must refuse to start.
+        ServiceConfiguration mismatchCfg = new ServiceConfiguration();
+        mismatchCfg.setTransactionCoordinatorScalableTopicsGcRetentionSeconds(0);
+        mismatchCfg.setTransactionCoordinatorScalableTopicsParallelism(8);
+        PulsarService other = mock(PulsarService.class);
+        when(other.getLocalMetadataStore()).thenReturn(store);
+        when(other.getCoordinationService()).thenReturn(coordinationService);
+        when(other.getConfiguration()).thenReturn(mismatchCfg);
+        when(other.getBrokerId()).thenReturn("broker-other:8080");
+        when(other.getBrokerServiceUrl()).thenReturn("pulsar://broker-other:6650");
+        when(other.getSafeWebServiceAddress()).thenReturn("http://broker-other:8080");
+        when(other.getBrokerService()).thenReturn(brokerService);
+
+        TransactionCoordinatorV5 mismatched = new TransactionCoordinatorV5(other);
+        try {
+            assertThatThrownBy(mismatched::start)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("mismatch")
+                    .hasMessageContaining("8")
+                    .hasMessageContaining("4");
+        } finally {
+            mismatched.close();
+        }
     }
 }

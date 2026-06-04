@@ -873,6 +873,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // --- Transaction-coordinator assignment watchers ---
     // watchId -> deregistration handle for the listener registered on TransactionCoordinatorV5.
     private final ConcurrentHashMap<Long, AutoCloseable> tcAssignmentWatchers = new ConcurrentHashMap<>();
+    // Delay before re-pushing a TC-assignment snapshot that was incomplete (a partition mid-election)
+    // or that failed to build, so the client converges without waiting for an external trigger.
+    private static final long TC_ASSIGNMENTS_REPUSH_DELAY_MS = 1000L;
 
     @Override
     protected void handleCommandWatchScalableTopics(
@@ -1008,12 +1011,29 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!tcAssignmentWatchers.containsKey(watchId)) {
             return;
         }
-        var snapshot = tc.buildAssignmentsSnapshot();
-        java.util.Map<Integer, String[]> leaders = new java.util.HashMap<>();
-        snapshot.assignments().forEach((partition, leader) ->
-                leaders.put(partition, new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
-        ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
-                watchId, snapshot.partitionCount(), leaders));
+        tc.buildAssignmentsSnapshot().thenAccept(snapshot -> ctx.executor().execute(() -> {
+            if (!tcAssignmentWatchers.containsKey(watchId)) {
+                return;
+            }
+            java.util.Map<Integer, String[]> leaders = new java.util.HashMap<>();
+            snapshot.assignments().forEach((partition, leader) -> leaders.put(partition,
+                    new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
+            ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
+                    watchId, snapshot.partitionCount(), leaders));
+            // If some partition is still mid-election, the snapshot is incomplete. Schedule a single
+            // delayed re-push so the client doesn't stay parked on a missing partition waiting for a
+            // leadership change that may never come (the cache repopulating fires no TC listener).
+            if (!snapshot.isComplete()) {
+                ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
+                        TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            }
+        })).exceptionally(ex -> {
+            log.warn().attr("watchId", watchId).exception(ex)
+                    .log("Failed to build TC-assignments snapshot; retrying shortly");
+            ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
+                    TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     @Override

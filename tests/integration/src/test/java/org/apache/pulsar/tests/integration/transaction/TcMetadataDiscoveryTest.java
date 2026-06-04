@@ -58,6 +58,14 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
 
+        // Guard against a silent fallback: assert the client actually selected the metadata-store
+        // assignment-watch path. Otherwise a regression that breaks the watch entirely would still
+        // pass, since the assign topic is initialized with the same partition count.
+        org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl tcClient =
+                ((org.apache.pulsar.client.impl.PulsarClientImpl) client).getTcClient();
+        assertTrue(tcClient.isUsingMetadataDiscovery(),
+                "client should use metadata-store TC discovery, not the assign-topic fallback");
+
         // Run transactions (commit and abort alternately) until every coordinator partition has
         // minted at least one — proving the client discovered and connected to each partition's
         // elected leader. An await loop tolerates the brief startup window where a partition is

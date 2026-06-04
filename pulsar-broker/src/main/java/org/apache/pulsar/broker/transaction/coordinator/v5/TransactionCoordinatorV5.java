@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -150,6 +151,7 @@ public class TransactionCoordinatorV5 {
         if (closed || sweepExecutor != null) {
             return;
         }
+        verifyParallelismConsistency();
         this.localLeader = new TcLeader(pulsar.getBrokerId(), pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress());
         for (int partition = 0; partition < partitionCount; partition++) {
@@ -174,6 +176,52 @@ public class TransactionCoordinatorV5 {
         sweepExecutor.scheduleWithFixedDelay(
                 () -> runSweep("gc", gcSweepRunning, this::sweepGc),
                 gcSweepIntervalMs, gcSweepIntervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Persist this broker's configured parallelism cluster-wide on first start, and verify every
+     * subsequent broker agrees. A mismatch means brokers would run different election sets and the
+     * coordinator-count encoded in transaction ids would be ambiguous — fatal misconfiguration, so
+     * we fail fast rather than start in an inconsistent state.
+     */
+    private void verifyParallelismConsistency() {
+        var store = pulsar.getLocalMetadataStore();
+        try {
+            byte[] value = Integer.toString(partitionCount).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            var existing = store.get(TxnPaths.TXN_TC_PARALLELISM_PATH).get();
+            if (existing.isEmpty()) {
+                // First broker to start writes the value (CAS create; lose harmlessly to a racing peer).
+                store.put(TxnPaths.TXN_TC_PARALLELISM_PATH, value, java.util.Optional.of(-1L))
+                        .get();
+                var after = store.get(TxnPaths.TXN_TC_PARALLELISM_PATH).get();
+                if (after.isPresent()) {
+                    checkParallelismMatches(after.get().getValue());
+                }
+            } else {
+                checkParallelismMatches(existing.get().getValue());
+            }
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            // A racing create (BadVersion) or read-after-write resolves by re-reading and comparing.
+            try {
+                var after = store.get(TxnPaths.TXN_TC_PARALLELISM_PATH).get();
+                after.ifPresent(r -> checkParallelismMatches(r.getValue()));
+            } catch (Exception ignore) {
+                log.warn().exception(e).log("Could not verify TC parallelism consistency; proceeding");
+            }
+        }
+    }
+
+    private void checkParallelismMatches(byte[] storedValue) {
+        int stored = Integer.parseInt(new String(storedValue, java.nio.charset.StandardCharsets.UTF_8).trim());
+        if (stored != partitionCount) {
+            throw new IllegalStateException(
+                    "transactionCoordinatorScalableTopicsParallelism mismatch: this broker is configured"
+                            + " with " + partitionCount + " but the cluster was initialized with " + stored
+                            + ". The value is fixed at cluster bring-up and must be identical on every"
+                            + " broker.");
+        }
     }
 
     /** Stop the sweeps and release every leader-election lease. Idempotent. */
@@ -265,18 +313,35 @@ public class TransactionCoordinatorV5 {
     // ---- Assignment discovery (client watch) ------------------------------
 
     /**
-     * Build the current full {@code partition → leader} snapshot from the election state. A
-     * partition with no currently-known leader (mid-election) is omitted; the client parks any
-     * transaction routed there until a later snapshot fills it in. Always the complete map — the
-     * watch protocol sends full snapshots, never diffs.
+     * Build the current full {@code partition → leader} snapshot from the election state. Uses the
+     * async {@link LeaderElection#getLeaderValue()} (which loads from the metadata store on a cache
+     * miss) rather than the cache-only {@code getLeaderValueIfPresent()}: when this broker just
+     * transitioned to {@code Following} for a partition, its local cache for the new leader's node
+     * may not be repopulated yet, and a cache-only read would silently omit that partition. Loading
+     * from the store closes that window so a follower's snapshot is still complete.
+     *
+     * <p>A partition still genuinely without a leader (no broker elected yet) is omitted; the caller
+     * ({@code ServerCnx}) re-pushes shortly after so the client isn't stranded. Always the complete
+     * map — the watch protocol sends full snapshots, never diffs.
+     *
+     * @return a future of the snapshot plus whether it is complete (every partition has a leader)
      */
-    public TcAssignmentsSnapshot buildAssignmentsSnapshot() {
-        Map<Integer, TcLeader> assignments = new TreeMap<>();
+    public CompletableFuture<TcAssignmentsSnapshot> buildAssignmentsSnapshot() {
+        Map<Integer, TcLeader> assignments = new ConcurrentSkipListMap<>();
+        List<CompletableFuture<Void>> loads = new ArrayList<>(elections.size());
         for (Map.Entry<Integer, LeaderElection<TcLeader>> e : elections.entrySet()) {
-            e.getValue().getLeaderValueIfPresent()
-                    .ifPresent(leader -> assignments.put(e.getKey(), leader));
+            int partition = e.getKey();
+            loads.add(e.getValue().getLeaderValue()
+                    .thenAccept(opt -> opt.ifPresent(leader -> assignments.put(partition, leader)))
+                    .exceptionally(ex -> {
+                        // Treat a load error as "leader unknown for now"; the re-push will retry.
+                        log.debug().attr("partition", partition).exception(ex)
+                                .log("v5 TC leader-value load failed while building snapshot");
+                        return null;
+                    }));
         }
-        return new TcAssignmentsSnapshot(partitionCount, assignments);
+        return FutureUtil.waitForAll(loads)
+                .thenApply(__ -> new TcAssignmentsSnapshot(partitionCount, new TreeMap<>(assignments)));
     }
 
     /**
@@ -291,6 +356,10 @@ public class TransactionCoordinatorV5 {
 
     /** Immutable full assignment snapshot: partition count + the currently-known leaders. */
     public record TcAssignmentsSnapshot(int partitionCount, Map<Integer, TcLeader> assignments) {
+        /** @return true if every partition has a known leader (no mid-election gaps). */
+        public boolean isComplete() {
+            return assignments.size() == partitionCount;
+        }
     }
 
     // ---- newTransaction ---------------------------------------------------

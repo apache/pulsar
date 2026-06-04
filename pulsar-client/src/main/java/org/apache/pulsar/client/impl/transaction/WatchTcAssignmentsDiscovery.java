@@ -58,6 +58,7 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
     private final CompletableFuture<Void> initialSnapshotFuture = new CompletableFuture<>();
     private volatile ClientCnx cnx;
     private volatile boolean closed;
+    private volatile long initialOpenDeadline;
 
     WatchTcAssignmentsDiscovery(PulsarClientImpl pulsarClient) {
         this.pulsarClient = pulsarClient;
@@ -69,6 +70,15 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
 
     @Override
     public CompletableFuture<Void> start() {
+        // Bound initial-open retries by the client's lookup timeout (fall back to operation timeout
+        // when unset, mirroring TransactionMetaStoreHandler). A transient failure on the watch broker
+        // (e.g. ServiceNotReady while its TC initializes) then retries rather than hard-failing
+        // transaction-client startup.
+        long lookupTimeoutMs = pulsarClient.getConfiguration().getLookupTimeoutMs();
+        if (lookupTimeoutMs < 0) {
+            lookupTimeoutMs = pulsarClient.getConfiguration().getOperationTimeoutMs();
+        }
+        this.initialOpenDeadline = System.currentTimeMillis() + lookupTimeoutMs;
         openWatch();
         return initialSnapshotFuture;
     }
@@ -90,8 +100,12 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
             return;
         }
         if (!newCnx.isSupportsTcMetadataDiscovery()) {
-            initialSnapshotFuture.completeExceptionally(
-                    new PulsarClientException("Broker does not support metadata-store TC discovery"));
+            // The broker we landed on doesn't support the watch. On the very first open this is a
+            // hard failure (the caller chose this strategy on a probe that said it was supported);
+            // after that, it's likely transient — config drift or we hit a different/old broker —
+            // so reconnect to find a supporting broker rather than freezing on the last snapshot.
+            onAttachFailure(new PulsarClientException(
+                    "Broker does not support metadata-store TC discovery"));
             return;
         }
         this.cnx = newCnx;
@@ -110,6 +124,18 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
             return;
         }
         if (!initialSnapshotFuture.isDone()) {
+            // During initial open, retry retryable failures until the lookup deadline rather than
+            // failing transaction-client startup outright — the probe and the watch can land on
+            // different brokers, and the watch broker may be briefly not-ready.
+            Throwable cause = ex instanceof java.util.concurrent.CompletionException && ex.getCause() != null
+                    ? ex.getCause() : ex;
+            boolean retryable = !(cause instanceof PulsarClientException)
+                    || PulsarClientException.isRetriableError((PulsarClientException) cause);
+            if (retryable && System.currentTimeMillis() < initialOpenDeadline) {
+                log.warn().exception(cause).log("TC-assignments watch open failed; retrying");
+                scheduleReconnect();
+                return;
+            }
             initialSnapshotFuture.completeExceptionally(
                     PulsarClientException.wrap(ex, "Failed to open TC-assignments watch"));
             return;
@@ -131,16 +157,23 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
             long tcId = e.getKey();
             String url = e.getValue()[0];
             String urlTls = e.getValue()[1];
-            handlers.compute(tcId, (id, existing) -> {
-                if (existing == null) {
-                    TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                            id, pulsarClient, url, urlTls, new CompletableFuture<>());
-                    handler.start();
-                    return handler;
-                }
-                existing.retargetLeader(url, urlTls);
-                return existing;
-            });
+            try {
+                handlers.compute(tcId, (id, existing) -> {
+                    if (existing == null) {
+                        TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                                id, pulsarClient, url, urlTls, new CompletableFuture<>());
+                        handler.start();
+                        return handler;
+                    }
+                    existing.retargetLeader(url, urlTls);
+                    return existing;
+                });
+            } catch (RuntimeException ex) {
+                // A bad/unusable leader URL for one partition (e.g. a TLS-only leader for a non-TLS
+                // client) must not abort applying the rest of the snapshot or tear down the watch.
+                log.warn().attr("tcId", tcId).exception(ex)
+                        .log("Skipping TC assignment with unusable leader URL");
+            }
         }
         if (!initialSnapshotFuture.isDone()) {
             initialSnapshotFuture.complete(null);
@@ -153,7 +186,13 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         if (!initialSnapshotFuture.isDone()) {
             initialSnapshotFuture.completeExceptionally(new PulsarClientException(
                     "WatchTcAssignments failed: " + error + (message != null ? " - " + message : "")));
+            return;
         }
+        // Post-initial error: ClientCnx has already removed this session, so no connectionClosed()
+        // will fire to drive recovery. Reconnect ourselves so a transient rejection (ServiceNotReady
+        // while a broker re-initializes, or transient config drift) can't freeze the watch forever.
+        cnx = null;
+        scheduleReconnect();
     }
 
     @Override
