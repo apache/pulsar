@@ -16,20 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters.picocli;
+package org.apache.pulsar.client.api.v5.schema;
 
-import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
-import picocli.CommandLine.ITypeConverter;
-import picocli.CommandLine.TypeConversionException;
+import java.util.Map;
 
-public class ByteUnitToIntegerConverter implements ITypeConverter<Integer> {
-    @Override
-    public Integer convert(String value) throws Exception {
-        try {
-            long l = validateSizeString(value);
-            return Math.toIntExact(l);
-        } catch (Exception e) {
-            throw new TypeConversionException(e.getMessage());
-        }
-    }
+/**
+ * Immutable {@link SchemaInfo} value holder backing {@link SchemaInfo#of}.
+ */
+record SchemaInfoRecord(
+        String name,
+        SchemaType type,
+        byte[] schema,
+        Map<String, String> properties
+) implements SchemaInfo {
 }

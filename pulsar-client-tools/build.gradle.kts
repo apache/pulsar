@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":pulsar-client-admin-api"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-original"))
+    implementation(project(":pulsar-client-api-v5"))
+    implementation(project(":pulsar-client-v5"))
     implementation(project(":pulsar-common"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
     implementation(project(":pulsar-cli-utils"))

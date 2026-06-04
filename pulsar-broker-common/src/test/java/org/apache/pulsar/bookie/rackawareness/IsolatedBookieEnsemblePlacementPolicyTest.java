@@ -590,6 +590,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
+        // Wait for the async cache load triggered by initialize() to complete; otherwise the
+        // first newEnsemble call can race with an empty cachedRackConfiguration and skip isolation.
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertNotNull(isolationPolicy.getBookieMappingCache()
+                        .getIfCached(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)));
+
         try {
             isolationPolicy
                     .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();

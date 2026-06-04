@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters.picocli;
+package org.apache.pulsar.client.api.v5.schema;
 
-import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
-import picocli.CommandLine.ITypeConverter;
-import picocli.CommandLine.TypeConversionException;
-
-public class ByteUnitToIntegerConverter implements ITypeConverter<Integer> {
-    @Override
-    public Integer convert(String value) throws Exception {
-        try {
-            long l = validateSizeString(value);
-            return Math.toIntExact(l);
-        } catch (Exception e) {
-            throw new TypeConversionException(e.getMessage());
-        }
-    }
+/**
+ * A key/value pair, used as the {@linkplain GenericRecord#nativeObject() native object} of a
+ * {@link GenericRecord} whose {@linkplain GenericRecord#schemaType() schema type} is
+ * {@link SchemaType#KEY_VALUE}. Each side may itself be a {@link GenericRecord} (for a structured
+ * key or value), a primitive, or {@code null}.
+ *
+ * @param key   the key (may be {@code null})
+ * @param value the value (may be {@code null})
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
+public record KeyValue<K, V>(K key, V value) {
 }
