@@ -69,11 +69,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public CompletableFuture<Void> startAsync() {
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
-            // Read the broker's feature flag to choose the discovery strategy, then start it.
-            return pulsarClient.getConnectionToServiceUrl()
-                    .thenApply(cnx -> cnx.isSupportsTcMetadataDiscovery()
-                            ? (TcDiscovery) new WatchTcAssignmentsDiscovery(pulsarClient)
-                            : new AssignTopicTcDiscovery(pulsarClient))
+            return selectDiscovery()
                     .thenCompose(selected -> {
                         this.discovery = selected;
                         log.info().attr("discovery", selected.getClass().getSimpleName())
@@ -85,6 +81,25 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
             return FutureUtil.failedFuture(
                     new CoordinatorClientStateException("Can not start while current state is " + state));
         }
+    }
+
+    /**
+     * Choose the discovery strategy. The metadata-store assignment watch needs a binary-protocol
+     * connection, so it's only usable when the client is configured with a {@code pulsar://}
+     * service URL; with an {@code http://} service URL we always use the assign-topic flow (which
+     * resolves coordinators via the admin/HTTP-capable partitioned-metadata lookup). When binary
+     * lookup is available, probe the broker's {@code supports_tc_metadata_discovery} feature flag to
+     * decide; if the broker doesn't advertise it (old broker, or scalable-topics TC disabled), fall
+     * back to the assign-topic flow.
+     */
+    private CompletableFuture<TcDiscovery> selectDiscovery() {
+        if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
+            return CompletableFuture.completedFuture(new AssignTopicTcDiscovery(pulsarClient));
+        }
+        return pulsarClient.getConnectionToServiceUrl()
+                .thenApply(cnx -> cnx.isSupportsTcMetadataDiscovery()
+                        ? (TcDiscovery) new WatchTcAssignmentsDiscovery(pulsarClient)
+                        : new AssignTopicTcDiscovery(pulsarClient));
     }
 
     @Override
