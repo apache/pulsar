@@ -23,6 +23,7 @@
     <test name="pulsar-transaction-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.transaction.TransactionTest" />
+            <class name="org.apache.pulsar.tests.integration.transaction.TcMetadataDiscoveryTest" />
         </classes>
     </test>
 </suite>
