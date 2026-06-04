@@ -836,7 +836,6 @@ jobs:
       contents: read
       security-events: write
     env:
-      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       CODEQL_LANGUAGE: java-kotlin
     steps:
       - name: checkout
@@ -853,24 +852,15 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
-        with:
-          distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
-
-      - name: Setup Gradle
-        uses: ./.github/actions/setup-gradle
-        with:
-          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
+      # Use build-mode: none so CodeQL extracts the source directly instead of
+      # tracing a Gradle build. A traced build fails intermittently because the
+      # Gradle build cache restores compileJava/compileKotlin FROM-CACHE, so no
+      # compiler runs and CodeQL sees no source ("could not process any of it").
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ env.CODEQL_LANGUAGE }}
-
-      - name: Build Java code
-        run: ./gradlew assemble
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
