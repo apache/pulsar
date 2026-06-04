@@ -3346,6 +3346,12 @@ public abstract class NamespacesBase extends AdminResource {
                         .log("Successfully updated migration on namespace"));
     }
 
+    protected CompletableFuture<Boolean> internalGetMigrationAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> policiesOpt.map(localPolicies -> localPolicies.migrated).orElse(false));
+    }
+
     protected Policies getDefaultPolicesIfNull(Policies policies) {
         if (policies == null) {
             policies = new Policies();

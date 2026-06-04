@@ -1134,7 +1134,7 @@ public class ClusterMigrationTest {
                 pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
         admin1.clusters().updateClusterMigration("r1", isClusterMigrate, migratedUrl);
         admin1.namespaces().updateMigrationState(namespace, isNamespaceMigrate);
-        assertEquals(admin1.namespaces().getPolicies(namespace).migrated, isNamespaceMigrate);
+        assertEquals(admin1.namespaces().getMigrationState(namespace), isNamespaceMigrate);
         log.info("update cluster migration called");
 
         retryStrategically((test) -> {

@@ -364,9 +364,9 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         assertEquals(bundlesData.getNumBundles(), conf.getDefaultNumberOfNamespaceBundles());
 
         // 4.assert namespace enable migration
-        Policies policiesResp = (Policies) asyncRequests(
-                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
-        assertEquals(policiesResp.migrated, enableMigrationReq);
+        Boolean migratedResp = (Boolean) asyncRequests(
+                response -> namespaces.getMigration(response, testTenant, enableMigrationGroupNs));
+        assertEquals(migratedResp, enableMigrationReq);
     }
 
     @Test
@@ -389,9 +389,9 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         assertEquals(bundlesData, policiesReq.bundles);
 
         // 4.assert namespace enable migration
-        Policies policiesResp = (Policies) asyncRequests(
-                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
-        assertEquals(policiesResp.migrated, enableMigrationReq);
+        Boolean migratedResp = (Boolean) asyncRequests(
+                response -> namespaces.getMigration(response, testTenant, enableMigrationGroupNs));
+        assertEquals(migratedResp, enableMigrationReq);
     }
 
     @Test
@@ -508,12 +508,18 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
         // Enable migration
         asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, true));
+        Boolean migratedResp = (Boolean) asyncRequests(
+                response -> namespaces.getMigration(response, testTenant, enableMigrationGroupNs));
+        assertTrue(migratedResp);
         Policies policiesResp = (Policies) asyncRequests(
                 response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
         assertTrue(policiesResp.migrated);
 
         // Disable migration
         asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, false));
+        migratedResp = (Boolean) asyncRequests(
+                response -> namespaces.getMigration(response, testTenant, enableMigrationGroupNs));
+        assertFalse(migratedResp);
         policiesResp = (Policies) asyncRequests(
                 response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
         assertFalse(policiesResp.migrated);

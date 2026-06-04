@@ -3427,7 +3427,7 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{tenant}/{namespace}/migration")
-    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiOperation(hidden = true, value = "Update the migration state for a namespace")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -3445,6 +3445,31 @@ public class Namespaces extends NamespacesBase {
                             .attr("namespace", namespace)
                             .exception(ex)
                             .log("Failed to update migration");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Get the migration state for a namespace",
+            response = Boolean.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
+    public void getMigration(@Suspended AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetMigrationAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .exception(ex)
+                            .log("Failed to get migration");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

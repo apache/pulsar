@@ -1996,10 +1996,23 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         sync(() -> updateMigrationStateAsync(namespace, migrated));
     }
 
+    @Override
+    public boolean getMigrationState(String namespace) throws PulsarAdminException {
+        return sync(() -> getMigrationStateAsync(namespace));
+    }
+
     public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "migration");
         return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getMigrationStateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migration");
+        return asyncGetRequest(path, new FutureCallback<Boolean>() {
+        });
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
