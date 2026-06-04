@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -96,10 +98,20 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
             return CompletableFuture.completedFuture(new AssignTopicTcDiscovery(pulsarClient));
         }
+        // Probe one broker connection to read the feature flag. If the probe fails (e.g. a bad host
+        // in a multi-host service URL), fall back to the assign-topic flow, whose own lookup retries
+        // across hosts — so a single bad endpoint never fails startup. The assign-topic flow also
+        // works against v5 brokers (the assign topic still exists during the deprecation window),
+        // so falling back is always safe.
         return pulsarClient.getConnectionToServiceUrl()
                 .thenApply(cnx -> cnx.isSupportsTcMetadataDiscovery()
                         ? (TcDiscovery) new WatchTcAssignmentsDiscovery(pulsarClient)
-                        : new AssignTopicTcDiscovery(pulsarClient));
+                        : new AssignTopicTcDiscovery(pulsarClient))
+                .exceptionally(ex -> {
+                    log.info().exception(ex)
+                            .log("TC discovery feature probe failed; using assign-topic discovery");
+                    return new AssignTopicTcDiscovery(pulsarClient);
+                });
     }
 
     @Override
@@ -252,5 +264,11 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public State getState() {
         return state;
+    }
+
+    /** @return the current coordinator handlers. Visible for testing. */
+    @VisibleForTesting
+    public Collection<TransactionMetaStoreHandler> getHandlers() {
+        return discovery == null ? List.of() : discovery.handlers();
     }
 }

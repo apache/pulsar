@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 
@@ -60,4 +61,7 @@ interface TcDiscovery extends AutoCloseable {
      *     {@code null} if there are no coordinators available.
      */
     TransactionMetaStoreHandler nextHandler();
+
+    /** @return all current coordinator handlers. Visible for testing. */
+    Collection<TransactionMetaStoreHandler> handlers();
 }

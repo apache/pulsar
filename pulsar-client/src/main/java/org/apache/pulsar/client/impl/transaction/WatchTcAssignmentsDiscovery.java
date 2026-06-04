@@ -201,6 +201,11 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
     }
 
     @Override
+    public java.util.Collection<TransactionMetaStoreHandler> handlers() {
+        return new java.util.ArrayList<>(handlers.values());
+    }
+
+    @Override
     public void close() {
         closed = true;
         ClientCnx c = cnx;

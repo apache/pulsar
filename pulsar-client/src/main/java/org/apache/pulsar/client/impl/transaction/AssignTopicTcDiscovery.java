@@ -103,6 +103,11 @@ class AssignTopicTcDiscovery implements TcDiscovery {
     }
 
     @Override
+    public java.util.Collection<TransactionMetaStoreHandler> handlers() {
+        return handlers == null ? java.util.List.of() : java.util.List.of(handlers);
+    }
+
+    @Override
     public void close() {
         if (handlers != null) {
             for (TransactionMetaStoreHandler handler : handlers) {
