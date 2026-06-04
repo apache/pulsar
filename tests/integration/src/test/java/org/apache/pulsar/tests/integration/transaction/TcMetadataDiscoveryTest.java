@@ -58,26 +58,30 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
 
+        // Run transactions (commit and abort alternately) until every coordinator partition has
+        // minted at least one — proving the client discovered and connected to each partition's
+        // elected leader. An await loop tolerates the brief startup window where a partition is
+        // still mid-election and absent from the assignment snapshot.
         Set<Long> coordinatorsExercised = new HashSet<>();
-        // Run more than TC_PARALLELISM transactions so the client's round-robin visits every
-        // coordinator partition; commit and abort alternately.
-        int txnCount = TC_PARALLELISM * 4;
-        for (int i = 0; i < txnCount; i++) {
-            Transaction txn = client.newTransaction()
-                    .withTransactionTimeout(1, TimeUnit.MINUTES)
-                    .build().get();
-            TxnID txnId = txn.getTxnID();
-            assertNotNull(txnId);
-            // mostSigBits is the coordinator (TC partition) that minted the txn.
-            coordinatorsExercised.add(txnId.getMostSigBits());
-            if (i % 2 == 0) {
-                txn.commit().get();
-            } else {
-                txn.abort().get();
-            }
-        }
-        // The round-robin should have spread transactions across every coordinator partition,
-        // proving the client discovered and connected to each partition's elected leader.
+        final int[] i = {0};
+        Awaitility.await()
+                .atMost(1, TimeUnit.MINUTES)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .until(() -> {
+                    Transaction txn = client.newTransaction()
+                            .withTransactionTimeout(1, TimeUnit.MINUTES)
+                            .build().get();
+                    TxnID txnId = txn.getTxnID();
+                    assertNotNull(txnId);
+                    // mostSigBits is the coordinator (TC partition) that minted the txn.
+                    coordinatorsExercised.add(txnId.getMostSigBits());
+                    if (i[0]++ % 2 == 0) {
+                        txn.commit().get();
+                    } else {
+                        txn.abort().get();
+                    }
+                    return coordinatorsExercised.size() == TC_PARALLELISM;
+                });
         assertEquals(coordinatorsExercised.size(), TC_PARALLELISM,
                 "expected transactions to be coordinated by every TC partition; got "
                         + coordinatorsExercised);

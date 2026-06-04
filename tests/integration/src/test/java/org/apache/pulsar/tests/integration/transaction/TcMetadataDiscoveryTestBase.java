@@ -45,9 +45,13 @@ public abstract class TcMetadataDiscoveryTestBase extends PulsarTestSuite {
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            // transactionCoordinatorEnabled is present in broker.conf, so the bare env var name
+            // overrides it. The two scalable-topics settings are NOT in broker.conf, so they must
+            // use the PULSAR_PREFIX_ prefix to be appended as new config keys by
+            // apply-config-from-env.py — otherwise a bare name is silently ignored.
             brokerContainer.withEnv("transactionCoordinatorEnabled", "true");
-            brokerContainer.withEnv("transactionCoordinatorScalableTopicsEnabled", "true");
-            brokerContainer.withEnv("transactionCoordinatorScalableTopicsParallelism",
+            brokerContainer.withEnv("PULSAR_PREFIX_transactionCoordinatorScalableTopicsEnabled", "true");
+            brokerContainer.withEnv("PULSAR_PREFIX_transactionCoordinatorScalableTopicsParallelism",
                     Integer.toString(TC_PARALLELISM));
         }
     }
