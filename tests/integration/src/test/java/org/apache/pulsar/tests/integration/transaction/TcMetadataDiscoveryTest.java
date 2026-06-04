@@ -119,25 +119,33 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
         victim.stop();
 
         // After re-election + assignment-watch refresh, transactions across all partitions succeed
-        // again. Retry within an await: the first attempts may fail/park while leadership moves.
-        Awaitility.await()
-                .atMost(2, TimeUnit.MINUTES)
-                .pollInterval(5, TimeUnit.SECONDS)
-                .ignoreExceptions()
-                .untilAsserted(() -> runTxnOnEveryCoordinator(client));
+        // again. runTxnOnEveryCoordinator already retries within a bounded wait while leadership and
+        // the client's handlers converge on the new leaders.
+        runTxnOnEveryCoordinator(client);
     }
 
-    /** Open + commit one transaction on each coordinator partition; asserts all are covered. */
-    private void runTxnOnEveryCoordinator(PulsarClient client) throws Exception {
+    /**
+     * Open + commit one transaction on each coordinator partition; asserts all are covered within a
+     * bounded wait. A coordinator's handler connects asynchronously (and, after a failover, may be
+     * briefly mid-reconnect), so a transaction routed to a not-yet-ready coordinator throws
+     * {@code MetaStoreHandlerNotReadyException} / times out — those are retried rather than failing
+     * the run. The assertion is "every coordinator becomes reachable", not "reachable on the first
+     * attempt".
+     */
+    private void runTxnOnEveryCoordinator(PulsarClient client) {
         Set<Long> coordinators = new HashSet<>();
-        // Try enough times that round-robin covers every partition even with one or two retries.
-        for (int i = 0; i < TC_PARALLELISM * 6 && coordinators.size() < TC_PARALLELISM; i++) {
-            Transaction txn = client.newTransaction()
-                    .withTransactionTimeout(1, TimeUnit.MINUTES)
-                    .build().get();
-            coordinators.add(txn.getTxnID().getMostSigBits());
-            txn.commit().get();
-        }
+        Awaitility.await()
+                .atMost(90, TimeUnit.SECONDS)
+                .pollInterval(2, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .until(() -> {
+                    Transaction txn = client.newTransaction()
+                            .withTransactionTimeout(1, TimeUnit.MINUTES)
+                            .build().get();
+                    coordinators.add(txn.getTxnID().getMostSigBits());
+                    txn.commit().get();
+                    return coordinators.size() == TC_PARALLELISM;
+                });
         assertTrue(coordinators.size() == TC_PARALLELISM,
                 "expected all " + TC_PARALLELISM + " coordinators reachable; got " + coordinators);
     }

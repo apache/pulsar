@@ -58,6 +58,10 @@ public class ConnectionHandler {
     protected final int randomKeyForSelectConnection;
 
     private volatile Boolean useProxy;
+    // The explicit target broker for connections that bypass topic lookup (v5 TC metadata-store
+    // discovery). Remembered so the error-retry path (reconnectLater) re-dials the same leader
+    // instead of falling back to the service URL. Null means "use the normal lookup path".
+    private volatile URI explicitHostURI;
 
     interface Connection {
 
@@ -104,6 +108,7 @@ public class ConnectionHandler {
      */
     protected void grabCnx(URI hostURI, boolean useProxy) {
         this.useProxy = useProxy;
+        this.explicitHostURI = hostURI;
         grabCnx(Optional.of(hostURI));
     }
 
@@ -200,7 +205,15 @@ public class ConnectionHandler {
         if (state.changeToConnecting()) {
             state.client.timer().newTimeout(timeout -> {
                 log.info("Reconnecting after connection was closed");
-                grabCnx();
+                // Re-dial the explicit leader target (v5 TC discovery) if set; otherwise the normal
+                // lookup path. Without this, a first-attempt failure during failover would fall back
+                // to the service URL and never reach the partition's new leader.
+                URI target = explicitHostURI;
+                if (target != null) {
+                    grabCnx(Optional.of(target));
+                } else {
+                    grabCnx();
+                }
             }, delayMs, TimeUnit.MILLISECONDS);
         } else {
             log.info("Ignoring reconnection request");
@@ -214,6 +227,9 @@ public class ConnectionHandler {
     public void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         duringConnect.set(false);
+        // Remember an explicit reconnect target so a later first-attempt failure (reconnectLater)
+        // re-dials the same broker rather than falling back to the service URL.
+        hostUrl.ifPresent(uri -> this.explicitHostURI = uri);
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!state.changeToConnecting()) {
