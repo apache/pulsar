@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -38,9 +39,10 @@ import org.apache.pulsar.common.util.Backoff;
  * Coordinator discovery via the metadata-store leader election. Opens a single
  * {@code CommandWatchTcAssignments} watch on a service-URL connection; the broker replies with the
  * full {@code partition -> leader} snapshot and re-pushes it on every leadership change. Each
- * coordinator gets one {@link TransactionMetaStoreHandler} pointed directly at its elected leader
- * broker (no per-coordinator lookup); when a snapshot moves a coordinator's leader, the handler is
- * retargeted. Used against brokers that advertise {@code supports_tc_metadata_discovery}.
+ * coordinator gets one {@link TransactionMetaStoreHandler} pointed at its elected leader broker —
+ * dialled through the proxy when the watch connection is proxied, directly otherwise (no
+ * per-coordinator lookup); when a snapshot moves a coordinator's leader, the handler is retargeted.
+ * Used against brokers that advertise {@code supports_tc_metadata_discovery}.
  */
 @CustomLog
 class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignmentsWatcherSession {
@@ -59,6 +61,7 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
     private volatile ClientCnx cnx;
     private volatile boolean closed;
     private volatile long initialOpenDeadline;
+    private volatile boolean useProxy;
 
     WatchTcAssignmentsDiscovery(PulsarClientImpl pulsarClient) {
         this.pulsarClient = pulsarClient;
@@ -109,6 +112,9 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
             return;
         }
         this.cnx = newCnx;
+        // Behind a proxy the leader's advertised broker address isn't directly reachable; handlers
+        // must dial it through the proxy. The watch connection tells us which mode we're in.
+        this.useProxy = newCnx.isProxied();
         newCnx.registerTcAssignmentsWatcher(watchId, this);
         newCnx.ctx().writeAndFlush(Commands.newWatchTcAssignments(watchId))
                 .addListener(writeFuture -> {
@@ -153,19 +159,19 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         // Apply the full snapshot: create handlers for newly-seen coordinators, retarget existing
         // ones whose leader moved. A coordinator absent from the snapshot is mid-election; leave its
         // handler in place to retry against its last-known leader until the next snapshot.
+        boolean proxy = this.useProxy;
         for (Map.Entry<Long, String[]> e : leaders.entrySet()) {
             long tcId = e.getKey();
-            String url = e.getValue()[0];
-            String urlTls = e.getValue()[1];
+            URI leaderUri = selectLeaderUri(e.getValue()[0], e.getValue()[1]);
             try {
                 handlers.compute(tcId, (id, existing) -> {
                     if (existing == null) {
                         TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                                id, pulsarClient, url, urlTls, new CompletableFuture<>());
+                                id, pulsarClient, leaderUri, proxy, new CompletableFuture<>());
                         handler.start();
                         return handler;
                     }
-                    existing.retargetLeader(url, urlTls);
+                    existing.retargetLeader(leaderUri, proxy);
                     return existing;
                 });
             } catch (RuntimeException ex) {
@@ -215,6 +221,21 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         }
         long delayMs = reconnectBackoff.next().toMillis();
         pulsarClient.timer().newTimeout(timeout -> openWatch(), delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Pick the leader URL matching the client's TLS setting and parse it. Throws if no usable URL is
+     * present (e.g. a non-TLS client and a TLS-only leader) — the caller skips that partition rather
+     * than tearing down the watch.
+     */
+    private URI selectLeaderUri(String url, String urlTls) {
+        boolean tls = pulsarClient.getConfiguration().isUseTls();
+        String chosen = tls && urlTls != null && !urlTls.isBlank() ? urlTls : url;
+        if (chosen == null || chosen.isBlank()) {
+            throw new IllegalArgumentException("No usable leader URL (useTls=" + tls
+                    + ", url=" + url + ", urlTls=" + urlTls + ")");
+        }
+        return URI.create(chosen);
     }
 
     @Override

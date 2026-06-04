@@ -96,6 +96,17 @@ public class ConnectionHandler {
         grabCnx(Optional.empty());
     }
 
+    /**
+     * Connect to a specific broker {@code hostURI}, routing through the proxy when {@code useProxy}
+     * is true (logical = the broker, physical = the proxy) or directly otherwise. Used by the v5
+     * transaction coordinator's metadata-store discovery, where the elected leader's address is
+     * known but, behind a proxy, isn't directly reachable.
+     */
+    protected void grabCnx(URI hostURI, boolean useProxy) {
+        this.useProxy = useProxy;
+        grabCnx(Optional.of(hostURI));
+    }
+
     protected void grabCnx(Optional<URI> hostURI) {
         if (!duringConnect.compareAndSet(false, true)) {
             log.info().log("Skip grabbing the connection since there is a pending connection");

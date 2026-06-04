@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -91,38 +92,37 @@ public class TransactionMetaStoreHandler extends HandlerState
     private final long lookupDeadline;
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
 
+    // Metadata-store discovery (watch mode): the elected leader broker for this coordinator and
+    // whether it must be reached through the proxy. Null leaderUri means assign-topic mode.
+    private volatile URI leaderUri;
+    private volatile boolean useProxy;
+
 
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
                                        CompletableFuture<Void> connectFuture) {
-        this(transactionCoordinatorId, pulsarClient, topic, null, null, connectFuture);
+        this(transactionCoordinatorId, pulsarClient, topic, null, false, connectFuture);
     }
 
     /**
-     * Construct a handler that connects directly to a fixed leader broker (metadata-store
-     * discovery) rather than resolving a coordinator via an assign-topic lookup. {@code topic} is
-     * left {@code null} and the leader's service URL is set as the redirected cluster URI, so
-     * {@link ConnectionHandler#grabCnx} dials that broker directly. Use
-     * {@link #retargetLeader(String, String)} when the elected leader changes.
+     * Construct a handler that connects to a fixed leader broker (metadata-store discovery) rather
+     * than resolving a coordinator via an assign-topic lookup. The leader address is dialled
+     * through the proxy when {@code useProxy} is true (the broker URL isn't directly reachable
+     * behind a proxy) or directly otherwise. Use {@link #retargetLeader} when the elected leader
+     * changes.
      */
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient,
-                                       String leaderServiceUrl, String leaderServiceUrlTls,
+                                       URI leaderUri, boolean useProxy,
                                        CompletableFuture<Void> connectFuture) {
-        this(transactionCoordinatorId, pulsarClient, null, leaderServiceUrl, leaderServiceUrlTls, connectFuture);
+        this(transactionCoordinatorId, pulsarClient, null, leaderUri, useProxy, connectFuture);
     }
 
     private TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
-                                        String leaderServiceUrl, String leaderServiceUrlTls,
+                                        URI leaderUri, boolean useProxy,
                                         CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
-        if (topic == null) {
-            try {
-                setRedirectedClusterURI(leaderServiceUrl, leaderServiceUrlTls);
-            } catch (java.net.URISyntaxException e) {
-                throw new IllegalArgumentException("Invalid TC leader service URL: "
-                        + leaderServiceUrl + " / " + leaderServiceUrlTls, e);
-            }
-        }
+        this.leaderUri = leaderUri;
+        this.useProxy = useProxy;
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
@@ -145,7 +145,13 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public void start() {
-        this.connectionHandler.grabCnx();
+        if (leaderUri != null) {
+            // Metadata-store discovery: dial the elected leader (through the proxy if needed).
+            this.connectionHandler.grabCnx(leaderUri, useProxy);
+        } else {
+            // Assign-topic discovery: resolve the coordinator via a topic lookup.
+            this.connectionHandler.grabCnx();
+        }
     }
 
     @Override
@@ -830,32 +836,32 @@ public class TransactionMetaStoreHandler extends HandlerState
     /**
      * Point this handler at a (possibly new) elected leader broker and reconnect. Called by the
      * metadata-store discovery when an assignment snapshot moves this coordinator's leadership to a
-     * different broker. If the URL is unchanged and the handler is already connected, this is a
-     * no-op; otherwise the current connection is dropped and re-established against the new leader.
+     * different broker. If the leader and proxy-mode are unchanged and the handler is already
+     * connected, this is a no-op; otherwise it (re)connects to the new leader.
      */
-    public void retargetLeader(String leaderServiceUrl, String leaderServiceUrlTls) {
-        try {
-            URI previous = redirectedClusterURI;
-            setRedirectedClusterURI(leaderServiceUrl, leaderServiceUrlTls);
-            if (java.util.Objects.equals(previous, redirectedClusterURI) && cnx() != null) {
-                return;
-            }
-        } catch (java.net.URISyntaxException e) {
-            log.warn().attr("transactionCoordinatorId", transactionCoordinatorId)
-                    .exception(e).log("Invalid TC leader service URL on retarget; ignoring");
+    public void retargetLeader(URI newLeaderUri, boolean newUseProxy) {
+        if (newLeaderUri.equals(this.leaderUri) && newUseProxy == this.useProxy && cnx() != null) {
             return;
         }
+        this.leaderUri = newLeaderUri;
+        this.useProxy = newUseProxy;
         ClientCnx current = cnx();
         if (current != null) {
-            // Drop the current connection; connectionClosed re-grabs using the new redirected URI.
+            // Drop the current connection; connectionClosed re-grabs against the new leader.
             current.channel().close();
         } else {
-            connectionHandler.grabCnx();
+            connectionHandler.grabCnx(newLeaderUri, newUseProxy);
         }
     }
 
     void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+        if (leaderUri != null) {
+            // Metadata-store discovery: reconnect to the elected leader (via the proxy if needed),
+            // not the configured service URL. useProxy is preserved on the ConnectionHandler.
+            this.connectionHandler.connectionClosed(cnx, Optional.empty(), Optional.of(leaderUri));
+        } else {
+            this.connectionHandler.connectionClosed(cnx);
+        }
     }
 
     @Override
