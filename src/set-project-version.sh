@@ -28,7 +28,7 @@ fi
 NEW_VERSION=$1
 
 # Go to top level project directory
-SRC_DIR=$(dirname "$0")
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(cd "${SRC_DIR}/.."; pwd)
 TERRAFORM_DIR=${ROOT_DIR}/deployment/terraform-ansible
 pushd ${ROOT_DIR}
