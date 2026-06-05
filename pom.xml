@@ -187,7 +187,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.7.1</curator.version>
     <netty.version>4.1.135.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
-    <jetty.version>12.1.9</jetty.version>
+    <jetty.version>12.1.10</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
     <jetty9.version>9.4.58.v20250814</jetty9.version>
     <conscrypt.version>2.5.2</conscrypt.version>
