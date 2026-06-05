@@ -41,7 +41,7 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
                 Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
                 MessageId messageId = entry.getKey();
                 if (messageId instanceof TopicMessageId
-                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
+                        && ((TopicMessageId) messageId).hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;

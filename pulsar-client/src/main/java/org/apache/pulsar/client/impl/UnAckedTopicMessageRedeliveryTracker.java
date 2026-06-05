@@ -43,7 +43,7 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                 UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
                 if (messageId instanceof TopicMessageId
-                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
+                        && ((TopicMessageId) messageId).hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
@@ -55,7 +55,7 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             while (iteratorAckTimeOut.hasNext()) {
                 MessageId messageId = iteratorAckTimeOut.next();
                 if (messageId instanceof TopicMessageId
-                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
+                        && ((TopicMessageId) messageId).hasSameBasePartitionedTopic(topicName)) {
                     iteratorAckTimeOut.remove();
                     removed++;
                 }
