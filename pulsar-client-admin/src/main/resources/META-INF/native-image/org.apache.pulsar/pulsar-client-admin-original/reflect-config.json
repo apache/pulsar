@@ -126,12 +126,6 @@
     "allDeclaredConstructors": true
   },
   {
-    "name": "org.apache.pulsar.common.naming.TopicVersion",
-    "allDeclaredFields": true,
-    "allDeclaredMethods": true,
-    "allDeclaredConstructors": true
-  },
-  {
     "name": "org.apache.pulsar.common.partition.PartitionedTopicMetadata",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
