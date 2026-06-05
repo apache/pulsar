@@ -3798,13 +3798,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Enable the metadata-driven transaction coordinator used by scalable topics."
-                    + " When true, wire commands (NEW_TXN / END_TXN / etc.) are served by the"
-                    + " metadata-store-backed coordinator instead of the legacy"
-                    + " TransactionMetadataStoreService. Requires transactionCoordinatorEnabled"
-                    + " = true, and must be enabled together with the scalable-topic transaction"
-                    + " buffer and pending-ack store providers."
+                    + " When true, transaction wire commands flagged as scalable (sent by v5 SDK"
+                    + " clients) are served by the metadata-store-backed coordinator, while legacy"
+                    + " (v4) clients continue to be served by TransactionMetadataStoreService — the"
+                    + " two coexist on the same cluster. Requires transactionCoordinatorEnabled"
+                    + " = true. Enabled by default together with the dispatching transaction buffer"
+                    + " and pending-ack store providers."
     )
-    private boolean transactionCoordinatorScalableTopicsEnabled = false;
+    private boolean transactionCoordinatorScalableTopicsEnabled = true;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -3859,21 +3860,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction buffer provider. Default routes segment:// topics to the"
-                    + " legacy TopicTransactionBuffer. Set this to"
-                    + " org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider"
-                    + " once the v5 transaction coordinator (PIP-473 P5) is enabled to opt segment topics"
-                    + " into MetadataTransactionBuffer."
+            doc = "Class name for transaction buffer provider. The default DispatchingTransactionBufferProvider"
+                    + " routes segment:// topics to the metadata-driven MetadataTransactionBuffer (PIP-473)"
+                    + " and persistent:// / topic:// topics to the legacy TopicTransactionBuffer. Set this to"
+                    + " org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider to"
+                    + " force the legacy buffer for all topics."
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction pending ack store provider"
+            doc = "Class name for transaction pending ack store provider. The default"
+                    + " DispatchingTransactionPendingAckStoreProvider routes subscriptions on segment:// topics"
+                    + " to the metadata-driven MetadataPendingAckStore (PIP-473) and others to the legacy"
+                    + " MLPendingAckStore. Set this to"
+                    + " org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider to force"
+                    + " the legacy store for all subscriptions."
     )
     private String transactionPendingAckStoreProviderClassName =
-            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+            "org.apache.pulsar.broker.transaction.pendingack.impl.DispatchingTransactionPendingAckStoreProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

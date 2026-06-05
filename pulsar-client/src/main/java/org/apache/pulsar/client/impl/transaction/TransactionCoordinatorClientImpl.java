@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
@@ -86,35 +87,25 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     /**
-     * Choose the discovery strategy. The metadata-store assignment watch needs a binary-protocol
-     * connection, so it's only usable when the client is configured with a {@code pulsar://}
-     * service URL; with an {@code http://} service URL we always use the assign-topic flow (which
-     * resolves coordinators via the admin/HTTP-capable partitioned-metadata lookup). When binary
-     * lookup is available, probe the broker's {@code supports_tc_metadata_discovery} feature flag to
-     * decide; if the broker doesn't advertise it (old broker, or scalable-topics TC disabled), fall
-     * back to the assign-topic flow.
+     * Choose the discovery strategy by client/SDK kind, not by broker capability. A v5 SDK client
+     * sets the internal {@code scalableTransactions} config flag and uses the metadata-store
+     * coordinator (assignment watch); a v4 SDK client leaves it unset and uses the legacy
+     * assign-topic coordinator. This keeps v4 and v5 transactions independent on the same cluster:
+     * flipping the broker default to enable the v5 TC must not silently re-route v4 clients to it,
+     * since the v5 TC notifies participants via metadata-store events that the legacy transaction
+     * buffer / pending-ack store don't consume.
      */
     private CompletableFuture<TcDiscovery> selectDiscovery() {
-        if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
+        if (!pulsarClient.getConfiguration().isScalableTransactions()) {
             return CompletableFuture.completedFuture(new AssignTopicTcDiscovery(pulsarClient));
         }
-        // Probe a broker connection to read the feature flag. Use getAnyBrokerProxyConnection() (not
-        // getConnectionToServiceUrl()): when connecting through a proxy, the latter yields the proxy's
-        // own CONNECTED, which carries the proxy lookup handshake's flags rather than a broker's;
-        // getAnyBrokerProxyConnection() pairs to an actual broker (directly or proxied) so the
-        // forwarded feature flags reflect the broker — the same connection the watch itself uses.
-        // If the probe fails, fall back to the assign-topic flow, whose lookup retries across hosts
-        // and still works against v5 brokers (the assign topic exists during the deprecation window),
-        // so falling back is always safe.
-        return pulsarClient.getAnyBrokerProxyConnection()
-                .thenApply(cnx -> cnx.isSupportsTcMetadataDiscovery()
-                        ? (TcDiscovery) new WatchTcAssignmentsDiscovery(pulsarClient)
-                        : new AssignTopicTcDiscovery(pulsarClient))
-                .exceptionally(ex -> {
-                    log.info().exception(ex)
-                            .log("TC discovery feature probe failed; using assign-topic discovery");
-                    return new AssignTopicTcDiscovery(pulsarClient);
-                });
+        // The metadata-store assignment watch needs a binary connection. A v5 client on an
+        // http:// service URL is a misconfiguration — fail clearly rather than silently downgrade.
+        if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Scalable-topics transactions require a pulsar:// service URL", null));
+        }
+        return CompletableFuture.completedFuture(new WatchTcAssignmentsDiscovery(pulsarClient));
     }
 
     @Override
