@@ -543,11 +543,10 @@ jobs:
       # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
       - name: Set up GraalVM
         if: ${{ matrix.group == 'NATIVE_IMAGE' }}
-        uses: graalvm/setup-graalvm@v1
+        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
         with:
           distribution: 'graalvm-community'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
