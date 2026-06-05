@@ -291,4 +291,37 @@ public class SegmentLayoutTest {
         SegmentLayout split2 = split1.splitSegment(1, 0L);
         assertEquals(split2.getNextSegmentId(), 6);
     }
+
+    @Test
+    public void testMergeDepthZeroForNeverMergedSegments() {
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(2, Map.of()));
+        assertEquals(layout.mergeDepth(0), 0);
+        assertEquals(layout.mergeDepth(1), 0);
+
+        // Splits never increase merge depth.
+        SegmentLayout afterSplit = layout.splitSegment(0, 0L);
+        assertEquals(afterSplit.mergeDepth(2), 0);
+        assertEquals(afterSplit.mergeDepth(3), 0);
+    }
+
+    @Test
+    public void testMergeDepthCountsMergesInLineage() {
+        // split(0) → {1,2}; merge(1,2) → {3}; split(3) → {4,5}.
+        SegmentLayout layout = SegmentLayout
+                .fromMetadata(ScalableTopicController.createInitialMetadata(1, Map.of()))
+                .splitSegment(0, 0L)
+                .mergeSegments(1, 2, 0L)
+                .splitSegment(3, 0L);
+
+        // The merged node 3 contributes one merge to the ancestry of 4 and 5.
+        assertEquals(layout.mergeDepth(3), 1);
+        assertEquals(layout.mergeDepth(4), 1);
+        assertEquals(layout.mergeDepth(5), 1);
+
+        // A second merge in the lineage bumps it to 2.
+        SegmentLayout twice = layout.mergeSegments(4, 5, 0L);
+        long mergedAgain = twice.getNextSegmentId() - 1;
+        assertEquals(twice.mergeDepth(mergedAgain), 2);
+    }
 }
