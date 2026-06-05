@@ -968,6 +968,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    protected void removeTopicMessagesFromUnackedTracker(String topicName) {
+        if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
+            ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+        } else if (unAckedMessageTracker instanceof UnAckedTopicMessageRedeliveryTracker) {
+            ((UnAckedTopicMessageRedeliveryTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+        }
+    }
+
     /***
      * Subscribe one more given topic.
      * @param topicName topic name without the partition suffix.
@@ -1302,11 +1310,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     removeTopic(topicName);
-                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
-                        ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
-                    } else if (unAckedMessageTracker instanceof UnAckedTopicMessageRedeliveryTracker) {
-                        ((UnAckedTopicMessageRedeliveryTracker) unAckedMessageTracker).removeTopicMessages(topicName);
-                    }
+                    removeTopicMessagesFromUnackedTracker(topicName);
 
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer, allTopicPartitionsNumber: {}",
@@ -1433,7 +1437,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     }
                 }
 
-                return FutureUtil.waitForAll(futures);
+                return FutureUtil.waitForAll(futures)
+                        .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
             } else if (oldPartitionNumber < currentPartitionNumber) {
                 allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
                 partitionedTopics.put(topicName, currentPartitionNumber);
