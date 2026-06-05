@@ -513,6 +513,7 @@ jobs:
 
           - name: Native Image
             group: NATIVE_IMAGE
+            runtime_jdk: 25
             # Native image compilation (even in quick build mode) is slower than a
             # regular test group, so allow extra headroom over the default timeout.
             timeout: 40
@@ -532,6 +533,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
+        if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
@@ -546,7 +548,7 @@ jobs:
         uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
         with:
           distribution: 'graalvm-community'
-          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+          java-version: 25 # always use GraalVM 25.x
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
