@@ -20,13 +20,19 @@ package org.apache.pulsar.tests.integration.transaction;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
@@ -148,5 +154,48 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
                 });
         assertTrue(coordinators.size() == TC_PARALLELISM,
                 "expected all " + TC_PARALLELISM + " coordinators reachable; got " + coordinators);
+    }
+
+    /**
+     * Coexistence: with the scalable-topics (v5) TC enabled on the cluster, a legacy (v4) client
+     * running a transaction on a {@code persistent://} topic must still work — its commands carry no
+     * {@code scalable} flag, so the broker routes them to the legacy coordinator. This is the
+     * regression guard for the P5.4 default flip: enabling v5 must not break v4 transactions.
+     */
+    @Test
+    public void legacyTransactionStillWorksWhenScalableTcEnabled() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .enableTransaction(true)
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        String topic = "persistent://public/default/v4-coexist-" + randomName(6);
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("coexist-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        // Non-transactional produce, then a transactional ack — exercises the legacy TC end to end
+        // (newTxn -> addSubscription -> endTxn) on a persistent topic.
+        producer.send("m1");
+        Message<String> msg = consumer.receive(15, TimeUnit.SECONDS);
+        assertNotNull(msg, "should receive the produced message");
+
+        Transaction txn = client.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build().get();
+        consumer.acknowledgeAsync(msg.getMessageId(), txn).get();
+        txn.commit().get();
+
+        // After commit the message is acknowledged: redelivery on reconnect must not return it.
+        consumer.redeliverUnacknowledgedMessages();
+        assertNull(consumer.receive(5, TimeUnit.SECONDS),
+                "committed transactional ack should have consumed the message");
     }
 }

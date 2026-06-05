@@ -1097,6 +1097,8 @@ enum TxnAction {
 message CommandTcClientConnectRequest {
     required uint64 request_id = 1;
     required uint64 tc_id = 2 [default = 0];
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 3 [default = false];
 }
 
 message CommandTcClientConnectResponse {
@@ -1109,6 +1111,10 @@ message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
     optional uint64 tc_id = 3 [default = 0];
+    // When true, route to the metadata-driven (scalable-topics, PIP-473) transaction coordinator
+    // instead of the legacy one. Set by v5 clients; absent for v4 clients. Lets both coordinators
+    // serve their own clients on the same cluster.
+    optional bool scalable = 4 [default = false];
 }
 
 message CommandNewTxnResponse {
@@ -1124,6 +1130,8 @@ message CommandAddPartitionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated string partitions = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddPartitionToTxnResponse {
@@ -1143,6 +1151,8 @@ message CommandAddSubscriptionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated Subscription subscription = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddSubscriptionToTxnResponse {
@@ -1158,6 +1168,8 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandEndTxnResponse {

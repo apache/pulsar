@@ -3446,7 +3446,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendTcClientConnectResponse(requestId, ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
             service.pulsar().getTransactionCoordinatorV5().handleClientConnect(tcId)
                     .whenComplete((__, e) -> {
                         if (e == null) {
@@ -3492,6 +3497,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return true;
         }
     }
+    /**
+     * @return true if the scalable-topics (PIP-473) transaction coordinator is enabled and ready on
+     *     this broker. Transaction commands carrying {@code scalable=true} route to it; commands
+     *     without the flag always go to the legacy coordinator, so v4 and v5 clients coexist.
+     */
+    private boolean isScalableTcAvailable() {
+        return service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
+                && service.getPulsar().getTransactionCoordinatorV5() != null;
+    }
+
     private Throwable handleTxnException(Throwable ex, String op, long requestId) {
         Throwable cause = FutureUtil.unwrapCompletionException(ex);
         if (cause instanceof CoordinatorException.CoordinatorNotFoundException) {
@@ -3527,7 +3542,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
             final String v5Owner = getPrincipal();
             service.pulsar().getTransactionCoordinatorV5()
                     .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
@@ -3594,11 +3614,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getLeastSigBits(),
+                        txnID.getMostSigBits(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker"));
+                return;
+            }
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops. Still verify ownership before acking,
             // matching the legacy authorization surface.
-            verifyTxnOwnership(txnID)
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
                             : failedFutureTxnNotOwned(txnID))
                     .whenComplete((v, ex) -> {
@@ -3618,7 +3644,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
@@ -3676,8 +3702,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
-            verifyTxnOwnership(txnID)
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendEndTxnErrorResponse(requestId, txnID, ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> {
                         if (!isOwner) {
                             return failedFutureTxnNotOwned(txnID);
@@ -3700,7 +3731,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
@@ -3739,14 +3770,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
+    private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, boolean scalable) {
         assert ctx.executor().inEventLoop();
-        CompletableFuture<Boolean> ownerCheck =
-                service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
-                        ? service.pulsar().getTransactionCoordinatorV5()
-                                .verifyTxnOwnership(txnID, getPrincipal())
-                        : service.pulsar().getTransactionMetadataStoreService()
-                                .verifyTxnOwnership(txnID, getPrincipal());
+        CompletableFuture<Boolean> ownerCheck = scalable
+                ? service.pulsar().getTransactionCoordinatorV5()
+                        .verifyTxnOwnership(txnID, getPrincipal())
+                : service.pulsar().getTransactionMetadataStoreService()
+                        .verifyTxnOwnership(txnID, getPrincipal());
         return ownerCheck
                 .thenComposeAsync(isOwner -> {
                     if (isOwner) {
@@ -4016,11 +4046,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getLeastSigBits(),
+                        txnID.getMostSigBits(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker"));
+                return;
+            }
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops. Still verify ownership before acking,
             // matching the legacy authorization surface.
-            verifyTxnOwnership(txnID)
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
                             : failedFutureTxnNotOwned(txnID))
                     .whenComplete((v, ex) -> {
@@ -4041,7 +4077,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);

@@ -724,8 +724,12 @@ public class Commands {
     }
 
     public static ByteBuf newTcClientConnectRequest(long tcId, long requestId) {
+        return newTcClientConnectRequest(tcId, requestId, false);
+    }
+
+    public static ByteBuf newTcClientConnectRequest(long tcId, long requestId, boolean scalable) {
         BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_REQUEST);
-        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId);
+        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId).setScalable(scalable);
         return serializeWithSize(cmd);
     }
 
@@ -1432,11 +1436,16 @@ public class Commands {
     // ---- transaction related ----
 
     public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+        return newTxn(tcId, requestId, ttlSeconds, false);
+    }
+
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds, boolean scalable) {
         BaseCommand cmd = localCmd(Type.NEW_TXN);
         cmd.setNewTxn()
                 .setTcId(tcId)
                 .setRequestId(requestId)
-                .setTxnTtlSeconds(ttlSeconds);
+                .setTxnTtlSeconds(ttlSeconds)
+                .setScalable(scalable);
         return serializeWithSize(cmd);
     }
 
@@ -1463,11 +1472,17 @@ public class Commands {
 
     public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                List<String> partitions) {
+        return newAddPartitionToTxn(requestId, txnIdLeastBits, txnIdMostBits, partitions, false);
+    }
+
+    public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                               List<String> partitions, boolean scalable) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN);
         CommandAddPartitionToTxn req = cmd.setAddPartitionToTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits);
+                .setTxnidMostBits(txnIdMostBits)
+                .setScalable(scalable);
         if (partitions != null) {
             partitions.forEach(req::addPartition);
         }
@@ -1503,11 +1518,17 @@ public class Commands {
 
     public static ByteBuf newAddSubscriptionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
             List<Subscription> subscriptions) {
+        return newAddSubscriptionToTxn(requestId, txnIdLeastBits, txnIdMostBits, subscriptions, false);
+    }
+
+    public static ByteBuf newAddSubscriptionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+            List<Subscription> subscriptions, boolean scalable) {
         BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN);
         CommandAddSubscriptionToTxn add = cmd.setAddSubscriptionToTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits);
+                .setTxnidMostBits(txnIdMostBits)
+                .setScalable(scalable);
         subscriptions.forEach(s -> add.addSubscription().copyFrom(s));
         return serializeWithSize(cmd);
     }
@@ -1536,11 +1557,17 @@ public class Commands {
     }
 
     public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
+        return newEndTxn(requestId, txnIdLeastBits, txnIdMostBits, txnAction, false);
+    }
+
+    public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction,
+                                        boolean scalable) {
         BaseCommand cmd = localCmd(Type.END_TXN);
         cmd.setEndTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
-                .setTxnAction(txnAction);
+                .setTxnAction(txnAction)
+                .setScalable(scalable);
         return cmd;
     }
 
