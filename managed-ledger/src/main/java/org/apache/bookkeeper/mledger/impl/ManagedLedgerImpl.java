@@ -1547,13 +1547,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (rc != BKException.Code.OK) {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
-                lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                ManagedLedgerInfo managedLedgerInfo;
+                synchronized (ManagedLedgerImpl.this) {
+                    lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                    updateClosedLedgerInfo(lh, lh.getLastAddConfirmed(), false);
+                    managedLedgerInfo = getManagedLedgerInfo();
+                }
                 // Store the new state in metadata
-                store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
+                store.asyncUpdateLedgerIds(name, managedLedgerInfo, ledgersStat, new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         ledgersStat = stat;
                         log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
+                        maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
                         callback.terminateComplete(lastConfirmedEntry, ctx);
                     }
 
@@ -1966,23 +1972,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed + 1 : lh.getLastAddConfirmed() + 1;
-        log.debug().attr("ledgerId", lh.getId()).attr("entries", entriesInLedger).log("Ledger has been closed");
-        if (entriesInLedger > 0) {
-            LedgerInfo info = new LedgerInfo().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(clock.millis());
-            ledgers.put(lh.getId(), info);
-        } else {
-            // The last ledger was empty, so we can discard it
-            ledgers.remove(lh.getId());
-            mbean.startDataLedgerDeleteOp();
-        }
+        updateClosedLedgerInfo(lh, lastAddConfirmed, true);
 
         trimConsumedLedgersInBackground();
 
         maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
 
         createLedgerAfterClosed();
+    }
+
+    private void updateClosedLedgerInfo(final LedgerHandle lh, Long lastAddConfirmed, boolean removeEmptyLedger) {
+        long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed + 1 : lh.getLastAddConfirmed() + 1;
+        log.debug().attr("ledgerId", lh.getId()).attr("entries", entriesInLedger).log("Ledger has been closed");
+        if (entriesInLedger > 0) {
+            LedgerInfo info = new LedgerInfo().setLedgerId(lh.getId()).setEntries(entriesInLedger)
+                    .setSize(lh.getLength()).setTimestamp(clock.millis());
+            ledgers.put(lh.getId(), info);
+        } else if (removeEmptyLedger) {
+            // The last ledger was empty, so we can discard it
+            ledgers.remove(lh.getId());
+            mbean.startDataLedgerDeleteOp();
+        }
     }
 
     @Override
@@ -3682,23 +3692,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long current = ledgers.lastKey();
+            boolean includeLastLedger = STATE_UPDATER.get(this) == State.Terminated
+                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0;
 
             // the first ledger which will not be offloaded. Defaults to current,
             // in the case that the whole headmap is offloaded. Otherwise, it will
             // be set as we iterate through the headmap values
-            long firstLedgerRetained = current;
-            for (LedgerInfo ls : ledgers.headMap(current).values()) {
-                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
+            Position firstPositionRetained = includeLastLedger ? lastConfirmedEntry.getNext()
+                    : PositionFactory.create(current, 0);
+            for (LedgerInfo ls : ledgers.headMap(current, includeLastLedger).values()) {
+                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()
+                        || (includeLastLedger && requestOffloadTo.getLedgerId() == ls.getLedgerId())) {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().isComplete() && ls.getSize() > 0) {
                         ledgersToOffload.add(ls);
                     }
                 } else {
-                    firstLedgerRetained = ls.getLedgerId();
+                    firstPositionRetained = PositionFactory.create(ls.getLedgerId(), 0);
                     break;
                 }
             }
-            firstUnoffloaded = PositionFactory.create(firstLedgerRetained, 0);
+            firstUnoffloaded = firstPositionRetained;
         }
 
         if (ledgersToOffload.isEmpty()) {

@@ -1347,6 +1347,125 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId()));
     }
 
+    @Test
+    public void offloadTerminatedLastLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+
+        assertEquals(firstUnoffloaded, lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        LedgerInfo lastLedgerInfo = ledger.getLedgersInfoAsList().get(0);
+        assertEquals(lastLedgerInfo.getLedgerId(), lastLedgerId);
+        assertTrue(lastLedgerInfo.getEntries() > 0);
+        assertTrue(lastLedgerInfo.getSize() > 0);
+        assertTrue(lastLedgerInfo.getTimestamp() > 0);
+        assertTrue(lastLedgerInfo.getOffloadContext().isComplete());
+    }
+
+    @Test
+    public void offloadTerminatedLastLedgerOnlyWhenPositionCoversTerminatedPosition() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+        Position beforeTerminatedPosition = PositionFactory.create(lastLedgerId, lastPosition.getEntryId() - 1);
+
+        Position firstUnoffloaded = ledger.offloadPrefix(beforeTerminatedPosition);
+
+        assertEquals(firstUnoffloaded, PositionFactory.create(lastLedgerId, 0));
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+        assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+    }
+
+    @Test
+    public void offloadTerminatedLastLedgerIsIdempotent() throws Exception {
+        AtomicInteger offloadCalls = new AtomicInteger();
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadCalls.incrementAndGet();
+                    return super.offload(ledger, uuid, extraMetadata);
+                }
+            };
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+        Position firstUnoffloadedAgain = ledger.offloadPrefix(lastPosition);
+
+        assertEquals(firstUnoffloaded, lastPosition.getNext());
+        assertEquals(firstUnoffloadedAgain, lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        assertEquals(offloadCalls.get(), 1);
+    }
+
+    @Test
+    public void terminateTriggersAutomaticOffloadForLastLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        assertEquals(lastPosition.getLedgerId(), lastLedgerId);
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().equals(Set.of(lastLedgerId)));
+        assertTrue(ledger.isTerminated());
+        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+        assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+    }
+
 
     static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
