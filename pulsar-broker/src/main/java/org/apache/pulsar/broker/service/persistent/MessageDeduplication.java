@@ -187,7 +187,7 @@ public class MessageDeduplication {
                 }, null);
             }
 
-            if (status == Status.Enabled && !shouldBeEnabled) {
+            if ((status == Status.Enabled || status == Status.Failed) && !shouldBeEnabled) {
                 // Disabled deduping
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 status = Status.Removing;
@@ -224,17 +224,25 @@ public class MessageDeduplication {
                         }, null);
 
                 return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
+            } else if ((status == Status.Disabled || status == Status.Initialized || status == Status.Failed)
+                    && shouldBeEnabled) {
                 // Enable deduping
-                final var future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
-                        .thenCompose(this::replayCursor);
-                future.exceptionally(e -> {
+                status = Status.Recovering;
+                final CompletableFuture<Void> future;
+                try {
+                    future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                            .thenCompose(this::replayCursor);
+                } catch (Throwable e) {
                     status = Status.Failed;
                     log.error().exception(e).log("Failed to enable deduplication");
-                    future.completeExceptionally(e);
-                    return null;
+                    return CompletableFuture.failedFuture(e);
+                }
+                return future.whenComplete((__, e) -> {
+                    if (e != null) {
+                        status = Status.Failed;
+                        log.error().exception(e).log("Failed to enable deduplication");
+                    }
                 });
-                return future;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
