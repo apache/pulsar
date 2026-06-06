@@ -46,7 +46,7 @@ tasks.shadowJar {
         include(dependency("com.google.*:.*"))
         include(dependency("jakarta.servlet:.*"))
         include(dependency("org.reactivestreams:reactive-streams"))
-        include(dependency("io.swagger:.*"))
+        include(dependency("io.swagger.core.v3:.*"))
         include(dependency("org.yaml:snakeyaml"))
         include(dependency("io.perfmark:.*"))
         include(dependency("io.prometheus:.*"))

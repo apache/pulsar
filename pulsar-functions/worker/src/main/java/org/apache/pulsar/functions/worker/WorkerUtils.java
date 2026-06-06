@@ -30,8 +30,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +59,7 @@ import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -413,13 +414,17 @@ public final class WorkerUtils {
             int tries = 0;
             do {
                 try {
-                    return client.newProducer().topic(topic)
+                    CompletableFuture<Producer<byte[]>> producerFuture = client.newProducer().topic(topic)
                             .accessMode(ProducerAccessMode.Exclusive)
                             .enableBatching(false)
                             .blockIfQueueFull(true)
                             .compressionType(CompressionType.LZ4)
                             .producerName(producerName)
-                            .createAsync().get(10, TimeUnit.SECONDS);
+                            .createAsync();
+                    return FutureUtil.getAndCleanupOnInterrupt(producerFuture, Producer::closeAsync);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw e;
                 } catch (Exception e) {
                     log.info().attr("topic", topic).exception(e)
                             .log("Encountered exception while creating exclusive producer");

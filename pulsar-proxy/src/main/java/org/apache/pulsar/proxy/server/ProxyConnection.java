@@ -520,7 +520,9 @@ public class ProxyConnection extends PulsarHandler {
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
                     connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers(),
-                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics());
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics(),
+                    connected.hasFeatureFlags()
+                            && connected.getFeatureFlags().isSupportsTcMetadataDiscovery());
             writeAndFlush(msg);
             // Start auth refresh task only if we are not forwarding authorization credentials
             if (!service.getConfiguration().isForwardAuthorizationCredentials()) {

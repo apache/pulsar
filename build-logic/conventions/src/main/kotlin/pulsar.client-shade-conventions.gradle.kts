@@ -60,7 +60,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         include(dependency("io.opencensus:.*"))
         include(dependency("io.perfmark:.*"))
         include(dependency("io.prometheus:.*"))
-        include(dependency("io.swagger:.*"))
+        include(dependency("io.swagger.core.v3:.*"))
         include(dependency("jakarta.activation:jakarta.activation-api"))
         include(dependency("jakarta.annotation:jakarta.annotation-api"))
         include(dependency("jakarta.inject:jakarta.inject-api"))

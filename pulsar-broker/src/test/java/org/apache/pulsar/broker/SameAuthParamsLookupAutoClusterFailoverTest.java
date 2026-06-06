@@ -140,6 +140,20 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         dummyServer.close();
     }
 
+    @Test
+    public void testInitializeCanOnlyBeCalledOnce() throws Exception {
+        setup();
+        final SameAuthParamsLookupAutoClusterFailover failover = SameAuthParamsLookupAutoClusterFailover.builder()
+                .pulsarServiceUrlArray(new String[]{pulsar1.getBrokerServiceUrl()})
+                .checkHealthyIntervalMs(1000)
+                .build();
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrlProvider(failover).build()) {
+            Throwable error = Assert.expectThrows(IllegalStateException.class, () -> failover.initialize(client));
+            Assert.assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        }
+    }
+
     /**
      * Wait for the state machine to converge to the expected per-index states and current index.
      * The state read happens on the failover executor to avoid races with the periodic check task,

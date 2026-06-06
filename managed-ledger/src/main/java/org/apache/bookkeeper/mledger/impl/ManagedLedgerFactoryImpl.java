@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.NULL_OFFLOAD_PROMISE;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
@@ -496,7 +496,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     future.complete(newledger);
                                     // May need to trigger offloading
                                     if (config.isTriggerOffloadOnTopicLoad()) {
-                                        newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+                                        newledger.maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
                                     }
                                 });
                             }

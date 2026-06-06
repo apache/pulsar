@@ -334,7 +334,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
- * Swagger -- swagger-annotations-1.6.2.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.50.jar
  * DataSketches
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
@@ -404,18 +404,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.15.0.jar
     - async-http-client-netty-utils-2.15.0.jar
  * Jetty
-    - jetty-alpn-client-12.1.9.jar
-    - jetty-client-12.1.9.jar
-    - jetty-compression-common-12.1.9.jar
-    - jetty-compression-gzip-12.1.9.jar
-    - jetty-http-12.1.9.jar
-    - jetty-io-12.1.9.jar
-    - jetty-util-12.1.9.jar
-    - jetty-websocket-core-client-12.1.9.jar
-    - jetty-websocket-core-common-12.1.9.jar
-    - jetty-websocket-jetty-api-12.1.9.jar
-    - jetty-websocket-jetty-client-12.1.9.jar
-    - jetty-websocket-jetty-common-12.1.9.jar
+    - jetty-alpn-client-12.1.10.jar
+    - jetty-client-12.1.10.jar
+    - jetty-compression-common-12.1.10.jar
+    - jetty-compression-gzip-12.1.10.jar
+    - jetty-http-12.1.10.jar
+    - jetty-io-12.1.10.jar
+    - jetty-util-12.1.10.jar
+    - jetty-websocket-core-client-12.1.10.jar
+    - jetty-websocket-core-common-12.1.10.jar
+    - jetty-websocket-jetty-api-12.1.10.jar
+    - jetty-websocket-jetty-client-12.1.10.jar
+    - jetty-websocket-jetty-common-12.1.10.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar

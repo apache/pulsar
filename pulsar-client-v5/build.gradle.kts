@@ -28,7 +28,11 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.slog)
     implementation(libs.opentelemetry.api)
-    implementation(libs.protobuf.java)
+    // protobuf-java is only needed at compile time (for the Schema.protobuf() signature, which
+    // references com.google.protobuf.Message). Keeping it compileOnly — as pulsar-client and
+    // pulsar-client-api-v5 do — avoids dragging protobuf into every distribution that bundles the
+    // V5 client; callers that actually use protobuf schemas bring protobuf-java themselves.
+    compileOnly(libs.protobuf.java)
     implementation(libs.netty.handler)
     implementation(libs.jackson.annotations)
     compileOnly(libs.lombok)

@@ -3835,6 +3835,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int transactionCoordinatorScalableTopicsGcRetentionSeconds = 900;
 
     @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            minValue = 1,
+            doc = "Degree of parallelism for the scalable-topics transaction coordinator: how many"
+                    + " independent coordinator instances run across the cluster. Each is"
+                    + " leader-elected independently in the metadata store and coordinates the"
+                    + " transactions whose id maps to it. Fixed at cluster bring-up — changing it"
+                    + " later would strand the coordinator id encoded in existing transaction ids"
+                    + " (and, because an aborted transaction's records are retained as long as its"
+                    + " messages are, the value can only be reduced once all transactions created"
+                    + " under the previous value have been fully cleaned up). All brokers must agree"
+                    + " on this value; a mismatch is rejected at startup. Only relevant when"
+                    + " transactionCoordinatorScalableTopicsEnabled = true."
+    )
+    private int transactionCoordinatorScalableTopicsParallelism = 16;
+
+    @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )

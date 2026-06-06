@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.admin.impl.TenantsBase;
 @Path("/tenants")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/tenants", description = "Tenant admin apis", tags = "tenants")
-@SuppressWarnings("deprecation")
+@Tag(name = "tenants", description = "Tenant admin apis")
 public class Tenants extends TenantsBase {
 }

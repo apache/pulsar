@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -26,9 +26,8 @@ import jakarta.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.SourcesBase;
 
 @Path("/sources")
-@Api(value = "/sources", description = "Sources admin apis", tags = "sources")
+@Tag(name = "sources", description = "Sources admin apis")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@SuppressWarnings("deprecation")
 public class Sources extends SourcesBase {
 }

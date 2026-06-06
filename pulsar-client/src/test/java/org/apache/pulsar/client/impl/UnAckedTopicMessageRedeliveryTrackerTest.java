@@ -70,8 +70,46 @@ public class UnAckedTopicMessageRedeliveryTrackerTest {
         tracker.ackTimeoutMessages.put(msgInAckTimeout, System.currentTimeMillis() + 1_000_000L);
         assertEquals(tracker.size(), 2);
 
-        assertEquals(tracker.removeTopicMessages("my-topic"), 2);
+        assertEquals(tracker.removeTopicMessages("persistent://public/default/my-topic-partition-0"), 2);
         assertTrue(tracker.isEmpty());
+
+        tracker.close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRemoveTopicMessagesDoesNotMatchPrefixTopic() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
+                1, TimeUnit.MILLISECONDS);
+        when(client.timer()).thenReturn(timer);
+
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        doNothing().when(consumer).onAckTimeoutSend(any());
+        doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAckTimeoutMillis(1_000_000);
+        conf.setTickDurationMillis(100_000);
+        conf.setAckTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder().build());
+
+        UnAckedTopicMessageRedeliveryTracker tracker =
+                new UnAckedTopicMessageRedeliveryTracker(client, consumer, conf);
+
+        String ownerTopic = "persistent://public/default/my-topic-v2-partition-0";
+        TopicMessageIdImpl msgInPartition =
+                new TopicMessageIdImpl(ownerTopic, new MessageIdImpl(1L, 0L, -1));
+
+        assertTrue(tracker.add(msgInPartition));
+        assertEquals(tracker.size(), 1);
+
+        assertEquals(tracker.removeTopicMessages("persistent://public/default/my-topic"), 0);
+        assertEquals(tracker.size(), 1);
 
         tracker.close();
     }

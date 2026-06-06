@@ -56,6 +56,8 @@ A few rules matter specifically when an AI tool makes the change, on top of the 
   these outward-facing actions — see *Licensing and provenance* above.
 - **A clean local run is weak evidence for concurrency/data race fixes** (timing- and
   platform-dependent). See [`CODING.md`](CODING.md#reproducing-concurrency--memory-visibility-bugs).
+- **Follow Java style guidance.** For Java conventions, including imports over fully qualified class
+  names, follow [`CODING.md`](CODING.md#style).
 
 ## Critical rules
 
