@@ -281,9 +281,14 @@ public class TransactionCoordinatorV5Test {
 
         List<String> received = new ArrayList<>();
         try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
-            tc.sweepTimeouts().get();
-            var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
-            assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            // newTransaction and the first sweep can land in the same millisecond on a fast machine,
+            // leaving the 1ms-timeout txn not-yet-expired. The sweep is idempotent, so retry it until
+            // the deadline has elapsed and the txn is aborted.
+            Awaitility.await().untilAsserted(() -> {
+                tc.sweepTimeouts().get();
+                var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
+                assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            });
             // Fan-out fires for the participant.
             Awaitility.await().untilAsserted(() -> assertThat(received).isNotEmpty());
         }
