@@ -1435,16 +1435,16 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
-        return newTxn(tcId, requestId, ttlSeconds, false);
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlMillis) {
+        return newTxn(tcId, requestId, ttlMillis, false);
     }
 
-    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds, boolean scalable) {
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlMillis, boolean scalable) {
         BaseCommand cmd = localCmd(Type.NEW_TXN);
         cmd.setNewTxn()
                 .setTcId(tcId)
                 .setRequestId(requestId)
-                .setTxnTtlSeconds(ttlSeconds)
+                .setTxnTtlMillis(ttlMillis)
                 .setScalable(scalable);
         return serializeWithSize(cmd);
     }

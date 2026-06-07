@@ -3549,8 +3549,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
             final String v5Owner = getPrincipal();
+            // txn_ttl_millis is already in milliseconds (the client sends unit.toMillis(...)); the v5
+            // coordinator's newTransaction takes milliseconds too, so pass it through unchanged.
             service.pulsar().getTransactionCoordinatorV5()
-                    .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
+                    .newTransaction(tcId, command.getTxnTtlMillis(), v5Owner)
                     .whenComplete((txnId, e) -> {
                         if (e == null) {
                             commandSender.sendNewTxnResponse(requestId, txnId, tcId.getId());
@@ -3566,7 +3568,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         final String owner = getPrincipal();
-        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds(), owner)
+        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlMillis(), owner)
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     log.debug()
