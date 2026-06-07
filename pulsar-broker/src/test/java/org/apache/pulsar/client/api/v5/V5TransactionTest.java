@@ -191,13 +191,7 @@ public class V5TransactionTest extends V5ClientBaseTest {
         assertEquals(mb.value(), "b-1");
     }
 
-    // Disabled: documents a real broker gap in the per-segment TransactionBuffer model.
-    // After split, the parent segment is sealed; the txn coordinator's COMMIT END-TXN to
-    // the sealed parent never returns and the commit RPC times out (~30s). The fix
-    // requires moving transaction tracking up to the scalable-topic level (so layout
-    // changes don't strand in-flight transactions on now-sealed segments) — that's
-    // beyond the scope of this commit.
-    @Test(enabled = false)
+    @Test
     public void testCommitSpansSplit() throws Exception {
         // A single transaction whose lifetime spans a layout-changing split must commit
         // atomically: pre-split writes (on the now-sealed parent) and post-split writes
@@ -270,10 +264,7 @@ public class V5TransactionTest extends V5ClientBaseTest {
         assertEquals(received, sent, "all txn messages across the split must be delivered after commit");
     }
 
-    // Disabled: same broker gap as testCommitSpansSplit. After merge, both source
-    // segments are sealed and the COMMIT marker can't be delivered, so the END-TXN
-    // request times out.
-    @Test(enabled = false)
+    @Test
     public void testCommitSpansMerge() throws Exception {
         // A single transaction whose lifetime spans a layout-changing merge must commit
         // atomically: writes to the two pre-merge segments and writes to the post-merge
