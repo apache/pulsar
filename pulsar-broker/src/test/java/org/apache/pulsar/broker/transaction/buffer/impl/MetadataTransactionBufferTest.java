@@ -158,6 +158,48 @@ public class MetadataTransactionBufferTest {
     }
 
     @Test
+    public void terminalTxns_prunedFromCache_visibilityUnchanged() throws Exception {
+        // Resolve many transactions (mixed commit/abort) and confirm the in-memory per-txn cache is
+        // pruned back to empty rather than growing for the segment's lifetime, while visibility stays
+        // correct: aborted txns remain filtered (via the durable aborted set) and committed/unknown
+        // txns remain visible.
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        int n = 20;
+        TxnID lastAborted = null;
+        Position lastAbortedPos = null;
+        TxnID lastCommitted = null;
+        for (int i = 1; i <= n; i++) {
+            TxnID txnId = new TxnID(1, i);
+            createOpenHeader(txnId);
+            Position p = tb.appendBufferToTxn(txnId, 0, payload("v" + i)).get();
+            if (i % 2 == 0) {
+                commitTxn(txnId);
+                txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.COMMITTED)).get();
+                lastCommitted = txnId;
+            } else {
+                abortTxn(txnId);
+                txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.ABORTED)).get();
+                lastAborted = txnId;
+                lastAbortedPos = p;
+            }
+        }
+
+        // Once every txn is terminal, the cache holds nothing (no OPEN txns remain).
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(tb.getOngoingTxnCount()).isZero();
+            assertThat(tb.trackedTxnCount()).isZero();
+        });
+
+        // Visibility correctness survives pruning.
+        assertThat(tb.isTxnAborted(lastAborted, lastAbortedPos)).isTrue();
+        assertThat(tb.isTxnAborted(lastCommitted, PositionFactory.create(1, 0))).isFalse();
+        assertThat(tb.getCommittedTxnCount()).isEqualTo(n / 2);
+        assertThat(tb.getAbortedTxnCount()).isEqualTo(n / 2);
+    }
+
+    @Test
     public void appendToCommittedTxn_failsTxnConflict() throws Exception {
         TxnID txnId = new TxnID(1, 1);
         // Pre-set header to COMMITTED — txn is terminal before any append.

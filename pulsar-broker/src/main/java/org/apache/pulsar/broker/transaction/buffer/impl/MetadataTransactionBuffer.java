@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -434,6 +435,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 // it (e.g. after an in-memory rebuild that lost the set).
                 abortedTxns.add(txnIdKey);
             }
+            // Drop the now-terminal entry so the cache stays bounded by the open-txn count rather
+            // than growing for the segment's lifetime. This is safe: recomputeMaxReadPositionLocked
+            // only consults OPEN entries, and isTxnAborted reads the separate abortedTxns set (an
+            // aborted txn stays there, a committed/unknown one correctly reads as visible). The
+            // positions needed for the durable side-effects below were already captured above.
+            txns.remove(txnIdKey);
         }
 
         // Persist aborted record if this is an abort.
@@ -701,6 +708,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 }
             }
             return n;
+        }
+    }
+
+    /** Size of the in-memory per-txn cache; bounded by the open-txn count once terminals are pruned. */
+    @VisibleForTesting
+    int trackedTxnCount() {
+        synchronized (lock) {
+            return txns.size();
         }
     }
 
