@@ -763,6 +763,14 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
                 return true;
             case Connecting:
+            case Uninitialized:
+                // Not connected yet, but the handler is (or will be) establishing the connection. For
+                // the metadata-store coordinator the partition leader is still being resolved via the
+                // assignment watch, so the handler can sit in Uninitialized briefly after the client is
+                // built. Leave the op queued in pendingRequests; it is retried from connectionOpened
+                // once the handler is Ready, and the operation-timeout sweep fails it if the connection
+                // never comes. Failing fast here would make a freshly-built client's first request
+                // race the asynchronous connect.
                 return true;
             case Closing:
             case Closed:
@@ -774,7 +782,6 @@ public class TransactionMetaStoreHandler extends HandlerState
                 onResponse(op);
                 return false;
             case Failed:
-            case Uninitialized:
                 op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
