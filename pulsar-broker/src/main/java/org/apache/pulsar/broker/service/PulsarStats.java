@@ -61,6 +61,7 @@ public class PulsarStats implements Closeable {
     private final boolean exposePublisherStats;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
+    private final PulsarService pulsar;
 
     @Getter
     private long updatedAt;
@@ -81,6 +82,7 @@ public class PulsarStats implements Closeable {
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
         this.updatedAt = 0;
+        this.pulsar = pulsar;
 
     }
 
@@ -230,7 +232,7 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
-        updatedAt = System.currentTimeMillis();
+        updatedAt = this.pulsar.getClock().millis();
     }
 
     public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {

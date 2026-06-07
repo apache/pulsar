@@ -601,7 +601,7 @@ public class MessageDeduplication {
             log.debug()
                     .attr("position", position)
                     .log("Stored new deduplication snapshot at");
-            lastSnapshotTimestamp = System.currentTimeMillis();
+            lastSnapshotTimestamp = pulsar.getClock().millis();
             snapshotTaking.set(false);
         });
         future.exceptionally(e -> {
@@ -636,14 +636,14 @@ public class MessageDeduplication {
         }
 
         // Producer is no-longer active
-        inactiveProducers.put(producerName, System.currentTimeMillis());
+        inactiveProducers.put(producerName, pulsar.getClock().millis());
     }
 
     /**
      * Remove from hash maps all the producers that were inactive for more than the configured amount of time.
      */
     public synchronized void purgeInactiveProducers() {
-        long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
+        long minimumActiveTimestamp = pulsar.getClock().millis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
 
         // if not enabled just clear all inactive producer record.
@@ -687,7 +687,7 @@ public class MessageDeduplication {
         }
 
         Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
-        long currentTimeStamp = System.currentTimeMillis();
+        long currentTimeStamp = pulsar.getClock().millis();
         if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
             return;
