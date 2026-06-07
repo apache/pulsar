@@ -119,9 +119,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /** Version of the durable watermark record; -1 if it doesn't exist yet. */
     private long watermarkVersion = -1L;
 
-    /** Latest dispatched position from non-txn publishes — the natural ceiling when no opens pin. */
-    private Position lastDispatchable;
-
     /** Current maxReadPosition; never moves above the watermark while recovery-discovered opens exist. */
     private Position maxReadPosition;
 
@@ -141,7 +138,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         this.segmentName = topic.getName();
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.maxReadPosition = ledger.getLastConfirmedEntry();
-        this.lastDispatchable = this.maxReadPosition;
         recover();
     }
 
@@ -544,18 +540,28 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             next = watermarkPos != null ? watermarkPos : maxReadPosition;
         } else {
             Position min = null;
+            boolean anyOpen = false;
             for (TxnEntry e : txns.values()) {
-                if (e.state == TxnState.OPEN && e.firstPosition != null) {
-                    if (min == null || e.firstPosition.compareTo(min) < 0) {
+                if (e.state == TxnState.OPEN) {
+                    anyOpen = true;
+                    if (e.firstPosition != null
+                            && (min == null || e.firstPosition.compareTo(min) < 0)) {
                         min = e.firstPosition;
                     }
                 }
             }
             if (min != null) {
+                // Pin just below the lowest open txn's first write.
                 next = ledger.getPreviousPosition(min);
+            } else if (anyOpen) {
+                // Open txn(s) whose first write isn't tracked yet (an append is in flight between
+                // the /txn/op record and the ledger entry): hold the current ceiling rather than
+                // risk exposing the in-flight entry.
+                next = maxReadPosition;
             } else {
-                // No open txns pinning anything: free to advance to last-dispatched.
-                next = lastDispatchable;
+                // No open txns: every written entry is resolved — committed data is visible and
+                // aborted data is filtered by isTxnAborted — so advance to the last written entry.
+                next = ledger.getLastConfirmedEntry();
             }
         }
         Position prev = maxReadPosition;
@@ -593,7 +599,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         }
         topic.updateLastDispatchablePosition(position);
         synchronized (lock) {
-            lastDispatchable = position;
             recomputeMaxReadPositionLocked();
             // Persist the new watermark if it advanced as a result of the non-txn append.
             stateTail = stateTail.thenCompose(__ -> persistWatermarkIfAdvanced())

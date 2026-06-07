@@ -288,7 +288,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
 
         AtomicReference<Transaction> atomicReference;
         if (this.isEnableTransaction) {
-            atomicReference = new AtomicReference<>(pulsarClient.newTransaction());
+            atomicReference = new AtomicReference<>(PerfClientUtils.newTransactionWithRetry(pulsarClient));
         } else {
             atomicReference = new AtomicReference<>(null);
         }
@@ -475,6 +475,24 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                           Thread mainThread,
                           PulsarClient pulsarClient) {
         while (!Thread.currentThread().isInterrupted()) {
+            // Termination conditions that don't depend on having just received a message. With
+            // asynchronous transaction commits the final commit can land after the last available
+            // message is consumed, so the transaction count must be re-checked on idle receives too;
+            // otherwise the consumer waits forever for a message that will never arrive.
+            if (this.testTime > 0 && System.nanoTime() > testEndTime) {
+                log.info("------------------- DONE -----------------------");
+                PerfClientUtils.exit(0);
+                mainThread.interrupt();
+                return;
+            }
+            if (this.totalNumTxn > 0
+                    && totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= this.totalNumTxn) {
+                log.info("------------------- DONE -----------------------");
+                PerfClientUtils.exit(0);
+                mainThread.interrupt();
+                return;
+            }
+
             Message<byte[]> msg;
             try {
                 msg = consumer.receive(Duration.ofSeconds(1));
@@ -490,19 +508,6 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 continue;
             }
 
-            if (this.testTime > 0 && System.nanoTime() > testEndTime) {
-                log.info("------------------- DONE -----------------------");
-                PerfClientUtils.exit(0);
-                mainThread.interrupt();
-                return;
-            }
-            if (this.totalNumTxn > 0
-                    && totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= this.totalNumTxn) {
-                log.info("------------------- DONE -----------------------");
-                PerfClientUtils.exit(0);
-                mainThread.interrupt();
-                return;
-            }
             messagesReceived.increment();
             bytesReceived.add(msg.size());
             totalMessagesReceived.increment();
