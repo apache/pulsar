@@ -153,11 +153,12 @@ public class BrokerMessageDeduplicationTest {
         assertEquals(String.valueOf(deduplication.getStatus()), "Recovering");
 
         final var secondCheckStatus = deduplication.checkStatus();
-        assertTrue(secondCheckStatus.isDone());
+        assertFalse(secondCheckStatus.isDone());
         verify(managedLedger, times(1)).asyncOpenCursor(any(), any(), any());
 
         openCursorCallback.get().openCursorComplete(cursor, null);
         firstCheckStatus.get(3, TimeUnit.SECONDS);
+        secondCheckStatus.get(3, TimeUnit.SECONDS);
         assertEquals(String.valueOf(deduplication.getStatus()), "Enabled");
         verify(managedLedger, times(1)).asyncOpenCursor(any(), any(), any());
     }
@@ -169,7 +170,7 @@ public class BrokerMessageDeduplicationTest {
             ((AsyncCallbacks.OpenCursorCallback) invocation.getArgument(1)).openCursorComplete(cursor, null);
             return null;
         }).when(managedLedger).asyncOpenCursor(any(), any(), any());
-        doReturn(Map.of()).when(cursor).getProperties();
+        doReturn(Map.of("from-snapshot", 10L)).when(cursor).getProperties();
 
         final var hasMoreEntriesCalls = new AtomicInteger();
         doAnswer(invocation -> hasMoreEntriesCalls.getAndIncrement() == 0).when(cursor).hasMoreEntries();
@@ -186,8 +187,11 @@ public class BrokerMessageDeduplicationTest {
         }
         assertEquals(String.valueOf(deduplication.getStatus()), "Failed");
 
-        deduplication.checkStatus().get(3, TimeUnit.SECONDS);
+        final var retry = deduplication.checkStatus();
+        retry.get(3, TimeUnit.SECONDS);
         assertEquals(String.valueOf(deduplication.getStatus()), "Enabled");
+        assertEquals(deduplication.getLastPublishedSequenceId("from-snapshot"), 10L);
+        verify(cursor, times(2)).rewind();
         verify(managedLedger, times(2)).asyncOpenCursor(any(), any(), any());
     }
 }
