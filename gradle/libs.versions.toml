@@ -254,6 +254,7 @@ bookkeeper-stream-storage-service-api = { module = "org.apache.bookkeeper:stream
 bookkeeper-stream-storage-service-impl = { module = "org.apache.bookkeeper:stream-storage-service-impl", version.ref = "bookkeeper" }
 bookkeeper-tools-framework = { module = "org.apache.bookkeeper:bookkeeper-tools-framework", version.ref = "bookkeeper" }
 bookkeeper-http-vertx-server = { module = "org.apache.bookkeeper.http:vertx-http-server", version.ref = "bookkeeper" }
+bookkeeper-prometheus-metrics-provider = { module = "org.apache.bookkeeper.stats:prometheus-metrics-provider", version.ref = "bookkeeper" }
 distributedlog-core = { module = "org.apache.distributedlog:distributedlog-core", version.ref = "bookkeeper" }
 # thrift is a transitive dependency of distributedlog-core
 thrift = { module = "org.apache.thrift:libthrift", version.ref = "thrift" }

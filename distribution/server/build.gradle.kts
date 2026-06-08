@@ -98,6 +98,7 @@ dependencies {
     distLib(project(":pulsar-broker-auth-oidc"))
     distLib(project(":pulsar-broker-auth-sasl"))
     distLib(project(":pulsar-client-auth-sasl"))
+    distLib(libs.bookkeeper.prometheus.metrics.provider)
     distLib(project(":pulsar-package-management:pulsar-package-bookkeeper-storage")) {
         exclude(group = "org.objenesis")
     }

@@ -375,6 +375,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.http-http-server-4.18.0.jar
     - org.apache.bookkeeper.http-vertx-http-server-4.18.0.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.18.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.18.0.jar
     - org.apache.distributedlog-distributedlog-common-4.18.0.jar
     - org.apache.distributedlog-distributedlog-core-4.18.0-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.18.0.jar
