@@ -489,11 +489,13 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
+  * Failsafe
+    - dev.failsafe-failsafe-3.3.2.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.7.4.jar
-    - io.github.oxia-db-oxia-client-0.7.4.jar
+    - io.github.oxia-db-oxia-client-api-0.8.0.jar
+    - io.github.oxia-db-oxia-client-0.8.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens

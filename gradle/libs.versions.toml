@@ -142,7 +142,8 @@ jakarta-validation = "3.0.2"
 javax-servlet = "3.1.0"
 jakarta-servlet = "6.0.0"
 # Oxia / etcd
-oxia = "0.7.4"
+oxia = "0.8.0"
+oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
 errorprone = "2.45.0"
@@ -410,7 +411,7 @@ zt-zip = { module = "org.zeroturnaround:zt-zip", version.ref = "zt-zip" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 # Oxia / etcd
 oxia-client = { module = "io.github.oxia-db:oxia-client", version.ref = "oxia" }
-oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia" }
+oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia-testcontainers" }
 # Static analysis
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
