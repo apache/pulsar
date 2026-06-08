@@ -1,0 +1,81 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.service.scalable;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.time.Duration;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.testng.annotations.Test;
+
+public class AutoScaleConfigTest {
+
+    @Test
+    public void testDefaultsMatchBrokerConfig() {
+        AutoScaleConfig c = AutoScaleConfig.fromBrokerConfig(new ServiceConfiguration());
+        assertTrue(c.enabled());
+        assertEquals(c.maxSegments(), 64);
+        assertEquals(c.minSegments(), 1);
+        assertEquals(c.maxDagDepth(), 10);
+        assertEquals(c.splitCooldown(), Duration.ofSeconds(60));
+        assertEquals(c.mergeCooldown(), Duration.ofMinutes(5));
+        assertEquals(c.mergeWindow(), Duration.ofMinutes(5));
+        assertEquals(c.splitMsgRateIn(), 10_000.0);
+        assertEquals(c.splitBytesRateIn(), 50_000_000.0);
+        assertEquals(c.splitMsgRateOut(), 50_000.0);
+        assertEquals(c.splitBytesRateOut(), 250_000_000.0);
+        assertEquals(c.mergeMsgRateIn(), 1_000.0);
+        assertEquals(c.mergeBytesRateIn(), 5_000_000.0);
+        assertEquals(c.mergeMsgRateOut(), 5_000.0);
+        assertEquals(c.mergeBytesRateOut(), 25_000_000.0);
+
+        // Split thresholds must sit strictly above the corresponding merge thresholds
+        // (the hysteresis dead-band).
+        assertTrue(c.splitMsgRateIn() > c.mergeMsgRateIn());
+        assertTrue(c.splitBytesRateIn() > c.mergeBytesRateIn());
+        assertTrue(c.splitMsgRateOut() > c.mergeMsgRateOut());
+        assertTrue(c.splitBytesRateOut() > c.mergeBytesRateOut());
+    }
+
+    @Test
+    public void testOverriddenBrokerConfigPropagates() {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setScalableTopicAutoScaleEnabled(false);
+        conf.setScalableTopicMaxSegments(8);
+        conf.setScalableTopicMinSegments(2);
+        conf.setScalableTopicMaxDagDepth(3);
+        conf.setScalableTopicSplitCooldownSeconds(30);
+        conf.setScalableTopicMergeCooldownSeconds(120);
+        conf.setScalableTopicMergeWindowSeconds(90);
+        conf.setScalableTopicSplitMsgRateInThreshold(1234);
+        conf.setScalableTopicMergeBytesRateOutThreshold(99L);
+
+        AutoScaleConfig c = AutoScaleConfig.fromBrokerConfig(conf);
+        assertFalse(c.enabled());
+        assertEquals(c.maxSegments(), 8);
+        assertEquals(c.minSegments(), 2);
+        assertEquals(c.maxDagDepth(), 3);
+        assertEquals(c.splitCooldown(), Duration.ofSeconds(30));
+        assertEquals(c.mergeCooldown(), Duration.ofSeconds(120));
+        assertEquals(c.mergeWindow(), Duration.ofSeconds(90));
+        assertEquals(c.splitMsgRateIn(), 1234.0);
+        assertEquals(c.mergeBytesRateOut(), 99.0);
+    }
+}

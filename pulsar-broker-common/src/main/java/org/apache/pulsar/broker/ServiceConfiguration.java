@@ -1356,6 +1356,147 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int scalableTopicConsumerSessionGracePeriodSeconds = 60;
 
+    /**** --- Scalable topic auto split/merge (PIP-483). --- ****/
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Cluster-wide default for scalable-topic auto split/merge. When true, the controller "
+                    + "leader automatically splits hot segments and merges cold ones, within the caps "
+                    + "below. Can be overridden per-namespace and per-topic."
+    )
+    private boolean scalableTopicAutoScaleEnabled = true;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Cadence (seconds) of the controller's periodic traffic-driven auto split/merge "
+                    + "evaluation. Consumer-count changes are handled event-driven and are not affected "
+                    + "by this interval."
+    )
+    private int scalableTopicAutoScaleIntervalSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on the number of active segments a scalable topic can be auto-scaled to. "
+                    + "Splits stop firing once this is reached."
+    )
+    private int scalableTopicMaxSegments = 64;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Hard floor on the number of active segments. Merges stop firing once this is reached."
+    )
+    private int scalableTopicMinSegments = 1;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
+                    + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
+                    + "split/merge flip-flopping."
+    )
+    private int scalableTopicMaxDagDepth = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic splits on a topic. Deliberately short — it "
+                    + "only coalesces a burst of near-simultaneous triggers (e.g. a consumer group "
+                    + "connecting at once)."
+    )
+    private int scalableTopicSplitCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic merges on a topic."
+    )
+    private int scalableTopicMergeCooldownSeconds = 300;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "How long (seconds) a segment must continuously stay below every merge threshold before "
+                    + "it becomes merge-eligible."
+    )
+    private int scalableTopicMergeWindowSeconds = 300;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound messages/second above which a segment is split."
+    )
+    private double scalableTopicSplitMsgRateInThreshold = 10_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound bytes/second above which a segment is split."
+    )
+    private long scalableTopicSplitBytesRateInThreshold = 50_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound (dispatched) messages/second above which a segment is split."
+    )
+    private double scalableTopicSplitMsgRateOutThreshold = 50_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound bytes/second above which a segment is split."
+    )
+    private long scalableTopicSplitBytesRateOutThreshold = 250_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound messages/second below which a segment counts as cold for merging."
+    )
+    private double scalableTopicMergeMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound bytes/second below which a segment counts as cold for merging."
+    )
+    private long scalableTopicMergeBytesRateInThreshold = 5_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound messages/second below which a segment counts as cold for merging."
+    )
+    private double scalableTopicMergeMsgRateOutThreshold = 5_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound bytes/second below which a segment counts as cold for merging."
+    )
+    private long scalableTopicMergeBytesRateOutThreshold = 25_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Interval (seconds) at which the segment-owning broker samples its segment topics to "
+                    + "report load for auto split/merge."
+    )
+    private int scalableTopicLoadReportIntervalSeconds = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum relative change in any segment rate (e.g. 0.25 = 25%) since the last write that "
+                    + "triggers a new load record. Keeps metadata write volume bounded; a steady-state "
+                    + "segment writes once and goes quiet."
+    )
+    private double scalableTopicLoadReportRateChangeThreshold = 0.25;
+
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,

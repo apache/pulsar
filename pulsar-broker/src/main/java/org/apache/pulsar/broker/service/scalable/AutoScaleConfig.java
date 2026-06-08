@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import java.time.Duration;
 import lombok.Builder;
+import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
  * Fully-resolved auto split/merge policy for a single scalable topic (PIP-483).
@@ -71,4 +72,31 @@ public record AutoScaleConfig(
         double mergeMsgRateOut,
         double mergeBytesRateOut
 ) {
+
+    /**
+     * Build the cluster-wide default policy from broker configuration. Per-namespace and
+     * per-topic overrides (when added) are layered on top of this via {@code toBuilder()}.
+     *
+     * @param conf the broker service configuration
+     * @return the resolved policy reflecting the {@code scalableTopic*} settings
+     */
+    public static AutoScaleConfig fromBrokerConfig(ServiceConfiguration conf) {
+        return AutoScaleConfig.builder()
+                .enabled(conf.isScalableTopicAutoScaleEnabled())
+                .maxSegments(conf.getScalableTopicMaxSegments())
+                .minSegments(conf.getScalableTopicMinSegments())
+                .maxDagDepth(conf.getScalableTopicMaxDagDepth())
+                .splitCooldown(Duration.ofSeconds(conf.getScalableTopicSplitCooldownSeconds()))
+                .mergeCooldown(Duration.ofSeconds(conf.getScalableTopicMergeCooldownSeconds()))
+                .mergeWindow(Duration.ofSeconds(conf.getScalableTopicMergeWindowSeconds()))
+                .splitMsgRateIn(conf.getScalableTopicSplitMsgRateInThreshold())
+                .splitBytesRateIn(conf.getScalableTopicSplitBytesRateInThreshold())
+                .splitMsgRateOut(conf.getScalableTopicSplitMsgRateOutThreshold())
+                .splitBytesRateOut(conf.getScalableTopicSplitBytesRateOutThreshold())
+                .mergeMsgRateIn(conf.getScalableTopicMergeMsgRateInThreshold())
+                .mergeBytesRateIn(conf.getScalableTopicMergeBytesRateInThreshold())
+                .mergeMsgRateOut(conf.getScalableTopicMergeMsgRateOutThreshold())
+                .mergeBytesRateOut(conf.getScalableTopicMergeBytesRateOutThreshold())
+                .build();
+    }
 }
