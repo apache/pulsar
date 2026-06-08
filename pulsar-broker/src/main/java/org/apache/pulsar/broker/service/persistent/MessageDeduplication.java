@@ -25,6 +25,7 @@ import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
+import java.time.Clock;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,7 @@ public class MessageDeduplication {
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
     private final ManagedLedgerReplayTask replayTask;
+    private final Clock clock;
     private ManagedCursor managedCursor;
 
     private static final String IS_LAST_CHUNK = "isLastChunk";
@@ -144,6 +146,7 @@ public class MessageDeduplication {
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
+        this.clock = pulsar.getClock();
         this.replayTask = new ManagedLedgerReplayTask("MessageDeduplication", pulsar.getExecutor(), 100);
         this.log = LOG.with().attr("topic", topic.getName()).build();
     }
@@ -601,7 +604,7 @@ public class MessageDeduplication {
             log.debug()
                     .attr("position", position)
                     .log("Stored new deduplication snapshot at");
-            lastSnapshotTimestamp = pulsar.getClock().millis();
+            lastSnapshotTimestamp = this.clock.millis();
             snapshotTaking.set(false);
         });
         future.exceptionally(e -> {
@@ -636,14 +639,14 @@ public class MessageDeduplication {
         }
 
         // Producer is no-longer active
-        inactiveProducers.put(producerName, pulsar.getClock().millis());
+        inactiveProducers.put(producerName, this.clock.millis());
     }
 
     /**
      * Remove from hash maps all the producers that were inactive for more than the configured amount of time.
      */
     public synchronized void purgeInactiveProducers() {
-        long minimumActiveTimestamp = pulsar.getClock().millis() - TimeUnit.MINUTES
+        long minimumActiveTimestamp = this.clock.millis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
 
         // if not enabled just clear all inactive producer record.
@@ -687,7 +690,7 @@ public class MessageDeduplication {
         }
 
         Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
-        long currentTimeStamp = pulsar.getClock().millis();
+        long currentTimeStamp = this.clock.millis();
         if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
             return;

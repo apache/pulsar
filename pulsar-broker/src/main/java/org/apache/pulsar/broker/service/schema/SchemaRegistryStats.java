@@ -25,6 +25,7 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -106,7 +107,7 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     private static final Summary putOpsLatency = buildSummary("pulsar_schema_put_ops_latency", "-");
 
     private final Map<String, Long> namespaceAccess = new ConcurrentHashMap<>();
-    private final PulsarService pulsarService;
+    private final Clock clock;
     private final ScheduledFuture<?> future;
 
     public SchemaRegistryStats(PulsarService pulsarService) {
@@ -121,7 +122,7 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
                 .setDescription("The number of Schema Registry compatibility check operations performed by the broker.")
                 .setUnit("{operation}")
                 .build();
-        this.pulsarService = pulsarService;
+        this.clock = pulsarService.getClock();
     }
 
     private static Summary buildSummary(String name, String help) {
@@ -214,7 +215,7 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
             namespace = "unknown";
         }
 
-        this.namespaceAccess.put(namespace, this.pulsarService.getClock().millis());
+        this.namespaceAccess.put(namespace, this.clock.millis());
         return namespace;
     }
 
@@ -238,7 +239,7 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
 
     @Override
     public void run() {
-        long now = this.pulsarService.getClock().millis();
+        long now = this.clock.millis();
         long interval = TimeUnit.MINUTES.toMillis(5);
 
         this.namespaceAccess.entrySet().removeIf(entry -> {
