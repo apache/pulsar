@@ -188,8 +188,6 @@ include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
 
 // Tier 6.5 — jetty upgrade modules
-include("jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider")
-project(":jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("jetty-upgrade/bookkeeper-prometheus-metrics-provider")
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
 project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file("jetty-upgrade/zookeeper-prometheus-metrics")
 include("jetty-upgrade:zookeeper-with-patched-admin")
