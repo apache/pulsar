@@ -280,6 +280,36 @@ public class MetadataTransactionBufferTest {
     }
 
     @Test
+    public void pruneTrimmedAborted_dropsBelowFirstValid_retainsAbove() throws Exception {
+        // An aborted txn whose data the ML has fully trimmed (max position below the first valid
+        // position) is dropped from both the durable aborted records and the in-memory set; an
+        // aborted txn whose data is still readable is retained.
+        TxnID trimmedTxn = new TxnID(1, 100);   // max position on ledger 1 — will be trimmed away
+        TxnID liveTxn = new TxnID(1, 200);      // max position on ledger 10 — still readable
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(trimmedTxn), 1L, 5L).get();
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(liveTxn), 10L, 5L).get();
+
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+        assertThat(tb.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isTrue();
+        assertThat(tb.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+
+        // The ML has trimmed everything below ledger 5.
+        when(ledger.getFirstPosition()).thenReturn(PositionFactory.create(5, 0));
+        tb.pruneTrimmedAbortedTxns().get();
+
+        // In-memory: trimmed dropped, live retained.
+        assertThat(tb.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isFalse();
+        assertThat(tb.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+
+        // Durable record also deleted: a fresh TB recovers only the live txn.
+        MetadataTransactionBuffer tb2 = new MetadataTransactionBuffer(topic, txnStore);
+        tb2.checkIfTBRecoverCompletely().get();
+        assertThat(tb2.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isFalse();
+        assertThat(tb2.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+    }
+
+    @Test
     public void recoveryDiscoveredOpenTxn_pinsAtWatermark() throws Exception {
         // /txn/op records exist for an open txn (broker was processing publishes for txn T;
         // T's resolution hadn't yet completed; watermark was persisted at 5:0 before the crash).

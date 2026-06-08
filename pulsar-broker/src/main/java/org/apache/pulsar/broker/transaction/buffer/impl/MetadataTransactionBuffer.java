@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -42,6 +46,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
 import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
@@ -132,6 +137,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
 
+    /** Periodic task that range-deletes aborted-txn records once the segment ML trims past them. */
+    private final ScheduledFuture<?> abortedGcTask;
+
     public MetadataTransactionBuffer(PersistentTopic topic, TxnMetadataStore txnStore) {
         this.topic = topic;
         this.ledger = topic.getManagedLedger();
@@ -140,6 +148,43 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.maxReadPosition = ledger.getLastConfirmedEntry();
         recover();
+        this.abortedGcTask = scheduleAbortedGc();
+    }
+
+    /**
+     * Schedule the periodic aborted-record GC on the broker executor. Returns {@code null} when no
+     * executor is reachable (e.g. a unit test with a mocked topic); such callers drive
+     * {@link #pruneTrimmedAbortedTxns()} directly.
+     */
+    private ScheduledFuture<?> scheduleAbortedGc() {
+        ScheduledExecutorService executor = brokerExecutor();
+        if (executor == null) {
+            return null;
+        }
+        long intervalSeconds = Math.max(1, topic.getBrokerService().getPulsar().getConfiguration()
+                .getTransactionCoordinatorScalableTopicsGcIntervalSeconds());
+        long intervalMs = TimeUnit.SECONDS.toMillis(intervalSeconds);
+        return executor.scheduleWithFixedDelay(() -> {
+            if (closed) {
+                return;
+            }
+            pruneTrimmedAbortedTxns().exceptionally(ex -> {
+                log.warn().attr("segment", segmentName).exception(ex)
+                        .log("Aborted-txn GC sweep failed; will retry next cycle");
+                return null;
+            });
+        }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private ScheduledExecutorService brokerExecutor() {
+        try {
+            if (topic.getBrokerService() != null && topic.getBrokerService().getPulsar() != null) {
+                return topic.getBrokerService().getPulsar().getExecutor();
+            }
+        } catch (Throwable t) {
+            // Mocked topic in unit tests — no broker executor; GC is driven directly.
+        }
+        return null;
     }
 
     // ---- Recovery ----------------------------------------------------------
@@ -625,8 +670,71 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closed = true;
+        if (abortedGcTask != null) {
+            abortedGcTask.cancel(false);
+        }
         closeSubscriptionQuietly();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Range-delete aborted-txn records — and drop their in-memory {@link #abortedTxns} entries —
+     * whose highest position in this segment is below the ML's first still-valid position, i.e. whose
+     * data has been fully trimmed. Safe because a trimmed position is never dispatched, so its abort
+     * filtering is no longer needed; records for still-readable data (max position at or above the
+     * first valid position) are retained. Without this the durable aborted set and the heap set grow
+     * for the segment's whole lifetime even as the underlying data is trimmed away.
+     */
+    @VisibleForTesting
+    CompletableFuture<Void> pruneTrimmedAbortedTxns() {
+        if (closed) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Position firstValid = ledger.getFirstPosition();
+        if (firstValid == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<String> toPrune = Collections.synchronizedList(new ArrayList<>());
+        return txnStore.scanAbortedTxns(segmentName,
+                TxnPaths.abortedByPositionSegmentLowerBound(segmentName),
+                TxnPaths.abortedByPositionSegmentUpperBound(segmentName),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                        if (txnIdKey == null) {
+                            return;
+                        }
+                        AbortedTxnRecord rec = TxnMetadataStore.fromJson(r.getValue(), AbortedTxnRecord.class);
+                        Position maxPos = PositionFactory.create(rec.maxLedgerId(), rec.maxEntryId());
+                        // Strictly below the first valid position → fully trimmed (conservative).
+                        if (maxPos.compareTo(firstValid) < 0) {
+                            toPrune.add(txnIdKey);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segmentName).exception(throwable)
+                                .log("Aborted-txn GC scan errored");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenCompose(__ -> {
+                    if (toPrune.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    synchronized (lock) {
+                        toPrune.forEach(abortedTxns::remove);
+                    }
+                    List<CompletableFuture<Void>> deletes = new ArrayList<>(toPrune.size());
+                    for (String txnIdKey : toPrune) {
+                        deletes.add(txnStore.deleteAbortedTxn(segmentName, txnIdKey));
+                    }
+                    return FutureUtil.waitForAll(deletes);
+                });
     }
 
     private void closeSubscriptionQuietly() {

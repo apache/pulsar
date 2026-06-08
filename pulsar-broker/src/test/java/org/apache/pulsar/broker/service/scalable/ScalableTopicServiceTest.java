@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
@@ -94,6 +95,7 @@ public class ScalableTopicServiceTest {
         scalableTopicsAdmin = mock(ScalableTopics.class);
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
