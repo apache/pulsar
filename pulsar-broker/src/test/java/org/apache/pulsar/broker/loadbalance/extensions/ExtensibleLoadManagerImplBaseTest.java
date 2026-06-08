@@ -200,16 +200,24 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     protected void initializeState() throws PulsarAdminException, IllegalAccessException {
         // After a prior test churned leader election, the channel-topic bundle can be left
         // unserved ("not served by this instance"), making the unload's channel publish fail
-        // (HTTP 500) or hang server-side until the background monitor task (120s interval)
-        // reconciles the brokers' roles with the channel ownership. Drive monitor() eagerly to
-        // heal that state, bound each unload attempt (a synchronous unload() can block longer
-        // than the whole retry window), and fail loudly on exhaustion.
+        // (HTTP 500) or hang server-side. monitor() only self-heals when there is *no* channel
+        // owner; it does NOT heal the case where an owner is recorded but the bundle is not
+        // actually served, so the unload below can never publish. Force-serve the channel topic
+        // each attempt: an admin lookup re-assigns the pulsar/system bundle and getStats makes
+        // the owner load the topic (the lookup layer alone can claim an owner that refuses to
+        // serve). Bound each unload attempt and fail loudly on exhaustion.
+        boolean systemTopicChannel =
+                serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName());
         Awaitility.await().atMost(120, TimeUnit.SECONDS)
                 .pollInterval(1, TimeUnit.SECONDS)
                 .ignoreExceptions()
                 .untilAsserted(() -> {
                     primaryLoadManager.monitor();
                     secondaryLoadManager.monitor();
+                    if (systemTopicChannel) {
+                        admin.lookups().lookupTopic(ServiceUnitStateTableViewImpl.TOPIC);
+                        admin.topics().getStats(ServiceUnitStateTableViewImpl.TOPIC);
+                    }
                     admin.namespaces().unloadAsync(defaultTestNamespace).get(15, TimeUnit.SECONDS);
                 });
         reset(primaryLoadManager, secondaryLoadManager);
