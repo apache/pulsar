@@ -45,7 +45,7 @@ dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))
     implementation(project(":pulsar-docs-tools")) {
-        exclude(group = "io.swagger")
+        exclude(group = "io.swagger.core.v3")
     }
     implementation(project(":pulsar-package-management:pulsar-package-core"))
 
@@ -83,10 +83,7 @@ dependencies {
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.common)
 
-    compileOnly(libs.swagger.core) {
-        exclude(group = "com.fasterxml.jackson.core")
-        exclude(group = "com.fasterxml.jackson.dataformat")
-    }
+    compileOnly(libs.swagger.annotations)
 
     testImplementation(libs.protobuf.java.util)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))

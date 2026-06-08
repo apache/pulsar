@@ -51,6 +51,8 @@ dependencies {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
         exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
     }
     implementation(libs.simpleclient.hotspot)
     implementation(libs.prometheus.jmx.collector)

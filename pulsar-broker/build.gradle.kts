@@ -22,6 +22,7 @@ plugins {
     id("pulsar.test-certs-conventions")
     alias(libs.plugins.protobuf)
     alias(libs.plugins.lightproto)
+    alias(libs.plugins.swagger)
 }
 
 dependencies {
@@ -38,7 +39,7 @@ dependencies {
     implementation(project(":pulsar-client-messagecrypto-bc"))
     implementation(project(":pulsar-functions:pulsar-functions-worker"))
     implementation(project(":pulsar-docs-tools")) {
-        exclude(group = "io.swagger")
+        exclude(group = "io.swagger.core.v3")
     }
     implementation(project(":pulsar-package-management:pulsar-package-core"))
     implementation(project(":pulsar-package-management:pulsar-package-filesystem-storage"))
@@ -104,7 +105,6 @@ dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
 
     compileOnly(libs.swagger.annotations)
-    compileOnly(libs.swagger.core)
     compileOnly(libs.jsr305)
 
     testImplementation(project(":testmocks"))
@@ -211,4 +211,99 @@ lightproto {
     excludes.addAll("ProtobufSchemaTest.proto", "DataRecord.proto")
     // TransactionPendingAck.proto imports PulsarApi.proto from pulsar-common
     extraProtoPaths.from(rootProject.layout.projectDirectory)
+}
+
+// ── OpenAPI (Swagger) REST API documentation ────────────────────────────────
+// Mirrors the Maven build's `swagger` profile (kongchen swagger-maven-plugin, Swagger 1.x),
+// ported to the official Swagger Core v3 gradle plugin. Run on demand:
+//   ./gradlew :pulsar-broker:generateOpenApiSpecs   (outputs to pulsar-broker/build/openapi/)
+// The plugin's default `swaggerDeps` resolver dependencies target javax.ws.rs; declaring
+// our own dependencies on the configuration replaces them with the jakarta variants.
+dependencies {
+    "swaggerDeps"(libs.commons.lang3)
+    "swaggerDeps"(libs.swagger.jaxrs2)
+    "swaggerDeps"(libs.jakarta.ws.rs.api)
+    "swaggerDeps"(libs.jakarta.servlet.api)
+}
+
+fun registerSwaggerTask(
+    name: String,
+    fileName: String,
+    baseInfoFile: String,
+    configure: io.swagger.v3.plugins.gradle.tasks.ResolveTask.() -> Unit,
+) = tasks.register<io.swagger.v3.plugins.gradle.tasks.ResolveTask>(name) {
+    group = "documentation"
+    description = "Generates $fileName.json OpenAPI documentation"
+    buildClasspath.setFrom(configurations["swaggerDeps"])
+    classpath.setFrom(sourceSets["main"].runtimeClasspath)
+    outputDir.set(layout.buildDirectory.dir("swagger/$name"))
+    outputFileName.set(fileName)
+    outputFormat.set(io.swagger.v3.plugins.gradle.tasks.ResolveTask.Format.JSON)
+    openApiFile.set(file("src/main/openapi/$baseInfoFile"))
+    prettyPrint.set(true)
+    sortOutput.set(true)
+    readAllResources.set(true)
+    configure()
+}
+
+registerSwaggerTask("swaggerAdminV2", "swagger", "admin-v2.json") {
+    resourceClasses.set(setOf(
+        "org.apache.pulsar.broker.admin.v2.Bookies",
+        "org.apache.pulsar.broker.admin.v2.BrokerStats",
+        "org.apache.pulsar.broker.admin.v2.Brokers",
+        "org.apache.pulsar.broker.admin.v2.Clusters",
+        "org.apache.pulsar.broker.admin.v2.Functions",
+        "org.apache.pulsar.broker.admin.v2.Namespaces",
+        "org.apache.pulsar.broker.admin.v2.NonPersistentTopics",
+        "org.apache.pulsar.broker.admin.v2.PersistentTopics",
+        "org.apache.pulsar.broker.admin.v2.ResourceGroups",
+        "org.apache.pulsar.broker.admin.v2.ResourceQuotas",
+        "org.apache.pulsar.broker.admin.v2.SchemasResource",
+        "org.apache.pulsar.broker.admin.v2.Tenants",
+        "org.apache.pulsar.broker.admin.v2.Worker",
+        "org.apache.pulsar.broker.admin.v2.WorkerStats",
+    ))
+}
+
+registerSwaggerTask("swaggerLookup", "swaggerlookup", "lookup-v2.json") {
+    resourcePackages.set(setOf("org.apache.pulsar.broker.lookup.v2"))
+}
+
+registerSwaggerTask("swaggerFunctions", "swaggerfunctions", "functions-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Functions"))
+}
+
+registerSwaggerTask("swaggerTransactions", "swaggertransactions", "transactions-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Transactions"))
+}
+
+registerSwaggerTask("swaggerSource", "swaggersource", "source-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Sources"))
+}
+
+registerSwaggerTask("swaggerSink", "swaggersink", "sink-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Sinks"))
+}
+
+registerSwaggerTask("swaggerPackages", "swaggerpackages", "packages-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Packages"))
+}
+
+// Assemble the documentation set in the layout published on pulsar.apache.org (see e.g.
+// pulsar-site static/swagger/<version>/): all files flat, plus v2/ and v3/ subdirectory copies
+// grouped by REST API version.
+tasks.register<Sync>("generateOpenApiSpecs") {
+    group = "documentation"
+    description = "Generates all OpenAPI REST API documentation files to build/openapi"
+    into(layout.buildDirectory.dir("openapi"))
+    val v2Tasks = listOf("swaggerAdminV2", "swaggerLookup")
+    val v3Tasks = listOf("swaggerFunctions", "swaggerTransactions", "swaggerSource", "swaggerSink", "swaggerPackages")
+    v2Tasks.forEach { t ->
+        from(tasks.named(t))
+        from(tasks.named(t)) { into("v2") }
+    }
+    v3Tasks.forEach { t ->
+        from(tasks.named(t))
+        from(tasks.named(t)) { into("v3") }
+    }
 }

@@ -108,6 +108,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
+import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -505,6 +506,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
         scalableTopicsWatchers.clear();
 
+        // Same for transaction-coordinator assignment watchers.
+        tcAssignmentWatchers.values().forEach(this::closeQuietly);
+        tcAssignmentWatchers.clear();
+
         // Notify the scalable-topic controller that this connection's scalable consumers
         // have dropped. The controller marks them disconnected and starts the grace-period
         // timer; if they reconnect in time, their assignment is preserved.
@@ -865,6 +870,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             ScalableTopicsWatcherSession>
             scalableTopicsWatchers = new ConcurrentHashMap<>();
 
+    // --- Transaction-coordinator assignment watchers ---
+    // watchId -> deregistration handle for the listener registered on TransactionCoordinatorV5.
+    private final ConcurrentHashMap<Long, AutoCloseable> tcAssignmentWatchers = new ConcurrentHashMap<>();
+    // Delay before re-pushing a TC-assignment snapshot that was incomplete (a partition mid-election)
+    // or that failed to build, so the client converges without waiting for an external trigger.
+    private static final long TC_ASSIGNMENTS_REPUSH_DELAY_MS = 1000L;
+
     @Override
     protected void handleCommandWatchScalableTopics(
             CommandWatchScalableTopics cmd) {
@@ -962,6 +974,85 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         var session = scalableTopicsWatchers.remove(watchId);
         if (session != null) {
             session.close();
+        }
+    }
+
+    // --- Transaction-coordinator assignment watch ---
+
+    @Override
+    protected void handleCommandWatchTcAssignments(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignments cmd) {
+        checkArgument(state == State.Connected);
+        final long watchId = cmd.getWatchId();
+        log.debug().attr("watchId", watchId).log("Received WatchTcAssignments");
+
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+            ctx.writeAndFlush(Commands.newWatchTcAssignmentsError(watchId, ServerError.NotAllowedError,
+                    "Scalable-topics transaction coordinator is disabled on this broker"));
+            return;
+        }
+        TransactionCoordinatorV5 tc = service.getPulsar().getTransactionCoordinatorV5();
+        if (tc == null) {
+            ctx.writeAndFlush(Commands.newWatchTcAssignmentsError(watchId, ServerError.ServiceNotReady,
+                    "Transaction coordinator not ready"));
+            return;
+        }
+        // Register a listener that re-pushes the full snapshot on any leadership change, then send
+        // the initial snapshot. Authz: this is broker-internal coordination, not a per-topic op, so
+        // an authenticated connection is sufficient (same trust model as TC_CLIENT_CONNECT).
+        AutoCloseable handle = tc.registerAssignmentChangeListener(
+                () -> ctx.executor().execute(() -> sendTcAssignmentsSnapshot(watchId, tc)));
+        AutoCloseable prev = tcAssignmentWatchers.put(watchId, handle);
+        closeQuietly(prev);
+        sendTcAssignmentsSnapshot(watchId, tc);
+    }
+
+    private void sendTcAssignmentsSnapshot(long watchId, TransactionCoordinatorV5 tc) {
+        if (!tcAssignmentWatchers.containsKey(watchId)) {
+            return;
+        }
+        tc.buildAssignmentsSnapshot().thenAccept(snapshot -> ctx.executor().execute(() -> {
+            if (!tcAssignmentWatchers.containsKey(watchId)) {
+                return;
+            }
+            java.util.Map<Integer, String[]> leaders = new java.util.HashMap<>();
+            snapshot.assignments().forEach((partition, leader) -> leaders.put(partition,
+                    new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
+            ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
+                    watchId, snapshot.partitionCount(), leaders));
+            // If some partition is still mid-election, the snapshot is incomplete. Schedule a single
+            // delayed re-push so the client doesn't stay parked on a missing partition waiting for a
+            // leadership change that may never come (the cache repopulating fires no TC listener).
+            if (!snapshot.isComplete()) {
+                ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
+                        TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            }
+        })).exceptionally(ex -> {
+            log.warn().attr("watchId", watchId).exception(ex)
+                    .log("Failed to build TC-assignments snapshot; retrying shortly");
+            ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
+                    TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
+
+    @Override
+    protected void handleCommandWatchTcAssignmentsClose(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsClose cmd) {
+        checkArgument(state == State.Connected);
+        long watchId = cmd.getWatchId();
+        log.debug().attr("watchId", watchId).log("Received WatchTcAssignmentsClose");
+        closeQuietly(tcAssignmentWatchers.remove(watchId));
+    }
+
+    private void closeQuietly(AutoCloseable handle) {
+        if (handle == null) {
+            return;
+        }
+        try {
+            handle.close();
+        } catch (Exception e) {
+            log.warn().exceptionMessage(e).log("Error closing TC-assignment watcher");
         }
     }
 
@@ -1316,7 +1407,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             maybeScheduleAuthenticationCredentialsRefresh();
         }
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher,
-                scalableTopicsEnabled));
+                scalableTopicsEnabled,
+                service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         log.debug()
@@ -3354,7 +3446,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendTcClientConnectResponse(requestId, ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
             service.pulsar().getTransactionCoordinatorV5().handleClientConnect(tcId)
                     .whenComplete((__, e) -> {
                         if (e == null) {
@@ -3400,6 +3497,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return true;
         }
     }
+    /**
+     * @return true if the scalable-topics (PIP-473) transaction coordinator is enabled and ready on
+     *     this broker. Transaction commands carrying {@code scalable=true} route to it; commands
+     *     without the flag always go to the legacy coordinator, so v4 and v5 clients coexist.
+     */
+    private boolean isScalableTcAvailable() {
+        return service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
+                && service.getPulsar().getTransactionCoordinatorV5() != null;
+    }
+
     private Throwable handleTxnException(Throwable ex, String op, long requestId) {
         Throwable cause = FutureUtil.unwrapCompletionException(ex);
         if (cause instanceof CoordinatorException.CoordinatorNotFoundException) {
@@ -3435,7 +3542,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
             final String v5Owner = getPrincipal();
             service.pulsar().getTransactionCoordinatorV5()
                     .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
@@ -3502,11 +3614,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getLeastSigBits(),
+                        txnID.getMostSigBits(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker"));
+                return;
+            }
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops. Still verify ownership before acking,
             // matching the legacy authorization surface.
-            verifyTxnOwnership(txnID)
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
                             : failedFutureTxnNotOwned(txnID))
                     .whenComplete((v, ex) -> {
@@ -3526,7 +3644,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
@@ -3584,8 +3702,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
-            verifyTxnOwnership(txnID)
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                commandSender.sendEndTxnErrorResponse(requestId, txnID, ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker");
+                return;
+            }
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> {
                         if (!isOwner) {
                             return failedFutureTxnNotOwned(txnID);
@@ -3608,7 +3731,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
@@ -3647,14 +3770,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
+    private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, boolean scalable) {
         assert ctx.executor().inEventLoop();
-        CompletableFuture<Boolean> ownerCheck =
-                service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
-                        ? service.pulsar().getTransactionCoordinatorV5()
-                                .verifyTxnOwnership(txnID, getPrincipal())
-                        : service.pulsar().getTransactionMetadataStoreService()
-                                .verifyTxnOwnership(txnID, getPrincipal());
+        CompletableFuture<Boolean> ownerCheck = scalable
+                ? service.pulsar().getTransactionCoordinatorV5()
+                        .verifyTxnOwnership(txnID, getPrincipal())
+                : service.pulsar().getTransactionMetadataStoreService()
+                        .verifyTxnOwnership(txnID, getPrincipal());
         return ownerCheck
                 .thenComposeAsync(isOwner -> {
                     if (isOwner) {
@@ -3924,11 +4046,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (command.isScalable()) {
+            if (!isScalableTcAvailable()) {
+                writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getLeastSigBits(),
+                        txnID.getMostSigBits(), ServerError.NotAllowedError,
+                        "Scalable-topics transaction coordinator is not enabled on this broker"));
+                return;
+            }
             // v5: TC doesn't need pre-registration — participants advertise themselves by writing
             // /txn/op records when they actually apply ops. Still verify ownership before acking,
             // matching the legacy authorization surface.
-            verifyTxnOwnership(txnID)
+            verifyTxnOwnership(txnID, true)
                     .thenCompose(isOwner -> isOwner ? CompletableFuture.<Void>completedFuture(null)
                             : failedFutureTxnNotOwned(txnID))
                     .whenComplete((v, ex) -> {
@@ -3949,7 +4077,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, false)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);

@@ -30,9 +30,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
-env:
-  JDK_DISTRIBUTION: corretto
-
 jobs:
   analyze:
     # only run on push and schedule in apache/pulsar repo
@@ -52,29 +49,19 @@ jobs:
         language: [ 'java-kotlin' ]
 
     steps:
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: 21
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Gradle
-        uses: ./.github/actions/setup-gradle
-        with:
-          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-          cache-read-only: true
-
       # Initializes the CodeQL tools for scanning.
+      # Use build-mode: none so CodeQL extracts the source directly instead of
+      # tracing a Gradle build. A traced build fails intermittently because the
+      # Gradle build cache restores compileJava/compileKotlin FROM-CACHE, so no
+      # compiler runs and CodeQL sees no source ("could not process any of it").
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-
-      - name: Build Java code
-        run: ./gradlew assemble
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

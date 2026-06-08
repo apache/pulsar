@@ -57,6 +57,14 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * A service URL provider that fetches controlled failover configuration from an external HTTP service
+ * and updates the Pulsar client when the returned configuration changes.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
 @CustomLog
 public class ControlledClusterFailover implements ServiceUrlProvider {
     private static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
@@ -111,7 +119,10 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.pulsarClient = (PulsarClientImpl) client;
         this.httpClient = buildHttpClient();
         this.requestBuilder = httpClient.prepareGet(urlProvider)
@@ -223,7 +234,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         this.executor.shutdown();
         if (httpClient != null) {
             try {

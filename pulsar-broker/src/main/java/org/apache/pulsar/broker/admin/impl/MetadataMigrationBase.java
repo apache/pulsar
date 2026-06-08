@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -41,10 +43,11 @@ public class MetadataMigrationBase extends AdminResource {
 
     @GET
     @Path("/status")
-    @ApiOperation(value = "Get current migration status", response = MigrationState.class)
+    @Operation(summary = "Get current migration status")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Migration status retrieved successfully"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Migration status retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = MigrationState.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public MigrationState getStatus() {
         validateSuperUserAccess();
@@ -64,15 +67,15 @@ public class MetadataMigrationBase extends AdminResource {
 
     @POST
     @Path("/start")
-    @ApiOperation(value = "Start metadata store migration")
+    @Operation(summary = "Start metadata store migration")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Migration started successfully"),
-            @ApiResponse(code = 400, message = "Invalid target URL"),
-            @ApiResponse(code = 409, message = "Migration already in progress"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "204", description = "Migration started successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid target URL"),
+            @ApiResponse(responseCode = "409", description = "Migration already in progress"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public void startMigration(
-            @ApiParam(value = "Target metadata store URL", required = true)
+            @Parameter(description = "Target metadata store URL", required = true)
             @QueryParam("target")
             String targetUrl) {
         validateSuperUserAccess();

@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.web;
+package org.apache.pulsar.client.api.v5.schema;
 
-public @interface NoSwaggerDocumentation {
-
+/**
+ * A named field of a {@link GenericRecord}.
+ *
+ * @param name  the field name
+ * @param index the position of the field within the record
+ */
+public record Field(String name, int index) {
 }
