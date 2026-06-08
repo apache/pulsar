@@ -20,14 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.yahoo.sketches.quantiles.DoublesSketch;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.CustomLog;
+import org.apache.datasketches.kll.KllDoublesSketch;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -53,9 +54,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final LongAdder totalAcksReceived;
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
-    private final transient DoublesSketch ds;
-    private final transient DoublesSketch batchSizeDs;
-    private final transient DoublesSketch msgSizeDs;
+    private final transient KllDoublesSketch ds;
+    private final transient KllDoublesSketch batchSizeDs;
+    private final transient KllDoublesSketch msgSizeDs;
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
@@ -74,9 +75,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
-        batchSizeDs = DoublesSketch.builder().build(256);
-        msgSizeDs = DoublesSketch.builder().build(256);
+        ds = KllDoublesSketch.newHeapInstance(256);
+        batchSizeDs = KllDoublesSketch.newHeapInstance(256);
+        msgSizeDs = KllDoublesSketch.newHeapInstance(256);
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -92,9 +93,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
-        batchSizeDs = DoublesSketch.builder().build(256);
-        msgSizeDs = DoublesSketch.builder().build(256);
+        ds = KllDoublesSketch.newHeapInstance(256);
+        batchSizeDs = KllDoublesSketch.newHeapInstance(256);
+        msgSizeDs = KllDoublesSketch.newHeapInstance(256);
         init(conf);
     }
 
@@ -154,17 +155,17 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalAcksReceived.add(currentNumAcksReceived);
 
         synchronized (ds) {
-            latencyPctValues = ds.getQuantiles(PERCENTILES);
+            latencyPctValues = getQuantiles(ds);
             ds.reset();
         }
 
         synchronized (batchSizeDs) {
-            batchSizePctValues = batchSizeDs.getQuantiles(PERCENTILES);
+            batchSizePctValues = getQuantiles(batchSizeDs);
             batchSizeDs.reset();
         }
 
         synchronized (msgSizeDs) {
-            msgSizePctValues = msgSizeDs.getQuantiles(PERCENTILES);
+            msgSizePctValues = getQuantiles(msgSizeDs);
             msgSizeDs.reset();
         }
 
@@ -204,6 +205,19 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                     .attr("pendingMessages", getPendingQueueSize())
                     .log("Publish stats");
         }
+    }
+
+    /**
+     * Returns the configured percentile quantiles for the given sketch. KllDoublesSketch throws on an empty
+     * sketch, so an array of {@link Double#NaN} is returned in that case to preserve the previous behavior.
+     */
+    private static double[] getQuantiles(KllDoublesSketch sketch) {
+        if (sketch.isEmpty()) {
+            double[] values = new double[PERCENTILES.length];
+            Arrays.fill(values, Double.NaN);
+            return values;
+        }
+        return sketch.getQuantiles(PERCENTILES);
     }
 
     @Override

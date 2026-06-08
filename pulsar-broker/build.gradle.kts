@@ -92,7 +92,7 @@ dependencies {
     implementation(libs.bookkeeper.server)
     implementation(libs.bookkeeper.circe.checksum)
     implementation(libs.caffeine)
-    implementation(libs.sketches.core)
+    implementation(libs.datasketches.java)
     implementation(libs.netty.codec.haproxy)
     implementation(libs.opentelemetry.sdk.extension.autoconfigure)
     implementation(libs.jetty.ee10.websocket.jetty.server)

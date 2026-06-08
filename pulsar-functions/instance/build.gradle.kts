@@ -43,7 +43,7 @@ dependencies {
     implementation(libs.simpleclient.caffeine)
     implementation(libs.simpleclient.httpserver)
     implementation(libs.prometheus.jmx.collector)
-    implementation(libs.sketches.core)
+    implementation(libs.datasketches.java)
     implementation(libs.jackson.databind)
     implementation(libs.netty.buffer)
     implementation(libs.netty.common)

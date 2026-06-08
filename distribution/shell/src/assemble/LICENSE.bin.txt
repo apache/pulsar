@@ -336,8 +336,8 @@ The Apache Software License, Version 2.0
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
  * Swagger -- swagger-annotations-jakarta-2.2.50.jar
  * DataSketches
-    - memory-0.8.3.jar
-    - sketches-core-0.8.3.jar
+    - datasketches-java-7.0.1.jar
+    - datasketches-memory-4.1.0.jar
  * Apache Commons
     - commons-codec-1.20.0.jar
     - commons-io-2.21.0.jar

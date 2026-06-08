@@ -63,7 +63,7 @@ tasks.shadowJar {
         include(dependency("info.picocli:.*"))
         include(dependency("net.jodah:.*"))
         include(dependency("io.airlift:.*"))
-        include(dependency("com.yahoo.datasketches:.*"))
+        include(dependency("org.apache.datasketches:.*"))
     }
 
     // Exclude bouncycastle from pulsar-client (signatures would break if shaded)
@@ -79,8 +79,6 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "com.squareup.okhttp")
     relocateWithPrefix(shadePrefix, "com.squareup.okio")
     relocateWithPrefix(shadePrefix, "com.thoughtworks.paranamer")
-    relocateWithPrefix(shadePrefix, "com.yahoo.datasketches")
-    relocateWithPrefix(shadePrefix, "com.yahoo.sketches")
     relocateWithPrefix(shadePrefix, "commons-cli")
     relocateWithPrefix(shadePrefix, "commons-codec")
     relocateWithPrefix(shadePrefix, "commons-io")
@@ -110,6 +108,7 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "org.apache.bookkeeper")
     relocateWithPrefix(shadePrefix, "org.apache.commons")
     relocateWithPrefix(shadePrefix, "org.apache.curator")
+    relocateWithPrefix(shadePrefix, "org.apache.datasketches")
     relocateWithPrefix(shadePrefix, "org.apache.distributedlog")
     relocateWithPrefix(shadePrefix, "org.apache.jute")
     relocateWithPrefix(shadePrefix, "org.apache.yetus")

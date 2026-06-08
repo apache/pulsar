@@ -120,7 +120,6 @@ oshi = "6.4.0"
 netty-reactive-streams = "2.0.6"
 cron-utils = "9.1.6"
 failsafe = "3.3.2"
-sketches = "0.8.3"
 disruptor = "3.4.3"
 ant = "1.10.12"
 guice = "5.1.0"
@@ -165,6 +164,7 @@ json = "20231013"
 consolecaptor = "1.0.3"
 restassured = "5.4.0"
 skyscreamer = "1.5.0"
+# misc
 zstd-jni = "1.5.7-3"
 lz4java = "1.10.3"
 spring = "6.2.12"
@@ -173,6 +173,8 @@ aws-sdk = "1.12.788"
 hadoop3 = "3.5.0"
 jclouds = "2.6.0"
 thrift = "0.23.0"
+datasketches-memory = "4.1.0"
+datasketches-java = "7.0.1"
 # Shading
 shadow = "9.4.1"
 
@@ -374,7 +376,6 @@ vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 avro = { module = "org.apache.avro:avro", version.ref = "avro" }
 avro-protobuf = { module = "org.apache.avro:avro-protobuf", version.ref = "avro" }
 joda-time = "joda-time:joda-time:2.10.10"
-sketches-core = { module = "com.yahoo.datasketches:sketches-core", version.ref = "sketches" }
 java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "java-semver" }
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
@@ -465,8 +466,8 @@ commons-logging = { module = "commons-logging:commons-logging", version.ref = "c
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
 commons-configuration2 = { module = "org.apache.commons:commons-configuration2", version.ref = "commons-configuration2" }
 bookkeeper-stats-api = { module = "org.apache.bookkeeper.stats:bookkeeper-stats-api", version.ref = "bookkeeper" }
-datasketches-memory = "org.apache.datasketches:datasketches-memory:2.2.0"
-datasketches-java = "org.apache.datasketches:datasketches-java:6.1.1"
+datasketches-memory = { module = "org.apache.datasketches:datasketches-memory", version.ref = "datasketches-memory" }
+datasketches-java = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches-java" }
 
 [plugins]
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }

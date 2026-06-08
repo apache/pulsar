@@ -278,8 +278,8 @@ The Apache Software License, Version 2.0
     - io.swagger.core.v3-swagger-annotations-jakarta-2.2.50.jar
  * slog -- io.github.merlimat.slog-slog-0.9.9.jar
  * DataSketches
-    - com.yahoo.datasketches-memory-0.8.3.jar
-    - com.yahoo.datasketches-sketches-core-0.8.3.jar
+    - org.apache.datasketches-datasketches-java-7.0.1.jar
+    - org.apache.datasketches-datasketches-memory-4.1.0.jar
  * Apache Commons
     - commons-beanutils-commons-beanutils-1.11.0.jar
     - commons-cli-commons-cli-1.11.0.jar
