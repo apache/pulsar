@@ -278,6 +278,7 @@ The Apache Software License, Version 2.0
     - io.swagger-swagger-annotations-1.6.2.jar
     - io.swagger-swagger-core-1.6.2.jar
     - io.swagger-swagger-models-1.6.2.jar
+ * slog -- io.github.merlimat.slog-slog-0.9.5.jar
  * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
@@ -497,8 +498,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.7.4.jar
-    - io.github.oxia-db-oxia-client-0.7.4.jar
+    - io.github.oxia-db-oxia-client-api-0.8.0.jar
+    - io.github.oxia-db-oxia-client-0.8.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
