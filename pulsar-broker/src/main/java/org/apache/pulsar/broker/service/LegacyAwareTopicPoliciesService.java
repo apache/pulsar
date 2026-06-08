@@ -56,8 +56,8 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
                 .buildAsync(new AsyncCacheLoader<>() {
                     @NonNull
                     @Override
-                    public CompletableFuture<? extends Boolean> asyncLoad(NamespaceName key,
-                                                                          @NonNull Executor executor) {
+                    public CompletableFuture<Boolean> asyncLoad(NamespaceName key,
+                                                                @NonNull Executor executor) {
                         return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(key, EventType.TOPIC_POLICY,
                                 pulsar);
                     }
