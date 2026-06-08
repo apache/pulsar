@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 public class TopicMessageIdImplTest {
@@ -52,6 +54,21 @@ public class TopicMessageIdImplTest {
         assertEquals(topicMsgId1, msgId1);
         assertEquals(msgId1, topicMsgId1);
         assertNotEquals(topicMsgId1, topicMsgId2);
+    }
+
+    @Test
+    public void testHasSameBasePartitionedTopic() {
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+        TopicMessageIdImpl partitionMsgId = new TopicMessageIdImpl(
+                "persistent://public/default/my-topic-partition-0", msgId);
+        assertTrue(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-partition-1"));
+        assertTrue(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic"));
+        assertFalse(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-v2"));
+        assertFalse(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-v2-partition-0"));
     }
 
     @SuppressWarnings("deprecation")

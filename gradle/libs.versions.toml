@@ -26,7 +26,7 @@ checkstyle = "13.3.0"
 bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
 netty = "4.2.15.Final"
-jetty = "12.1.9"
+jetty = "12.1.10"
 jersey = "3.1.10"
 jackson = "2.21.3"
 jackson-annotations = "2.21"
@@ -64,7 +64,7 @@ avro = "1.12.0"
 gson = "2.13.2"
 snakeyaml = "2.0"
 # Vert.x
-vertx = "4.5.27"
+vertx = "4.5.28"
 # Networking / HTTP
 asynchttpclient = "2.15.0"
 conscrypt = "2.5.2"
@@ -111,8 +111,8 @@ audience-annotations = "0.12.0"
 # Misc
 curator = "5.7.1"
 reflections = "0.10.2"
-# swagger stays 1.6.2 in Phase A (javax→jakarta core); migrated to Swagger Core 2.x (io.swagger.core.v3) in Phase B
-swagger = "1.6.2"
+# OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
+swagger = "2.2.50"
 typetools = "0.5.0"
 jna = "5.18.1"
 java-semver = "0.9.0"
@@ -141,7 +141,8 @@ jakarta-validation = "3.0.2"
 javax-servlet = "3.1.0"
 jakarta-servlet = "6.0.0"
 # Oxia / etcd
-oxia = "0.7.4"
+oxia = "0.8.0"
+oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
 errorprone = "2.45.0"
@@ -337,8 +338,8 @@ aircompressor = { module = "io.airlift:aircompressor", version.ref = "aircompres
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 re2j = { module = "com.google.re2j:re2j", version.ref = "re2j" }
 completable-futures = { module = "com.spotify:completable-futures", version.ref = "completable-futures" }
-swagger-annotations = { module = "io.swagger:swagger-annotations", version.ref = "swagger" }
-swagger-core = { module = "io.swagger:swagger-core", version.ref = "swagger" }
+swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
+swagger-jaxrs2 = { module = "io.swagger.core.v3:swagger-jaxrs2-jakarta", version.ref = "swagger" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-shell-jline3 = { module = "info.picocli:picocli-shell-jline3", version.ref = "picocli" }
 jline = { module = "org.jline:jline", version.ref = "jline3" }
@@ -409,7 +410,7 @@ zt-zip = { module = "org.zeroturnaround:zt-zip", version.ref = "zt-zip" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 # Oxia / etcd
 oxia-client = { module = "io.github.oxia-db:oxia-client", version.ref = "oxia" }
-oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia" }
+oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia-testcontainers" }
 # Static analysis
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
@@ -474,6 +475,7 @@ protobuf = "com.google.protobuf:0.9.6"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.8.1"
 spotless = "com.diffplug.spotless:8.4.0"
+swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
 version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.0"
 versions = "com.github.ben-manes.versions:0.53.0"
 crlf = "com.github.vlsi.crlf:3.0.1"

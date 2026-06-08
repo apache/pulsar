@@ -47,6 +47,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -197,7 +198,20 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
 
     @BeforeMethod(alwaysRun = true)
     protected void initializeState() throws PulsarAdminException, IllegalAccessException {
-        admin.namespaces().unload(defaultTestNamespace);
+        // After a prior test churned leader election, the channel-topic bundle can be left
+        // unserved ("not served by this instance"), making the unload's channel publish fail
+        // (HTTP 500) or hang server-side until the background monitor task (120s interval)
+        // reconciles the brokers' roles with the channel ownership. Drive monitor() eagerly to
+        // heal that state, bound each unload attempt (a synchronous unload() can block longer
+        // than the whole retry window), and fail loudly on exhaustion.
+        Awaitility.await().atMost(120, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    primaryLoadManager.monitor();
+                    secondaryLoadManager.monitor();
+                    admin.namespaces().unloadAsync(defaultTestNamespace).get(15, TimeUnit.SECONDS);
+                });
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
         pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);

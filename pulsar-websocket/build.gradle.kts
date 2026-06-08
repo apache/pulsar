@@ -28,6 +28,8 @@ dependencies {
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-docs-tools"))
     implementation(libs.commons.lang3)
+    // guava was previously leaked onto the compile classpath via compileOnly(swagger-core 1.x)
+    implementation(libs.guava)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.container.servlet)
     implementation(libs.jersey.hk2)
@@ -47,8 +49,7 @@ dependencies {
     implementation(libs.netty.common)
     implementation(libs.netty.buffer)
 
-    compileOnly(libs.swagger.core)
+    compileOnly(libs.swagger.annotations)
 
-    testImplementation(libs.guava)
     testImplementation(libs.netty.transport.native.epoll)
 }

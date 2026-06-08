@@ -17,11 +17,14 @@
  * under the License.
  */
 package org.apache.pulsar.broker.admin.v2;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -37,48 +40,54 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 @Path("/resourcegroups")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/resourcegroups", description = "ResourceGroups admin apis", tags = "resourcegroups")
+@Tag(name = "resourcegroups", description = "ResourceGroups admin apis")
 @SuppressWarnings("deprecation")
 public class ResourceGroups extends ResourceGroupsBase {
 
     @GET
-    @ApiOperation(value = "Get the list of all the resourcegroups.",
-            response = String.class, responseContainer = "Set")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    @Operation(summary = "Get the list of all the resourcegroups.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get the list of all the resourcegroups.",
+                    content = @Content(array = @ArraySchema(uniqueItems = true,
+                            schema = @Schema(implementation = String.class)))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")})
     public List<String> getResourceGroups() {
         return internalGetResourceGroups();
     }
 
     @GET
     @Path("/{resourcegroup}")
-    @ApiOperation(value = "Get the rate limiters specified for a resourcegroup.", response = ResourceGroup.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")})
+    @Operation(summary = "Get the rate limiters specified for a resourcegroup.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get the rate limiters specified for a resourcegroup.",
+                    content = @Content(schema = @Schema(implementation = ResourceGroup.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "ResourceGroup doesn't exist")})
     public ResourceGroup getResourceGroup(@PathParam("resourcegroup") String resourcegroup) {
         return internalGetResourceGroup(resourcegroup);
     }
 
     @PUT
     @Path("/{resourcegroup}")
-    @ApiOperation(value = "Creates a new resourcegroup with the specified rate limiters")
+    @Operation(summary = "Creates a new resourcegroup with the specified rate limiters")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "cluster doesn't exist")})
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "cluster doesn't exist")})
     public void createOrUpdateResourceGroup(@PathParam("resourcegroup") String name,
-                                    @ApiParam(value = "Rate limiters for the resourcegroup")
+                                    @RequestBody(description = "Rate limiters for the resourcegroup")
                                             ResourceGroup resourcegroup) {
         internalCreateOrUpdateResourceGroup(name, resourcegroup);
     }
 
     @DELETE
     @Path("/{resourcegroup}")
-    @ApiOperation(value = "Delete a resourcegroup.")
+    @Operation(summary = "Delete a resourcegroup.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist"),
-            @ApiResponse(code = 409, message = "ResourceGroup is in use")})
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "ResourceGroup doesn't exist"),
+            @ApiResponse(responseCode = "409", description = "ResourceGroup is in use")})
     public void deleteResourceGroup(@PathParam("resourcegroup") String resourcegroup) {
         internalDeleteResourceGroup(resourcegroup);
     }

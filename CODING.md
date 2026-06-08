@@ -13,6 +13,8 @@ for the agent-specific guardrails on top of it.
 - No `@author` tags in Javadoc.
 - Every `TODO` must reference a GitHub issue, e.g. `// TODO: https://github.com/apache/pulsar/issues/XXXX`.
 - Checkstyle config: `buildtools/src/main/resources/pulsar/checkstyle.xml`. Lombok is enabled.
+- Prefer imports over fully qualified class names in code. Use a fully qualified class name only when
+  needed to disambiguate a name collision that imports cannot resolve.
 
 ## Logging
 
