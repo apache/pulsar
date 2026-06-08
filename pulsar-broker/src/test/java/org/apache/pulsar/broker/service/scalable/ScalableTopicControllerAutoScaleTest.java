@@ -1,0 +1,222 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.service.scalable;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.ScalableTopics;
+import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+/**
+ * Integration tests for the controller's auto split/merge wiring (PIP-483): the periodic /
+ * event-driven evaluation reads load records + consumer counts, runs the evaluator, and
+ * dispatches to the real splitSegment / mergeSegments paths (against an in-memory metadata
+ * store and a mocked cross-broker admin client). The decision logic itself is unit-tested in
+ * {@link AutoScalePolicyEvaluatorTest}; here we verify the plumbing actually fires.
+ */
+public class ScalableTopicControllerAutoScaleTest {
+
+    private static final String BROKER_ID = "broker-test";
+
+    private MetadataStoreExtended store;
+    private CoordinationService coordinationService;
+    private ScalableTopicResources resources;
+    private ScheduledExecutorService scheduler;
+    private BrokerService brokerService;
+    private PulsarService pulsar;
+    private ServiceConfiguration config;
+    private ScalableTopicController controller;
+    private TopicName topicName;
+
+    @BeforeMethod
+    public void setUp() throws Exception {
+        store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        coordinationService = new CoordinationServiceImpl(store);
+        resources = new ScalableTopicResources(store, 30);
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        topicName = TopicName.get("topic://tenant/ns/my-topic");
+
+        // Auto-scale tuned for deterministic single-shot evaluation: no cooldowns/windows so a
+        // single evaluateAutoScaleForTest() call acts immediately, low-ish thresholds.
+        config = new ServiceConfiguration();
+        config.setScalableTopicAutoScaleEnabled(true);
+        config.setScalableTopicMaxSegments(64);
+        config.setScalableTopicMinSegments(1);
+        config.setScalableTopicSplitCooldownSeconds(0);
+        config.setScalableTopicMergeCooldownSeconds(0);
+        config.setScalableTopicMergeWindowSeconds(0);
+        config.setScalableTopicSplitMsgRateInThreshold(10_000);
+
+        brokerService = mock(BrokerService.class);
+        pulsar = mock(PulsarService.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        Topics topics = mock(Topics.class);
+        ScalableTopics scalableTopics = mock(ScalableTopics.class);
+
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.getTopicIfExists(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
+        when(pulsar.getExecutor()).thenReturn(scheduler);
+        when(pulsar.getConfig()).thenReturn(config);
+        when(pulsar.getAdminClient()).thenReturn(admin);
+        when(admin.topics()).thenReturn(topics);
+        when(admin.scalableTopics()).thenReturn(scalableTopics);
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.terminateSegmentAsync(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() throws Exception {
+        if (controller != null) {
+            controller.close().join();
+        }
+        if (coordinationService != null) {
+            coordinationService.close();
+        }
+        if (store != null) {
+            store.close();
+        }
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
+    }
+
+    private void startController(int initialSegments) throws Exception {
+        resources.createScalableTopicAsync(topicName,
+                ScalableTopicController.createInitialMetadata(initialSegments, Map.of())).get();
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService);
+        controller.initialize().get();
+    }
+
+    private int activeSegmentCount() throws Exception {
+        return controller.getLayout().get().getActiveSegments().size();
+    }
+
+    @Test
+    public void testLoadDrivenSplit() throws Exception {
+        startController(2);
+        assertEquals(activeSegmentCount(), 2);
+
+        // Segment 0 is hot on msgRateIn → expect a split.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "hot segment should have been split");
+    }
+
+    @Test
+    public void testNoSplitWhenUnderThreshold() throws Exception {
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(100, 0, 0, 0)).get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2, "no segment over threshold → no change");
+    }
+
+    @Test
+    public void testDisabledConfigIsNoOp() throws Exception {
+        config.setScalableTopicAutoScaleEnabled(false);
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(1_000_000, 0, 0, 0)).get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2, "disabled → no action even when hot");
+    }
+
+    @Test
+    public void testColdSegmentsMerge() throws Exception {
+        startController(4);
+        // All segments cold (no load records written → treated as zero; but merge requires a
+        // record present, so write explicit cold records). mergeWindow=0 so they're eligible.
+        for (long id = 0; id < 4; id++) {
+            resources.reportSegmentLoadAsync(topicName, id, new SegmentLoadStats(1, 0, 0, 0)).get();
+        }
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "a cold adjacent pair should have been merged");
+    }
+
+    @Test
+    public void testConsumerDrivenSplit() throws Exception {
+        startController(1);
+        assertEquals(activeSegmentCount(), 1);
+
+        // Two consumers on one segment → need a second segment. registerConsumer fires an
+        // event-driven evaluation (fire-and-forget); await its effect.
+        controller.registerConsumer("sub", "c1", 1L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub", "c2", 2L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(activeSegmentCount(), 2,
+                        "2 consumers on 1 segment should drive a split"));
+    }
+
+    @Test
+    public void testSplitCooldownBlocksSecondSplit() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600); // 1h — blocks a second split
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "first split happens");
+
+        // Still hot, but within cooldown → no second split.
+        resources.reportSegmentLoadAsync(topicName, 1,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "second split blocked by cooldown");
+    }
+}
