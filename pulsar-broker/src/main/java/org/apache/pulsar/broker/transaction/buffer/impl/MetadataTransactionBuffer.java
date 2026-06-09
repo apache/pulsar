@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -60,6 +61,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.ScanConsumer;
@@ -139,6 +141,8 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     /** Periodic task that range-deletes aborted-txn records once the segment ML trims past them. */
     private final ScheduledFuture<?> abortedGcTask;
+    /** Guards against a new GC cycle starting while the previous async one is still in flight. */
+    private final AtomicBoolean gcRunning = new AtomicBoolean(false);
 
     public MetadataTransactionBuffer(PersistentTopic topic, TxnMetadataStore txnStore) {
         this.topic = topic;
@@ -164,16 +168,28 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long intervalSeconds = Math.max(1, topic.getBrokerService().getPulsar().getConfiguration()
                 .getTransactionCoordinatorScalableTopicsGcIntervalSeconds());
         long intervalMs = TimeUnit.SECONDS.toMillis(intervalSeconds);
-        return executor.scheduleWithFixedDelay(() -> {
-            if (closed) {
+        // Wrap in catchingAndLoggingThrowables so an unexpected RuntimeException doesn't cancel the
+        // fixed-delay schedule. The gcRunning guard skips a cycle while the previous async sweep is
+        // still in flight (slow metadata store) rather than overlapping sweeps.
+        return executor.scheduleWithFixedDelay(Runnables.catchingAndLoggingThrowables(() -> {
+            if (closed || !gcRunning.compareAndSet(false, true)) {
                 return;
             }
-            pruneTrimmedAbortedTxns().exceptionally(ex -> {
-                log.warn().attr("segment", segmentName).exception(ex)
-                        .log("Aborted-txn GC sweep failed; will retry next cycle");
-                return null;
+            CompletableFuture<Void> sweep;
+            try {
+                sweep = pruneTrimmedAbortedTxns();
+            } catch (Throwable t) {
+                gcRunning.set(false);
+                throw t;
+            }
+            sweep.whenComplete((__, ex) -> {
+                gcRunning.set(false);
+                if (ex != null) {
+                    log.warn().attr("segment", segmentName).exception(ex)
+                            .log("Aborted-txn GC sweep failed; will retry next cycle");
+                }
             });
-        }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
     private ScheduledExecutorService brokerExecutor() {
