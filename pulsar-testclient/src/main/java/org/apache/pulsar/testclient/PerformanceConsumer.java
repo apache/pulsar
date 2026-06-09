@@ -334,7 +334,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 String subscriberName = this.subscriptions.get(j);
                 for (int k = 0; k < this.numConsumers; k++) {
                     futures.add(subscribeAsync(pulsarClient, topicName.toString(), subscriberName,
-                            k, encryptionPolicy));
+                            encryptionPolicy));
                 }
             }
         }
@@ -631,19 +631,21 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     }
 
     private CompletableFuture<PerfConsumer> subscribeAsync(PulsarClient client, String topic,
-                                                           String subscription, int consumerIndex,
+                                                           String subscription,
                                                            ConsumerEncryptionPolicy encryptionPolicy) {
         if (this.scalableConsumerType == ScalableConsumerType.Stream) {
-            // StreamConsumer has no receiverQueueSize knob; the rest carries over. A distinct
-            // consumerName per index makes the N consumers distinct members of the group so the
-            // controller assigns segments 1:1 (and splits when consumers outnumber segments).
+            // StreamConsumer has no receiverQueueSize knob; the rest carries over. Deliberately
+            // do NOT set a consumerName: the controller keys group membership by consumer name,
+            // so the V5 client's auto-generated unique name keeps every consumer — within one
+            // process and across separate `pulsar-perf consume` invocations — a distinct member.
+            // (Setting a deterministic name would make two processes collide and the second be
+            // treated as a reconnect of the first.)
             StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
                     .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
                     .subscriptionInitialPosition(this.subscriptionInitialPosition)
                     .replicateSubscriptionState(this.replicatedSubscription)
                     .topic(topic)
-                    .subscriptionName(subscription)
-                    .consumerName(subscription + "-c" + consumerIndex);
+                    .subscriptionName(subscription);
             if (encryptionPolicy != null) {
                 b.encryptionPolicy(encryptionPolicy);
             }
