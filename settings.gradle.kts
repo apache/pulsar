@@ -35,19 +35,6 @@ dependencyResolutionManagement {
                 includeGroupByRegex("io\\.confluent(\\..*)?")
             }
         }
-        // BookKeeper 4.18.0 staging repository (release candidate, not yet on Maven Central).
-        // Remove once BookKeeper 4.18.0 is released to Maven Central.
-        maven {
-            name = "bk-staging"
-            url = uri("https://repository.apache.org/content/repositories/orgapachebookkeeper-1105/")
-            mavenContent {
-                releasesOnly()
-            }
-            content {
-                includeGroupByRegex("org\\.apache\\.bookkeeper(\\..*)?")
-                includeGroupByRegex("org\\.apache\\.distributedlog(\\..*)?")
-            }
-        }
     }
 
     // override docker-jdk version with -PdockerJavaVersion=21|25
