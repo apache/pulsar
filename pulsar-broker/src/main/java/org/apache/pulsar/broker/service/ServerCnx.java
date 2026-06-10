@@ -2662,19 +2662,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {
-        headersAndPayload.markReaderIndex();
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        headersAndPayload.resetReaderIndex();
-        log.debug()
-                .attr("producerId", send.getProducerId())
-                .attr("sendSequenceId", send.getSequenceId())
-                .attr("producerName", msgMetadata.getProducerName())
-                .attr("metadataSequenceId", msgMetadata.getSequenceId())
-                .attr("readableBytes", headersAndPayload.readableBytes())
-                .attr("partitionKey", msgMetadata.hasPartitionKey() ? msgMetadata.getPartitionKey() : null)
-                .attr("orderingKey", msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null)
-                .attr("uncompressedSize", msgMetadata.getUncompressedSize())
-                .log("Received send message request");
+        log.debug(e -> {
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+            e.attr("producerId", send.getProducerId())
+                    .attr("sendSequenceId", send.getSequenceId())
+                    .attr("producerName", msgMetadata.getProducerName())
+                    .attr("metadataSequenceId", msgMetadata.getSequenceId())
+                    .attr("readableBytes", headersAndPayload.readableBytes())
+                    .attr("partitionKey", msgMetadata.hasPartitionKey() ? msgMetadata.getPartitionKey() : null)
+                    .attr("orderingKey", msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null)
+                    .attr("uncompressedSize", msgMetadata.getUncompressedSize())
+                    .log("Received send message request");
+        });
     }
 
     @Override
@@ -3549,8 +3550,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
             final String v5Owner = getPrincipal();
+            // txn_ttl_millis is already in milliseconds (the client sends unit.toMillis(...)); the v5
+            // coordinator's newTransaction takes milliseconds too, so pass it through unchanged.
             service.pulsar().getTransactionCoordinatorV5()
-                    .newTransaction(tcId, command.getTxnTtlSeconds() * 1000L, v5Owner)
+                    .newTransaction(tcId, command.getTxnTtlMillis(), v5Owner)
                     .whenComplete((txnId, e) -> {
                         if (e == null) {
                             commandSender.sendNewTxnResponse(requestId, txnId, tcId.getId());
@@ -3566,7 +3569,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         final String owner = getPrincipal();
-        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds(), owner)
+        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlMillis(), owner)
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     log.debug()

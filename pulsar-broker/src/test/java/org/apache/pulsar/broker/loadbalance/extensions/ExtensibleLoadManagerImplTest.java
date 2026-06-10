@@ -1589,7 +1589,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     // and trip TestNG's ThreadTimeoutException mid-poll, and any failure to settle
     // is swallowed-and-logged rather than thrown. That matters because callers invoke this from
     // a finally block — a settling delay here must never replace (mask) the body's exception.
-    // The next test's initializeState() carries a 60s ignoreExceptions retry as the real backstop.
+    // The next test's initializeState() is the real backstop: it retries the unload and, if the
+    // channel stays wedged, forces a clean channel owner via leader re-election before retrying.
     private void awaitChannelOwnerStable() {
         try {
             Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {

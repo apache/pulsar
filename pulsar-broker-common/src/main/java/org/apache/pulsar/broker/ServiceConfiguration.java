@@ -2335,10 +2335,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."
-            + " This is the memory retained by data read from storage (or cache) until it has been delivered to the"
-            + " Consumer Netty channel. Use O to disable")
-    private long managedLedgerMaxReadsInFlightSizeInMB = 0;
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
+            + " (or from the cache). This is the memory retained by data read from storage (or cache) until it has"
+            + " been delivered to the Consumer Netty channel. This provides backpressure for BookKeeper and tiered"
+            + " storage reads, preventing the broker from having too many concurrent reads and running into Out of"
+            + " Memory errors when there are multiple concurrent reads to multiple concurrent consumers.\n"
+            + "When left unset (empty), it defaults to the greater of dispatcherMaxReadSizeBytes and 15% of"
+            + " available JVM direct memory; dispatcherMaxReadSizeBytes is the minimum value so the limiter"
+            + " can never block the completion of a single read.\n"
+            + "Set to 0 to disable the feature.\n"
+            + "Set to a value greater than 0 to use that many MB.")
+    private Long managedLedgerMaxReadsInFlightSizeInMB = null;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")

@@ -94,7 +94,7 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         this.conf.setUnblockStuckSubscriptionEnabled(false);
         this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
         conf.setManagedLedgerCacheSizeMB(0);
-        conf.setManagedLedgerMaxReadsInFlightSizeInMB(0);
+        conf.setManagedLedgerMaxReadsInFlightSizeInMB(0L);
         conf.setDispatcherRetryBackoffInitialTimeInMs(0);
         conf.setDispatcherRetryBackoffMaxTimeInMs(0);
         conf.setKeySharedUnblockingIntervalMs(0);

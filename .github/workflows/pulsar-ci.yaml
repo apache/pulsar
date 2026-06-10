@@ -258,8 +258,8 @@ jobs:
             group: CLIENT
           - name: Pulsar Metadata
             group: METADATA
-          - name: Protobuf v4
-            group: PROTOBUFV4
+          - name: Protobuf v3
+            group: PROTOBUFV3
 
     steps:
       - name: checkout
@@ -511,6 +511,13 @@ jobs:
           - name: Kubernetes
             group: PULSAR_K8S
 
+          - name: Native Image
+            group: NATIVE_IMAGE
+            runtime_jdk: 25
+            # Native image compilation (even in quick build mode) is slower than a
+            # regular test group, so allow extra headroom over the default timeout.
+            timeout: 40
+
     steps:
       - name: checkout
         uses: actions/checkout@v6
@@ -526,12 +533,22 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
+        if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: |
             ${{ matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && matrix.runtime_jdk || '' }}
             ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      # The NATIVE_IMAGE group compiles a native binary with GraalVM native-build-tools,
+      # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
+      - name: Set up GraalVM
+        if: ${{ matrix.group == 'NATIVE_IMAGE' }}
+        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
+        with:
+          distribution: 'graalvm-community'
+          java-version: 25 # always use GraalVM 25.x
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
@@ -836,6 +853,7 @@ jobs:
       contents: read
       security-events: write
     env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       CODEQL_LANGUAGE: java-kotlin
     steps:
       - name: checkout
@@ -852,10 +870,29 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      # Use build-mode: none so CodeQL extracts the source directly instead of
-      # tracing a Gradle build. A traced build fails intermittently because the
-      # Gradle build cache restores compileJava/compileKotlin FROM-CACHE, so no
-      # compiler runs and CodeQL sees no source ("could not process any of it").
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: true
+
+      - name: Configure Gradle for CodeQL
+        run: |
+          cat >> gradle.properties <<'EOF'
+          
+          org.gradle.configuration-cache=false
+          org.gradle.configureondemand=false
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          org.gradle.daemon=false
+          EOF
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:

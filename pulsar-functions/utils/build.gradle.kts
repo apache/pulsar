@@ -36,6 +36,7 @@ dependencies {
     implementation(libs.protobuf.java.util)
     implementation(libs.byte.buddy)
     implementation(libs.zt.zip)
+    implementation(libs.guava)
 
     testImplementation(libs.wiremock)
     testImplementation(libs.json)
