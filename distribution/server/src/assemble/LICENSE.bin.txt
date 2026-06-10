@@ -272,7 +272,7 @@ The Apache Software License, Version 2.0
     - com.google.guava-guava-33.6.0-jre.jar
     - com.google.guava-failureaccess-1.0.3.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
- * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
+ * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
  * Swagger
     - io.swagger.core.v3-swagger-annotations-jakarta-2.2.50.jar
@@ -443,31 +443,21 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-2.2.21.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.79.0.jar
-    - io.grpc-grpc-auth-1.79.0.jar
     - io.grpc-grpc-context-1.79.0.jar
     - io.grpc-grpc-core-1.79.0.jar
     - io.grpc-grpc-protobuf-1.79.0.jar
     - io.grpc-grpc-protobuf-lite-1.79.0.jar
     - io.grpc-grpc-stub-1.79.0.jar
-    - io.grpc-grpc-alts-1.79.0.jar
     - io.grpc-grpc-api-1.79.0.jar
-    - io.grpc-grpc-grpclb-1.79.0.jar
     - io.grpc-grpc-netty-shaded-1.79.0.jar
     - io.grpc-grpc-services-1.79.0.jar
-    - io.grpc-grpc-xds-1.79.0.jar
-    - io.grpc-grpc-rls-1.79.0.jar
-    - io.grpc-grpc-servlet-1.79.0.jar
-    - io.grpc-grpc-servlet-jakarta-1.79.0.jar
     - io.grpc-grpc-util-1.79.0.jar
-    - io.grpc-grpc-opentelemetry-1.79.0.jar
-    - io.grpc-grpc-gcp-csm-observability-1.79.0.jar
     - io.grpc-grpc-inprocess-1.79.0.jar
   * Perfmark
-    - io.perfmark-perfmark-api-0.26.0.jar
+    - io.perfmark-perfmark-api-0.27.0.jar
   * OpenCensus
-    - io.opencensus-opencensus-api-0.28.0.jar
-    - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
+    - io.opencensus-opencensus-api-0.31.1.jar
+    - io.opencensus-opencensus-contrib-http-util-0.31.1.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Byte Buddy
@@ -518,8 +508,8 @@ The Apache Software License, Version 2.0
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.8.jar
   * Google HTTP Client
-    - com.google.http-client-google-http-client-gson-1.41.0.jar
-    - com.google.http-client-google-http-client-1.41.0.jar
+    - com.google.http-client-google-http-client-gson-2.1.0.jar
+    - com.google.http-client-google-http-client-2.1.0.jar
     - com.google.auto.value-auto-value-annotations-1.11.0.jar
     - com.google.re2j-re2j-1.8.jar
   * IPAddress
@@ -550,7 +540,6 @@ The Apache Software License, Version 2.0
     - io.opentelemetry.instrumentation-opentelemetry-resources-2.28.1-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-2.28.1-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.41.1.jar
-    - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.57.0-alpha.jar
   * Spotify completable-futures
     - com.spotify-completable-futures-0.3.6.jar
   * JSpecify
@@ -558,8 +547,9 @@ The Apache Software License, Version 2.0
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
-    - com.google.auth-google-auth-library-oauth2-http-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-1.43.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-1.43.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+ * Google API Common -- com.google.api-api-common-2.53.0.jar
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt

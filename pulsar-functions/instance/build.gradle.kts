@@ -57,13 +57,15 @@ dependencies {
     }
     implementation(libs.grpc.netty.shaded)
     implementation(libs.grpc.stub)
-    implementation(libs.grpc.all)
     runtimeOnly(libs.perfmark.api)
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
     implementation(libs.bcpkix.jdk18on)
     implementation(libs.bookkeeper.circe.checksum)
+    // Main code only touches com.google.protobuf reflectively (protobuf schema detection for user
+    // functions); tests exercise that path with concrete protobuf types.
+    testImplementation(libs.protobuf.java)
 }
 
 tasks.withType<Test> {
