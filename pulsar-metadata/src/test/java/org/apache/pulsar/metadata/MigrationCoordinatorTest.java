@@ -21,8 +21,11 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -32,10 +35,12 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -297,5 +302,101 @@ public class MigrationCoordinatorTest extends BaseMetadataStoreTest {
         assertTrue(state.getPhase() == MigrationPhase.PREPARATION
                 || state.getPhase() == MigrationPhase.COPYING
                 || state.getPhase() == MigrationPhase.COMPLETED);
+    }
+
+    @Test
+    public void testRetryAfterFailedMigration() throws Exception {
+        String prefix = newKey();
+
+        @Cleanup
+        MetadataStoreExtended sourceStore =
+                (MetadataStoreExtended) MetadataStoreFactory.create(zks.getConnectionString(),
+                        MetadataStoreConfig.builder().build());
+
+        // Raw store handle for writing/reading the migration flag deterministically, bypassing the
+        // DualMetadataStore phase-based routing
+        @Cleanup
+        MetadataStore rawStore = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false);
+
+        String targetUrl = getOxiaServerConnectString();
+
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl, MetadataStoreConfig.builder().build());
+
+        String key1 = prefix + "/persistent/key1";
+        sourceStore.put(key1, "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        // Simulate a previously failed migration attempt
+        rawStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer()
+                        .writeValueAsBytes(new MigrationState(MigrationPhase.FAILED, targetUrl)),
+                Optional.empty()).join();
+
+        // Re-running the migration must overwrite the leftover FAILED flag and complete
+        MigrationCoordinator coordinator = new MigrationCoordinator(sourceStore, targetUrl);
+        coordinator.startMigration();
+
+        Optional<GetResult> result = rawStore.get(MigrationState.MIGRATION_FLAG_PATH).join();
+        assertTrue(result.isPresent());
+        MigrationState state = ObjectMapperFactory.getMapper().reader()
+                .readValue(result.get().getValue(), MigrationState.class);
+        assertEquals(state.getPhase(), MigrationPhase.COMPLETED);
+
+        // Verify the data was copied to the target store
+        Optional<GetResult> target1 = targetStore.get(key1).join();
+        assertTrue(target1.isPresent());
+        assertEquals(new String(target1.get().getValue(), StandardCharsets.UTF_8), "value1");
+    }
+
+    @Test
+    public void testStartRejectedWhileMigrationInProgress() throws Exception {
+        @Cleanup
+        MetadataStore sourceStore = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false);
+
+        String targetUrl = getOxiaServerConnectString();
+
+        for (MigrationPhase phase : List.of(MigrationPhase.PREPARATION, MigrationPhase.COPYING,
+                MigrationPhase.COMPLETED)) {
+            sourceStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                    ObjectMapperFactory.getMapper().writer()
+                            .writeValueAsBytes(new MigrationState(phase, targetUrl)),
+                    Optional.empty()).join();
+
+            MigrationCoordinator coordinator = new MigrationCoordinator(sourceStore, targetUrl);
+            expectThrows(MetadataStoreException.class, coordinator::startMigration);
+
+            // The existing migration flag must be left untouched (in particular, not marked FAILED)
+            Optional<GetResult> result = sourceStore.get(MigrationState.MIGRATION_FLAG_PATH).join();
+            assertTrue(result.isPresent());
+            MigrationState state = ObjectMapperFactory.getMapper().reader()
+                    .readValue(result.get().getValue(), MigrationState.class);
+            assertEquals(state.getPhase(), phase);
+        }
+    }
+
+    @Test
+    public void testPreparationTimeoutFailsMigration() throws Exception {
+        @Cleanup
+        MetadataStore sourceStore = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false);
+
+        // Simulate a participant that never acknowledges the preparation
+        sourceStore.put(MigrationState.PARTICIPANTS_PATH + "/id-0000000001", new byte[0],
+                Optional.empty()).join();
+
+        String targetUrl = getOxiaServerConnectString();
+
+        MigrationCoordinator coordinator =
+                new MigrationCoordinator(sourceStore, targetUrl, Duration.ofSeconds(2));
+        expectThrows(MetadataStoreException.class, coordinator::startMigration);
+
+        // The migration must have transitioned to FAILED
+        Optional<GetResult> result = sourceStore.get(MigrationState.MIGRATION_FLAG_PATH).join();
+        assertTrue(result.isPresent());
+        MigrationState state = ObjectMapperFactory.getMapper().reader()
+                .readValue(result.get().getValue(), MigrationState.class);
+        assertEquals(state.getPhase(), MigrationPhase.FAILED);
     }
 }
