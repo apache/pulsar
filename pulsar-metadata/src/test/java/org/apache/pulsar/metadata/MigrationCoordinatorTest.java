@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -40,6 +41,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -273,6 +275,44 @@ public class MigrationCoordinatorTest extends BaseMetadataStoreTest {
         Optional<GetResult> target3 = targetStore.get(prefix + "/level1/level2/level3/key3").join();
         assertTrue(target3.isPresent());
         assertEquals(new String(target3.get().getValue(), StandardCharsets.UTF_8), "value3");
+    }
+
+    @Test
+    public void testStatusReportsCompletedAfterMigration() throws Exception {
+        String prefix = newKey();
+
+        @Cleanup
+        DualMetadataStore sourceStore = (DualMetadataStore) MetadataStoreFactory.create(
+                "zk:" + zks.getConnectionString(), MetadataStoreConfig.builder().build());
+
+        String targetUrl = getOxiaServerConnectString();
+
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl, MetadataStoreConfig.builder().build());
+
+        String key = prefix + "/key1";
+        sourceStore.put(key, "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        // Run the migration through the DualMetadataStore, like the broker admin endpoint does
+        MigrationCoordinator coordinator = new MigrationCoordinator(sourceStore, targetUrl);
+        coordinator.startMigration();
+
+        // The source store holds the authoritative migration state. This is what the status
+        // endpoint reports, since reads through the DualMetadataStore are routed to the target
+        // store once the migration is completed.
+        Optional<GetResult> result = sourceStore.getSourceStore().get(MigrationState.MIGRATION_FLAG_PATH).join();
+        assertTrue(result.isPresent());
+        MigrationState state = ObjectMapperFactory.getMapper().reader()
+                .readValue(result.get().getValue(), MigrationState.class);
+        assertEquals(state.getPhase(), MigrationPhase.COMPLETED);
+
+        // Regular data was copied
+        assertTrue(targetStore.get(key).join().isPresent());
+
+        // The migration coordination state was not copied: a copied flag would permanently
+        // report the stale phase (COPYING) it had at copy time
+        assertFalse(targetStore.get(MigrationState.MIGRATION_FLAG_PATH).join().isPresent());
+        assertFalse(targetStore.exists(MigrationState.COORDINATOR_PATH).join());
     }
 
     @Test

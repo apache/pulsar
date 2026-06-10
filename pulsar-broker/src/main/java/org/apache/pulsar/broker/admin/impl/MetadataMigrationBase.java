@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 
@@ -53,7 +54,14 @@ public class MetadataMigrationBase extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            var ogr = pulsar().getLocalMetadataStore().get(MigrationState.MIGRATION_FLAG_PATH).get();
+            // The migration flag lives in the source store. Don't read it through the
+            // DualMetadataStore: once the migration is completed, its reads are routed to the
+            // target store, which doesn't hold the flag.
+            MetadataStore store = pulsar().getLocalMetadataStore();
+            if (store instanceof DualMetadataStore dualStore) {
+                store = dualStore.getSourceStore();
+            }
+            var ogr = store.get(MigrationState.MIGRATION_FLAG_PATH).get();
             if (ogr.isPresent()) {
                 return ObjectMapperFactory.getMapper().reader().readValue(ogr.get().getValue(), MigrationState.class);
             } else {

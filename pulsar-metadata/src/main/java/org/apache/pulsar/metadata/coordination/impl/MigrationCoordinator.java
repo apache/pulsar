@@ -200,6 +200,13 @@ public class MigrationCoordinator {
                 }
             }
 
+            if (path.equals(MigrationState.COORDINATOR_PATH)
+                    || path.startsWith(MigrationState.COORDINATOR_PATH + "/")) {
+                // The migration coordination state is only meaningful in the source store. Copying it
+                // would leave a permanently stale migration flag in the target store.
+                continue;
+            }
+
             semaphore.acquire();
             copy(path).whenComplete((res, e) -> {
                 semaphore.release();
