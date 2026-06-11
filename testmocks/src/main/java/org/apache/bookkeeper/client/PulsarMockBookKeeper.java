@@ -79,6 +79,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     final ScheduledExecutorService scheduler;
     private volatile long defaultAddEntryDelayMillis = 1L;
     private volatile long defaultReadEntriesDelayMillis = 1L;
+    private final EnsemblePlacementPolicy defaultPlacementPolicy = new DefaultEnsemblePlacementPolicy();
 
     @Override
     public ClientConfiguration getConf() {
@@ -110,6 +111,13 @@ public class PulsarMockBookKeeper extends BookKeeper {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
         scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("mock-bk-scheduler"));
+    }
+
+    public EnsemblePlacementPolicy getPlacementPolicy() {
+        if (placementPolicy == null) {
+            return defaultPlacementPolicy;
+        }
+        return placementPolicy;
     }
 
     @Override

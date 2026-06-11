@@ -605,6 +605,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setNumExecutorThreadPoolSize(5);
         configuration.setBrokerMaxConnections(0);
         configuration.setBrokerMaxConnectionsPerIp(0);
+        configuration.setManagedLedgerBatchReadEnabled(true);
         return configuration;
     }
 
