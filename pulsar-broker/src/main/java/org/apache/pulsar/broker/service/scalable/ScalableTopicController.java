@@ -179,6 +179,7 @@ public class ScalableTopicController {
                 })
                 .thenCompose(__ -> {
                     if (isLeader()) {
+                        seedAutoScaleCooldownsFromLayout();
                         scheduleGcTask();
                         scheduleAutoScaleTask();
                         return ensureActiveSegmentsExist()
@@ -186,6 +187,29 @@ public class ScalableTopicController {
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Recover the auto split/merge cooldown clocks after winning leadership. The timestamps
+     * are in-memory only, but the layout itself records when each segment was created — a
+     * split's children have exactly one parent, a merge's child has two — so the most recent
+     * creation time of each class is exactly when the last split / merge happened. Without
+     * this, every leader failover would reset both cooldowns and e.g. allow an auto merge
+     * seconds after one just ran on the previous leader.
+     */
+    private void seedAutoScaleCooldownsFromLayout() {
+        long split = Long.MIN_VALUE;
+        long merge = Long.MIN_VALUE;
+        for (SegmentInfo segment : currentLayout.getAllSegments().values()) {
+            int parents = segment.parentIds().size();
+            if (parents == 1) {
+                split = Math.max(split, segment.createdAtMs());
+            } else if (parents >= 2) {
+                merge = Math.max(merge, segment.createdAtMs());
+            }
+        }
+        lastSplitAtMs = split;
+        lastMergeAtMs = merge;
     }
 
     /**
@@ -564,8 +588,6 @@ public class ScalableTopicController {
         // so the children's createdAtMs and the parent's sealedAtMs always agree even if the
         // CAS retries due to concurrent writers.
         final long nowMs = clock.millis();
-        // Start the auto-split cooldown now (covers both manual and auto-triggered splits).
-        lastSplitAtMs = nowMs;
 
         // Compute the new layout locally to derive child segment info
         SegmentLayout newLayout = currentLayout.splitSegment(segmentId, nowMs);
@@ -597,6 +619,9 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the auto-split cooldown only now that the split actually happened
+              // (covers manual and auto splits; a failed attempt doesn't burn the cooldown).
+              lastSplitAtMs = nowMs;
 
               // Step 5: Notify subscriptions of layout change (triggers consumer reassignment)
               return notifySubscriptions(currentLayout);
@@ -615,8 +640,6 @@ public class ScalableTopicController {
         // Single timestamp shared by the local preview and the CAS-retried metadata
         // update — see splitSegment for the rationale.
         final long nowMs = clock.millis();
-        // Start the auto-merge cooldown now (covers both manual and auto-triggered merges).
-        lastMergeAtMs = nowMs;
 
         // Compute the new layout locally to derive merged segment info
         SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs);
@@ -645,6 +668,9 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the auto-merge cooldown only now that the merge actually happened
+              // (covers manual and auto merges; a failed attempt doesn't burn the cooldown).
+              lastMergeAtMs = nowMs;
               return notifySubscriptions(currentLayout);
           }).thenApply(__ -> currentLayout);
     }

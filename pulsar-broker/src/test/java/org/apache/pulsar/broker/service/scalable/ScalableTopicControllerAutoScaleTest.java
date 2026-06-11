@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -68,6 +69,7 @@ public class ScalableTopicControllerAutoScaleTest {
     private BrokerService brokerService;
     private PulsarService pulsar;
     private ServiceConfiguration config;
+    private ScalableTopics scalableTopics;
     private ScalableTopicController controller;
     private TopicName topicName;
 
@@ -94,7 +96,7 @@ public class ScalableTopicControllerAutoScaleTest {
         pulsar = mock(PulsarService.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
         Topics topics = mock(Topics.class);
-        ScalableTopics scalableTopics = mock(ScalableTopics.class);
+        scalableTopics = mock(ScalableTopics.class);
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
         when(brokerService.getTopicIfExists(anyString()))
@@ -218,5 +220,52 @@ public class ScalableTopicControllerAutoScaleTest {
                 new SegmentLoadStats(20_000, 0, 0, 0)).get();
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 3, "second split blocked by cooldown");
+    }
+
+    @Test
+    public void testSplitCooldownSurvivesLeaderFailover() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600);
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "first split happens");
+
+        // Leadership moves: close this controller and elect a fresh one. The new leader's
+        // in-memory cooldown clocks must be re-seeded from the layout (the children's
+        // createdAtMs records when the last split ran), not reset to "never".
+        controller.close().join();
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService);
+        controller.initialize().get();
+
+        resources.reportSegmentLoadAsync(topicName, 1,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3,
+                "split cooldown must survive failover via layout-derived seeding");
+    }
+
+    @Test
+    public void testFailedSplitDoesNotBurnCooldown() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600);
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+
+        // First attempt fails at the segment-topic-creation step. The evaluation future
+        // surfaces the failure (the production tick wrapper logs-and-swallows it).
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("injected")));
+        assertThrows(java.util.concurrent.ExecutionException.class,
+                () -> controller.evaluateAutoScaleForTest().get());
+        assertEquals(activeSegmentCount(), 2, "failed split leaves the layout unchanged");
+
+        // The failure must not have started the cooldown: once the transient error clears,
+        // the next evaluation splits immediately instead of waiting out the hour.
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "retry after a failed split is not cooldown-blocked");
     }
 }
