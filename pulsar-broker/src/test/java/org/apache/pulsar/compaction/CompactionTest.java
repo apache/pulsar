@@ -134,7 +134,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        conf.setSystemTopicEnabled(false);
         conf.setDispatcherMaxReadBatchSize(1);
     }
 
