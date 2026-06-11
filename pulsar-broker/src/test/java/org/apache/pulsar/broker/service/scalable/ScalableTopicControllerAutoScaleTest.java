@@ -206,6 +206,21 @@ public class ScalableTopicControllerAutoScaleTest {
     }
 
     @Test
+    public void testConsumerBurstConvergesWithoutTicks() throws Exception {
+        // A group of consumers joining in quick succession must converge to one segment
+        // each purely from the event-driven evaluations + post-split follow-up chain — no
+        // periodic tick and no manual evaluation calls.
+        startController(1);
+        for (int i = 1; i <= 4; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(
+                () -> assertEquals(activeSegmentCount(), 4,
+                        "4 consumers must drive convergence to 4 segments"));
+    }
+
+    @Test
     public void testSplitCooldownBlocksSecondSplit() throws Exception {
         config.setScalableTopicSplitCooldownSeconds(3600); // 1h — blocks a second split
         startController(2);

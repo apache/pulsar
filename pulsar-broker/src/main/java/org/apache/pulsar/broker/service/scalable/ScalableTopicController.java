@@ -97,6 +97,12 @@ public class ScalableTopicController {
      */
     private final AtomicBoolean autoScaleInFlight = new AtomicBoolean(false);
 
+    /**
+     * Set when a trigger arrives while an evaluation is in flight; the in-flight run
+     * re-evaluates once on completion so coalesced triggers are not lost until the next tick.
+     */
+    private final AtomicBoolean autoScaleReEvaluate = new AtomicBoolean(false);
+
     /** Epoch millis of the last split on this topic (manual or auto); MIN_VALUE if none. */
     private volatile long lastSplitAtMs = Long.MIN_VALUE;
     /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
@@ -358,7 +364,11 @@ public class ScalableTopicController {
             return CompletableFuture.completedFuture(null);
         }
         if (!autoScaleInFlight.compareAndSet(false, true)) {
-            // Another evaluation or auto operation is already running.
+            // Another evaluation or auto operation is already running. Don't drop the
+            // trigger: mark it pending so the in-flight run re-evaluates on completion —
+            // e.g. a consumer registering mid-evaluation would otherwise not be considered
+            // until the next periodic tick.
+            autoScaleReEvaluate.set(true);
             return CompletableFuture.completedFuture(null);
         }
         try {
@@ -366,8 +376,15 @@ public class ScalableTopicController {
                     .thenCombine(collectLoadSamples(), (consumers, load) ->
                             AutoScalePolicyEvaluator.decide(currentLayout, load, consumers, config,
                                     clock.millis(), lastSplitAtMs, lastMergeAtMs))
-                    .thenCompose(decision -> dispatch(decision, trigger))
-                    .whenComplete((__, ex) -> autoScaleInFlight.set(false));
+                    .thenCompose(decision -> dispatch(decision, config, trigger))
+                    .whenComplete((__, ex) -> {
+                        autoScaleInFlight.set(false);
+                        if (autoScaleReEvaluate.getAndSet(false)) {
+                            // Re-run off the completion thread for the trigger(s) coalesced
+                            // while this evaluation was in flight.
+                            scheduler().execute(() -> runAutoScaleSafely("coalesced"));
+                        }
+                    });
         } catch (Throwable t) {
             // A synchronous throw between the CAS and the future chain would otherwise leave
             // the in-flight flag set forever, silently disabling auto-scaling on this topic.
@@ -376,11 +393,16 @@ public class ScalableTopicController {
         }
     }
 
-    private CompletableFuture<Void> dispatch(AutoScaleDecision decision, String trigger) {
+    private CompletableFuture<Void> dispatch(AutoScaleDecision decision, AutoScaleConfig config,
+                                             String trigger) {
         if (decision instanceof AutoScaleDecision.Split split) {
             log.info().attr("segmentId", split.segmentId()).attr("reason", split.reason())
                     .attr("trigger", trigger).log("Auto split");
-            return splitSegment(split.segmentId()).thenApply(__ -> null);
+            return splitSegment(split.segmentId())
+                    .thenApply(__ -> {
+                        scheduleFollowUpEvaluation(config);
+                        return null;
+                    });
         }
         if (decision instanceof AutoScaleDecision.Merge merge) {
             log.info().attr("segmentId1", merge.segmentId1()).attr("segmentId2", merge.segmentId2())
@@ -388,6 +410,22 @@ public class ScalableTopicController {
             return mergeSegments(merge.segmentId1(), merge.segmentId2()).thenApply(__ -> null);
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * After a successful auto split, schedule one follow-up evaluation right after the split
+     * cooldown expires. A burst of consumers joining at once needs one split per cooldown to
+     * converge (e.g. 1 segment → N); without this it converges one split per periodic tick
+     * instead, which is slower whenever the cooldown is shorter than the tick. The chain
+     * stops naturally at the first evaluation that decides {@code NoAction}.
+     */
+    private void scheduleFollowUpEvaluation(AutoScaleConfig config) {
+        if (closed || !isLeader()) {
+            return;
+        }
+        long delayMs = config.splitCooldown().toMillis() + 1;
+        scheduler().schedule(() -> runAutoScaleSafely("post-split"),
+                delayMs, TimeUnit.MILLISECONDS);
     }
 
     /**
