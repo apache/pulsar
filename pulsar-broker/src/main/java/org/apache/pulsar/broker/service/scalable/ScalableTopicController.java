@@ -332,12 +332,19 @@ public class ScalableTopicController {
             // Another evaluation or auto operation is already running.
             return CompletableFuture.completedFuture(null);
         }
-        return collectConsumerCounts()
-                .thenCombine(collectLoadSamples(), (consumers, load) ->
-                        AutoScalePolicyEvaluator.decide(currentLayout, load, consumers, config,
-                                clock.millis(), lastSplitAtMs, lastMergeAtMs))
-                .thenCompose(decision -> dispatch(decision, trigger))
-                .whenComplete((__, ex) -> autoScaleInFlight.set(false));
+        try {
+            return collectConsumerCounts()
+                    .thenCombine(collectLoadSamples(), (consumers, load) ->
+                            AutoScalePolicyEvaluator.decide(currentLayout, load, consumers, config,
+                                    clock.millis(), lastSplitAtMs, lastMergeAtMs))
+                    .thenCompose(decision -> dispatch(decision, trigger))
+                    .whenComplete((__, ex) -> autoScaleInFlight.set(false));
+        } catch (Throwable t) {
+            // A synchronous throw between the CAS and the future chain would otherwise leave
+            // the in-flight flag set forever, silently disabling auto-scaling on this topic.
+            autoScaleInFlight.set(false);
+            throw t;
+        }
     }
 
     private CompletableFuture<Void> dispatch(AutoScaleDecision decision, String trigger) {
