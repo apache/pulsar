@@ -480,6 +480,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 final var ml = cursor.getManagedLedger();
                 if (consumer != null
                         && consumer.readCompacted()
+                        && !cursor.isDurable()
                         && ml.getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
                     if (ml.getFirstPosition() == null || position.getLedgerId() > ml.getFirstPosition().getLedgerId()) {
                         log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
