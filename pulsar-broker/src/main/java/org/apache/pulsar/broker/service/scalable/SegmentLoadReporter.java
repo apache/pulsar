@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.DoubleSupplier;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
@@ -41,14 +42,19 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
 public class SegmentLoadReporter {
 
     private final ScalableTopicResources resources;
-    private final double rateChangeThreshold;
+    /** Re-read on every sample so the broker config knob is honored dynamically. */
+    private final DoubleSupplier rateChangeThreshold;
 
     /** Last value written per load-record path, so we can skip immaterial updates. */
     private final ConcurrentHashMap<String, SegmentLoadStats> lastWritten = new ConcurrentHashMap<>();
 
-    public SegmentLoadReporter(ScalableTopicResources resources, double rateChangeThreshold) {
+    public SegmentLoadReporter(ScalableTopicResources resources, DoubleSupplier rateChangeThreshold) {
         this.resources = resources;
         this.rateChangeThreshold = rateChangeThreshold;
+    }
+
+    public SegmentLoadReporter(ScalableTopicResources resources, double rateChangeThreshold) {
+        this(resources, () -> rateChangeThreshold);
     }
 
     /**
@@ -67,18 +73,19 @@ public class SegmentLoadReporter {
     public CompletableFuture<Boolean> reportIfChanged(TopicName topic, long segmentId,
                                                       SegmentLoadStats current) {
         String path = resources.segmentLoadPath(topic, segmentId);
+        double threshold = rateChangeThreshold.getAsDouble();
         SegmentLoadStats last = lastWritten.get(path);
         if (last == null) {
             return resources.getSegmentLoadAsync(topic, segmentId).thenCompose(stored -> {
                 stored.ifPresent(result -> lastWritten.putIfAbsent(path, result.getValue()));
                 SegmentLoadStats baseline = lastWritten.get(path);
-                if (baseline != null && !isMaterialChange(baseline, current, rateChangeThreshold)) {
+                if (baseline != null && !isMaterialChange(baseline, current, threshold)) {
                     return CompletableFuture.completedFuture(false);
                 }
                 return write(topic, segmentId, path, current);
             });
         }
-        if (!isMaterialChange(last, current, rateChangeThreshold)) {
+        if (!isMaterialChange(last, current, threshold)) {
             return CompletableFuture.completedFuture(false);
         }
         return write(topic, segmentId, path, current);

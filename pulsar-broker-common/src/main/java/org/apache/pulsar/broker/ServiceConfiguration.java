@@ -1368,11 +1368,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean scalableTopicAutoScaleEnabled = true;
 
     @FieldContext(
-            dynamic = true,
+            dynamic = false,
             category = CATEGORY_POLICIES,
             doc = "Cadence (seconds) of the controller's periodic traffic-driven auto split/merge "
                     + "evaluation. Consumer-count changes are handled event-driven and are not affected "
-                    + "by this interval."
+                    + "by this interval. Read when a controller wins leadership; not dynamic."
     )
     private int scalableTopicAutoScaleIntervalSeconds = 60;
 
@@ -1481,10 +1481,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long scalableTopicMergeBytesRateOutThreshold = 25_000_000L;
 
     @FieldContext(
-            dynamic = true,
+            dynamic = false,
             category = CATEGORY_POLICIES,
             doc = "Interval (seconds) at which the segment-owning broker samples its segment topics to "
-                    + "report load for auto split/merge."
+                    + "report load for auto split/merge. Read at broker start; not dynamic."
     )
     private int scalableTopicLoadReportIntervalSeconds = 10;
 

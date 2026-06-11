@@ -288,13 +288,18 @@ public class ScalableTopicController {
      * controller leader; idempotent. Cancelled on close / leader-loss. Consumer-count
      * changes are handled event-driven (see {@link #onConsumerCountChanged()}), not by this
      * tick.
+     *
+     * <p>The tick is scheduled even when auto-scaling is currently disabled: the enabled
+     * flag is dynamic and re-checked on every evaluation, so flipping it on takes effect at
+     * the next tick rather than waiting for a leadership cycle. A disabled tick is a cheap
+     * no-op.
      */
     private synchronized void scheduleAutoScaleTask() {
         if (closed || autoScaleTask != null) {
             return;
         }
         ServiceConfiguration config = brokerConfig();
-        if (config == null || !config.isScalableTopicAutoScaleEnabled()) {
+        if (config == null) {
             return;
         }
         long intervalMs = Duration.ofSeconds(

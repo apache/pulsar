@@ -713,7 +713,7 @@ public class BrokerService implements Closeable {
             return;
         }
         this.segmentLoadReporter = new SegmentLoadReporter(resources,
-                conf.getScalableTopicLoadReportRateChangeThreshold());
+                () -> pulsar().getConfiguration().getScalableTopicLoadReportRateChangeThreshold());
         this.segmentLoadReporterMonitor =
                 new SingleThreadNonConcurrentFixedRateScheduler("scalable-segment-load-reporter");
         segmentLoadReporterMonitor.scheduleAtFixedRateNonConcurrently(
