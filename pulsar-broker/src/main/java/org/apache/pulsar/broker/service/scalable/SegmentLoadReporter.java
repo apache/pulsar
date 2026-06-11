@@ -36,6 +36,15 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
  * windowing relies on the stored record's {@code Stat} modification time staying put while
  * load is unchanged.
  *
+ * <p><b>Known blind spot</b> — the materiality band is anchored at the last <em>written</em>
+ * value, not at the policy thresholds. A true rate that settles inside the band never
+ * produces a new record, so a segment can sustain up to {@code threshold} beyond a split or
+ * merge threshold indefinitely without the controller seeing it. This is path-dependent
+ * (whether a given load triggers depends on what was last written) but one-directional: it
+ * can only delay an action, never cause a spurious one, and its magnitude is bounded by the
+ * configured threshold. Accepted as the cost of bounded write volume; operators wanting
+ * tighter tracking lower {@code scalableTopicLoadReportRateChangeThreshold}.
+ *
  * <p>This class owns only the materiality decision and the last-written cache. Sampling the
  * live {@code TopicStats} and scheduling the periodic sweep are wired in by the broker.
  */

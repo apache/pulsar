@@ -1493,7 +1493,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             doc = "Minimum relative change in any segment rate (e.g. 0.25 = 25%) since the last write that "
                     + "triggers a new load record. Keeps metadata write volume bounded; a steady-state "
-                    + "segment writes once and goes quiet."
+                    + "segment writes once and goes quiet.\n"
+                    + "Note: the band is anchored at the last written value, not at the split/merge "
+                    + "thresholds. A rate that settles within the band of the last record is never "
+                    + "re-reported, so a segment can sustain up to this factor beyond a split/merge "
+                    + "threshold without triggering — the cost of bounded write volume. Lower the "
+                    + "threshold for tighter tracking at the price of more metadata writes."
     )
     private double scalableTopicLoadReportRateChangeThreshold = 0.25;
 
