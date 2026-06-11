@@ -86,6 +86,7 @@ public class TimeConversionTest {
     public void testNsToSeconds() {
         assertEquals(RelativeTimeUtil.nsToSeconds(1_000_000_000), 1.000);
         assertEquals(RelativeTimeUtil.nsToSeconds(1_500_000_000), 1.500);
+        assertEquals(RelativeTimeUtil.nsToSeconds(1_234_500_000), 1.235);
         assertEquals(RelativeTimeUtil.nsToSeconds(1_555_555_555), 1.556);
     }
 }

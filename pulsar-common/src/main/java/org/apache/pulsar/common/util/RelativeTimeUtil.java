@@ -72,8 +72,7 @@ public class RelativeTimeUtil {
      * @return seconds
      */
     public static double nsToSeconds(long ns) {
-        double seconds = (double) ns / 1_000_000_000;
-        BigDecimal bd = new BigDecimal(seconds);
+        BigDecimal bd = BigDecimal.valueOf(ns, 9);
         return bd.setScale(3, RoundingMode.HALF_UP).doubleValue();
     }
 }
