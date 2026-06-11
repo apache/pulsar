@@ -201,6 +201,11 @@ public final class AutoScalePolicyEvaluator {
      * A segment is cold enough to merge only if it has a load record that has stayed below
      * every merge threshold for at least {@code mergeWindowMs}. A missing record means we
      * have no evidence the segment is durably cold, so it is never merge-eligible.
+     *
+     * <p>Note that {@code nowMs} is the controller broker's clock while the sample's
+     * {@code modifiedAtMs} is the metadata store's server-side timestamp; clock skew between
+     * the two shifts the effective window. Acceptable for a lazy-merge heuristic — skew is
+     * normally seconds against a multi-minute window.
      */
     private static boolean coldEnough(long segmentId, Map<Long, SegmentLoadSample> loadBySegment,
                                       AutoScaleConfig config, long nowMs, long mergeWindowMs) {

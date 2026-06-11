@@ -55,6 +55,12 @@ public class SegmentLoadReporter {
      * Report a segment's current load, writing to the store only if it changed materially
      * since the last write (or has never been written).
      *
+     * <p>On a local cache miss (broker restart, or segment ownership just moved here) the
+     * baseline is seeded from the record already in the store, and the materiality gate is
+     * applied against that. Without this, the first sample after every ownership move would
+     * write unconditionally and reset the record's modification time — which the controller
+     * uses as "cold since" for the merge window — starving merges under frequent rebalancing.
+     *
      * @return a future completing with {@code true} if a write happened, {@code false} if the
      *         sample was immaterial and skipped
      */
@@ -62,9 +68,24 @@ public class SegmentLoadReporter {
                                                       SegmentLoadStats current) {
         String path = resources.segmentLoadPath(topic, segmentId);
         SegmentLoadStats last = lastWritten.get(path);
-        if (last != null && !isMaterialChange(last, current, rateChangeThreshold)) {
+        if (last == null) {
+            return resources.getSegmentLoadAsync(topic, segmentId).thenCompose(stored -> {
+                stored.ifPresent(result -> lastWritten.putIfAbsent(path, result.getValue()));
+                SegmentLoadStats baseline = lastWritten.get(path);
+                if (baseline != null && !isMaterialChange(baseline, current, rateChangeThreshold)) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return write(topic, segmentId, path, current);
+            });
+        }
+        if (!isMaterialChange(last, current, rateChangeThreshold)) {
             return CompletableFuture.completedFuture(false);
         }
+        return write(topic, segmentId, path, current);
+    }
+
+    private CompletableFuture<Boolean> write(TopicName topic, long segmentId, String path,
+                                             SegmentLoadStats current) {
         return resources.reportSegmentLoadAsync(topic, segmentId, current)
                 .thenApply(__ -> {
                     lastWritten.put(path, current);
@@ -74,7 +95,8 @@ public class SegmentLoadReporter {
 
     /**
      * Drop the cached last-written value for a segment — call when this broker stops owning
-     * the segment topic (unload, seal, or delete) so a later re-acquire re-reports promptly.
+     * the segment topic (unload, seal, or delete) so the cache doesn't grow unboundedly with
+     * segment churn. A later re-acquire re-seeds the baseline from the stored record.
      */
     public void forget(TopicName topic, long segmentId) {
         lastWritten.remove(resources.segmentLoadPath(topic, segmentId));

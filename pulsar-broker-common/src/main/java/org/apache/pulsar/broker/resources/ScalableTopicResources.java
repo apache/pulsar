@@ -447,11 +447,23 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      * Upsert a segment's load record. Written by the broker that owns the segment's
      * {@code segment://} topic, only when the rates have changed materially since the last
      * write (the materiality decision lives in {@code SegmentLoadReporter}).
+     *
+     * <p>An identical value is NOT rewritten: the record's {@code Stat} modification time is
+     * what the controller uses as "cold since" for the merge window, so a no-op rewrite —
+     * e.g. the first report after segment ownership moved to a broker with an empty
+     * last-written cache — would spuriously reset the window and starve merges under
+     * frequent rebalancing.
      */
     public CompletableFuture<Void> reportSegmentLoadAsync(TopicName tn, long segmentId,
                                                           SegmentLoadStats stats) {
-        return segmentLoadCache.readModifyUpdateOrCreate(segmentLoadPath(tn, segmentId),
-                existing -> stats).thenApply(__ -> null);
+        String path = segmentLoadPath(tn, segmentId);
+        return segmentLoadCache.get(path).thenCompose(existing -> {
+            if (existing.isPresent() && existing.get().equals(stats)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return segmentLoadCache.readModifyUpdateOrCreate(path, __ -> stats)
+                    .thenApply(__ -> null);
+        });
     }
 
     /**

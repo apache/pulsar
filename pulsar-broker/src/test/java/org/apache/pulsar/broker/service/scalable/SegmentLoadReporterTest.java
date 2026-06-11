@@ -121,13 +121,48 @@ public class SegmentLoadReporterTest {
     }
 
     @Test
-    public void testForgetForcesReReport() throws Exception {
+    public void testForgetReSeedsBaselineFromStore() throws Exception {
         assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
         // Without forget, an immaterial sample is skipped.
         assertFalse(reporter.reportIfChanged(TOPIC, 0, stats(1050)).get());
-        // After forget, the next sample writes unconditionally (broker re-acquired the segment).
+        // After forget (unload + re-acquire), the baseline re-seeds from the stored record:
+        // an immaterial sample is still skipped (so the merge window isn't reset)...
         reporter.forget(TOPIC, 0);
-        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1050)).get());
+        assertFalse(reporter.reportIfChanged(TOPIC, 0, stats(1050)).get());
+        // ...while a material one writes.
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(2000)).get());
+    }
+
+    @Test
+    public void testNewOwnerSeedsBaselineFromStore() throws Exception {
+        // Old owner writes a record.
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        long modified = resources.getSegmentLoadAsync(TOPIC, 0).get()
+                .get().getStat().getModificationTimestamp();
+
+        // Ownership moves: a fresh reporter (empty lastWritten cache) samples a rate within
+        // the materiality band of the STORED value. It must seed its baseline from the store
+        // and skip the write — otherwise every rebalance would reset the record's
+        // modification time and starve the controller's merge window.
+        SegmentLoadReporter newOwner = new SegmentLoadReporter(resources, THRESHOLD);
+        assertFalse(newOwner.reportIfChanged(TOPIC, 0, stats(1100)).get());
+        assertEquals(resources.getSegmentLoadAsync(TOPIC, 0).get()
+                .get().getStat().getModificationTimestamp(), modified);
+
+        // A materially different sample still writes.
+        assertTrue(newOwner.reportIfChanged(TOPIC, 0, stats(2000)).get());
+    }
+
+    @Test
+    public void testIdenticalValueDoesNotBumpModificationTime() throws Exception {
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        long modified = resources.getSegmentLoadAsync(TOPIC, 0).get()
+                .get().getStat().getModificationTimestamp();
+
+        // Bit-identical re-report through the resources layer is a no-op write.
+        resources.reportSegmentLoadAsync(TOPIC, 0, stats(1000)).get();
+        assertEquals(resources.getSegmentLoadAsync(TOPIC, 0).get()
+                .get().getStat().getModificationTimestamp(), modified);
     }
 
     @Test
