@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -43,8 +44,11 @@ import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerServiceInternalMethodInvoker;
 import org.apache.pulsar.broker.service.OneWayReplicatorTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ProducerSendCallback;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ReasonOfWaitForCursorRewinding;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
@@ -164,6 +168,34 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             }
             admin1.topics().delete(topicName, true);
             admin2.topics().delete(topicName, true);
+        }
+    }
+
+    @Test
+    public void testFailedPublishCompletesInFlightTask() throws Exception {
+        PersistentReplicator replicator = spy(getReplicator(topicName));
+        doNothing().when(replicator).beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
+        doNothing().when(replicator).doRewindCursor(false);
+        doNothing().when(replicator).readMoreEntries();
+
+        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
+        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
+        inFlightTasks.clear();
+
+        try {
+            InFlightTask task = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
+            task.setEntries(Collections.singletonList(mock(Entry.class)));
+            inFlightTasks.add(task);
+            assertEquals(replicator.getPermitsIfNoPendingRead(), 999);
+
+            ProducerSendCallback callback = ProducerSendCallback.create(replicator, mock(Entry.class), null, task);
+            callback.sendComplete(new PulsarClientException.ProducerBlockedQuotaExceededException("mocked"), null);
+
+            assertTrue(task.isDone());
+            assertEquals(replicator.getPermitsIfNoPendingRead(), 1000);
+        } finally {
+            inFlightTasks.clear();
+            inFlightTasks.addAll(originalTasks);
         }
     }
 
