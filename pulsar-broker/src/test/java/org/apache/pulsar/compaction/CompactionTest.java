@@ -178,6 +178,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeRetention("my-tenant/my-ns");
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
         AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
+        consumerCreated = __ -> {};
+        pulsarTestContext.getMockBookKeeper().setDefaultReadEntriesDelayMillis(1);
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -2664,8 +2666,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testReceiveAckAfterReconnectionOnEmptyLedger() throws Exception {
-        final var topic = "persistent://my-tenant/my-ns/receive-ack-after-reconnection-on-empty-ledger";
+    public void testReaderReadOnDeletedLedger() throws Exception {
+        final var topic = "persistent://my-tenant/my-ns/reader-read-on-deleted-ledger";
         try (final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
             for (int i = 0; i < 3; i++) {
                 producer.newMessage().key("key-" + i).value("value-" + i).send();
@@ -2680,8 +2682,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         ml.rollCurrentLedgerIfFull();
         Awaitility.await().untilAsserted(() -> assertEquals(ml.getLedgersInfo().size(), 2));
 
+        final var subName = "sub-" + System.currentTimeMillis();
         @Cleanup final var reader = pulsarClient.newReader(Schema.STRING).readCompacted(true).topic(topic)
-                .subscriptionName("reader")
+                .subscriptionName(subName)
                 .startMessageId(MessageId.earliest).create();
 
         // Slow down the pre-fetching
@@ -2701,7 +2704,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         final var firstTime = new AtomicBoolean(true);
         consumerCreated = serverConsumer -> {
             final var subscription = serverConsumer.getSubscription();
-            if (subscription.getName().contains("reader") && firstTime.compareAndSet(true, false)) {
+            if (subscription.getName().contains(subName) && firstTime.compareAndSet(true, false)) {
                 final var msgId = (MessageIdAdv) firstMsg.getMessageId();
                 subscription.acknowledgeMessageAsync(List.of(PositionFactory.create(msgId.getLedgerId(),
                         msgId.getEntryId())), CommandAck.AckType.Cumulative, Map.of());
@@ -2724,7 +2727,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     .attr("value", msg.getValue()).log("read");
         }
 
-        final var serverConsumer = persistentTopic.getSubscription("reader").getDispatcher().getConsumers().get(0);
+        final var serverConsumer = persistentTopic.getSubscription(subName).getDispatcher().getConsumers().get(0);
         assertEquals(((MessageIdAdv) serverConsumer.getStartMessageId()).getEntryId(), 0L);
 
         final var emptyLedgerId = persistentTopic.getManagedLedger().getLedgersInfo().lastEntry().getKey();
