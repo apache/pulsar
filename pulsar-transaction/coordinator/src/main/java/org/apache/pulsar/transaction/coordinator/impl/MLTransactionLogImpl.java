@@ -91,6 +91,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
+        this.managedLedgerConfig.setLoggerContext(log.with().attr("tcId", tcId).build());
         this.timer = timer;
         this.txnLogBufferedWriterConfig = txnLogBufferedWriterConfig;
         if (txnLogBufferedWriterConfig.isBatchEnabled()) {

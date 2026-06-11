@@ -29,6 +29,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInte
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.RateLimiter;
+import io.github.merlimat.slog.LoggerBuilder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -1949,6 +1950,16 @@ public class BrokerService implements Closeable {
             // Once we have the configuration, we can proceed with the async open operation
             ManagedLedgerFactory managedLedgerFactory =
                     getManagedLedgerFactoryForTopic(topicName, managedLedgerConfig.getStorageClassName());
+            LoggerBuilder loggerContextBuilder = log.with();
+            if (topicName.isSegment()) {
+                loggerContextBuilder
+                        .attr("topic", TopicName.get(TopicDomain.topic.value(), topicName.getTenant(),
+                                topicName.getNamespacePortion(), topicName.getLocalName()).toString())
+                        .attr("segment", topicName.getSegmentDescriptor());
+            } else {
+                loggerContextBuilder.attr("topic", topicName.toString());
+            }
+            managedLedgerConfig.setLoggerContext(loggerContextBuilder.build());
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override

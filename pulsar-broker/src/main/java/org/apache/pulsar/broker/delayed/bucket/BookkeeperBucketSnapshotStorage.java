@@ -169,19 +169,23 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
                 topicName, cursorName);
-        bookKeeper.asyncCreateLedger(
-                config.getManagedLedgerDefaultEnsembleSize(),
-                config.getManagedLedgerDefaultWriteQuorum(),
-                config.getManagedLedgerDefaultAckQuorum(),
-                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-                LedgerPassword,
-                (rc, handle, ctx) -> {
-                    if (rc != BKException.Code.OK) {
-                        future.completeExceptionally(bkException("Create ledger", rc, -1));
+        bookKeeper.newCreateLedgerOp()
+                .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                .withDigestType(config.getManagedLedgerDigestType())
+                .withPassword(LedgerPassword)
+                .withCustomMetadata(metadata)
+                .withLoggerContext(log.with().attr("topic", topicName).attr("cursor", cursorName).build())
+                .execute()
+                .whenComplete((writeHandle, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(bkException("Create ledger",
+                                BKException.getExceptionCode(ex), -1));
                     } else {
-                        future.complete(handle);
+                        future.complete((LedgerHandle) writeHandle);
                     }
-                }, null, metadata);
+                });
         return future;
     }
 
