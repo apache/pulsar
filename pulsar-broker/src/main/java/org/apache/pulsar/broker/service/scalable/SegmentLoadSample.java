@@ -22,7 +22,7 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
 
 /**
  * A segment's load record as the controller sees it: the persisted {@link SegmentLoadStats}
- * plus the metadata store's last-modified timestamp for the record's znode (PIP-483).
+ * plus the metadata store's last-modified timestamp for the record (PIP-483).
  *
  * <p>This is an in-memory evaluator input, never persisted — the timestamp comes from the
  * metadata {@code Stat}, not from the stored value. {@code modifiedAtMs} is what the merge

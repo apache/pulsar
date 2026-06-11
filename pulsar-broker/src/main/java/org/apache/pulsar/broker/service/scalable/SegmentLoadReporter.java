@@ -32,7 +32,7 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
  * materially from the last value this broker wrote for that segment — i.e. some rate moved
  * by more than the configured relative threshold (default 25%), or crossed to/from zero. A
  * steady-state segment therefore writes once and then stays quiet; the controller's
- * windowing relies on the resulting znode {@code Stat} modification time staying put while
+ * windowing relies on the stored record's {@code Stat} modification time staying put while
  * load is unchanged.
  *
  * <p>This class owns only the materiality decision and the last-written cache. Sampling the

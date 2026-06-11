@@ -266,7 +266,10 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     public CompletableFuture<Void> deleteScalableTopicAsync(TopicName tn) {
-        return deleteAsync(topicPath(tn));
+        // Recursive: the topic record has children — the controller leader lock, the
+        // subscriptions (and their consumer registrations), and the per-segment load
+        // records — all of which must go with the topic.
+        return getStore().deleteRecursive(topicPath(tn));
     }
 
     public CompletableFuture<Boolean> scalableTopicExistsAsync(TopicName tn) {

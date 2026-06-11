@@ -27,7 +27,7 @@ package org.apache.pulsar.common.scalable;
  * rewrites this record when one of the rates changes by more than a significant threshold
  * (default ±25%) since the last write — see {@code SegmentLoadReporter}.
  *
- * <p>The record carries no timestamp of its own: the metadata store exposes the znode's
+ * <p>The record carries no timestamp of its own: the metadata store exposes the record's
  * last-modified time via its {@code Stat}, and the controller uses that for the "cold for
  * at least mergeWindow" check.
  *

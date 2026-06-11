@@ -1133,7 +1133,7 @@ public class ScalableTopicController {
               CompletableFuture<?>[] deletes = drained.stream()
                       .map(s -> deleteSegmentBackingTopic(s)
                               // The segment is gone from the layout — drop its load record
-                              // too, or the .../segments/{id}/load znode leaks forever.
+                              // too, or the .../segments/{id}/load entry leaks forever.
                               .thenCompose(___ ->
                                       resources.deleteSegmentLoadAsync(topicName, s.segmentId())))
                       .toArray(CompletableFuture[]::new);
