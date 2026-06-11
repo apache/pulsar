@@ -477,9 +477,14 @@ public class PersistentSubscription extends AbstractSubscription {
                 // otherwise, the `asyncMarkDelete` call could jump the read position to the active ledger, which will
                 // skip all entries present in the compacted ledger but not present in the managed ledger.
                 final var consumer = singleConsumerDispatcher.getActiveConsumer();
+                final var ml = cursor.getManagedLedger();
                 if (consumer != null
                         && consumer.readCompacted()
-                        && cursor.getManagedLedger().getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
+                        && ml.getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
+                    if (ml.getFirstPosition() == null || position.getLedgerId() > ml.getFirstPosition().getLedgerId()) {
+                        log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
+                                + ml.getLedgersInfo().keySet());
+                    }
                     return CompletableFuture.completedFuture(null);
                 }
             }
