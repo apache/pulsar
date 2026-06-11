@@ -346,14 +346,11 @@ The Apache Software License, Version 2.0
     - commons-compress-1.28.0.jar
  * Netty
     - netty-buffer-4.2.15.Final.jar
-    - netty-codec-4.2.15.Final.jar
     - netty-codec-base-4.2.15.Final.jar
     - netty-codec-compression-4.2.15.Final.jar
     - netty-codec-dns-4.2.15.Final.jar
     - netty-codec-http-4.2.15.Final.jar
     - netty-codec-http2-4.2.15.Final.jar
-    - netty-codec-marshalling-4.2.15.Final.jar
-    - netty-codec-protobuf-4.2.15.Final.jar
     - netty-codec-socks-4.2.15.Final.jar
     - netty-codec-haproxy-4.2.15.Final.jar
     - netty-common-4.2.15.Final.jar
