@@ -34,6 +34,7 @@ public class TableViewImplTest {
     private TableViewConfigurationData data;
 
     @BeforeClass(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -46,9 +47,10 @@ public class TableViewImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTableViewImpl() {
         data.setCryptoKeyReader(mock(CryptoKeyReader.class));
-        TableView tableView = new TableViewImpl(client, Schema.BYTES, data);
+        TableView<?> tableView = new TableViewImpl<>(client, Schema.BYTES, data);
 
         assertNotNull(tableView);
     }

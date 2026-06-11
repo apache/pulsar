@@ -23,8 +23,8 @@ import static org.apache.pulsar.internal.CommandDescriptionUtil.getCommandDescri
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -36,7 +36,7 @@ import picocli.CommandLine.Spec;
 
 @Getter
 @Command(description = "Generate documentation automatically.")
-@Slf4j
+@CustomLog
 public class CmdGenerateDocumentation extends AbstractCmd {
 
     @Spec

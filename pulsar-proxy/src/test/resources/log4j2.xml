@@ -25,7 +25,7 @@
   <Appenders>
     <!-- setting follow="true" is required for using ConsoleCaptor to validate log messages -->
     <Console name="CONSOLE" target="SYSTEM_OUT" follow="true">
-      <PatternLayout pattern="%d{ISO8601} - %-5p - [%t:%c{1}] - %m%n"/>
+      <PatternLayout pattern="%d{ISO8601} - %-5p - [%t:%c{1}] - %m %X%n"/>
     </Console>
   </Appenders>
   <Loggers>

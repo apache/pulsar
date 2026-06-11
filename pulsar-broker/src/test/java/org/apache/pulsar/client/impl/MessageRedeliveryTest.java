@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -50,16 +51,14 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class MessageRedeliveryTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(MessageRedeliveryTest.class);
 
     @BeforeMethod
     @Override
@@ -133,7 +132,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                                 // ack alternate messages
                                 ackedMessages.add(new String(msg.getData()));
                             } catch (PulsarClientException e1) {
-                                log.warn("Failed to ack message {}", e1.getMessage());
+                                log.warn().exceptionMessage(e1).log("Failed to ack message");
                             }
                         }
                     } else {

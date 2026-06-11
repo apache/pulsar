@@ -1,0 +1,124 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl.tracing;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import lombok.CustomLog;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.TraceableMessage;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+
+/**
+ * OpenTelemetry producer interceptor that creates spans for message publishing.
+ * <p>
+ * This interceptor automatically retrieves the Tracer from the client's InstrumentProvider,
+ * ensuring consistent OpenTelemetry configuration across the client.
+ * <p>
+ * Spans are attached directly to {@link TraceableMessage} instances, eliminating the need
+ * for external span tracking via maps.
+ */
+@CustomLog
+public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
+
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
+    private String topic;
+
+    public OpenTelemetryProducerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+    }
+
+    @Override
+    public void close() {
+        // Producer will fail pending messages when it being closed,
+        // which will trigger the `onSendAcknowledgement` events
+    }
+
+    @Override
+    public boolean eligible(Message<?> message) {
+        return tracer != null && propagator != null;
+    }
+
+    @Override
+    public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
+        if (!eligible(message)) {
+            return message;
+        }
+
+        try {
+            if (topic == null) {
+                topic = producer.getTopic();
+            }
+
+            // Create a span for this message publication
+            // The span will be linked to the current context, which may have been set by:
+            // 1. An active span in the current thread (e.g., from HTTP request handling)
+            // 2. Context propagated from upstream services
+            Span span = TracingContext.createProducerSpan(tracer, topic, Context.current());
+
+            if (TracingContext.isValid(span) && message instanceof TraceableMessage) {
+                // Attach the span directly to the message
+                ((TraceableMessage) message).setTracingSpan(span);
+                // Inject trace context into message properties so the consumer
+                // can extract it and correlate its span with this producer span
+                TracingContext.injectContext(message, Context.current().with(span), propagator);
+                log.debug().attr("topic", topic).log("Created producer span");
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Error creating producer span");
+        }
+
+        return message;
+    }
+
+    @Override
+    public void onSendAcknowledgement(Producer<?> producer, Message<?> message, MessageId msgId, Throwable exception) {
+        if (!(message instanceof TraceableMessage)) {
+            return;
+        }
+
+        Span span = ((TraceableMessage) message).getTracingSpan();
+        if (span != null) {
+            try {
+                if (msgId != null) {
+                    span.setAttribute("messaging.message.id", msgId.toString());
+                }
+
+                if (exception != null) {
+                    TracingContext.endSpan(span, exception);
+                } else {
+                    TracingContext.endSpan(span);
+                }
+
+                // Clear the span from the message
+                ((TraceableMessage) message).setTracingSpan(null);
+            } catch (Exception e) {
+                log.error().exception(e).log("Error ending producer span");
+            }
+        }
+    }
+}

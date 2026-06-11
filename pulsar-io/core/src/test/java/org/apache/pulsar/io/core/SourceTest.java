@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
 public class SourceTest {
+    @SuppressWarnings("try")
     public static class TestSource implements Source<String> {
 
         @Override
@@ -47,6 +48,7 @@ public class SourceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSinkContext() throws Exception {
         SourceContext sourceContext = mock(SourceContext.class);
 

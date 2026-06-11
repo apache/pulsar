@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Range;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -32,9 +31,9 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MessageRange;
+import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.testng.annotations.Test;
 
@@ -60,63 +59,59 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         ManagedCursorImpl cursor = spy(new ManagedCursorImpl(bookkeeper, ledger, "test-cursor"));
         LongPairRangeSet<Position> deletedMessages = cursor.getIndividuallyDeletedMessagesSet();
 
-        Method recoverMethod = ManagedCursorImpl.class.getDeclaredMethod("recoverIndividualDeletedMessages",
-                List.class);
-        recoverMethod.setAccessible(true);
-
         // (1) [(1:5..1:10]]
-        List<MessageRange> messageRangeList = new ArrayList();
-        messageRangeList.add(createMessageRange(1, 5, 1, 10));
-        List<Range<Position>> expectedRangeList = new ArrayList();
+        PositionInfo positionInfo = createPositionInfo(createMessageRange(1, 5, 1, 10));
+        List<Range<Position>> expectedRangeList = new ArrayList<>();
         expectedRangeList.add(createPositionRange(1, 5, 1, 10));
-        recoverMethod.invoke(cursor, messageRangeList);
+        cursor.recoverIndividualDeletedMessages(positionInfo);
         assertEquals(deletedMessages.size(), 1);
         assertEquals(deletedMessages.asRanges(), expectedRangeList);
 
         // (2) [(1:10..3:0]]
-        messageRangeList.clear();
-        messageRangeList.add(createMessageRange(1, 10, 3, 0));
+        positionInfo = createPositionInfo(createMessageRange(1, 10, 3, 0));
         expectedRangeList.clear();
         expectedRangeList.add(createPositionRange(1, 10, 1, 99));
         expectedRangeList.add(createPositionRange(3, -1, 3, 0));
-        recoverMethod.invoke(cursor, messageRangeList);
+        cursor.recoverIndividualDeletedMessages(positionInfo);
         assertEquals(deletedMessages.size(), 2);
         assertEquals(deletedMessages.asRanges(), expectedRangeList);
 
         // (3) [(1:20..10:1],(20:2..20:9]]
-        messageRangeList.clear();
-        messageRangeList.add(createMessageRange(1, 20, 10, 1));
-        messageRangeList.add(createMessageRange(20, 2, 20, 9));
+        positionInfo = createPositionInfo(
+                createMessageRange(1, 20, 10, 1),
+                createMessageRange(20, 2, 20, 9));
         expectedRangeList.clear();
         expectedRangeList.add(createPositionRange(1, 20, 1, 99));
         expectedRangeList.add(createPositionRange(3, -1, 3, 49));
         expectedRangeList.add(createPositionRange(5, -1, 5, 199));
         expectedRangeList.add(createPositionRange(10, -1, 10, 1));
         expectedRangeList.add(createPositionRange(20, 2, 20, 9));
-        recoverMethod.invoke(cursor, messageRangeList);
+        cursor.recoverIndividualDeletedMessages(positionInfo);
         assertEquals(deletedMessages.size(), 5);
         assertEquals(deletedMessages.asRanges(), expectedRangeList);
     }
 
     private static LedgerInfo createLedgerInfo(long ledgerId, long entries, long size) {
-        return LedgerInfo.newBuilder().setLedgerId(ledgerId).setEntries(entries).setSize(size)
-                .setTimestamp(System.currentTimeMillis()).build();
+        return new LedgerInfo().setLedgerId(ledgerId).setEntries(entries).setSize(size)
+                .setTimestamp(System.currentTimeMillis());
+    }
+
+    private static PositionInfo createPositionInfo(MessageRange... ranges) {
+        PositionInfo positionInfo = new PositionInfo();
+        for (MessageRange range : ranges) {
+            positionInfo.addIndividualDeletedMessage().copyFrom(range);
+        }
+        return positionInfo;
     }
 
     private static MessageRange createMessageRange(long lowerLedgerId, long lowerEntryId, long upperLedgerId,
             long upperEntryId) {
-        NestedPositionInfo.Builder nestedPositionBuilder = NestedPositionInfo.newBuilder();
-        MessageRange.Builder messageRangeBuilder = MessageRange.newBuilder();
+        MessageRange messageRange = new MessageRange();
 
-        nestedPositionBuilder.setLedgerId(lowerLedgerId);
-        nestedPositionBuilder.setEntryId(lowerEntryId);
-        messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
+        messageRange.setLowerEndpoint().setLedgerId(lowerLedgerId).setEntryId(lowerEntryId);
+        messageRange.setUpperEndpoint().setLedgerId(upperLedgerId).setEntryId(upperEntryId);
 
-        nestedPositionBuilder.setLedgerId(upperLedgerId);
-        nestedPositionBuilder.setEntryId(upperEntryId);
-        messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-
-        return messageRangeBuilder.build();
+        return messageRange;
     }
 
     private static Range<Position> createPositionRange(long lowerLedgerId, long lowerEntryId, long upperLedgerId,

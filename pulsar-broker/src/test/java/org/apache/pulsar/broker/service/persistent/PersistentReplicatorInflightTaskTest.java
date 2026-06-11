@@ -28,17 +28,25 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerServiceInternalMethodInvoker;
 import org.apache.pulsar.broker.service.OneWayReplicatorTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
@@ -46,7 +54,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBase {
 
@@ -91,7 +99,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         injectedTask.setEntries(Collections.emptyList());
         InFlightTask spyTask = spy(injectedTask);
         replicator.inFlightTasks.add(spyTask);
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 counter.incrementAndGet();
@@ -105,6 +113,58 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Thread.sleep(PersistentTopic.MESSAGE_RATE_BACKOFF_MS * 10);
         assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
         assertTrue(counter.get() <= 1);
+    }
+
+    @Test
+    public void testReadEntriesFailedCompletesInFlightTaskAfterReplicatorTerminated() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        CountDownLatch readStarted = new CountDownLatch(1);
+        CountDownLatch failRead = new CountDownLatch(1);
+        Producer<String> producer = null;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            admin2.topics().createNonPartitionedTopic(topicName);
+            producer = client1.newProducer(Schema.STRING).topic(topicName).create();
+            producer.send("msg");
+
+            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false)
+                    .join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+            ManagedLedgerTest.makeReadEntryProbFail(ml, () -> {
+                readStarted.countDown();
+                try {
+                    if (!failRead.await(30, TimeUnit.SECONDS)) {
+                        return new ManagedLedgerException("Timed out waiting to fail read entries");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return new ManagedLedgerException(e);
+                }
+                return new ManagedLedgerException.TooManyRequestsException("mocked read failure");
+            });
+
+            pulsar1.getConfig().setReplicationStartAt("earliest");
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+            assertTrue(readStarted.await(30, TimeUnit.SECONDS));
+
+            PersistentReplicator replicator = (PersistentReplicator) topic.getReplicators().get(cluster2);
+            Assert.assertNotNull(replicator, "Replicator should not be null");
+            Assert.assertTrue(replicator.hasPendingRead());
+
+            replicator.terminate();
+            Assert.assertTrue(replicator.getState() != AbstractReplicator.State.Started);
+            failRead.countDown();
+
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                    Assert.assertFalse(replicator.hasPendingRead()));
+        } finally {
+            failRead.countDown();
+            if (producer != null) {
+                producer.close();
+            }
+            admin1.topics().delete(topicName, true);
+            admin2.topics().delete(topicName, true);
+        }
     }
 
     @Test

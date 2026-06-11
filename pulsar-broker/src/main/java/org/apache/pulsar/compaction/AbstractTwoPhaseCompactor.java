@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -28,7 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -37,6 +40,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -44,9 +48,8 @@ import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Compaction will go through the topic in two passes. The first pass
@@ -57,9 +60,14 @@ import org.slf4j.LoggerFactory;
  * the latest values in memory, as the payload can be many orders of
  * magnitude larger than a message id.
  */
+@CustomLog
 public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
-  private static final Logger log = LoggerFactory.getLogger(AbstractTwoPhaseCompactor.class);
+  @VisibleForTesting
+  static Runnable injectionAfterSeekInPhaseTwo = () -> {};
+  @VisibleForTesting
+  static BiFunction<RawReader, MessageId, CompletableFuture<Void>> injectionPhaseTwoSeek =
+      RawReader::seekAsync;
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
   protected final boolean topicCompactionRetainNullKey;
@@ -79,11 +87,11 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected abstract boolean compactMessage(String topic, Map<String, T> latestForKey,
       RawMessage m, MessageMetadata metadata, MessageId id);
 
-
   protected abstract boolean compactBatchMessage(String topic, Map<String, T> latestForKey,
       RawMessage m,
       MessageMetadata metadata, MessageId id);
 
+  @SuppressWarnings("unchecked")
   @Override
   protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
     return reader.hasMessageAvailableAsync()
@@ -92,20 +100,23 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
             return phaseOne(reader).thenCompose(
                 (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, toLatestMessageIdForKey(r.latestForKey), bk));
           } else {
-            log.info("Skip compaction of the empty topic {}", reader.getTopic());
+            log.info().attr("topic", reader.getTopic()).log("Skip compaction of the empty topic");
             return CompletableFuture.completedFuture(-1L);
           }
         });
   }
 
+  @SuppressWarnings("unchecked")
   private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
     Map<String, T> latestForKey = new HashMap<>();
     CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
 
     reader.getLastMessageIdAsync()
         .thenAccept(lastMessageId -> {
-          log.info("Commencing phase one of compaction for {}, reading to {}",
-              reader.getTopic(), lastMessageId);
+          log.info()
+                  .attr("topic", reader.getTopic())
+                  .attr("lastMessageId", lastMessageId)
+                  .log("Commencing phase one of compaction");
           // Each entry is processed as a whole, discard the batchIndex part deliberately.
           MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
           MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(),
@@ -121,6 +132,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return loopPromise;
   }
 
+  @SuppressWarnings("unchecked")
   private void phaseOneLoop(RawReader reader,
       Optional<MessageId> firstMessageId,
       Optional<MessageId> toMessageId,
@@ -174,9 +186,13 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     Map<String, byte[]> metadata =
         LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
     return createLedger(bk, metadata).thenCompose((ledger) -> {
-      log.info(
-          "Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
-          reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
+      log.info()
+              .attr("topic", reader.getTopic())
+              .attr("from", from)
+              .attr("to", to)
+              .attr("compactingCount", latestForKey.size())
+              .attr("ledgerId", ledger.getId())
+              .log("Commencing phase two of compaction");
       return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger);
     });
   }
@@ -187,7 +203,8 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
       LedgerHandle ledger) {
     CompletableFuture<Long> promise = new CompletableFuture<>();
 
-    reader.seekAsync(from).thenCompose((v) -> {
+    phaseTwoSeekWithRetry(reader, from).thenCompose((v) -> {
+          injectionAfterSeekInPhaseTwo.run();
           Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
           CompletableFuture<Void> loopPromise = new CompletableFuture<>();
           phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);
@@ -199,7 +216,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
           if (exception != null) {
             deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
               if (exception2 != null) {
-                log.warn("Cleanup of ledger {} for failed", ledger, exception2);
+                log.warn().attr("ledger", ledger).exceptionMessage(exception2).log("Cleanup of ledger failed");
               }
               // complete with original exception
               promise.completeExceptionally(exception);
@@ -209,6 +226,57 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
           }
         });
     return promise;
+  }
+
+  /**
+   * Seek the compaction subscription to {@code from}, retrying on transient
+   * {@link PulsarClientException.ConnectException}.
+   *
+   * <p>Server-side, {@code PersistentSubscription.resetCursorInternal} disconnects the compaction
+   * consumer before resetting the managed cursor, then sends the success response. This races with
+   * the client: {@code channelInactive} fires on the consumer's {@code ClientCnx} and fails the
+   * in-flight seek future with {@code ConnectException} before the broker's success response
+   * arrives. The seek is idempotent and the cursor is already repositioned server-side, so
+   * retrying after a short backoff lets the client reconnect and the next seek complete normally.
+   * Non-transient failures propagate immediately.
+   */
+  private CompletableFuture<Void> phaseTwoSeekWithRetry(RawReader reader, MessageId from) {
+    CompletableFuture<Void> promise = new CompletableFuture<>();
+    Backoff backoff = Backoff.builder()
+        .initialDelay(Duration.ofMillis(100))
+        .maxBackoff(Duration.ofSeconds(1))
+        .mandatoryStop(Duration.ofSeconds(10))
+        .build();
+    attemptPhaseTwoSeek(reader, from, backoff, promise);
+    return promise;
+  }
+
+  private void attemptPhaseTwoSeek(RawReader reader, MessageId from, Backoff backoff,
+      CompletableFuture<Void> promise) {
+    injectionPhaseTwoSeek.apply(reader, from).whenComplete((v, ex) -> {
+      if (ex == null) {
+        promise.complete(null);
+        return;
+      }
+      Throwable cause = FutureUtil.unwrapCompletionException(ex);
+      if (!(cause instanceof PulsarClientException.ConnectException)) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      long nextMs = backoff.next().toMillis();
+      if (backoff.isMandatoryStopMade()) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      log.warn()
+          .attr("topic", reader.getTopic())
+          .attr("from", from)
+          .attr("nextMs", nextMs)
+          .exceptionMessage(cause)
+          .log("Phase two seek failed transiently, will retry");
+      scheduler.schedule(() -> attemptPhaseTwoSeek(reader, from, backoff, promise),
+          nextMs, TimeUnit.MILLISECONDS);
+    });
   }
 
   private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
@@ -242,8 +310,10 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
                 m, metadata, (key, subid) -> subid.equals(latestForKey.get(key)),
                 topicCompactionRetainNullKey);
           } catch (IOException ioe) {
-            log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                id, ioe);
+            log.info()
+                    .attr("message", id)
+                    .exception(ioe)
+                    .log("Error decoding batch for message . Whole batch will be included in output");
             messageToAdd = Optional.of(m);
           }
         } else {
@@ -331,7 +401,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
             }
           }, null, metadata);
     } catch (Throwable t) {
-      log.error("Encountered unexpected error when creating compaction ledger", t);
+      log.error().exception(t).log("Encountered unexpected error when creating compaction ledger");
       return FutureUtil.failedFuture(t);
     }
     return bkf;
@@ -392,29 +462,36 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return bkf;
   }
 
+  /**
+   * Extract the partition key and the payload size for a non-batch message.
+   *
+   * @return a pair of (partitionKey, payloadSize), or null if the message has no partition key.
+   */
   protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
     if (msgMetadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (msgMetadata.hasUncompressedSize()) {
-        size = msgMetadata.getUncompressedSize();
+      int payloadSize;
+      if (msgMetadata.hasNullValue() && msgMetadata.isNullValue()) {
+        payloadSize = 0;
+      } else if (msgMetadata.hasUncompressedSize()) {
+        payloadSize = msgMetadata.getUncompressedSize();
+      } else {
+        ByteBuf headersAndPayload = m.getHeadersAndPayload().duplicate();
+        Commands.skipMessageMetadata(headersAndPayload);
+        payloadSize = headersAndPayload.readableBytes();
       }
-      return Pair.of(msgMetadata.getPartitionKey(), size);
+      return Pair.of(msgMetadata.getPartitionKey(), payloadSize);
     } else {
       return null;
     }
   }
-
 
   protected Optional<RawMessage> rebatchMessage(String topic, RawMessage msg,
       MessageMetadata metadata,
       BiPredicate<String, MessageId> filter,
       boolean retainNullKey)
       throws IOException {
-    if (log.isDebugEnabled()) {
-      log.debug("Rebatching message {} for topic {}", msg.getMessageId(), topic);
-    }
-    return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
+      log.debug().attr("message", msg.getMessageId()).attr("topic", topic).log("Rebatching message for topic");
+        return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
   }
 
   protected static class PhaseOneResult<T> {

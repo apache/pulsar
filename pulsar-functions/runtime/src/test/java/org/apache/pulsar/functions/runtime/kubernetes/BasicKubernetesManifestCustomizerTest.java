@@ -62,6 +62,7 @@ public class BasicKubernetesManifestCustomizerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMergeRuntimeOpts() {
         Map<String, Object> configs = new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(),
                 HashMap.class);

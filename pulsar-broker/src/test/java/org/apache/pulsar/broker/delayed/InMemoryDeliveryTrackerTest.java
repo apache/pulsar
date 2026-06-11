@@ -234,7 +234,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     return;
                 }
                 try {
-                    this.delayedMessageMap.firstLongKey();
+                    this.delayedMessageMap.firstKey();
                 } catch (Exception e) {
                     e.printStackTrace();
                     exceptions[0] = e;
@@ -274,4 +274,14 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         tracker.close();
     }
 
+    @Test(dataProvider = "delayedTracker")
+    public void testAddMultipleMessagesSameWindow(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        tracker.addMessage(1, 1, 50);
+        tracker.addMessage(1, 1, 50);
+        tracker.addMessage(1, 1, 50);
+
+        clockTime.set(60);
+
+        tracker.getScheduledMessages(10);
+    }
 }

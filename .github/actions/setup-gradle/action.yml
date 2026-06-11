@@ -1,0 +1,71 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Setup Gradle
+description: Sets up Gradle with Develocity or public build scan publishing by default
+inputs:
+  develocity-access-key:
+    description: 'Develocity access key for authenticated build scans'
+    required: false
+    default: ''
+  build-scan-publish:
+    description: 'Whether to publish build scans or use Develocity when the access key is set'
+    required: false
+    default: 'true'
+  cache-read-only:
+    description: 'Whether the Gradle cache is read-only'
+    required: false
+    default: ${{ github.event.repository != null && github.ref_name != github.event.repository.default_branch }}
+  add-job-summary:
+    description: 'When to add a job summary'
+    required: false
+    default: 'always'
+runs:
+  using: composite
+  steps:
+    - name: Set Develocity Project ID and configure custom settings
+      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' }}
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle
+        touch ~/.gradle/gradle.properties
+        grep -q 'systemProp.develocity.projectId=' ~/.gradle/gradle.properties || echo systemProp.develocity.projectId=pulsar >> ~/.gradle/gradle.properties
+        grep -q 'systemProp.scan.uploadInBackground=' ~/.gradle/gradle.properties || echo systemProp.scan.uploadInBackground=false >> ~/.gradle/gradle.properties
+
+    - name: Setup Gradle with Develocity
+      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' }}
+      uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
+      with:
+        develocity-injection-enabled: true
+        develocity-url: https://develocity.apache.org
+        # expected format is develocity.apache.org:<access-key>
+        develocity-access-key: ${{ inputs.develocity-access-key }}
+        build-scan-publish: ${{ inputs.build-scan-publish }}
+        cache-read-only: ${{ inputs.cache-read-only }}
+        add-job-summary: ${{ inputs.add-job-summary }}
+
+    - name: Setup Gradle
+      if: ${{ !(inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true') }}
+      uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
+      with:
+        build-scan-publish: ${{ inputs.build-scan-publish }}
+        build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
+        build-scan-terms-of-use-agree: 'yes'
+        cache-read-only: ${{ inputs.cache-read-only }}
+        add-job-summary: ${{ inputs.add-job-summary }}

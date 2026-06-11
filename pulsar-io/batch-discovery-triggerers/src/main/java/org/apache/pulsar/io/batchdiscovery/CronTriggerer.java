@@ -21,7 +21,7 @@ package org.apache.pulsar.io.batchdiscovery;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -33,7 +33,7 @@ import org.springframework.scheduling.support.CronTrigger;
  * "__CRON__" key with the appropriate cron expression. The triggerer will trigger based on this expression.
  *
  */
-@Slf4j
+@CustomLog
 public class CronTriggerer implements BatchSourceTriggerer {
   public static final String CRON_KEY = "__CRON__";
   private String cronExpression;
@@ -50,7 +50,7 @@ public class CronTriggerer implements BatchSourceTriggerer {
     scheduler.setThreadNamePrefix(String.format("%s/%s/%s-cron-triggerer-",
             sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
 
-    log.info("Initialized CronTrigger with expression: {}", cronExpression);
+    log.info().attr("cronExpression", cronExpression).log("Initialized CronTrigger");
   }
 
   @Override

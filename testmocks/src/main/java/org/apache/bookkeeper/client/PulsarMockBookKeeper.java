@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -64,14 +65,13 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mocked version of BookKeeper client that keeps all ledgers data in memory.
  *
  * <p>This mocked client is meant to be used in unit tests for applications using the BookKeeper API.
  */
+@CustomLog
 public class PulsarMockBookKeeper extends BookKeeper {
 
     final OrderedExecutor orderedExecutor;
@@ -135,9 +135,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         getProgrammedFailure().thenComposeAsync((res) -> {
                 try {
                     long id = sequence.getAndIncrement();
-                    log.info("Creating ledger {}", id);
+                    log.info().attr("ledgerId", id).log("Creating ledger");
                     PulsarMockLedgerHandle lh =
-                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd, properties);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {
@@ -159,12 +159,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
         try {
             long id = sequence.getAndIncrement();
-            log.info("Creating ledger {}", id);
+            log.info().attr("ledgerId", id).log("Creating ledger");
             PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(this, id, digestType, passwd);
             ledgers.put(id, lh);
             return lh;
         } catch (Throwable t) {
-            log.error("Exception:", t);
+            log.error().exception(t).log("Exception");
             return null;
         }
     }
@@ -176,7 +176,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx) {
+    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx,
+                                boolean keepUpdateMetadata) {
         getProgrammedFailure().thenComposeAsync((res) -> {
                 PulsarMockLedgerHandle lh = ledgers.get(lId);
                 if (lh == null) {
@@ -305,7 +306,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
             ledger.entries.clear();
             ledger.totalLengthCounter.set(0);
         }
-        scheduler.shutdown();
+        scheduler.shutdownNow();
         ledgers.clear();
     }
 
@@ -354,7 +355,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         failures.add(delayFuture);
     }
 
-
+    /**
+     * @param rc see also {@link org.apache.bookkeeper.client.BKException.Code}.
+     */
     public void failNow(int rc) {
         failAfter(0, rc);
     }
@@ -544,6 +547,4 @@ public class PulsarMockBookKeeper extends BookKeeper {
     public void useJfrReadHandleInterceptor() {
         setReadHandleInterceptor(jfrReadHandleInterceptor);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);
 }

@@ -23,12 +23,11 @@ import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTrack
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
@@ -37,7 +36,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.RoaringBitmap;
 
-@Slf4j
+@CustomLog
 @Data
 @AllArgsConstructor
 abstract class Bucket {
@@ -69,7 +68,6 @@ abstract class Bucket {
     private volatile Long bucketId;
 
     private volatile CompletableFuture<Long> snapshotCreateFuture;
-
 
     Bucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
@@ -143,22 +141,31 @@ abstract class Bucket {
                                 topicName, cursorName)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
-                                log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
-                                        dispatcherName, bucketKey, ex);
+                                log.warn()
+                                        .attr("dispatcher", dispatcherName)
+                                        .attr("bucketKey", bucketKey)
+                                        .exception(ex)
+                                        .log("Failed to create bucket snapshot");
                             }
                         }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
-                                dispatcherName, bucketKey, newBucketId, ex);
+                        log.warn()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketKey", bucketKey)
+                                .attr("bucketId", newBucketId)
+                                .exception(ex)
+                                .log("Failed to record bucketId to cursor property");
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
-        Objects.requireNonNull(bucketId);
+        if (bucketId == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected bucketId should not be null"));
+        }
         return sequencer.sequential(() -> {
             return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                     ManagedLedgerException.BadVersionException.class, MaxRetryTimes);

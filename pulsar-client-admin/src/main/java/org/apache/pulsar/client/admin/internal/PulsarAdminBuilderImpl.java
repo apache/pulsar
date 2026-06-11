@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -52,6 +54,9 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
         this.conf.setConnectionsPerBroker(16);
+        // Admin traffic is HTTP-only; default the scope to HTTP_ONLY so that a configured
+        // SOCKS5 proxy is applied to HTTP requests without requiring an explicit scope call.
+        this.conf.setSocks5ProxyScope(Socks5ProxyScope.HTTP_ONLY);
     }
 
     private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
@@ -294,6 +299,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         this.conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
+        this.conf.setSocks5ProxyAddress(socks5ProxyAddress);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyUsername(String socks5ProxyUsername) {
+        this.conf.setSocks5ProxyUsername(socks5ProxyUsername);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyPassword(String socks5ProxyPassword) {
+        this.conf.setSocks5ProxyPassword(socks5ProxyPassword);
         return this;
     }
 

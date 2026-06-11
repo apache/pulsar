@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
+import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,15 +33,18 @@ import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PulsarCompactorSubscription extends PersistentSubscription {
+
+    private static final Logger LOG = Logger.get(PulsarCompactorSubscription.class);
+    protected final Logger log;
+
     private final CompactedTopic compactedTopic;
 
     public PulsarCompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
                                        String subscriptionName, ManagedCursor cursor) {
         super(topic, subscriptionName, cursor, false);
+        this.log = LOG.with().ctx(super.log).build();
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
 
@@ -60,17 +64,19 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                           Map<String, Long> properties) {
         checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
         long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+        CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
         Position position = positions.get(0);
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Cumulative ack on compactor subscription {}", topicName, subName, position);
-        }
+        log.debug()
+                .attr("position", position)
+                .log("Cumulative ack on compactor subscription");
 
         // The newCompactedLedger must be called at the first step because we need to ensure the reader can read
         // complete data from compacted Ledger, otherwise, if the original ledger been deleted the reader cursor
@@ -83,30 +89,35 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
             cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Mark deleted messages until position on compactor subscription {}",
-                                topicName, subName, position);
-                    }
+                    log.debug()
+                            .attr("position", position)
+                            .log("Mark deleted messages until position on compactor subscription");
                     if (previousContext != null) {
                         compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
                     }
+                    completionFuture.complete(null);
                 }
 
                 @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                     // TODO: cut consumer connection on markDeleteFailed
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Failed to mark delete for position on compactor subscription {}",
-                                topicName, subName, ctx, exception);
-                    }
+                    log.debug()
+                            .exception(exception)
+                            .log("Failed to mark delete for position on compactor subscription");
+                    completionFuture.completeExceptionally(exception);
                 }
             }, null);
+        }).exceptionally(ex -> {
+            completionFuture.completeExceptionally(ex);
+            return null;
         });
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
         }
+
+        return completionFuture;
     }
 
     CompletableFuture<Void> cleanCompactedLedger() {
@@ -122,6 +133,4 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
             return CompletableFuture.completedFuture(null);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarCompactorSubscription.class);
 }

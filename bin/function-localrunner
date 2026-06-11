@@ -76,28 +76,17 @@ if [[ -z "$PULSAR_GC_LOG" ]]; then
   fi
 fi
 
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS=${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}
-
 if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-	    MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    f="${PULSAR_HOME}/distribution/server/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/server generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-server-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -106,7 +95,7 @@ add_maven_deps_to_classpath() {
 if [ -d "$PULSAR_HOME/lib" ]; then
     PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
@@ -139,9 +128,31 @@ if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
-
 # we should exit on OOM for localrun especially when using ThreadRuntime
-PULSAR_EXTRA_OPTS="$PULSAR_EXTRA_OPTS -XX:+ExitOnOutOfMemoryError"
+# These two settings work together to ensure the Pulsar process exits immediately and predictably
+# if it runs out of either Java heap memory or its internal off-heap memory,
+# as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
+# Netty tuning
+# These settings are primarily used to modify the Netty allocator configuration,
+# improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+#
+# Based on the netty source code, the allocator's default chunk size is calculated as:
+# io.netty.allocator.pageSize (default: 8192) shifted left by
+# io.netty.allocator.maxOrder (default: 9 after Netty 4.1.76.Final version).
+# This equals 8192 * 2^9 = 4 MB：
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PooledByteBufAllocator.java#L105
+#
+# Allocations that are larger than chunk size are considered huge allocations and don't use the pool:
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PoolArena.java#L141-L142
+#
+# Currently, Pulsar defaults to a maximum single message size of 5 MB.
+# Therefore, when frequently producing messages whose size exceeds the chunk size,
+# Netty cannot utilize resources from the memory pool and must frequently allocate native memory.
+# This can lead to increased physical memory fragmentation and higher reclamation costs.
+# Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger
+# than chunk size (8MB) and can reuse Netty's memory pool.
+OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
 OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
 
@@ -155,12 +166,12 @@ PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 # find the java instance location
 if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     # didn't find a released jar, then search the built jar
-    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/build/libs/java-instance.jar"
     if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
         JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
     else
         echo "\nCouldn't find pulsar java instance jar.";
-        echo "Make sure you've run 'mvn package'\n";
+        echo "Make sure you've run './gradlew assemble'\n";
         exit 1;
     fi
 fi
@@ -168,12 +179,12 @@ fi
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
-    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/build/python-instance/python_instance_main.py"
     if [ -f "${BUILT_PY_INSTANCE_FILE}" ]; then
         PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
     else
         echo "\nCouldn't find pulsar python instance.";
-        echo "Make sure you've run 'mvn package'\n";
+        echo "Make sure you've run './gradlew assemble'\n";
         exit 1;
     fi
 fi

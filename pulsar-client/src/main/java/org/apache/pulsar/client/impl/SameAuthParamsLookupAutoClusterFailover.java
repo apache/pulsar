@@ -24,8 +24,8 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,7 +37,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
-@Slf4j
+/**
+ * A service URL provider that probes multiple Pulsar service URLs with the same authentication
+ * parameters and fails over according to service health.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
+@CustomLog
 @SuppressFBWarnings(value = {"EI_EXPOSE_REP2"})
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
 
@@ -65,7 +73,10 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
     private SameAuthParamsLookupAutoClusterFailover() {}
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.currentPulsarServiceIndex = 0;
         this.pulsarClient = (PulsarClientImpl) client;
         this.executor = EventLoopUtil.newEventLoopGroup(1, false,
@@ -84,13 +95,11 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     int failoverTo = findFailoverTo();
                     if (failoverTo < 0) {
                         // No healthy pulsar service to connect.
-                        log.error(
-                                "Failed to choose a pulsar service to connect, no one pulsar service is healthy."
-                                        + " Current pulsar service: [{}] {}. States: {}, Counters: {}",
-                                currentPulsarServiceIndex,
-                                pulsarServiceUrlArray[currentPulsarServiceIndex],
-                                Arrays.toString(pulsarServiceStateArray),
-                                Arrays.toString(checkCounterArray));
+                        log.error().attr("currentPulsarServiceIndex", currentPulsarServiceIndex)
+                                .attr("currentServiceUrl", pulsarServiceUrlArray[currentPulsarServiceIndex])
+                                .attr("states", Arrays.toString(pulsarServiceStateArray))
+                                .attr("counters", Arrays.toString(checkCounterArray))
+                                .log("Failed to choose a pulsar service to connect, no healthy service available");
                     } else {
                         // Failover to low priority pulsar service.
                         updateServiceUrl(failoverTo);
@@ -100,7 +109,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     updateServiceUrl(firstHealthyPulsarService);
                 }
             } catch (Exception ex) {
-                log.error("Failed to re-check cluster status", ex);
+                log.error().exception(ex).log("Failed to re-check cluster status");
             }
         }, checkHealthyIntervalMs, checkHealthyIntervalMs, TimeUnit.MILLISECONDS);
     }
@@ -110,14 +119,16 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         return pulsarServiceUrlArray[currentPulsarServiceIndex];
     }
 
+    @SuppressWarnings("deprecation")
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (closed) {
             return;
         }
 
-        log.info("Closing service url provider. Current pulsar service: [{}] {}", currentPulsarServiceIndex,
-                pulsarServiceUrlArray[currentPulsarServiceIndex]);
+        log.info().attr("currentPulsarServiceIndex", currentPulsarServiceIndex)
+                .attr("currentServiceUrl", pulsarServiceUrlArray[currentPulsarServiceIndex])
+                .log("Closing service url provider");
         if (scheduledCheckTask != null) {
             scheduledCheckTask.cancel(false);
         }
@@ -143,6 +154,11 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         for (int i = currentPulsarServiceIndex + 1; i < pulsarServiceUrlArray.length; i++) {
             if (probeAvailable(i)) {
                 return i;
+            } else {
+                // Mark the service as Failed to prevent a spurious recovery to it
+                // after we failover to a higher-indexed service.
+                pulsarServiceStateArray[i] = PulsarServiceState.Failed;
+                checkCounterArray[i].setValue(0);
             }
         }
         return -1;
@@ -166,8 +182,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                         break;
                     }
                     case PreRecover: {
-                        checkCounterArray[i].setValue(checkCounterArray[i].getValue() + 1);
-                        if (checkCounterArray[i].getValue() >= recoverThreshold) {
+                        checkCounterArray[i].setValue(checkCounterArray[i].intValue() + 1);
+                        if (checkCounterArray[i].intValue() >= recoverThreshold) {
                             pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
                             checkCounterArray[i].setValue(0);
                         }
@@ -182,8 +198,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                         break;
                     }
                     case PreFail: {
-                        checkCounterArray[i].setValue(checkCounterArray[i].getValue() + 1);
-                        if (checkCounterArray[i].getValue() >= failoverThreshold) {
+                        checkCounterArray[i].setValue(checkCounterArray[i].intValue() + 1);
+                        if (checkCounterArray[i].intValue() >= failoverThreshold) {
                             pulsarServiceStateArray[i] = PulsarServiceState.Failed;
                             checkCounterArray[i].setValue(0);
                         }
@@ -207,11 +223,12 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         try {
             LookupTopicResult res = pulsarClient.getLookup(url).getBroker(TopicName.get(testTopic))
                     .get(3, TimeUnit.SECONDS);
-            if (log.isDebugEnabled()) {
-                log.debug("Success to probe available(lookup res: {}), [{}] {}}. States: {}, Counters: {}",
-                        res.toString(), brokerServiceIndex, url, Arrays.toString(pulsarServiceStateArray),
-                        Arrays.toString(checkCounterArray));
-            }
+                log.debug().attr("res", res.toString())
+                        .attr("brokerServiceIndex", brokerServiceIndex)
+                        .attr("url", url)
+                        .attr("states", Arrays.toString(pulsarServiceStateArray))
+                        .attr("counters", Arrays.toString(checkCounterArray))
+                        .log("Successfully probed service availability");
             return true;
         } catch (Exception e) {
             Throwable actEx = FutureUtil.unwrapCompletionException(e);
@@ -220,21 +237,26 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                     || actEx instanceof PulsarClientException.LookupException) {
                 if (markTopicNotFoundAsAvailable) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Success to probe available(case tenant/namespace/topic not found), [{}] {}."
-                                + " States: {}, Counters: {}", brokerServiceIndex, url,
-                                Arrays.toString(pulsarServiceStateArray), Arrays.toString(checkCounterArray));
-                    }
+                        log.debug().attr("brokerServiceIndex", brokerServiceIndex)
+                                .attr("url", url)
+                                .attr("states", Arrays.toString(pulsarServiceStateArray))
+                                .attr("counters", Arrays.toString(checkCounterArray))
+                                .log("Successfully probed service availability (topic not found)");
                     return true;
                 } else {
-                    log.warn("Failed to probe available(error tenant/namespace/topic not found), [{}] {}. States: {},"
-                            + " Counters: {}", brokerServiceIndex, url, Arrays.toString(pulsarServiceStateArray),
-                            Arrays.toString(checkCounterArray));
+                    log.warn().attr("brokerServiceIndex", brokerServiceIndex)
+                            .attr("url", url)
+                            .attr("states", Arrays.toString(pulsarServiceStateArray))
+                            .attr("counters", Arrays.toString(checkCounterArray))
+                            .log("Failed to probe service availability (topic not found)");
                     return false;
                 }
             }
-            log.warn("Failed to probe available, [{}] {}. States: {}, Counters: {}", brokerServiceIndex, url,
-                    Arrays.toString(pulsarServiceStateArray), Arrays.toString(checkCounterArray));
+            log.warn().attr("brokerServiceIndex", brokerServiceIndex)
+                    .attr("url", url)
+                    .attr("states", Arrays.toString(pulsarServiceStateArray))
+                    .attr("counters", Arrays.toString(checkCounterArray))
+                    .log("Failed to probe service availability");
             return false;
         }
     }
@@ -256,9 +278,20 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         try {
             pulsarClient.updateServiceUrl(targetUrl);
             pulsarClient.reloadLookUp();
+            // When recovering to a higher-priority service, the check loop will only probe
+            // indices 0..targetIndex going forward. Any transient state (e.g., PreFail from
+            // a single timed-out probe) at higher indices would become stuck because those
+            // indices are no longer probed. Reset them so they start fresh if a future
+            // failover needs to consider them again.
+            if (targetIndex < currentPulsarServiceIndex) {
+                for (int i = targetIndex + 1; i < pulsarServiceStateArray.length; i++) {
+                    pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
+                    checkCounterArray[i].setValue(0);
+                }
+            }
             currentPulsarServiceIndex = targetIndex;
         } catch (Exception e) {
-            log.error("Failed to {}", logMsg, e);
+            log.error().attr("logMsg", logMsg).exception(e).log("Failed to");
         }
     }
 
@@ -355,4 +388,3 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         }
     }
 }
-

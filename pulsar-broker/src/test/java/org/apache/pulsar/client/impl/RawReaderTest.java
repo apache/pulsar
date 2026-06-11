@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -76,7 +76,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -660,7 +660,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                     received.incrementAndGet();
                     msg.getHeadersAndPayload().release();
                     latch.get().countDown();
-                    log.info("Received message [{}] in the reader", msg.getMessageId());
+                    log.info().attr("messageId", msg.getMessageId()).log("Received message in the reader");
                 }
             } catch (Exception e) {
 
@@ -720,7 +720,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                     received.incrementAndGet();
                     msg.getHeadersAndPayload().release();
                     latch.get().countDown();
-                    log.info("Received message [{}] in the reader", msg.getMessageId());
+                    log.info().attr("messageId", msg.getMessageId()).log("Received message in the reader");
                 }
             } catch (Exception e) {
                 //

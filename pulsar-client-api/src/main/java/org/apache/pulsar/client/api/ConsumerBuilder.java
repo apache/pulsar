@@ -377,7 +377,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ConsumerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified.

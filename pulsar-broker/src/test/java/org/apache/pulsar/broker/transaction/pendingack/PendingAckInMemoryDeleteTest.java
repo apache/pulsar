@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
@@ -27,7 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -50,7 +49,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
@@ -102,10 +101,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 Assert.assertNotNull(message);
                 if (i % 2 == 0) {
                     consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                    log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                    log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                            .log("txn receive msgId, count");
                 } else {
                     consumer.acknowledge(message.getMessageId());
-                    log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                    log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                            .log("normal receive msgId, count");
                 }
             }
 
@@ -126,6 +127,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
@@ -190,10 +192,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 if (i != 500) {
                     if (i % 2 == 0) {
                         consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                        log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                        log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                                .log("txn receive msgId, count");
                     } else {
                         consumer.acknowledge(message.getMessageId());
-                        log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                        log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                                .log("normal receive msgId, count");
                     }
                 } else {
                     messageIds[retryCnt] = message.getMessageId();
@@ -215,8 +219,10 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         pendingAckHandle = (PendingAckHandleImpl) field.get(testPersistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
-                        individualAckOfTransaction =
+                        @SuppressWarnings("unchecked")
+                        LinkedMap<TxnID, HashMap<Position, Position>> ackOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
+                        individualAckOfTransaction = ackOfTransaction;
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
                         final var batchDeletedIndexes = managedCursor.getBatchDeletedIndexes();

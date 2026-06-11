@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.beans.Transient;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -117,6 +119,9 @@ public class Policies {
     public Boolean is_allow_auto_update_schema = null;
 
     @SuppressWarnings("checkstyle:MemberName")
+    public Boolean is_allow_auto_update_schema_with_replicator = true;
+
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -126,6 +131,10 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public Set<String> subscription_types_enabled = new HashSet<>();
+
+    @SuppressWarnings("checkstyle:MemberName")
+    // Default to null to fallback to broker level configuration
+    public Set<String> allowed_topic_property_keys_for_metrics = null;
 
     public Map<String, String> properties = new HashMap<>();
 
@@ -163,8 +172,10 @@ public class Policies {
                 schema_validation_enforced,
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
+                is_allow_auto_update_schema_with_replicator,
                 offload_policies,
                 subscription_types_enabled,
+                allowed_topic_property_keys_for_metrics,
                 properties,
                 resource_group_name, entryFilters, migrated,
                 dispatcherPauseOnAckStatePersistentEnabled);
@@ -211,8 +222,12 @@ public class Policies {
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
+                    && Objects.equals(is_allow_auto_update_schema_with_replicator,
+                        other.is_allow_auto_update_schema_with_replicator)
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
+                    && Objects.equals(allowed_topic_property_keys_for_metrics,
+                            other.allowed_topic_property_keys_for_metrics)
                     && Objects.equals(properties, other.properties)
                     && Objects.equals(migrated, other.migrated)
                     && Objects.equals(resource_group_name, other.resource_group_name)
@@ -226,6 +241,8 @@ public class Policies {
     /**
      * Get the cluster that can delete the namespace.
      */
+    @JsonIgnore
+    @Transient
     public String getClusterThatCanDeleteNamespace() {
         if (this.replication_clusters.size() != 1 ||  this.allowed_clusters.size() > 1) {
             return null;

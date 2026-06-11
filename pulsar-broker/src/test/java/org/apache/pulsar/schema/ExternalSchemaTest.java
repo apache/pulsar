@@ -63,7 +63,8 @@ public class ExternalSchemaTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("public/default",
+                Sets.newHashSet("test"), false);
     }
 
     @AfterClass(alwaysRun = true)

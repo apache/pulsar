@@ -42,9 +42,10 @@ import org.testng.annotations.Test;
 public class TypedMessageBuilderImplTest {
 
     @Mock
-    protected ProducerBase producerBase;
+    protected ProducerBase<?> producerBase;
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
@@ -55,6 +56,7 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
@@ -65,8 +67,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type default, not set value
-        TypedMessageBuilderImpl<KeyValue>  typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<KeyValue<?, ?>>  typedMessageBuilder =
+                (TypedMessageBuilderImpl<KeyValue<?, ?>>) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -80,6 +82,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
@@ -90,7 +93,8 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
-        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl (producerBase, keyValueSchema);
+        @SuppressWarnings("rawtypes")
+        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -100,8 +104,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type INLINE
-        TypedMessageBuilderImpl<KeyValue> typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<KeyValue<?, ?>> typedMessageBuilder =
+                (TypedMessageBuilderImpl<KeyValue<?, ?>>) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -115,6 +119,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedValue() throws Exception {
         producerBase = mock(ProducerBase.class);
 
@@ -125,7 +130,8 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
-        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl (producerBase, keyValueSchema);
+        @SuppressWarnings("rawtypes")
+        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -135,7 +141,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type SEPARATED
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -149,6 +156,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -159,15 +167,17 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("default");
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.key("default");
         assertEquals(typedMessageBuilder.getKey(), "default");
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -178,15 +188,17 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("inline");
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.key("inline");
         assertEquals(typedMessageBuilder.getKey(), "inline");
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
@@ -197,12 +209,13 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
 
         try {
-            TypedMessageBuilderImpl typedMessageBuilder =
-                    (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("separated");
+            TypedMessageBuilderImpl<?> typedMessageBuilder =
+                    (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.key("separated");
             fail("This should fail");
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage()
@@ -211,6 +224,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -221,15 +235,17 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("default".getBytes());
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.keyBytes("default".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("default".getBytes()));
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -240,15 +256,17 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder =
-                (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("inline".getBytes());
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.keyBytes("inline".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("inline".getBytes()));
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
@@ -259,12 +277,13 @@ public class TypedMessageBuilderImplTest {
 
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
                 Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
 
         try {
-            TypedMessageBuilderImpl typedMessageBuilder =
-                    (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("separated".getBytes());
+            TypedMessageBuilderImpl<?> typedMessageBuilder =
+                    (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.keyBytes("separated".getBytes());
             fail("This should fail");
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage()

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -43,7 +44,6 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -53,10 +53,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -65,6 +64,7 @@ import picocli.CommandLine.ScopeType;
 /**
  * Setup the metadata for a new Pulsar cluster.
  */
+@CustomLog
 public class PulsarClusterMetadataSetup {
 
     private static final int DEFAULT_BUNDLE_NUMBER = 16;
@@ -219,6 +219,11 @@ public class PulsarClusterMetadataSetup {
     }
 
     public static void main(String[] args) throws Exception {
+        // Explicitly trigger class initialization to run static blocks that register
+        // drivers with MetadataDrivers. Setting system properties alone is not sufficient
+        // when MetadataDrivers has already been loaded in the same JVM (e.g., in test contexts).
+        PulsarMetadataBookieDriver.init();
+        PulsarMetadataClientDriver.init();
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
 
@@ -273,7 +278,7 @@ public class PulsarClusterMetadataSetup {
         }
 
         if (arguments.numTransactionCoordinators <= 0) {
-            System.err.println("Number of transaction coordinators must greater than 0");
+            System.err.println("Number of transaction coordinators must be greater than 0");
             System.exit(1);
         }
         int bundleNumberForDefaultNamespace =
@@ -282,16 +287,17 @@ public class PulsarClusterMetadataSetup {
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
-            System.err.println("Unexpected error occurred.");
-            e.printStackTrace(System.err);
-            System.err.println("Terminating JVM...");
-            ShutdownUtil.triggerImmediateForcefulShutdown();
+            log.error().exception(e).log("Unexpected error during cluster metadata initialization");
+            throw e;
         }
     }
 
     private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
-        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
-                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
+        log.info()
+                .attr("cluster", arguments.cluster)
+                .attr("metadataStoreUrl", arguments.metadataStoreUrl)
+                .attr("configurationMetadataStore", arguments.configurationMetadataStore)
+                .log("Setting up cluster");
 
         MetadataStoreExtended localStore = initLocalMetadataStore(arguments.metadataStoreUrl,
                 arguments.metadataStoreConfigPath,
@@ -299,6 +305,7 @@ public class PulsarClusterMetadataSetup {
         MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
                 arguments.configurationStoreConfigPath,
                 arguments.zkSessionTimeoutMillis);
+        try {
 
         final String metadataStoreUrlNoIdentifier = MetadataStoreFactoryImpl
                 .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
@@ -315,7 +322,7 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
-        if (localStore instanceof ZKMetadataStore && configStore instanceof ZKMetadataStore) {
+        if (localStore instanceof DualMetadataStore && configStore instanceof DualMetadataStore) {
             String uriStr;
             if (arguments.existingBkMetadataServiceUri != null) {
                 uriStr = arguments.existingBkMetadataServiceUri;
@@ -376,12 +383,6 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
         }
 
-        // Create marker for "global" cluster
-        ClusterData globalClusterData = ClusterData.builder().build();
-        if (!resources.getClusterResources().clusterExists("global")) {
-            resources.getClusterResources().createCluster("global", globalClusterData);
-        }
-
         // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
@@ -399,10 +400,19 @@ public class PulsarClusterMetadataSetup {
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
-        localStore.close();
-        configStore.close();
-
-        log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+        log.info().attr("cluster", arguments.cluster).log("Cluster metadata setup correctly");
+        } finally {
+            try {
+                localStore.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close local metadata store");
+            }
+            try {
+                configStore.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close config metadata store");
+            }
+        }
     }
 
     public static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)
@@ -433,7 +443,7 @@ public class PulsarClusterMetadataSetup {
 
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
-            log.info("Namespace {} already exists.", namespaceName);
+            log.info().attr("namespace", namespaceName).log("Namespace already exists.");
             var replicaClusterFound = false;
             var policiesOptional = namespaceResources.getPolicies(namespaceName);
             if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
@@ -444,8 +454,10 @@ public class PulsarClusterMetadataSetup {
                     policies.replication_clusters.add(cluster);
                     return policies;
                 });
-                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
-                        namespaceName, cluster);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("cluster", cluster)
+                        .log("Updated namespace policies. Added the replication cluster");
             }
         }
     }
@@ -515,6 +527,4 @@ public class PulsarClusterMetadataSetup {
         }
         return store;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);
 }

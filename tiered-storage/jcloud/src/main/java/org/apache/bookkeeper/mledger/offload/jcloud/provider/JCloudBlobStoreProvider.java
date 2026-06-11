@@ -38,7 +38,7 @@ import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Properties;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.BlobStoreBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.ConfigValidation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
@@ -80,7 +80,7 @@ import org.jclouds.s3.reference.S3Constants;
  * org.jclouds.ContextBuilder used to create the BlobStore.
  *</p>
  */
-@Slf4j
+@CustomLog
 public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, BlobStoreBuilder, CredentialBuilder  {
 
     AWS_S3("aws-s3", new AWSS3ProviderMetadata()) {
@@ -120,8 +120,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                             Charset.defaultCharset()).read();
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
-                    log.error("Cannot read GCS service account credentials file: {}",
-                            config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile"));
+                    log.error().attr("file",
+                            config.getConfigProperty("gcsManagedLedgerOffloadServiceAccountKeyFile"))
+                            .log("Cannot read GCS service account credentials file");
                     throw new IllegalArgumentException(ioe);
                 }
             }
@@ -147,7 +148,8 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             } else {
-                log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+                log.warn().attr("driver", config.getDriver()).attr("bucket", config.getBucket())
+                    .log("The credentials is null");
                 return contextBuilder
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
@@ -316,7 +318,8 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
         } else {
-            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            log.warn().attr("driver", config.getDriver()).attr("bucket", config.getBucket())
+                    .log("The credentials is null");
             return contextBuilder
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
@@ -381,7 +384,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                 });
             } catch (Exception e) {
                 // allowed, some mock s3 service do not need credential
-                log.warn("Exception when get credentials for s3 ", e);
+                log.warn().exception(e).log("Exception when getting credentials for S3");
             }
         }
     };
@@ -403,7 +406,8 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
         } else {
-            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            log.warn().attr("driver", config.getDriver()).attr("bucket", config.getBucket())
+                    .log("The credentials is null");
             return contextBuilder
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();

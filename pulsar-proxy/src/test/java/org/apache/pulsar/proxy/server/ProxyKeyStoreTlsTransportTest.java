@@ -21,7 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
@@ -37,7 +37,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "proxy")
 public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
@@ -61,6 +61,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         conf.setTlsRequireTrustedClientCertOnConnect(true);
 
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         // proxy with JKS
         proxyConfig.setServicePort(Optional.of(0));
@@ -133,7 +134,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = newClient();
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://public/default/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {

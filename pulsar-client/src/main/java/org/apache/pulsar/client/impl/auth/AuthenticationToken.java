@@ -64,6 +64,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         return AUTH_METHOD_NAME;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         return new AuthenticationDataToken(tokenSupplier);
@@ -90,6 +91,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void configure(Map<String, String> authParams) {
         // noop

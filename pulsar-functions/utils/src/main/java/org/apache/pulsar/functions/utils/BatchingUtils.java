@@ -19,42 +19,42 @@
 package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.common.functions.BatchingConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.BatchingSpec;
 
 public final class BatchingUtils {
-    public static Function.BatchingSpec convert(BatchingConfig config) {
+    public static BatchingSpec convert(BatchingConfig config) {
         if (config == null) {
             return null;
         }
 
-        Function.BatchingSpec.Builder builder = Function.BatchingSpec.newBuilder()
+        BatchingSpec batchingSpec = new BatchingSpec()
                 .setEnabled(config.isEnabled());
 
         if (config.getBatchingMaxPublishDelayMs() != null && config.getBatchingMaxPublishDelayMs() > 0) {
-            builder.setBatchingMaxPublishDelayMs(config.getBatchingMaxPublishDelayMs());
+            batchingSpec.setBatchingMaxPublishDelayMs(config.getBatchingMaxPublishDelayMs());
         }
         if (config.getRoundRobinRouterBatchingPartitionSwitchFrequency() != null
                 && config.getRoundRobinRouterBatchingPartitionSwitchFrequency() > 0) {
-            builder.setRoundRobinRouterBatchingPartitionSwitchFrequency(
+            batchingSpec.setRoundRobinRouterBatchingPartitionSwitchFrequency(
                     config.getRoundRobinRouterBatchingPartitionSwitchFrequency());
         }
         if (config.getBatchingMaxMessages() != null && config.getBatchingMaxMessages() > 0) {
-            builder.setBatchingMaxMessages(config.getBatchingMaxMessages());
+            batchingSpec.setBatchingMaxMessages(config.getBatchingMaxMessages());
         }
         if (config.getBatchingMaxBytes() != null && config.getBatchingMaxBytes() > 0) {
-            builder.setBatchingMaxBytes(config.getBatchingMaxBytes());
+            batchingSpec.setBatchingMaxBytes(config.getBatchingMaxBytes());
         }
         if (config.getBatchBuilder() != null && !config.getBatchBuilder().isEmpty()) {
-            builder.setBatchBuilder(config.getBatchBuilder());
+            batchingSpec.setBatchBuilder(config.getBatchBuilder());
         }
 
-        return builder.build();
+        return batchingSpec;
     }
 
-    public static BatchingConfig convertFromSpec(Function.BatchingSpec spec) {
+    public static BatchingConfig convertFromSpec(BatchingSpec spec) {
         // to keep the backward compatibility, when batchingSpec is null or empty
         // the batching is enabled by default, and the default max publish delay is 10ms
-        if (spec == null || spec.toString().equals("")) {
+        if (spec == null) {
             return BatchingConfig.builder()
                     .enabled(true)
                     .batchingMaxPublishDelayMs(10)
@@ -62,7 +62,7 @@ public final class BatchingUtils {
         }
 
         BatchingConfig.BatchingConfigBuilder builder = BatchingConfig.builder()
-                .enabled(spec.getEnabled());
+                .enabled(spec.isEnabled());
 
         if (spec.getBatchingMaxPublishDelayMs() > 0) {
             builder.batchingMaxPublishDelayMs(spec.getBatchingMaxPublishDelayMs());

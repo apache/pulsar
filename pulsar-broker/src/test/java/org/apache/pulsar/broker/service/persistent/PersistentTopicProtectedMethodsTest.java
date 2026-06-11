@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -34,7 +34,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
 
@@ -92,15 +92,17 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
         admin.topics().skipAllMessages(tp, "s1");
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-            assertEquals(cursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
+            // Use >= comparison: after skipAll, a ledger rollover may create a new empty ledger,
+            // moving the cursor's mark-delete position past the LAC (e.g., 10:-1 vs 9:1).
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
         });
-        CompletableFuture completableFuture = new CompletableFuture();
+        CompletableFuture completableFuture = new CompletableFuture<>();
         ml.trimConsumedLedgersInBackground(completableFuture);
         completableFuture.join();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ml.getLedgersInfo().size(), 1);
             assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-            assertEquals(cursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
         });
 
         // Verify: "persistentTopic.estimatedTimeBasedBacklogQuotaCheck" will not get a NullPointerException.

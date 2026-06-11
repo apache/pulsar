@@ -93,8 +93,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public CompletableFuture<Producer<T>> createAsync() {
         // config validation
-        checkArgument(!(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
-                "Batching and chunking of messages can't be enabled together");
+        if (conf.isBatchingEnabled() && conf.isChunkingEnabled()) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Batching and chunking of messages can't be enabled together"));
+        }
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
@@ -106,9 +108,21 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             return FutureUtil.failedFuture(pce);
         }
 
-        return interceptorList == null || interceptorList.size() == 0
+        // Automatically add tracing interceptor if tracing is enabled
+        List<ProducerInterceptor> effectiveInterceptors = interceptorList;
+        if (client.getConfiguration().isTracingEnabled()) {
+            if (effectiveInterceptors == null) {
+                effectiveInterceptors = new ArrayList<>();
+            } else {
+                effectiveInterceptors = new ArrayList<>(effectiveInterceptors);
+            }
+            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor(
+                    client.instrumentProvider()));
+        }
+
+        return effectiveInterceptors == null || effectiveInterceptors.size() == 0
                 ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+                : client.createProducerAsync(conf, schema, new ProducerInterceptors(effectiveInterceptors));
     }
 
     @Override
@@ -229,7 +243,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+    public ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }
@@ -312,7 +326,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     @Deprecated
-    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }

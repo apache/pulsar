@@ -33,7 +33,7 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.HealthChecker;
@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -54,11 +53,10 @@ import org.mockito.Mockito;
 import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
@@ -83,27 +81,14 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "topicVersion")
-    public static Object[][] topicVersions() {
-        return new Object[][] {
-                { null },
-                { TopicVersion.V1 },
-                { TopicVersion.V2 },
-        };
-    }
-
-    @Test(dataProvider = "topicVersion")
-    public void testHealthCheckup(TopicVersion topicVersion) throws Exception {
+    @Test
+    public void testHealthCheckup() throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();
         pulsar.getExecutor().execute(() -> {
             try {
                 for (int i = 0; i < times; i++) {
-                    if (topicVersion == null) {
-                        admin.brokers().healthcheck();
-                    } else {
-                        admin.brokers().healthcheck(topicVersion);
-                    }
+                    admin.brokers().healthcheck();
                 }
                 future.complete(null);
             } catch (PulsarAdminException e) {
@@ -111,17 +96,12 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             }
         });
         for (int i = 0; i < times; i++) {
-            if (topicVersion == null) {
-                admin.brokers().healthcheck();
-            } else {
-                admin.brokers().healthcheck(topicVersion);
-            }
+            admin.brokers().healthcheck();
         }
         // To ensure we don't have any subscription
         String brokerId = pulsar.getBrokerId();
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
+        NamespaceName namespaceName =
+                NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
         final String testHealthCheckTopic = String.format("persistent://%s/%s",
                 namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         Awaitility.await().untilAsserted(() -> {
@@ -168,7 +148,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(5000L);
 
         try {
-            admin.brokers().healthcheck(TopicVersion.V2);
+            admin.brokers().healthcheck();
         } finally {
             // unlock the deadlock
             thread1.interrupt();
@@ -210,6 +190,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     class DummyProducerBuilder<T> extends ProducerBuilderImpl<T> {
         // This is a dummy producer builder to test the health check timeout
         // the producer constructed by this builder will not send any message
+        @SuppressWarnings({"unchecked", "rawtypes"})
         public DummyProducerBuilder(PulsarClientImpl client, Schema schema) {
             super(client, schema);
         }
@@ -249,10 +230,10 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         timeoutField.set(healthChecker, Duration.ofSeconds(1));
 
         try {
-            admin.brokers().healthcheck(TopicVersion.V2);
+            admin.brokers().healthcheck();
             fail("Should not reach here");
         } catch (PulsarAdminException e) {
-            log.info("Exception caught", e);
+            log.info().exception(e).log("Exception caught");
             assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));
         }
         // To ensure we don't have any subscription, the producers and readers are closed.

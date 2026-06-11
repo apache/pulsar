@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * Generic json record.
  */
-@Slf4j
+@CustomLog
 public class GenericJsonRecord extends VersionedGenericRecord {
 
     private final JsonNode jn;
@@ -122,7 +122,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
                 }
             }
         } catch (Exception e) {
-            log.error("parse schemaInfo failed. ", e);
+            log.error().exception(e).log("parse schemaInfo failed. ");
         }
         return isBinary;
     }

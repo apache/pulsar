@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.TimeoutHandler;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -40,9 +42,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.TimeoutHandler;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -73,13 +74,12 @@ import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
+@CustomLog
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     // All certificate-authority files are copied from the tests/certificate-authority directory and all share the same
     // root CA.
@@ -189,7 +189,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return resolveLookupUrl(usePulsarBinaryProtocol).toString();
     }
 
-    private URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
+    protected URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
         if (usePulsarBinaryProtocol) {
             return URI.create(pulsar.getBrokerServiceUrl());
         } else {
@@ -204,6 +204,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         internalSetup();
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         ClientBuilder clientBuilder =
                 PulsarClient.builder()
@@ -341,7 +342,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             try {
                 closeables.get(i).close();
             } catch (Exception e) {
-                log.error("Failure in calling close method", e);
+                log.error().exception(e).log("Failure in calling close method");
             }
         }
     }
@@ -394,8 +395,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (pulsar == null) {
             return;
         }
-        log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
-                pulsar.getWebServiceAddress());
+        log.info().attr("brokerServiceUrl", pulsar.getBrokerServiceUrl())
+                .attr("webServiceAddress", pulsar.getWebServiceAddress())
+                .log("Stopping Pulsar broker");
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -731,6 +733,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
+                .atMost(20, TimeUnit.SECONDS)
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {
             try {
@@ -741,7 +744,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 // namespace was already deleted, ignore exception
                 return true;
             } catch (Exception e) {
-                log.warn("Failed to delete namespace {} (force={})", ns, force, e);
+                log.warn().attr("namespace", ns).attr("force", force).exception(e)
+                        .log("Failed to delete namespace");
                 return false;
             }
         });
@@ -759,7 +763,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         };
     }
 
-    protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
+    protected ServiceProducer getServiceProducer(ProducerImpl<?> clientProducer, String topicName) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         org.apache.pulsar.broker.service.Producer serviceProducer =
@@ -781,14 +785,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         try {
             Thread.sleep(1000 * seconds);
         } catch (InterruptedException e) {
-            log.warn("This thread has been interrupted", e);
+            log.warn().exception(e).log("This thread has been interrupted");
             Thread.currentThread().interrupt();
         }
     }
 
     private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
         ConnectionPool pool = c.getCnxPool();
-        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
+        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class<?>[]{});
         closeAllConnections.setAccessible(true);
         closeAllConnections.invoke(pool, new Object[]{});
     }
@@ -806,7 +810,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void logTopicStats(String topic) {
-        BrokerTestUtil.logTopicStats(log, admin, topic);
+        logTopicStats(topic, "");
+    }
+
+    protected void logTopicStats(String topic, String description) {
+        BrokerTestUtil.logTopicStats(log, admin, topic, description);
     }
 
     @DataProvider(name = "trueFalse")
@@ -814,5 +822,4 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

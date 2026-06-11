@@ -35,7 +35,7 @@ import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.eclipse.jetty.util.StringUtil;
 
 /**
@@ -76,7 +76,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
 
     @Override
     public void initialize(CoreV1Api coreClient, byte[] caBytes,
-                           java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
+                           java.util.function.Function<FunctionDetails, String> namespaceCustomizerFunc,
                            Map<String, Object> config) {
         setNamespaceProviderFunc(namespaceCustomizerFunc);
         Object certSecretName = config.get(BROKER_CLIENT_TRUST_CERTS_SECRET_NAME);
@@ -126,7 +126,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      * No need to cache anything. Kubernetes generates the token used for authentication.
      */
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                     AuthenticationDataSource authenticationDataSource)
             throws Exception {
         return Optional.empty();
@@ -136,7 +136,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      * No need to update anything. Kubernetes updates the token used for authentication.
      */
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
                                                      AuthenticationDataSource authenticationDataSource)
             throws Exception {
@@ -147,7 +147,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
      * No need to clean up anything. Kubernetes cleans up the secret when the pod is deleted.
      */
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+    public void cleanUpAuthData(FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
             throws Exception {
 
     }

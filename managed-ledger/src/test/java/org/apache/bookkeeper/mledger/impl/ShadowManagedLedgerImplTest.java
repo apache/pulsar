@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -39,7 +39,7 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
     private ShadowManagedLedgerImpl openShadowManagedLedger(String name, String sourceName)
@@ -64,10 +64,10 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             Position pos = sourceML.addEntry(data);
-            log.info("pos={}", pos);
+            log.info().attr("position", pos).log("Added entry");
             positions.add(pos);
         }
-        log.info("currentLedgerId:{}", sourceML.currentLedger.getId());
+        log.info().attr("currentLedgerId", sourceML.currentLedger.getId()).log("Current ledger");
         assertEquals(sourceML.ledgers.size(), 3);
 
         ShadowManagedLedgerImpl shadowML = openShadowManagedLedger("shadow_ML", "source_ML");
@@ -85,7 +85,8 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
             assertEquals(shadowML.ledgers.size(), 4);
             assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         });
-        log.info("Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+        log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
+                .attr("shadowLCE", shadowML.lastConfirmedEntry).log("Last confirmed entries");
 
         {// test write entry with ledgerId < currentLedger
             CompletableFuture<Position> future = new CompletableFuture<>();
@@ -102,7 +103,9 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
             }, positions.get(2));
             assertEquals(future.get(), positions.get(2));
             // LCE is not updated.
-            log.info("1.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+            log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
+                    .attr("shadowLCE", shadowML.lastConfirmedEntry)
+                    .log("Last confirmed entries after write to old ledger");
             assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
 
@@ -125,7 +128,9 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
             }, newPos);
             assertEquals(future.get(), newPos);
             // LCE should be updated.
-            log.info("2.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+            log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
+                    .attr("shadowLCE", shadowML.lastConfirmedEntry)
+                    .log("Last confirmed entries after write to current ledger");
             assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
 
@@ -154,7 +159,9 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
             });
             assertEquals(future.get(), fakePos);
             // LCE should be updated.
-            log.info("3.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+            log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
+                    .attr("shadowLCE", shadowML.lastConfirmedEntry)
+                    .log("Last confirmed entries after write to future ledger");
             assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
     }

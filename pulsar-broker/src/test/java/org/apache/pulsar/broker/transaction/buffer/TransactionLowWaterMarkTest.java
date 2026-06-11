@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.Topic;
@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
@@ -225,8 +225,10 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                     field.setAccessible(true);
-                    individualAckOfTransaction =
+                    @SuppressWarnings("unchecked")
+                    LinkedMap<TxnID, HashMap<Position, Position>> map =
                             (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
+                    individualAckOfTransaction = map;
                 }
             }
         }
@@ -447,6 +449,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
         field2.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(pendingAckHandle);
         return individualAckOfTransaction.containsKey(txnID);
@@ -462,11 +465,11 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
         field3.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, Position> ongoingTxns =
                 (LinkedMap<TxnID, Position>) field3.get(topicTransactionBuffer);
         return ongoingTxns.containsKey(txnID);
 
     }
-
 
 }

@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createDnsResolverGroupWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createEventLoopGroupWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createExternalExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createInstrumentProviderWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createInternalExecutorProviderWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createLookupExecutorProviderWithResourceConfig;
+import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createMemoryLimitControllerWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createScheduledExecutorProviderWithResourceConfig;
 import static org.apache.pulsar.client.impl.PulsarClientResourcesConfigurer.createTimer;
 import io.netty.channel.EventLoopGroup;
@@ -30,13 +32,17 @@ import io.netty.util.Timer;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.MemoryBufferStats;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
+@CustomLog
 @Getter
 public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResources {
     Set<SharedResource> sharedResources;
@@ -47,6 +53,9 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
     private final Timer timer;
     private final ExecutorProvider lookupExecutorProvider;
     private final DnsResolverGroupImpl dnsResolverGroup;
+    private final MemoryLimitController memoryLimitController;
+    private final InstrumentProvider instrumentProvider;
+    private final MemoryBufferStats memoryBufferStats;
 
     public PulsarClientSharedResourcesImpl(Set<SharedResource> sharedResources,
                                            Map<SharedResource, PulsarClientSharedResourcesBuilderImpl.ResourceConfig>
@@ -91,6 +100,21 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
                 ? createDnsResolverGroupWithResourceConfig(
                 getResourceConfig(resourceConfigs, SharedResource.DnsResolver))
                 : null;
+        this.memoryLimitController = this.sharedResources.contains(SharedResource.MemoryLimitController)
+                ? createMemoryLimitControllerWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.MemoryLimitController))
+                : null;
+        this.instrumentProvider = this.sharedResources.contains(SharedResource.OpenTelemetry)
+                ? createInstrumentProviderWithResourceConfig(
+                getResourceConfig(resourceConfigs, SharedResource.OpenTelemetry))
+                : null;
+        // Only create memory buffer metrics if memory limiting is enabled.
+        if (this.memoryLimitController != null && this.memoryLimitController.isMemoryLimited()
+                && this.instrumentProvider != null) {
+            this.memoryBufferStats = new MemoryBufferStats(this.instrumentProvider, this.memoryLimitController);
+        } else {
+            this.memoryBufferStats = null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -132,6 +156,13 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
         if (ioEventLoopGroup != null) {
             EventLoopUtil.shutdownGracefully(ioEventLoopGroup);
         }
+        if (memoryBufferStats != null) {
+            try {
+                memoryBufferStats.close();
+            } catch (Throwable t) {
+                log.warn().exception(t).log("Failed to close shared memoryBufferStats");
+            }
+        }
     }
 
     public void applyTo(PulsarClientImpl.PulsarClientImplBuilder instanceBuilder) {
@@ -155,6 +186,9 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
         }
         if (ioEventLoopGroup != null) {
             instanceBuilder.eventLoopGroup(ioEventLoopGroup);
+        }
+        if (memoryLimitController != null) {
+            instanceBuilder.memoryLimitController(memoryLimitController);
         }
     }
 }

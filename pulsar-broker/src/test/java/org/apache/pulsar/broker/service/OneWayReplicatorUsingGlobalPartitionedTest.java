@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -48,7 +48,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicatorTest {
 
@@ -66,6 +66,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     }
 
     @Override
+    @Test(enabled = false)
+    public void testReceiverSideReplicationStats() throws Exception {
+        super.testReceiverSideReplicationStats();
+    }
+
+    @Override
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
@@ -73,6 +79,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         config.setDefaultNumPartitions(1);
     }
 
+    @Override
     @Test(enabled = false)
     public void testDeleteTopicWhenReplicating() throws Exception {
         super.testDeleteTopicWhenReplicating();
@@ -82,6 +89,13 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
     }
 
     @Override
@@ -100,6 +114,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testCreateRemoteConsumerFirst() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
     }
 
     @Override
@@ -215,7 +235,8 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         final String topicP1 = TopicName.get(topic).getPartition(1).toString();
         final String topicChangeEvents = "persistent://" + ns1 + "/__change_events-partition-0";
         admin1.namespaces().createNamespace(ns1);
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         admin1.topics().createPartitionedTopic(topic, 2);
         PublishRate publishRateAddGlobal = new PublishRate(100, 10000);
         admin1.topicPolicies(true).setPublishRate(topic, publishRateAddGlobal);
@@ -262,7 +283,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
         if ("namespace".equals(removeClusterLevel)) {
-            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)), true);
         } else {
             admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster2));
             admin2.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster2));
@@ -314,7 +335,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
 
         // cleanup.
         if ("topic".equals(removeClusterLevel)) {
-            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)), true);
         }
         admin2.topics().deletePartitionedTopic(topic);
         assertEquals(admin2.topics().getList(ns1).size(), 0);

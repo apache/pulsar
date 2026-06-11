@@ -65,6 +65,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -82,7 +83,6 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -111,8 +111,6 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.ITest;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
@@ -122,8 +120,8 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITest {
-    private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
     private String testName;
 
     @DataProvider
@@ -213,7 +211,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
      */
     @Test(timeOut = 30_000)
     public void testMultipleBrokerLookup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -331,7 +329,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -403,11 +401,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
      */
     @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5437
     public void testMultipleBrokerDifferentClusterLookup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         /**** start broker-2 ****/
         final String newCluster = "use2";
-        final String property = "my-property2";
+        final String tenant = "my-property2";
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerShutdownTimeoutMs(0L);
@@ -425,9 +423,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                         .serviceUrl(pulsar.getWebServiceAddress())
                         .brokerServiceUrl(broker2ServiceUrl)
                         .build());
-        admin.tenants().createTenant(property,
+        admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
-        admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
+        admin.namespaces().createNamespace(tenant + "/my-ns");
 
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -451,10 +449,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         /**** started broker-2 ****/
 
         // load namespace-bundle by calling Broker2
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
-            .topic("persistent://my-property2/use2/my-ns/my-topic1")
+            .topic("persistent://my-property2/my-ns/my-topic1")
             .create();
 
         for (int i = 0; i < 10; i++) {
@@ -467,7 +465,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -485,7 +483,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
      */
     @Test
     public void testPartitionTopicLookup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         int numPartitions = 8;
         TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
@@ -544,7 +542,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             assertTrue(messageSet.add(receivedMessage), "Message " + receivedMessage + " already received");
         }
 
@@ -555,7 +553,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
 
         loadManager2 = null;
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -565,7 +563,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
      */
     @Test
     public void testWebserviceServiceTls() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -613,7 +611,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
 
-
         /**** started broker-2 ****/
 
         URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
@@ -629,14 +626,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
 
         // hit broker2 url
         URLConnection con = new URL(pulsar2.getWebServiceAddressTls() + lookupResourceUrl).openConnection();
-        log.info("orignal url: {}", con.getURL());
+        log.info().attr("orignalUrl", con.getURL()).log("orignal url");
         con.connect();
-        log.info("connected url: {} ", con.getURL());
+        log.info().attr("connectedUrl", con.getURL()).log("connected url");
         // assert connect-url: broker2-https
         assertEquals(Integer.valueOf(con.getURL().getPort()), conf2.getWebServicePortTls().get());
         InputStream is = con.getInputStream();
         // assert redirect-url: broker1-https only
-        log.info("redirected url: {}", con.getURL());
+        log.info().attr("redirectedUrl", con.getURL()).log("redirected url");
         assertEquals(Integer.valueOf(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
@@ -668,7 +665,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test(timeOut = 20000)
     public void testSplitUnloadLookupTest() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = "my-property/my-ns";
         // (1) Start broker-1
@@ -773,7 +770,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test(timeOut = 20000)
     public void testModularLoadManagerSplitBundle() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String loadBalancerName = conf.getLoadManagerClassName();
 
         try {
@@ -905,7 +902,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test(timeOut = 20000)
     public void testSkipSplitBundleIfOnlyOneBroker() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String loadBalancerName = conf.getLoadManagerClassName();
         final int defaultNumberOfNamespaceBundles = conf.getDefaultNumberOfNamespaceBundles();
         final int loadBalancerNamespaceBundleMaxTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
@@ -957,7 +954,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
 
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final int topicPartitions = 10;
@@ -977,12 +974,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMergeLookupRequests() throws Exception {
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
 
+        @SuppressWarnings("unchecked")
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
 
@@ -1008,7 +1007,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             }
         });
         int lookupCountAfterUnload = calculateLookupRequestCount();
-        log.info("lookup count before unload: {}, after unload: {}", lookupCountBeforeUnload, lookupCountAfterUnload);
+        log.info().attr("beforeUnload", lookupCountBeforeUnload).attr("afterUnload", lookupCountAfterUnload)
+                .log("lookup count before unload, after unload");
         assertTrue(lookupCountAfterUnload < lookupCountBeforeUnload * 2,
                 "the lookup count should be smaller than before improve");
 
@@ -1053,23 +1053,21 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test(timeOut = 10000)
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
-        final String cluster = "use2";
-        final String property = "my-property2";
+        final String cluster = "test";
+        final String tenant = "my-property2";
         final String namespace = "my-ns";
         final String topicName = "my-partitioned";
         final int totalPartitions = 10;
-        final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
-        admin.clusters().createCluster(cluster,
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(property,
+        final TopicName dest = TopicName.get("persistent", tenant, namespace, topicName);
+        admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
+        admin.namespaces().createNamespace(tenant + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         URI brokerServiceUrl = new URI(pulsar.getSafeWebServiceAddress());
 
         URL url = brokerServiceUrl.toURL();
-        String path = String.format("admin/%s/partitions", dest.getLookupName());
+        String path = String.format("admin/v2/%s/partitions", dest.getLookupName());
 
         AsyncHttpClient httpClient = getHttpClient("Pulsar-Java-1.20");
         PartitionedTopicMetadata metadata = getPartitionedMetadata(httpClient, url, path);
@@ -1132,7 +1130,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
 
                         @Override
                         public void onThrowable(Throwable t) {
-                            log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
+                            log.warn().attr("requestUrl", requestUrl).exceptionMessage(t)
+                                    .log("[] Failed to perform http request");
                             future.completeExceptionally(new PulsarClientException(t));
                         }
                     });
@@ -1141,7 +1140,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                 try {
                     Response response = responseFuture.get();
                     if (response.getStatusCode() != HttpURLConnection.HTTP_OK) {
-                        log.warn("[{}] HTTP get request failed: {}", requestUrl, response.getStatusText());
+                        log.warn().attr("requestUrl", requestUrl).attr("requestFailed", response.getStatusText())
+                                .log("[] HTTP get request failed");
                         future.completeExceptionally(
                                 new PulsarClientException("HTTP get request failed: " + response.getStatusText()));
                         return;
@@ -1151,13 +1151,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                             .readValue(response.getResponseBodyAsBytes(), PartitionedTopicMetadata.class);
                     future.complete(data);
                 } catch (Exception e) {
-                    log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());
+                    log.warn().attr("requestUrl", requestUrl).exceptionMessage(e)
+                            .log("[] Error during HTTP get request");
                     future.completeExceptionally(new PulsarClientException(e));
                 }
             }, MoreExecutors.directExecutor());
 
         } catch (Exception e) {
-            log.warn("[{}] Failed to get authentication data for lookup: {}", path, e.getMessage());
+            log.warn().attr("path", path).exceptionMessage(e).log("[] Failed to get authentication data for lookup");
             if (e instanceof PulsarClientException) {
                 future.completeExceptionally(e);
             } else {
@@ -1187,6 +1188,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     /**** helper classes. ****/
+    @SuppressWarnings("deprecation")
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {
         @Override
@@ -1234,7 +1236,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         Consumer<String> consumer = pulsarClientImpl.newConsumer(Schema.STRING).topic(tpName)
                 .subscriptionName("s1").isAckReceiptEnabled(true).subscribe();
         LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
@@ -1357,7 +1359,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final var lock = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class)
                 .acquireLock(ServiceUnitUtils.path(bundle), new NamespaceEphemeralData()).join();
         lock.updateValue(null);
-        log.info("Updated bundle {} with null", bundle.getBundleRange());
+        log.info().attr("updatedBundle", bundle.getBundleRange()).log("Updated bundle with null");
 
         // wait for the system topic reader to __change_events is closed, otherwise the test will be affected
         Thread.sleep(500);
@@ -1371,7 +1373,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             future.get();
             fail();
         } catch (ExecutionException e) {
-            log.info("getBroker failed with {}: {}", e.getCause().getClass().getName(), e.getMessage());
+            log.info().attr("failedWith", e.getCause().getClass().getName()).exceptionMessage(e)
+                    .log("getBroker failed with");
             assertTrue(e.getCause() instanceof PulsarClientException.BrokerMetadataException);
             assertTrue(cnx.ctx().channel().isActive());
             lock.updateValue(value);

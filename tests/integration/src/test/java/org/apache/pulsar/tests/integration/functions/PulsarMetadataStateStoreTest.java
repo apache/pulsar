@@ -19,7 +19,7 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import static org.testng.Assert.assertEquals;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
@@ -27,7 +27,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Network;
 
-@Slf4j
+@CustomLog
 public class PulsarMetadataStateStoreTest extends PulsarStateTest {
     protected PulsarMetadataStateStoreTest() {
         super(PulsarMetadataStateStoreProviderImpl.class.getName());
@@ -44,15 +44,15 @@ public class PulsarMetadataStateStoreTest extends PulsarStateTest {
                 .withEnv("PF_stateStorageProviderImplementation", PulsarMetadataStateStoreProviderImpl.class.getName())
                 .withEnv("PF_stateStorageServiceUrl", "zk:localhost:2181");
         container.start();
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        log.info().attr("url", container.getPlainTextServiceUrl()).log("\tBinary Service Url");
+        log.info().attr("url", container.getHttpServiceUrl()).log("\tHttp Service Url");
 
         // add cluster to public tenant
         ContainerExecResult result = container.execCmd(
                 "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
-        log.info("public/default namespace policies are {}", result.getStdout());
+        log.info().attr("are", result.getStdout()).log("public/default namespace policies are");
     }
 
 

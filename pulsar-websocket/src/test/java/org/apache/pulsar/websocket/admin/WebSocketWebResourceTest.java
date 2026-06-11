@@ -25,12 +25,12 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Method;
 import javax.naming.AuthenticationException;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -66,6 +66,7 @@ public class WebSocketWebResourceTest {
     @Mock
     private UriInfo uri;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup(Method method) throws Exception {
         MockitoAnnotations.openMocks(this);
@@ -123,7 +124,7 @@ public class WebSocketWebResourceTest {
         // Mock UriInfo
         when(uri.getRequestUri()).thenReturn(null);
 
-        topicName = TopicName.get("persistent://tenant/cluster/ns/dest");
+        topicName = TopicName.get("persistent://tenant/ns/dest");
     }
 
     @AfterMethod(alwaysRun = true)

@@ -20,14 +20,16 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.concurrent.Future;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -55,7 +57,8 @@ public interface PulsarCommandSender {
 
     CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
                                                              boolean changed, long requestId,
-                                                             Consumer<Throwable> permitAcquireErrorHandler);
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                     permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -65,7 +68,8 @@ public interface PulsarCommandSender {
 
     void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
-    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers);
+    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                               boolean supportsScalableTopics);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
                             CommandLookupTopicResponse.LookupType response, long requestId,
@@ -96,8 +100,30 @@ public interface PulsarCommandSender {
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 
-    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
+    CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                      Collection<String> topics,
+                                                      Function<Throwable, CompletableFuture<Void>>
+                                                              permitAcquireErrorHandler);
 
-    void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash);
+    CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
+                                  List<String> newTopics, List<String> deletedTopics, String topicsHash,
+                                  Function<Throwable, CompletableFuture<Void>>
+                                                             permitAcquireErrorHandler);
+
+    /**
+     * Send the response to a scalable-topic subscribe request on success. The caller is
+     * responsible for building the {@link ScalableConsumerAssignment}.
+     */
+    void sendScalableTopicSubscribeResponse(long requestId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Send an error response to a scalable-topic subscribe request.
+     */
+    void sendScalableTopicSubscribeError(long requestId, ServerError error, String message);
+
+    /**
+     * Push a segment-assignment update to a previously-subscribed scalable consumer after
+     * a rebalance (peer added/removed, split, merge).
+     */
+    void sendScalableTopicAssignmentUpdate(long consumerId, ScalableConsumerAssignment assignment);
 }

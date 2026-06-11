@@ -76,6 +76,7 @@ public class RawBatchMessageContainerImplTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public MessageImpl createMessage(String topic, String value, int entryId) {
         MessageMetadata metadata = new MessageMetadata()
                 .setPublishTime(System.currentTimeMillis())
@@ -161,6 +162,7 @@ public class RawBatchMessageContainerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testToByteBufWithCompressionAndEncryption() throws IOException {
         setEncryptionAndCompression(true, true);
 

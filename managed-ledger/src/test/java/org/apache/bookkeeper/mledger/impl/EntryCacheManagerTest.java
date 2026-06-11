@@ -44,7 +44,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -411,7 +411,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
         when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
         when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
+                ManagedLedgerInfo.LedgerInfo.class)));
         entryCache.asyncReadEntry(lh, PositionFactory.create(1L, 1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);

@@ -30,14 +30,14 @@
   <Appenders>
     <!-- setting follow="true" is required for using ConsoleCaptor to validate log messages -->
     <Console name="CONSOLE" target="SYSTEM_OUT" follow="true">
-      <PatternLayout pattern="%d{ISO8601} - %-5p - [%t:%c{1}] - %m%n"/>
+      <PatternLayout pattern="%d{ISO8601} - %-5p - [%t:%c{1}] - %m %X%n"/>
     </Console>
     <RollingFile name="FILE"
                  fileName="${sys:pulsar.test.logging.file}"
                  filePattern="${sys:pulsar.test.logging.file}-%i.log"
                  immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}"
                  createOnDemand="true">
-      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"/>
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"/>
       <Policies>
         <SizeBasedTriggeringPolicy size="10MB"/>
       </Policies>

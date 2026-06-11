@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -37,7 +36,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 /**
  * ServiceUnitStateTableView base class.
  */
-@Slf4j
 abstract class ServiceUnitStateTableViewBase implements ServiceUnitStateTableView {
     protected static final String INVALID_STATE_ERROR_MSG = "The tableview has not been started.";
     private final Map<NamespaceBundle, Boolean> ownedServiceUnitsMap = new ConcurrentHashMap<>();
@@ -50,16 +48,11 @@ abstract class ServiceUnitStateTableViewBase implements ServiceUnitStateTableVie
         // Add heartbeat and SLA monitor namespace bundle.
         NamespaceName heartbeatNamespace =
                 NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        NamespaceName heartbeatNamespaceV2 = NamespaceService
-                .getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration());
         NamespaceName slaMonitorNamespace = NamespaceService
                 .getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
         try {
             pulsar.getNamespaceService().getNamespaceBundleFactory()
                     .getFullBundleAsync(heartbeatNamespace)
-                    .thenAccept(fullBundle -> ownedServiceUnitsMap.put(fullBundle, true))
-                    .thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .getFullBundleAsync(heartbeatNamespaceV2))
                     .thenAccept(fullBundle -> ownedServiceUnitsMap.put(fullBundle, true))
                     .thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
                             .getFullBundleAsync(slaMonitorNamespace))

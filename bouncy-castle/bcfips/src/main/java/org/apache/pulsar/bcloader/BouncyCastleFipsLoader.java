@@ -21,14 +21,14 @@ package org.apache.pulsar.bcloader;
 import static org.apache.pulsar.common.util.SecurityUtility.BC_FIPS;
 import java.security.Provider;
 import java.security.Security;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.BCLoader;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 /**
  * This is a Bouncy Castle provider Loader.
  */
-@Slf4j
+@CustomLog
 public class BouncyCastleFipsLoader implements BCLoader {
     public static Provider provider;
     static {
@@ -36,7 +36,7 @@ public class BouncyCastleFipsLoader implements BCLoader {
             Security.addProvider(new BouncyCastleFipsProvider());
         }
         provider = Security.getProvider(BC_FIPS);
-        log.info("BouncyCastle Provider BC_FIPS: {}", Security.getProvider(BC_FIPS));
+        log.info().attr("provider", Security.getProvider(BC_FIPS)).log("BouncyCastle Provider BC_FIPS loaded");
     }
 
     @Override

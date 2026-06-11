@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,11 +27,12 @@ import java.util.PrimitiveIterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
+import org.apache.pulsar.common.util.collections.Int2ObjectOpenHashMap;
 import org.roaringbitmap.RoaringBitmap;
 
 /**
@@ -43,7 +43,7 @@ import org.roaringbitmap.RoaringBitmap;
  * a consumer operations happened at the same time as another thread requested topic stats which include
  * the draining hashes state. This problem is avoided with the current implementation.
  */
-@Slf4j
+@CustomLog
 public class DrainingHashesTracker {
     private final String dispatcherName;
     private final UnblockingHandler unblockingHandler;
@@ -161,10 +161,13 @@ public class DrainingHashesTracker {
                 drainingHashes.remove(hash);
                 drainingHashesClearedTotal++;
                 boolean empty = drainingHashes.isEmpty();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Cleared hash {} in stats. empty={} totalCleared={} hashes={}",
-                            dispatcherName, hash, empty, drainingHashesClearedTotal, drainingHashes.getCardinality());
-                }
+                log.debug()
+                        .attr("dispatcher", dispatcherName)
+                        .attr("hash", hash)
+                        .attr("empty", empty)
+                        .attr("drainingHashesClearedTotal", drainingHashesClearedTotal)
+                        .attr("cardinality", () -> drainingHashes.getCardinality())
+                        .log("Cleared hash in stats");
                 if (empty) {
                     // reduce memory usage by trimming the bitmap when the RoaringBitmap instance is empty
                     drainingHashes.trim();
@@ -185,8 +188,15 @@ public class DrainingHashesTracker {
                     int hash = hashIterator.nextInt();
                     DrainingHashEntry entry = getEntry(hash);
                     if (entry == null) {
-                        log.warn("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName, hash,
-                                consumer);
+                        // Not-found entries are expected as a benign race between the draining-hash
+                        // stats read path and the draining-hash removal path (fixed in #23854 to
+                        // avoid deadlocks). Logging at WARN was noisy; DEBUG keeps the signal for
+                        // troubleshooting without polluting broker logs.
+                        log.debug()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("hash", hash)
+                                .attr("consumer", consumer)
+                                .log("Draining hash not found in the tracker for consumer");
                         continue;
                     }
                     int unackedMessages = entry.getRefCount();
@@ -241,10 +251,12 @@ public class DrainingHashesTracker {
         try {
             entry = drainingHashes.get(stickyHash);
             if (entry == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Adding and incrementing draining hash {} for consumer id:{} name:{}",
-                            dispatcherName, stickyHash, consumer.consumerId(), consumer.consumerName());
-                }
+                log.debug()
+                        .attr("dispatcher", dispatcherName)
+                        .attr("hash", stickyHash)
+                        .attr("consumerId", consumer.consumerId())
+                        .attr("consumerName", consumer.consumerName())
+                        .log("Adding and incrementing draining hash for consumer id: name");
                 entry = new DrainingHashEntry(consumer);
                 drainingHashes.put(stickyHash, entry);
                 // add the consumer specific stats
@@ -256,10 +268,13 @@ public class DrainingHashesTracker {
                                 + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
                                 + ".");
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Draining hash {} incrementing {} consumer id:{} name:{}", dispatcherName,
-                            stickyHash, entry.getRefCount() + 1, consumer.consumerId(), consumer.consumerName());
-                }
+                log.debug()
+                        .attr("dispatcher", dispatcherName)
+                        .attr("hash", stickyHash)
+                        .attr("arg2", entry.getRefCount() + 1)
+                        .attr("consumerId", consumer.consumerId())
+                        .attr("consumerName", consumer.consumerName())
+                        .log("Draining hash incrementing consumer id: name");
             }
         } finally {
             lock.writeLock().unlock();
@@ -330,10 +345,12 @@ public class DrainingHashesTracker {
                             + ".");
         }
         if (entry.decrementRefCount()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
-                        consumer.consumerId(), consumer.consumerName());
-            }
+            log.debug()
+                    .attr("dispatcher", dispatcherName)
+                    .attr("hash", stickyHash)
+                    .attr("consumerId", consumer.consumerId())
+                    .attr("consumerName", consumer.consumerName())
+                    .log("Draining hash removing consumer id: name");
 
             DrainingHashEntry removed;
             boolean notifyUnblocking = false;
@@ -365,10 +382,13 @@ public class DrainingHashesTracker {
                 unblockingHandler.stickyKeyHashUnblocked(stickyHash);
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName,
-                        stickyHash, entry.getRefCount(), consumer.consumerId(), consumer.consumerName());
-            }
+            log.debug()
+                    .attr("dispatcher", dispatcherName)
+                    .attr("hash", stickyHash)
+                    .attr("refCount", entry.getRefCount())
+                    .attr("consumerId", consumer.consumerId())
+                    .attr("consumerName", consumer.consumerName())
+                    .log("Draining hash decrementing consumer id: name");
         }
     }
 
@@ -381,7 +401,7 @@ public class DrainingHashesTracker {
      */
     public boolean shouldBlockStickyKeyHash(Consumer consumer, int stickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-            log.warn("[{}] Sticky key hash is not set. Allowing dispatching", dispatcherName);
+            log.warn().attr("dispatcher", dispatcherName).log("Sticky key hash is not set. Allowing dispatching");
             return false;
         }
         DrainingHashEntry entry = getEntry(stickyKeyHash);
@@ -392,8 +412,12 @@ public class DrainingHashesTracker {
         // hash has been reassigned to the original consumer, remove the entry
         // and don't block the hash
         if (entry.getConsumer() == consumer) {
-            log.info("[{}] Hash {} has been reassigned consumer {}. The draining hash entry with refCount={} will "
-                    + "be removed.", dispatcherName, stickyKeyHash, entry.getConsumer(), entry.getRefCount());
+            log.info()
+                    .attr("dispatcher", dispatcherName)
+                    .attr("stickyKeyHash", stickyKeyHash)
+                    .attr("consumer", entry.getConsumer())
+                    .attr("refCount", entry.getRefCount())
+                    .log("Hash has been reassigned to consumer. The draining hash entry will be removed.");
             lock.writeLock().lock();
             try {
                 drainingHashes.remove(stickyKeyHash, entry);

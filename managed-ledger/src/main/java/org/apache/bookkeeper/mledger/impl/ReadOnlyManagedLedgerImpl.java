@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -34,12 +34,12 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.KeyValue;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
 
-@Slf4j
+@CustomLog
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
@@ -57,13 +57,14 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 state = State.LedgerOpened;
 
-                for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+                    LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
                     ledgers.put(ls.getLedgerId(), ls);
                 }
 
                 if (mlInfo.getPropertiesCount() > 0) {
                     for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
-                        MLDataFormats.KeyValue property = mlInfo.getProperties(i);
+                        KeyValue property = mlInfo.getPropertyAt(i);
                         propertiesMap.put(property.getKey(), property.getValue());
                     }
                 }
@@ -77,9 +78,9 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute()
                             .thenAccept(readHandle -> {
                                 readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
-                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
+                                    LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
                                             .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
-                                            .setTimestamp(clock.millis()).build();
+                                            .setTimestamp(clock.millis());
                                     ledgers.put(lastLedgerId, info);
 
                                     future.complete(null);
@@ -87,8 +88,8 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
                                         // The last ledger was empty, so we cannot read the last add confirmed.
-                                        LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
-                                                .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
+                                        LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
+                                                .setEntries(0).setSize(0).setTimestamp(clock.millis());
                                         ledgers.put(lastLedgerId, info);
                                         future.complete(null);
                                     } else {
@@ -100,8 +101,8 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                 if (ex instanceof CompletionException
                                         && ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
                                     // The last ledger was empty, so we cannot read the last add confirmed.
-                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId).setEntries(0)
-                                            .setSize(0).setTimestamp(clock.millis()).build();
+                                    LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId).setEntries(0)
+                                            .setSize(0).setTimestamp(clock.millis());
                                     ledgers.put(lastLedgerId, info);
                                     future.complete(null);
                                 } else {
@@ -154,8 +155,11 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             this.getLedgerHandle(position.getLedgerId())
                     .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
                     .exceptionally((ex) -> {
-                        log.error("[{}] Error opening ledger for reading at position {} - {}. Op: {}", this.name,
-                                position, ex.getMessage(), callback);
+                        log.error().attr("ledgerName", this.name)
+                                .attr("position", position)
+                                .attr("errorMessage", ex.getMessage())
+                                .attr("callback", callback)
+                                .log("Error opening ledger for reading at position");
                         callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
                         return null;
                     });

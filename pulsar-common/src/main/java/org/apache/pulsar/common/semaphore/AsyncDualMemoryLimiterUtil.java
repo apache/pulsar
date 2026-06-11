@@ -93,17 +93,17 @@ public class AsyncDualMemoryLimiterUtil {
                                                                                              dualMemoryLimiter,
                                                                                      BooleanSupplier isCancelled,
                                                                                      BaseCommand command,
-                                                                                     Consumer<Throwable>
+                                                                                     Function<Throwable,
+                                                                                             CompletableFuture<Void>>
                                                                                              permitAcquireErrorHandler
                                                                                      ) {
         // Calculate serialized size before acquiring permits
         int serializedSize = command.getSerializedSize();
         // Acquire permits
         return dualMemoryLimiter.acquire(serializedSize, AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY, isCancelled)
-                .whenComplete((permits, t) -> {
+                .handle((permits, t) -> {
                     if (t != null) {
-                        permitAcquireErrorHandler.accept(t);
-                        return;
+                        return permitAcquireErrorHandler.apply(t);
                     }
                     try {
                         // Serialize the response
@@ -118,6 +118,7 @@ public class AsyncDualMemoryLimiterUtil {
                         dualMemoryLimiter.release(permits);
                         throw e;
                     }
-                }).thenApply(__ -> null);
+                    return CompletableFuture.<Void>completedFuture(null);
+                }).thenCompose(Function.identity());
     }
 }

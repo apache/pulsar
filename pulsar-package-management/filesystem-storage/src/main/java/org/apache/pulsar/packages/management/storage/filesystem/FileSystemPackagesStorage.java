@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
@@ -41,7 +41,7 @@ import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 /**
  * Packages management storage implementation with filesystem.
  */
-@Slf4j
+@CustomLog
 public class FileSystemPackagesStorage implements PackagesStorage {
 
     private static final String STORAGE_PATH = "STORAGE_PATH";
@@ -83,7 +83,7 @@ public class FileSystemPackagesStorage implements PackagesStorage {
             }
         }
 
-        log.info("Packages management filesystem storage initialized on {}", storagePath);
+        log.info().attr("storagePath", storagePath).log("Packages management filesystem storage initialized");
     }
 
     @Override

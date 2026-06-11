@@ -27,7 +27,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
@@ -45,7 +45,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
@@ -78,14 +78,16 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testBacklogConsumerCacheReads() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("-- Starting test --");
 
         final long totalMessages = 200;
         final int receiverSize = 10;
         final String topicName = "cache-read";
         final String sub1 = "sub";
         int totalSub = 10;
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<byte[]>[] consumers = new Consumer[totalSub];
 
         for (int i = 0; i < totalSub; i++) {

@@ -41,13 +41,13 @@ import java.util.stream.Collectors;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedKeyManager;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * This class wraps {@link X509ExtendedKeyManager} and gives opportunity to refresh key-manager with refreshed certs
  * without changing {@link SslContext}.
  */
-@Slf4j
+@CustomLog
 public class KeyManagerProxy extends X509ExtendedKeyManager {
 
     private static final char[] KEYSTORE_PASSWORD = "secret".toCharArray();
@@ -61,13 +61,13 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
         try {
             updateKeyManager();
         } catch (CertificateException e) {
-            log.warn("Failed to load cert {}", certFile, e);
+            log.warn().attr("certFile", certFile).exception(e).log("Failed to load cert");
             throw new IllegalArgumentException(e);
         } catch (KeyStoreException e) {
-            log.warn("Failed to load key {}", keyFile, e);
+            log.warn().attr("keyFile", keyFile).exception(e).log("Failed to load key");
             throw new IllegalArgumentException(e);
         } catch (NoSuchAlgorithmException | UnrecoverableKeyException e) {
-            log.warn("Failed to update key Manager", e);
+            log.warn().exception(e).log("Failed to update key Manager");
             throw new IllegalArgumentException(e);
         }
         executor.scheduleWithFixedDelay(() -> updateKeyManagerSafely(), refreshDurationSec, refreshDurationSec,
@@ -76,12 +76,12 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
 
     private void updateKeyManagerSafely() {
         try {
-            if (log.isDebugEnabled()) {
-                log.debug("refreshing key manager for {} {}", certFile.getFileName(), keyFile.getFileName());
-            }
+            log.debug().attr("certFile", certFile.getFileName()).attr("keyFile", keyFile.getFileName())
+                    .log("refreshing key manager");
             updateKeyManager();
         } catch (Exception e) {
-            log.warn("Failed to update key Manager for {}, {}", certFile.getFileName(), keyFile.getFileName(), e);
+            log.warn().attr("certFile", certFile.getFileName()).attr("keyFile", keyFile.getFileName())
+                    .exception(e).log("Failed to update key Manager");
         }
     }
 

@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -82,14 +83,13 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "quarantine")
+@CustomLog
 public class PersistentDispatcherFailoverConsumerTest {
 
     private ServerCnx serverCnx;
@@ -101,8 +101,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     protected PulsarTestContext pulsarTestContext;
 
-    final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
-    final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
+    final String successTopicName = "persistent://part-perf/perf.t1/ptopic";
+    final String failTopicName = "persistent://part-perf/perf.t1/pfailTopic";
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -112,6 +112,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setClusterName("pulsar-cluster");
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
+        svcConfig.setActiveConsumerFailoverDelayTimeMillis(0);
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .config(svcConfig)
                 .spyByDefault()
@@ -171,6 +172,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void shutdown() throws Exception {
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
@@ -178,6 +180,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -464,6 +467,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         return res.get();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");
@@ -719,7 +723,5 @@ public class PersistentDispatcherFailoverConsumerTest {
         blockField.set(consumer, blocked);
         return consumer;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherFailoverConsumerTest.class);
 
 }

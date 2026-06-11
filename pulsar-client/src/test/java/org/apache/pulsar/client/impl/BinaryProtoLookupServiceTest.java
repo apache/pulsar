@@ -37,6 +37,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -204,6 +205,10 @@ public class BinaryProtoLookupServiceTest {
         return lookupResult;
     }
 
+    private LookupService decoratedLookupService(LookupService lookupService) {
+        return new InProgressDeduplicationDecoratorLookupService(lookupService, () -> Collections.emptyMap());
+    }
+
     /**
      * Verifies that getTopicsUnderNamespace() deduplicates concurrent requests and cleans up after completion.
      *
@@ -236,8 +241,8 @@ public class BinaryProtoLookupServiceTest {
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
 
-        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
-                client, "pulsar://broker:6650", null, false, scheduler, /*lookupPinnedExecutor*/ null)) {
+        try (LookupService lookup = decoratedLookupService(new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, /*lookupPinnedExecutor*/ null))) {
 
             NamespaceName ns = NamespaceName.get("public", "default");
             Mode mode = Mode.PERSISTENT;
@@ -295,8 +300,8 @@ public class BinaryProtoLookupServiceTest {
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
 
-        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
-                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+        try (LookupService lookup = decoratedLookupService(new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null))) {
 
             NamespaceName ns = NamespaceName.get("public", "default");
             Mode mode = Mode.PERSISTENT;
@@ -366,8 +371,8 @@ public class BinaryProtoLookupServiceTest {
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
 
-        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
-                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+        try (LookupService lookup = decoratedLookupService(new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null))) {
 
             TopicName topic = TopicName.get("persistent://public/default/t1");
             boolean metadataAutoCreationEnabled = true;
@@ -426,8 +431,8 @@ public class BinaryProtoLookupServiceTest {
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lookup-test-sched"));
 
-        try (BinaryProtoLookupService lookup = new BinaryProtoLookupService(
-                client, "pulsar://broker:6650", null, false, scheduler, null)) {
+        try (LookupService lookup = decoratedLookupService(new BinaryProtoLookupService(
+                client, "pulsar://broker:6650", null, false, scheduler, null))) {
 
             TopicName topic = TopicName.get("persistent://public/default/t1");
 

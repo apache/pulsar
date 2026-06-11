@@ -38,12 +38,14 @@ public class SchemaDefinitionBuilderTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testVerificationWithReaderOnly() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaDefinition.builder().withSchemaReader(reader).build();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testVerificationWithWriterOnly() {
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
         SchemaDefinition.builder().withSchemaWriter(writer).build();
@@ -60,6 +62,7 @@ public class SchemaDefinitionBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testVerificationWithPojoAndReaderAndWriter() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
@@ -72,6 +75,7 @@ public class SchemaDefinitionBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testVerificationWithJsonDefAndReaderAndWriter() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
@@ -84,6 +88,7 @@ public class SchemaDefinitionBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testReaderWriterRegistration() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);

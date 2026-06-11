@@ -29,7 +29,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,9 +40,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -53,8 +52,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ConfigOptions;
@@ -74,7 +75,7 @@ import org.rocksdb.WriteOptions;
 /**
  *
  */
-@Slf4j
+@CustomLog
 public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     static final String ROCKSDB_SCHEME = "rocksdb";
@@ -210,7 +211,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
         super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry(),
-                metadataStoreConfig.getNodeSizeStats());
+                metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
@@ -238,12 +239,12 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             sequentialIdGenerator = loadSequentialIdGenerator();
             instanceId = loadInstanceId();
         } catch (RocksDBException exception) {
-            log.error("Error while init metastore state", exception);
+            log.error().exception(exception).log("Error while init metastore state");
             close();
             throw new MetadataStoreException("Error init metastore state", exception);
         }
         dbStateLock = new ReentrantReadWriteLock();
-        log.info("new RocksdbMetadataStore,url={},instanceId={}", metadataStoreConfig, instanceId);
+        log.info().attr("url", metadataStoreConfig).attr("instanceId", instanceId).log("new RocksdbMetadataStore");
     }
 
     private long loadInstanceId() throws RocksDBException {
@@ -276,12 +277,16 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 ConfigOptions configOptions = new ConfigOptions();
                 List<ColumnFamilyDescriptor> cfDescriptors = new ArrayList<>();
                 OptionsUtil.loadOptionsFromFile(configOptions, configFilePath, dbOptions, cfDescriptors);
-                log.info("Load options from configFile({}), CF.size={},dbConfig={}", configFilePath,
-                        cfDescriptors.size(), dbOptions);
-                if (log.isDebugEnabled()) {
-                    for (ColumnFamilyDescriptor cfDescriptor : cfDescriptors) {
-                        log.debug("CF={},Options={}", cfDescriptor.getName(), cfDescriptor.getOptions().toString());
-                    }
+                log.info()
+                        .attr("configFile", configFilePath)
+                        .attr("cfSize", cfDescriptors.size())
+                        .attr("dbConfig", dbOptions)
+                        .log("Load options from configFile");
+                for (ColumnFamilyDescriptor cfDescriptor : cfDescriptors) {
+                    log.debug()
+                            .attr("cf", cfDescriptor.getName())
+                            .attr("options", cfDescriptor.getOptions().toString())
+                            .log("Column family options");
                 }
                 List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
                 try {
@@ -335,7 +340,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 options.setInfoLogLevel(InfoLogLevel.ERROR_LEVEL);
                 break;
             default:
-                log.warn("Unrecognized RockDB log level: {}", logLevel);
+                log.warn().attr("logLevel", logLevel).log("Unrecognized RockDB log level");
         }
 
         // Keep log files for 1month
@@ -355,7 +360,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         if (isClosed.compareAndSet(false, true)) {
             try {
                 dbStateLock.writeLock().lock();
-                log.info("close.instanceId={}", instanceId);
+                log.info().attr("instanceId", instanceId).log("Closing RocksdbMetadataStore");
                 db.close();
                 writeOptions.close();
                 optionCache.close();
@@ -370,10 +375,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        if (log.isDebugEnabled()) {
-            log.debug("getFromStore.path={},instanceId={}", path, instanceId);
-        }
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        log.debug().attr("path", path).attr("instanceId", instanceId).log("getFromStore");
         try {
             dbStateLock.readLock().lock();
             if (isClosed()) {
@@ -405,10 +408,91 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        if (log.isDebugEnabled()) {
-            log.debug("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        // Native iterator-based scan over the parent's key range, with the same direct-child
+        // filter getChildrenFromStore applies. Snapshot under the read lock then dispatch
+        // outside it.
+        List<GetResult> snapshot = new ArrayList<>();
+        try {
+            dbStateLock.readLock().lock();
+            if (isClosed()) {
+                CompletableFuture<Void> failed = alreadyClosedFailedFuture();
+                failed.whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        consumer.onError(ex);
+                    }
+                });
+                return failed;
+            }
+            String firstKey = parentPath.equals("/") ? "/" : parentPath + "/";
+            String lastKey = parentPath.equals("/") ? "0" : parentPath + "0";
+            byte[] endBytes = toBytes(lastKey);
+            try (RocksIterator iterator = db.newIterator(optionDontCache)) {
+                for (iterator.seek(toBytes(firstKey)); iterator.isValid(); iterator.next()) {
+                    byte[] keyBytes = iterator.key();
+                    if (compareUnsigned(keyBytes, endBytes) >= 0) {
+                        break;
+                    }
+                    String currentPath = toString(keyBytes);
+                    // Direct children only.
+                    if (currentPath.indexOf('/', firstKey.length()) >= 0) {
+                        continue;
+                    }
+                    if (isSequenceCounterChild(currentPath.substring(firstKey.length()))) {
+                        // Sidecar bookkeeping for SequenceKeysDeltas — not a user record.
+                        continue;
+                    }
+                    byte[] value = iterator.value();
+                    if (value == null) {
+                        continue;
+                    }
+                    MetaValue metaValue = MetaValue.parse(value);
+                    if (metaValue.ephemeral && metaValue.owner != instanceId) {
+                        // Ephemeral record left behind by a different session; skip.
+                        continue;
+                    }
+                    snapshot.add(new GetResult(metaValue.getData(),
+                            new Stat(currentPath,
+                                    metaValue.getVersion(),
+                                    metaValue.getCreatedTimestamp(),
+                                    metaValue.getModifiedTimestamp(),
+                                    metaValue.ephemeral,
+                                    metaValue.getOwner() == instanceId)));
+                }
+            }
+        } catch (Throwable e) {
+            MetadataStoreException ex = MetadataStoreException.wrap(e);
+            consumer.onError(ex);
+            return FutureUtil.failedFuture(ex);
+        } finally {
+            dbStateLock.readLock().unlock();
         }
+        try {
+            for (GetResult r : snapshot) {
+                consumer.onNext(r);
+            }
+            consumer.onCompleted();
+            return CompletableFuture.completedFuture(null);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            return FutureUtil.failedFuture(t);
+        }
+    }
+
+    private static int compareUnsigned(byte[] a, byte[] b) {
+        int len = Math.min(a.length, b.length);
+        for (int i = 0; i < len; i++) {
+            int diff = (a[i] & 0xFF) - (b[i] & 0xFF);
+            if (diff != 0) {
+                return diff;
+            }
+        }
+        return a.length - b.length;
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        log.debug().attr("path", path).attr("instanceId", instanceId).log("getChildrenFromStore");
         try {
             dbStateLock.readLock().lock();
             if (isClosed()) {
@@ -450,21 +534,17 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
-        if (log.isDebugEnabled()) {
-            log.debug("existsFromStore.path={},instanceId={}", path, instanceId);
-        }
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
+        log.debug().attr("path", path).attr("instanceId", instanceId).log("existsFromStore");
         try {
             dbStateLock.readLock().lock();
             if (isClosed()) {
                 return alreadyClosedFailedFuture();
             }
             byte[] value = db.get(optionDontCache, toBytes(path));
-            if (log.isDebugEnabled()) {
-                if (value != null) {
-                    MetaValue metaValue = MetaValue.parse(value);
-                    log.debug("Get data from db:{}.", metaValue);
-                }
+            if (value != null) {
+                MetaValue metaValue = MetaValue.parse(value);
+                log.debug().attr("metaValue", metaValue).log("Get data from db");
             }
             return CompletableFuture.completedFuture(value != null);
         } catch (Throwable e) {
@@ -475,10 +555,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        if (log.isDebugEnabled()) {
-            log.debug("storeDelete.path={},instanceId={}", path, instanceId);
-        }
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        log.debug().attr("path", path).attr("instanceId", instanceId).log("storeDelete");
         try {
             dbStateLock.readLock().lock();
             if (isClosed()) {
@@ -503,9 +581,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 return CompletableFuture.completedFuture(null);
             }
         } catch (Throwable e) {
-            if (log.isDebugEnabled()) {
-                log.debug("error in storeDelete,path={}", path, e);
-            }
+            log.debug().attr("path", path).exception(e).log("error in storeDelete");
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
         } finally {
             dbStateLock.readLock().unlock();
@@ -514,10 +590,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
-                                               EnumSet<CreateOption> options) {
-        if (log.isDebugEnabled()) {
-            log.debug("storePut.path={},instanceId={}", path, instanceId);
-        }
+                                               Set<Option> opts) {
+        log.debug().attr("path", path).attr("instanceId", instanceId).log("storePut");
         try {
             dbStateLock.readLock().lock();
             if (isClosed()) {
@@ -543,8 +617,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     metaValue = new MetaValue();
                     metaValue.version = 0;
                     metaValue.createdTimestamp = timestamp;
-                    metaValue.ephemeral = options.contains(CreateOption.Ephemeral);
-                    if (options.contains(CreateOption.Sequential)) {
+                    metaValue.ephemeral = OptionsHelper.isEphemeral(opts);
+                    if (OptionsHelper.isSequential(opts)) {
                         path += sequentialIdGenerator.getAndIncrement();
                         pathBytes = toBytes(path);
                         transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));
@@ -574,9 +648,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                                 metaValue.ephemeral, true));
             }
         } catch (Throwable e) {
-            if (log.isDebugEnabled()) {
-                log.debug("error in storePut,path={}", path, e);
-            }
+            log.debug().attr("path", path).exception(e).log("error in storePut");
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
         } finally {
             dbStateLock.readLock().unlock();

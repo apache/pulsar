@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.common.semaphore;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BooleanSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Implementation of AsyncDualMemoryLimiter with separate limits for heap and direct memory.
  */
+@CustomLog
 public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(AsyncDualMemoryLimiterImpl.class);
-
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
     private final AsyncSemaphoreImpl heapLimiter;
@@ -93,7 +92,8 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                 new DualMemoryLimiterPermit(limitType, result));
     }
 
-    protected AsyncSemaphore getLimiter(LimitType limitType) {
+    @VisibleForTesting
+    public AsyncSemaphore getLimiter(LimitType limitType) {
         switch (limitType) {
         case HEAP_MEMORY:
             return heapLimiter;
@@ -172,6 +172,12 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
 
         public AsyncSemaphore.AsyncSemaphorePermit getUnderlyingPermit() {
             return underlyingPermit;
+        }
+
+        @Override
+        public String toString() {
+            return "DualMemoryLimiterPermit@" + System.identityHashCode(this) + "{" + "limitType=" + limitType
+                    + ", permits=" + underlyingPermit.getPermits() + '}';
         }
     }
 }

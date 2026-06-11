@@ -98,7 +98,7 @@ public class RangeSetWrapperTest {
     }
 
     private void doTestAddForSameKey() {
-        set = new RangeSetWrapper(CONSUMER, REVERSE_CONVERT, managedCursor);
+        set = new RangeSetWrapper<>(CONSUMER, REVERSE_CONVERT, managedCursor);
         // add 0 to 5
         set.addOpenClosed(0, 0, 0, 5);
         // add 8,9,10
@@ -198,7 +198,7 @@ public class RangeSetWrapperTest {
         // add 10K values for key 0
         int totalInsert = 10_000;
         // add single values
-        List<Range<LongPair>> removedRanges = new ArrayList();
+        List<Range<LongPair>> removedRanges = new ArrayList<>();
         for (int i = 0; i < totalInsert; i++) {
             if (i % 3 == 0 || i % 7 == 0 || i % 11 == 0) {
                 continue;
@@ -482,7 +482,7 @@ public class RangeSetWrapperTest {
 
 
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
-        List<Range<LongPair>> gRangeConnected = new ArrayList();
+        List<Range<LongPair>> gRangeConnected = new ArrayList<>();
         Range<LongPair> lastRange = null;
         for (Range<LongPair> range : gRanges) {
             if (lastRange == null) {

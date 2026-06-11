@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.utils.functions;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.functions.utils.FunctionFilePackage;
@@ -25,6 +27,8 @@ import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
 public class FunctionArchive implements AutoCloseable {
     private final Path archivePath;
+    /** MD5 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
+    private final String archiveMd5Hex;
     private final FunctionDefinition functionDefinition;
     private final String narExtractionDirectory;
     private final boolean enableClassloading;
@@ -33,14 +37,38 @@ public class FunctionArchive implements AutoCloseable {
 
     public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
                            boolean enableClassloading) {
+        this(archivePath, functionDefinition, narExtractionDirectory, enableClassloading, null);
+    }
+
+    /**
+     * @param precomputedArchiveMd5Hex MD5 hex of {@code archivePath} contents; if null and path is non-null,
+     *                                   the hash is computed once at construction time.
+     */
+    public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
+                           boolean enableClassloading, String precomputedArchiveMd5Hex) {
         this.archivePath = archivePath;
         this.functionDefinition = functionDefinition;
         this.narExtractionDirectory = narExtractionDirectory;
         this.enableClassloading = enableClassloading;
+        if (archivePath != null) {
+            try {
+                this.archiveMd5Hex = precomputedArchiveMd5Hex != null
+                        ? precomputedArchiveMd5Hex
+                        : FunctionUtils.computeArchiveMd5Hex(archivePath);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            this.archiveMd5Hex = "";
+        }
     }
 
     public Path getArchivePath() {
         return archivePath;
+    }
+
+    public String getArchiveMd5Hex() {
+        return archiveMd5Hex;
     }
 
     public synchronized ValidatableFunctionPackage getFunctionPackage() {

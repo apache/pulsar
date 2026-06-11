@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -57,7 +57,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class TopicAutoCreationTest extends ProducerConsumerBase {
 
     @Override
@@ -161,7 +161,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             } catch (PulsarClientException.TopicDoesNotExistException expected) {
                 // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
                 // so the "TopicDoesNotExistException" is expected.
-                log.info("Expected error", expected);
+                log.info().exception(expected).log("Expected error");
                 assertTrue(expected.getMessage().contains(topic)
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
@@ -173,7 +173,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             } catch (PulsarClientException.TopicDoesNotExistException expected) {
                 // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
                 // so the "TopicDoesNotExistException" is expected.
-                log.info("Expected error", expected);
+                log.info().exception(expected).log("Expected error");
                 assertTrue(expected.getMessage().contains(topic)
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }

@@ -26,7 +26,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -46,7 +46,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TopicEventsListenerTest extends BrokerTestBase {
 
     final Queue<String> events = new ConcurrentLinkedQueue<>();
@@ -84,12 +84,12 @@ public class TopicEventsListenerTest extends BrokerTestBase {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
         pulsar.getBrokerService().addTopicEventListener((topic, event, stage, t) -> {
-            log.info("got event {}__{} for topic {}", event, stage, topic);
+            log.info().attr("event", event).attr("stage", stage).attr("topic", topic)
+                    .log("got event");
             if (topic.equals(topicNameToWatch)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("got event {}__{} for topic {} with detailed stack",
-                            event, stage, topic, new Exception("tracing event source"));
-                }
+                log.debug().attr("event", event).attr("stage", stage).attr("topic", topic)
+                        .exception(new Exception("tracing event source"))
+                        .log("got event with detailed stack");
                 events.add(event.toString() + "__" + stage.toString());
             }
         });

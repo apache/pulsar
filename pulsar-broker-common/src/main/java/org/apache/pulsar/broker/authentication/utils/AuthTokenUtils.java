@@ -43,6 +43,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.url.URL;
 
+@SuppressWarnings("deprecation")
 @UtilityClass
 public class AuthTokenUtils {
 

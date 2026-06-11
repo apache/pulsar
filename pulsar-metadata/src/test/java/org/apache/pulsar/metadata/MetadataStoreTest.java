@@ -19,6 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -26,7 +32,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.oxia.client.ClientConfig;
 import io.oxia.client.api.AsyncOxiaClient;
-import io.oxia.client.session.SessionFactory;
 import io.oxia.client.session.SessionManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -40,14 +45,17 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -59,9 +67,14 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.PulsarZooKeeperClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
+import org.apache.zookeeper.AddWatchMode;
+import org.apache.zookeeper.AsyncCallback.VoidCallback;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -72,7 +85,7 @@ import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -471,9 +484,11 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
         MetadataStoreConfig config = builder.build();
         @Cleanup
-        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-        ZooKeeper zkClient = store.getZkClient();
+        DualMetadataStore store = (DualMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+        AbstractMetadataStore sourceStore = (AbstractMetadataStore) store.getSourceStore();
+        ZooKeeper zkClient = ((ZKMetadataStore) sourceStore).getZkClient();
         assertTrue(zkClient.getClientConfig().isSaslClientEnabled());
+        ExecutorService executor = sourceStore.getEventExecutor();
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
@@ -481,42 +496,47 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
         };
 
+        // Use thenApplyAsync to ensure the callback is scheduled on the store's executor.
+        // thenApply on an already-completed future runs synchronously on the calling thread,
+        // which would cause a false failure.
+
         // put with node which has parent(but the parent node is not exists).
-        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
+        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).join();
+        }, executor).join();
         // put.
-        store.put(prefix + "/b1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
+        store.put(prefix + "/b1", "value".getBytes(), Optional.of(-1L)).thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).join();
+        }, executor).join();
         // get.
-        store.get(prefix + "/b1").thenApply((ignore) -> {
+        store.get(prefix + "/b1").thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).join();
+        }, executor).join();
         // get the node which is not exists.
-        store.get(prefix + "/non").thenApply((ignore) -> {
+        store.get(prefix + "/non").thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).join();
+        }, executor).join();
         // delete.
-        store.delete(prefix + "/b1", Optional.empty()).thenApply((ignore) -> {
+        store.delete(prefix + "/b1", Optional.empty()).thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).join();
+        }, executor).join();
         // delete the node which is not exists.
-        store.delete(prefix + "/non", Optional.empty()).thenApply((ignore) -> {
+        store.delete(prefix + "/non", Optional.empty()).thenApplyAsync((ignore) -> {
             verify.run();
             return null;
-        }).exceptionally(ex -> {
+        }, executor).exceptionally(ex -> {
             verify.run();
             return null;
         }).join();
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testZkLoadConfigFromFile() throws Exception {
         final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
         MetadataStoreConfig.MetadataStoreConfigBuilder builder =
@@ -526,9 +546,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         builder.configFilePath("src/test/resources/zk_client_disabled_sasl.conf");
         MetadataStoreConfig config = builder.build();
         @Cleanup
-        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-
-        PulsarZooKeeperClient zkClient = (PulsarZooKeeperClient) store.getZkClient();
+        DualMetadataStore store = (DualMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+        PulsarZooKeeperClient zkClient =
+                (PulsarZooKeeperClient) ((ZKMetadataStore) store.getSourceStore()).getZkClient();
         assertFalse(zkClient.getClientConfig().isSaslClientEnabled());
 
         zkClient.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
@@ -536,6 +556,53 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
         var zooKeeper = Awaitility.await().until(zooKeeperRef::get, Objects::nonNull);
         assertFalse(zooKeeper.getClientConfig().isSaslClientEnabled());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAsyncAddWatchRetriesWithWrapperCallback() throws Exception {
+        String path = newKey();
+        @Cleanup
+        PulsarZooKeeperClient zkClient = PulsarZooKeeperClient.newBuilder()
+                .connectString(zks.getConnectionString())
+                .sessionTimeoutMs(3000)
+                .operationRetryPolicy(new BoundExponentialBackoffRetryPolicy(0, 0, 3))
+                .build();
+
+        ZooKeeper mockZk = mock(ZooKeeper.class);
+        AtomicInteger attempts = new AtomicInteger();
+        doAnswer(invocation -> {
+            // The wrapper callback should consume this recoverable failure and retry the addWatch operation.
+            int rc = attempts.incrementAndGet() == 1
+                    ? KeeperException.Code.CONNECTIONLOSS.intValue()
+                    : KeeperException.Code.OK.intValue();
+            String callbackPath = invocation.getArgument(0);
+            VoidCallback callback = invocation.getArgument(3);
+            Object callbackContext = invocation.getArgument(4);
+            callback.processResult(rc, callbackPath, callbackContext);
+            return null;
+        }).when(mockZk).addWatch(eq(path), any(Watcher.class), eq(AddWatchMode.PERSISTENT_RECURSIVE),
+                any(VoidCallback.class), any());
+
+        // Force the Pulsar wrapper to delegate the async addWatch call to our controlled ZooKeeper instance.
+        var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
+        zooKeeperRef.set(mockZk);
+
+        CountDownLatch callbackCalled = new CountDownLatch(1);
+        AtomicInteger callbackRc = new AtomicInteger(Integer.MIN_VALUE);
+        zkClient.addWatch(path, event -> {
+        }, AddWatchMode.PERSISTENT_RECURSIVE, (rc, callbackPath, ctx) -> {
+            callbackRc.set(rc);
+            callbackCalled.countDown();
+        }, null);
+
+        assertTrue(callbackCalled.await(5, TimeUnit.SECONDS));
+
+        // The caller should only see the final successful result after the retry, not the first CONNECTIONLOSS.
+        assertEquals(callbackRc.get(), KeeperException.Code.OK.intValue());
+        assertEquals(attempts.get(), 2);
+        verify(mockZk, times(2)).addWatch(eq(path), any(Watcher.class), eq(AddWatchMode.PERSISTENT_RECURSIVE),
+                any(VoidCallback.class), any());
     }
 
     @Test
@@ -554,8 +621,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         OxiaMetadataStore store = (OxiaMetadataStore) MetadataStoreFactory.create(oxia, config);
         var client = (AsyncOxiaClient) WhiteboxImpl.getInternalState(store, "client");
         var sessionManager = (SessionManager) WhiteboxImpl.getInternalState(client, "sessionManager");
-        var sessionFactory = (SessionFactory) WhiteboxImpl.getInternalState(sessionManager, "factory");
-        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionFactory, "config");
+        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionManager, "clientConfig");
         var sessionTimeout = clientConfig.sessionTimeout();
         assertEquals(sessionTimeout, Duration.ofSeconds(60));
     }
@@ -605,7 +671,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                             putResult.get();
                         } catch (Exception ignore) {
                         }
-                        log.info("Put value {} success:{}. ", value, !putResult.isCompletedExceptionally());
+                        log.info().attr("value", value)
+                                .attr("success", !putResult.isCompletedExceptionally())
+                                .log("Put value result");
                     } else {
                         break;
                     }
@@ -669,6 +737,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         List<String> subPaths = new ArrayList<>(store.getChildren("/").get());
         subPaths.remove("zookeeper"); // ignored
+        subPaths.remove("pulsar"); // ignored
         assertThat(subPaths).containsExactlyInAnyOrderElementsOf(Set.of("a", "b"));
 
         List<String> subPaths2 = store.getChildren("/a").get();

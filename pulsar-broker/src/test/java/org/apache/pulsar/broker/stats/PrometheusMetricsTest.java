@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,7 +66,7 @@ import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.IOUtils;
@@ -108,9 +109,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -391,16 +393,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerTopicStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -426,59 +428,67 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             System.out.println(e.getKey() + ": " + e.getValue());
         });
 
+        Comparator<Metric> byTopic = Comparator.comparing(m -> m.tags.getOrDefault("topic", ""));
+
         // There should be 2 metrics with different tags for each topic
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
+        List<Metric> cm = new ArrayList<>(metrics.get("pulsar_storage_write_latency_le_1"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
 
-        cm = (List<Metric>) metrics.get("pulsar_producers_count");
+        cm = new ArrayList<>(metrics.get("pulsar_producers_count"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
 
-        cm = (List<Metric>) metrics.get("pulsar_topic_load_times_count");
+        cm = new ArrayList<>(metrics.get("pulsar_topic_load_times_count"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("topic_load_failed_total");
+        cm = new ArrayList<>(metrics.get("topic_load_failed_total"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
+        cm = new ArrayList<>(metrics.get("pulsar_in_bytes_total"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
 
-        cm = (List<Metric>) metrics.get("pulsar_in_messages_total");
+        cm = new ArrayList<>(metrics.get("pulsar_in_messages_total"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
 
-        cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+        cm = new ArrayList<>(metrics.get("pulsar_out_bytes_total"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
+        cm = new ArrayList<>(metrics.get("pulsar_out_messages_total"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
 
         p1.close();
@@ -489,16 +499,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerBrokerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -585,10 +595,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
      */
     @Test
     public void testPerTopicStatsReconnect() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -613,7 +623,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -636,27 +646,27 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).value, (messageSizeBytes * messages * 2));
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_in_messages_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).value, (messages * 2));
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).value, (messageSizeBytes * messages * 2));
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
 
         cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).value, (messages * 2));
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
     }
 
@@ -892,10 +902,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBundlesMetrics() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -960,10 +970,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testNonPersistentSubMetrics() throws Exception {
         Producer<byte[]> p1 =
-                pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
+                pulsarClient.newProducer().topic("non-persistent://my-property/my-ns/my-topic1").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("non-persistent://my-property/use/my-ns/my-topic1")
+                .topic("non-persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -999,16 +1009,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerNamespaceStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -1039,28 +1049,28 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
         assertEquals(cm.size(), 1);
         assertNull(cm.get(0).tags.get("topic"));
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
         assertEquals(cm.size(), 1);
         assertNull(cm.get(0).tags.get("topic"));
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_in_messages_total");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
 
         p1.close();
         p2.close();
@@ -1070,18 +1080,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerProducerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .producerName("producer1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2")
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
                 .producerName("producer2").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("Test")
                 .subscribe();
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .subscriptionName("Test")
                 .subscribe();
 
@@ -1108,27 +1118,31 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             System.out.println(e.getKey() + ": " + e.getValue());
         });
 
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_producer_msg_rate_in");
+        Comparator<Metric> byTopic = Comparator.comparing(m -> m.tags.getOrDefault("topic", ""));
+
+        List<Metric> cm = new ArrayList<>(metrics.get("pulsar_producer_msg_rate_in"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(0).tags.get("producer_name"), "producer1");
         assertEquals(cm.get(0).tags.get("producer_id"), "0");
 
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(1).tags.get("producer_name"), "producer2");
         assertEquals(cm.get(1).tags.get("producer_id"), "1");
 
-        cm = (List<Metric>) metrics.get("pulsar_producer_msg_throughput_in");
+        cm = new ArrayList<>(metrics.get("pulsar_producer_msg_throughput_in"));
         assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        cm.sort(byTopic);
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(0).tags.get("producer_name"), "producer1");
         assertEquals(cm.get(0).tags.get("producer_id"), "0");
 
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(1).tags.get("producer_name"), "producer2");
         assertEquals(cm.get(1).tags.get("producer_id"), "1");
 
@@ -1140,16 +1154,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerConsumerStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .subscriptionName("test")
                 .subscribe();
 
@@ -1176,44 +1190,51 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             System.out.println(e.getKey() + ": " + e.getValue());
         });
 
+        // Sort by topic, then by consumer_id presence (subscription-level first, then consumer-level)
+        Comparator<Metric> byTopicAndConsumer = Comparator
+                .comparing((Metric m) -> m.tags.getOrDefault("topic", ""))
+                .thenComparing(m -> m.tags.getOrDefault("consumer_id", ""));
+
         // There should be 1 metric aggregated per namespace
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+        List<Metric> cm = new ArrayList<>(metrics.get("pulsar_out_bytes_total"));
         assertEquals(cm.size(), 4);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        cm.sort(byTopicAndConsumer);
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
 
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
         assertEquals(cm.get(1).tags.get("consumer_id"), "0");
 
-        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(2).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(2).tags.get("subscription"), "test");
 
-        assertEquals(cm.get(3).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(3).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(3).tags.get("subscription"), "test");
         assertEquals(cm.get(3).tags.get("consumer_id"), "1");
 
-        cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
+        cm = new ArrayList<>(metrics.get("pulsar_out_messages_total"));
         assertEquals(cm.size(), 4);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        cm.sort(byTopicAndConsumer);
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
 
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
         assertEquals(cm.get(1).tags.get("consumer_id"), "0");
 
-        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(2).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(2).tags.get("subscription"), "test");
 
-        assertEquals(cm.get(3).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(3).tags.get("namespace"), "my-property/my-ns");
+        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(3).tags.get("subscription"), "test");
         assertEquals(cm.get(3).tags.get("consumer_id"), "1");
 
@@ -1251,9 +1272,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         Set<String> allPrometheusSuffixString = allPrometheusSuffixEnums();
         Producer<byte[]> p1 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic2").create();
+                .topic("persistent://my-property/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1354,13 +1375,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .collect(Collectors.toSet());
     }
 
-
     @Test
     public void testManagedLedgerCacheStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic2").create();
+                .topic("persistent://my-property/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1391,14 +1411,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testManagedLedgerStats() throws Exception {
+        admin.namespaces().createNamespace("my-property/my-ns2");
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns2", Sets.newHashSet("test"), false);
+
         Producer<byte[]> p1 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic2").create();
+                .topic("persistent://my-property/my-ns/my-topic2").create();
         Producer<byte[]> p3 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns2/my-topic1").create();
+                .topic("persistent://my-property/my-ns2/my-topic1").create();
         Producer<byte[]> p4 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns2/my-topic2").create();
+                .topic("persistent://my-property/my-ns2/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1459,13 +1482,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         String ns = cm.get(0).tags.get("namespace");
-        assertTrue(ns.equals("my-property/use/my-ns") || ns.equals("my-property/use/my-ns2"));
+        assertTrue(ns.equals("my-property/my-ns/persistent") || ns.equals("my-property/my-ns2/persistent"));
 
         cm = (List<Metric>) metrics.get("pulsar_ml_AddEntryMessagesRate");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         ns = cm.get(0).tags.get("namespace");
-        assertTrue(ns.equals("my-property/use/my-ns") || ns.equals("my-property/use/my-ns2"));
+        assertTrue(ns.equals("my-property/my-ns/persistent") || ns.equals("my-property/my-ns2/persistent"));
 
         p1.close();
         p2.close();
@@ -1477,11 +1500,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testManagedLedgerBookieClientStats() throws Exception {
         @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
 
         @Cleanup
         Producer<byte[]> p2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic2").create();
+                .topic("persistent://my-property/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -1532,6 +1555,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         return null;
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testAuthMetrics() throws IOException, AuthenticationException {
@@ -1596,6 +1620,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         Assert.assertTrue(haveFailed);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testExpiredTokenMetrics() throws Exception {
@@ -1639,6 +1664,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         provider.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testExpiringTokenMetrics() throws Exception {
@@ -1719,7 +1745,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
-        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
         final int messageSize = 10;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -1766,7 +1792,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerConnection() throws Exception {
-        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
@@ -1863,7 +1889,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testCompaction() throws Exception {
-        final String topicName = "persistent://my-namespace/use/my-ns/my-compaction1";
+        final String topicName = "persistent://my-property/my-ns/my-compaction1";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
@@ -2016,9 +2042,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testMetricsGroupedByTypeDefinitions() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic2").create();
+                .topic("persistent://my-property/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());

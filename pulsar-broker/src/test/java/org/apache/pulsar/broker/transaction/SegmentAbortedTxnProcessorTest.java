@@ -32,11 +32,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
@@ -70,7 +70,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
     private static final String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/abortedTxnProcessor";
@@ -137,8 +137,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //3. Delete the ledgers and then verify the date.
         Field ledgersField = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
-                (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                         ledgersField.get(persistentTopic.getManagedLedger());
         ledgers.forEach((k, v) -> {
             ledgers.remove(k);
@@ -157,7 +158,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
-        Queue queue = (Queue) taskQueueField.get(persistentWorker);
+        Queue<?> queue = (Queue<?>) taskQueueField.get(persistentWorker);
         Awaitility.await().untilAsserted(() -> assertEquals(queue.size(), 0));
     }
 
@@ -174,7 +175,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 .getDeclaredField("segmentIndex");
         unsealedSegmentField.setAccessible(true);
         indexField.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedList<TxnID> unsealedSegment = (LinkedList<TxnID>) unsealedSegmentField.get(processor);
+        @SuppressWarnings("unchecked")
         LinkedMap<Position, TxnID> indexes = (LinkedMap<Position, TxnID>) indexField.get(processor);
         assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
         assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
@@ -193,8 +196,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
-        Supplier task = CompletableFuture::new;
-        Queue queue = (Queue) taskQueueField.get(persistentWorker);
+        Supplier<?> task = CompletableFuture::new;
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Queue<Object> queue = (Queue) taskQueueField.get(persistentWorker);
         queue.add(new MutablePair<>(SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.OperationType.WriteSegment,
                 new MutablePair<>(new CompletableFuture<>(), task)));
         try {
@@ -208,6 +212,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testClearSnapshotSegments() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) pulsarService.getBrokerService()
                 .getTopic(PROCESSOR_TOPIC, false).get().get();
@@ -382,6 +387,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
         field.setAccessible(true);
         snapshotTopic.triggerCompaction();
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(snapshotTopic);
         org.awaitility.Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
     }

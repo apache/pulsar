@@ -42,7 +42,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPolicyImplTest {
-    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],"
+    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/test.*\"],"
             + "\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],"
             + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
             + "\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\","
@@ -63,7 +63,7 @@ public class NamespaceIsolationPolicyImplTest {
         parameters.put("usage_threshold", "90");
 
         NamespaceIsolationData policyData = NamespaceIsolationData.builder()
-                .namespaces(Collections.singletonList("pulsar/use/test.*"))
+                .namespaces(Collections.singletonList("pulsar/test.*"))
                 .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
                 .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
@@ -116,28 +116,28 @@ public class NamespaceIsolationPolicyImplTest {
             String broker = String.format("prod1-broker%d.messaging.usw.example.com", i);
             brokers.add(new URL(String.format("http://%s:8080", broker)));
         }
-        List<URL> primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("pulsar/use/testns-1"));
+        List<URL> primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("pulsar/testns-1"));
         assertEquals(primaryBrokers.size(), 3);
         for (URL primaryBroker : primaryBrokers) {
             assertTrue(primaryBroker.getHost().matches("prod1-broker[1-3].messaging.use.example.com"));
         }
-        primaryBrokers = defaultPolicy.findPrimaryBrokers(otherBrokers, NamespaceName.get("pulsar/use/testns-1"));
+        primaryBrokers = defaultPolicy.findPrimaryBrokers(otherBrokers, NamespaceName.get("pulsar/testns-1"));
         assertTrue(primaryBrokers.isEmpty());
         try {
-            primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("no/such/namespace"));
+            primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("no/namespace"));
         } catch (IllegalArgumentException iae) {
             // OK
         }
         List<URL> secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers,
-                NamespaceName.get("pulsar/use/testns-1"));
+                NamespaceName.get("pulsar/testns-1"));
         assertEquals(secondaryBrokers.size(), 10);
         for (URL secondaryBroker : secondaryBrokers) {
             assertTrue(secondaryBroker.getHost().matches("prod1-broker.*.messaging.use.example.com"));
         }
-        secondaryBrokers = defaultPolicy.findSecondaryBrokers(otherBrokers, NamespaceName.get("pulsar/use/testns-1"));
+        secondaryBrokers = defaultPolicy.findSecondaryBrokers(otherBrokers, NamespaceName.get("pulsar/testns-1"));
         assertTrue(secondaryBrokers.isEmpty());
         try {
-            secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers, NamespaceName.get("no/such/namespace"));
+            secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers, NamespaceName.get("no/namespace"));
         } catch (IllegalArgumentException iae) {
             // OK
         }

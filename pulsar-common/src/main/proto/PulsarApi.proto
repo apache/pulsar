@@ -315,6 +315,9 @@ message FeatureFlags {
   optional bool supports_topic_watchers = 4 [default = false];
   optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
   optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
+  optional bool supports_topic_watcher_reconcile = 7 [default = false];
+  optional bool supports_scalable_topics = 8 [default = false];
+  optional bool supports_tc_metadata_discovery = 9 [default = false];
 }
 
 message CommandConnected {
@@ -653,7 +656,7 @@ message CommandTopicMigrated {
     required ResourceType resource_type = 2;
     optional string brokerServiceUrl      = 3;
     optional string brokerServiceUrlTls   = 4;
-    
+
 }
 
 
@@ -790,6 +793,8 @@ message CommandGetTopicsOfNamespace {
     optional Mode mode = 3 [default = PERSISTENT];
     optional string topics_pattern = 4;
     optional string topics_hash    = 5;
+    // Context properties from the client
+    repeated KeyValue properties = 6;
 }
 
 message CommandGetTopicsOfNamespaceResponse {
@@ -831,6 +836,226 @@ message CommandWatchTopicListClose {
     required uint64 watcher_id     = 2;
 }
 
+/// --- Scalable topic commands ---
+
+enum SegmentState {
+    ACTIVE = 0;
+    SEALED = 1;
+}
+
+message SegmentInfoProto {
+    required uint64 segment_id       = 1;
+    required uint32 hash_start       = 2;
+    required uint32 hash_end         = 3;
+    required SegmentState state      = 4;
+    repeated uint64 parent_ids       = 5;
+    repeated uint64 child_ids        = 6;
+    required uint64 created_at_epoch = 7;
+    optional uint64 sealed_at_epoch  = 8;
+    // Wall-clock millis at create / seal time. Used for retention-based segment GC
+    // and timestamp-based seek; epoch above is a DAG generation number, not a clock.
+    required uint64 created_at_ms    = 9;
+    optional uint64 sealed_at_ms     = 10;
+
+    // Legacy-segment marker. When set, this segment is not managed by the scalable-topic
+    // controller and has no segment://... topic of its own — it wraps the named, externally
+    // managed persistent://... topic instead. Used by the synthetic-layout response the
+    // broker returns for a regular (partitioned or non-partitioned) topic that has not yet
+    // been migrated to a scalable topic. When absent, the segment URI is computed normally
+    // from the scalable topic name and segment_id (segment://<topic>/<descriptor>).
+    optional string legacy_topic_name = 11;
+}
+
+message SegmentBrokerAddress {
+    required uint64 segment_id     = 1;
+    required string broker_url     = 2;
+    optional string broker_url_tls = 3;
+}
+
+message ScalableTopicDAG {
+    required uint64 epoch                           = 1;
+    repeated SegmentInfoProto segments              = 2;
+    repeated SegmentBrokerAddress segment_brokers   = 3;
+    optional string controller_broker_url           = 4;
+    optional string controller_broker_url_tls       = 5;
+}
+
+// Client -> Broker: Request scalable topic metadata and initiate watch session
+message CommandScalableTopicLookup {
+    required uint64 session_id = 1;   // Client-assigned session ID
+    // Any of "topic://t/n/x", "persistent://t/n/x", or a short form like
+    // "my-topic" (normalized by the broker to persistent://public/default/my-topic).
+    // The broker resolves the input to the canonical topic://... identity and
+    // returns it in CommandScalableTopicUpdate.resolved_topic_name.
+    required string topic      = 2;
+}
+
+// Broker -> Client: Used for BOTH initial response and subsequent pushed updates
+message CommandScalableTopicUpdate {
+    required uint64 session_id         = 1;
+    optional ScalableTopicDAG dag      = 2;
+
+    optional ServerError error         = 3;
+    optional string message            = 4;
+
+    // Canonical scalable-topic identity (always "topic://t/n/x") that the client
+    // should use for downstream operations. Set on every success response,
+    // including for inputs that were given as persistent://... or short-form.
+    // Absent on error responses.
+    optional string resolved_topic_name = 5;
+}
+
+// Client -> Broker: Close the DAG watch session
+message CommandScalableTopicClose {
+    required uint64 session_id = 1;
+}
+
+// Kind of scalable consumer registering with the controller leader.
+// QueueConsumer never registers — it attaches directly to all active and sealed
+// segment topics — so it does not appear here.
+enum ScalableConsumerType {
+    STREAM     = 0;
+    CHECKPOINT = 1;
+}
+
+// A single segment assigned to a scalable consumer.
+message ScalableAssignedSegment {
+    required uint64 segment_id             = 1;
+    required uint32 hash_start             = 2;
+    required uint32 hash_end               = 3;
+    // Fully-qualified segment:// topic name the consumer should attach to.
+    required string segment_topic          = 4;
+}
+
+// An assignment of active segments to a single consumer. Carries the layout epoch
+// it was computed from so the client can reject stale updates.
+message ScalableConsumerAssignment {
+    required uint64 layout_epoch                    = 1;
+    repeated ScalableAssignedSegment segments       = 2;
+}
+
+// Client -> Broker: register as an ordered (Stream) or external (Checkpoint) consumer
+// on a scalable topic and request the initial segment assignment. The broker leader
+// persists the consumer registration and returns the current assignment.
+message CommandScalableTopicSubscribe {
+    required uint64 request_id                  = 1;
+    required string topic                       = 2;  // e.g. "topic://tenant/ns/my-topic"
+    required string subscription                = 3;
+    required string consumer_name               = 4;
+    required uint64 consumer_id                 = 5;
+    required ScalableConsumerType consumer_type = 6;
+}
+
+// Broker -> Client: response to CommandScalableTopicSubscribe. On success, carries
+// the initial ScalableConsumerAssignment. On failure, error + message are populated
+// and the assignment is absent.
+message CommandScalableTopicSubscribeResponse {
+    required uint64 request_id                 = 1;
+    optional ServerError error                 = 2;
+    optional string message                    = 3;
+    optional ScalableConsumerAssignment assignment = 4;
+}
+
+// Broker -> Client: push a new assignment to a subscribed consumer after a rebalance
+// (triggered by a peer joining/leaving the subscription or by a segment split/merge).
+message CommandScalableTopicAssignmentUpdate {
+    required uint64 consumer_id                = 1;
+    required ScalableConsumerAssignment assignment = 2;
+}
+
+// Multi-topic consumer watcher: subscribes to the union of scalable topics in a
+// namespace that match a (possibly empty) set of property filters. The broker keeps
+// pushing updates as topics enter or leave the matching set. See
+// `multi-topic-consumer-design.md` for the full design.
+
+// Client -> Broker: open a watch session.
+message CommandWatchScalableTopics {
+    required uint64 watch_id          = 1;   // Client-assigned watch ID
+    required string namespace         = 2;   // tenant/namespace
+    // Optional AND filters; empty list means "match all topics in the namespace".
+    repeated KeyValue property_filters = 3;
+    // Hash of the topics the client believes are currently in its set. Sent on
+    // reconnect; absent on first subscribe. If it matches the broker's freshly
+    // computed hash, the broker skips emitting the initial Snapshot — the client's
+    // local state is already correct and future Diffs will flow as usual. Same
+    // hash function as CommandGetTopicsOfNamespace (CRC32C over sorted topics).
+    optional string current_hash       = 4;
+}
+
+// Snapshot of the full matching set. Sent on initial subscribe and on every
+// reconnect-resync. The client replaces its local set with this list.
+message ScalableTopicsSnapshot {
+    repeated string topics = 1;
+}
+
+// Incremental membership change. Apply removed before added when both are present.
+message ScalableTopicsDiff {
+    repeated string added   = 1;
+    repeated string removed = 2;
+}
+
+// Broker -> Client: either Snapshot or Diff (mutually exclusive via oneof). When the
+// initial subscribe fails, neither variant is set and `error`/`message` carry the
+// failure reason.
+message CommandWatchScalableTopicsUpdate {
+    required uint64 watch_id              = 1;
+
+    oneof event {
+        ScalableTopicsSnapshot snapshot = 2;
+        ScalableTopicsDiff diff         = 3;
+    }
+
+    optional ServerError error            = 4;
+    optional string message               = 5;
+}
+
+// Client -> Broker: close the watch session.
+message CommandWatchScalableTopicsClose {
+    required uint64 watch_id = 1;
+}
+
+/// --- Transaction-coordinator assignment watch ---
+// The scalable-topics transaction coordinator's discovery surface. The client opens one watch
+// and the broker replies with the full (partition -> leader) map, then pushes a fresh full
+// snapshot whenever any partition's leader changes. There is no point lookup and no diff: the
+// map is bounded (parallelism, ~16) and changes rarely, so always sending the whole snapshot is
+// simpler and removes a class of apply-ordering / drift bugs. Gated by the
+// supports_tc_metadata_discovery feature flag.
+
+// Client -> Broker: open the assignment watch.
+message CommandWatchTcAssignments {
+    required uint64 watch_id = 1;   // client-assigned
+}
+
+// One (partition -> leader) entry. A partition currently mid-election is simply absent from the
+// snapshot; the client parks any transaction routed there until a later snapshot fills it in.
+message TcAssignment {
+    required uint64 tc_id                  = 1;   // TC partition = TxnID.mostSigBits
+    optional string broker_service_url     = 2;
+    optional string broker_service_url_tls = 3;
+}
+
+// Full map. Sent on initial watch and again, in full, on every change. The client replaces its
+// local map wholesale — no merge, no ordering rules. parallelism lets the client size its handler
+// array without a separate metadata read.
+message TcAssignmentsSnapshot {
+    required uint32 parallelism       = 1;
+    repeated TcAssignment assignments = 2;
+}
+
+// Broker -> Client: the current full snapshot, or (on initial-watch failure) an error.
+message CommandWatchTcAssignmentsUpdate {
+    required uint64 watch_id                 = 1;
+    optional TcAssignmentsSnapshot snapshot  = 2;
+    optional ServerError error               = 3;
+    optional string message                  = 4;
+}
+
+// Client -> Broker: close the watch.
+message CommandWatchTcAssignmentsClose {
+    required uint64 watch_id = 1;
+}
+
 message CommandGetSchema {
     required uint64 request_id = 1;
     required string topic      = 2;
@@ -848,9 +1073,10 @@ message CommandGetSchemaResponse {
 }
 
 message CommandGetOrCreateSchema {
-    required uint64 request_id = 1;
-    required string topic      = 2;
-    required Schema schema     = 3;
+    required uint64 request_id      = 1;
+    required string topic           = 2;
+    required Schema schema          = 3;
+    optional string producerName    = 4;
 }
 
 message CommandGetOrCreateSchemaResponse {
@@ -871,6 +1097,8 @@ enum TxnAction {
 message CommandTcClientConnectRequest {
     required uint64 request_id = 1;
     required uint64 tc_id = 2 [default = 0];
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 3 [default = false];
 }
 
 message CommandTcClientConnectResponse {
@@ -881,8 +1109,15 @@ message CommandTcClientConnectResponse {
 
 message CommandNewTxn {
     required uint64 request_id = 1;
-    optional uint64 txn_ttl_seconds = 2 [default = 0];
+    // Transaction timeout in milliseconds. Despite the field number's legacy name history, the value
+    // has always been carried in milliseconds (the client sends unit.toMillis(...) and both
+    // coordinators consume it as ms); the field is named accordingly to avoid confusion.
+    optional uint64 txn_ttl_millis = 2 [default = 0];
     optional uint64 tc_id = 3 [default = 0];
+    // When true, route to the metadata-driven (scalable-topics, PIP-473) transaction coordinator
+    // instead of the legacy one. Set by v5 clients; absent for v4 clients. Lets both coordinators
+    // serve their own clients on the same cluster.
+    optional bool scalable = 4 [default = false];
 }
 
 message CommandNewTxnResponse {
@@ -898,6 +1133,8 @@ message CommandAddPartitionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated string partitions = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddPartitionToTxnResponse {
@@ -917,6 +1154,8 @@ message CommandAddSubscriptionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated Subscription subscription = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddSubscriptionToTxnResponse {
@@ -932,6 +1171,8 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandEndTxnResponse {
@@ -1067,6 +1308,22 @@ message BaseCommand {
         WATCH_TOPIC_LIST_CLOSE = 67;
 
         TOPIC_MIGRATED = 68;
+
+        SCALABLE_TOPIC_LOOKUP  = 70;
+        SCALABLE_TOPIC_UPDATE  = 71;
+        SCALABLE_TOPIC_CLOSE   = 72;
+
+        SCALABLE_TOPIC_SUBSCRIBE              = 73;
+        SCALABLE_TOPIC_SUBSCRIBE_RESPONSE     = 74;
+        SCALABLE_TOPIC_ASSIGNMENT_UPDATE      = 75;
+
+        WATCH_SCALABLE_TOPICS                 = 76;
+        WATCH_SCALABLE_TOPICS_UPDATE          = 77;
+        WATCH_SCALABLE_TOPICS_CLOSE           = 78;
+
+        WATCH_TC_ASSIGNMENTS                  = 79;
+        WATCH_TC_ASSIGNMENTS_UPDATE           = 80;
+        WATCH_TC_ASSIGNMENTS_CLOSE            = 81;
     }
 
 
@@ -1148,6 +1405,22 @@ message BaseCommand {
     optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
     optional CommandWatchTopicUpdate watchTopicUpdate = 66;
     optional CommandWatchTopicListClose watchTopicListClose = 67;
-    
+
     optional CommandTopicMigrated topicMigrated = 68;
+
+    optional CommandScalableTopicLookup scalableTopicLookup   = 70;
+    optional CommandScalableTopicUpdate scalableTopicUpdate    = 71;
+    optional CommandScalableTopicClose scalableTopicClose      = 72;
+
+    optional CommandScalableTopicSubscribe scalableTopicSubscribe                     = 73;
+    optional CommandScalableTopicSubscribeResponse scalableTopicSubscribeResponse     = 74;
+    optional CommandScalableTopicAssignmentUpdate scalableTopicAssignmentUpdate       = 75;
+
+    optional CommandWatchScalableTopics watchScalableTopics                           = 76;
+    optional CommandWatchScalableTopicsUpdate watchScalableTopicsUpdate               = 77;
+    optional CommandWatchScalableTopicsClose watchScalableTopicsClose                 = 78;
+
+    optional CommandWatchTcAssignments watchTcAssignments                             = 79;
+    optional CommandWatchTcAssignmentsUpdate watchTcAssignmentsUpdate                 = 80;
+    optional CommandWatchTcAssignmentsClose watchTcAssignmentsClose                   = 81;
 }

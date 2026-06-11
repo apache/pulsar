@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
@@ -27,7 +27,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic json schema.
  */
-@Slf4j
+@CustomLog
 public class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {

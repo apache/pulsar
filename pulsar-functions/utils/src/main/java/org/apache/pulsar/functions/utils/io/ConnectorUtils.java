@@ -24,13 +24,15 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationValue;
 import net.bytebuddy.description.field.FieldDescription;
@@ -39,6 +41,7 @@ import net.bytebuddy.description.type.TypeDefinition;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
@@ -49,10 +52,19 @@ import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @UtilityClass
-@Slf4j
+@CustomLog
 public class ConnectorUtils {
 
-    private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
+    /**
+     * Computes MD5 digest of a file as lower-case hex (for connector archive identity on reload).
+     */
+    public static String computeArchiveMd5Hex(Path path) throws IOException {
+        return calculateMd5Hex(path.toAbsolutePath().normalize().toFile());
+    }
+
+    private static String calculateMd5Hex(File file) throws IOException {
+        return HexFormat.of().formatHex(FileUtils.calculateMd5sum(file));
+    }
 
     /**
      * Extract the Pulsar IO Source class from a connector archive.
@@ -66,7 +78,7 @@ public class ConnectorUtils {
 
         try {
             // Try to load source class and check it implements Source interface
-            Class sourceClass = narClassLoader.loadClass(conf.getSourceClass());
+            Class<?> sourceClass = narClassLoader.loadClass(conf.getSourceClass());
             if (!(Source.class.isAssignableFrom(sourceClass) || BatchSource.class.isAssignableFrom(sourceClass))) {
                 throw new IOException(String.format("Class %s does not implement interface %s or %s",
                         conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
@@ -90,7 +102,7 @@ public class ConnectorUtils {
 
         try {
             // Try to load sink class and check it implements Sink interface
-            Class sinkClass = narClassLoader.loadClass(conf.getSinkClass());
+            Class<?> sinkClass = narClassLoader.loadClass(conf.getSinkClass());
             if (!(Sink.class.isAssignableFrom(sinkClass))) {
                 throw new IOException(
                         "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());
@@ -153,11 +165,11 @@ public class ConnectorUtils {
         return fields;
     }
 
-    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
+    public static Map<String, Connector> searchForConnectors(String connectorsDirectory,
                                                                  String narExtractionDirectory,
                                                                  boolean enableClassloading) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath().normalize();
-        log.info("Searching for connectors in {}", path);
+        log.info().attr("path", path).log("Searching for connectors");
 
         TreeMap<String, Connector> connectors = new TreeMap<>();
 
@@ -170,14 +182,88 @@ public class ConnectorUtils {
             for (Path archive : stream) {
                 try {
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toFile());
-                    log.info("Found connector {} from {}", cntDef, archive);
-                    Connector connector = new Connector(archive, cntDef, narExtractionDirectory, enableClassloading);
+                    log.info()
+                            .attr("connector", cntDef)
+                            .attr("archive", archive)
+                            .log("Found connector");
+                    Connector connector = new Connector(archive, cntDef, narExtractionDirectory,
+                            enableClassloading);
                     connectors.put(cntDef.getName(), connector);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load connector");
                 }
             }
         }
         return connectors;
+    }
+
+    /**
+     * Reloads connectors from disk against {@code previous}, reusing {@link Connector} instances when path and
+     * archive MD5 are unchanged (keeps class loaders open). New or changed archives get new instances.
+     * <p>
+     * {@link ReloadConnectorsResult#connectorsToClose()} lists connectors evicted from the active set (replaced or
+     * no longer present on disk); the caller must {@link Connector#close()} each (typically via
+     * {@code ConnectorsManager}).
+     *
+     * @param previous                 connectors from the previous scan (may be empty, never null)
+     * @param connectorsDirectory      same semantics as {@link #searchForConnectors}
+     * @param narExtractionDirectory   same semantics as {@link #searchForConnectors}
+     * @param enableClassloading       same semantics as {@link #searchForConnectors}
+     * @return new map keyed by connector name (reused values are identical instances from {@code previous}) and
+     *         connectors the caller should close
+     */
+    public static ReloadConnectorsResult reloadConnectors(
+            Map<String, Connector> previous,
+            String connectorsDirectory,
+            String narExtractionDirectory,
+            boolean enableClassloading) throws IOException {
+
+        TreeMap<String, Connector> remaining = new TreeMap<>(previous);
+        TreeMap<String, Connector> next = new TreeMap<>();
+        List<Connector> toClose = new ArrayList<>();
+
+        Path dir = Paths.get(connectorsDirectory).toAbsolutePath().normalize();
+        if (!dir.toFile().exists()) {
+            toClose.addAll(remaining.values());
+            return new ReloadConnectorsResult(next, toClose);
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.nar")) {
+            for (Path archive : stream) {
+                try {
+                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toFile());
+                    String name = cntDef.getName();
+                    String md5Hex = computeArchiveMd5Hex(archive);
+                    Connector prev = remaining.remove(name);
+                    if (prev != null
+                            && prev.getArchivePath() != null
+                            && archive.equals(prev.getArchivePath())
+                            && md5Hex.equals(prev.getArchiveMd5Hex())) {
+                        next.put(name, prev);
+                    } else {
+                        if (prev != null) {
+                            log.info()
+                                    .attr("connector", name)
+                                    .attr("archive", archive)
+                                    .attr("previousArchive", prev.getArchivePath())
+                                    .log("Reloading changed connector");
+                            toClose.add(prev);
+                        }
+                        next.put(name, new Connector(archive, cntDef, narExtractionDirectory, enableClassloading,
+                                md5Hex));
+                    }
+                } catch (Throwable t) {
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load connector");
+                }
+            }
+        }
+        toClose.addAll(remaining.values());
+        return new ReloadConnectorsResult(next, toClose);
     }
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/**
+/*
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
@@ -25,24 +25,54 @@
 package org.apache.pulsar.common.nar;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
+import lombok.CustomLog;
 
 /**
  * A utility class containing a few useful static methods to do typical IO
  * operations.
  *
  */
-@Slf4j
+@CustomLog
 public class FileUtils {
 
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
+
+    /**
+     * Calculates an md5 sum of the specified file.
+     *
+     * @param file
+     *            to calculate the md5sum of
+     * @return the md5sum bytes
+     * @throws IOException
+     *             if cannot read file
+     */
+    public static byte[] calculateMd5sum(final File file) throws IOException {
+        try (final FileInputStream inputStream = new FileInputStream(file)) {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
+            final MessageDigest md5 = MessageDigest.getInstance("md5");
+
+            final byte[] buffer = new byte[1024];
+            int read = inputStream.read(buffer);
+
+            while (read > -1) {
+                md5.update(buffer, 0, read);
+                read = inputStream.read(buffer);
+            }
+
+            return md5.digest();
+        } catch (NoSuchAlgorithmException nsae) {
+            throw new IllegalArgumentException(nsae);
+        }
+    }
 
     public static void ensureDirectoryExistAndCanReadAndWrite(final File dir) throws IOException {
         if (dir.exists() && !dir.isDirectory()) {
@@ -72,29 +102,7 @@ public class FileUtils {
         }
     }
 
-    /**
-     * Deletes the given file. If the given file exists but could not be deleted
-     * this will be printed as a warning to the given logger
-     *
-     * @param file to delete
-     * @param logger to notify
-     * @return true if deleted
-     */
-    public static boolean deleteFile(final File file, final Logger logger) {
-        return FileUtils.deleteFile(file, logger, 1);
-    }
-
-    /**
-     * Deletes the given file. If the given file exists but could not be deleted
-     * this will be printed as a warning to the given logger
-     *
-     * @param file to delete
-     * @param logger to notify
-     * @param attempts indicates how many times an attempt to delete should be
-     * made
-     * @return true if given file no longer exists
-     */
-    public static boolean deleteFile(final File file, final Logger logger, final int attempts) {
+    private static boolean deleteFile(final File file, final int attempts) {
         if (file == null) {
             return false;
         }
@@ -108,59 +116,24 @@ public class FileUtils {
                         FileUtils.sleepQuietly(MILLIS_BETWEEN_ATTEMPTS);
                     }
                 }
-                if (!isGone && logger != null) {
-                    logger.warn("File appears to exist but unable to delete file: " + file.getAbsolutePath());
+                if (!isGone) {
+                    log.warn().attr("file", file.getAbsolutePath())
+                            .log("File appears to exist but unable to delete file");
                 }
             }
         } catch (final Throwable t) {
-            if (logger != null) {
-                logger.warn("Unable to delete file: '" + file.getAbsolutePath() + "' due to " + t);
-            }
+            log.warn().attr("file", file.getAbsolutePath()).exception(t).log("Unable to delete file");
         }
         return isGone;
     }
 
     /**
-     * Deletes all files (not directories..) in the given directory (non
-     * recursive) that match the given filename filter. If any file cannot be
-     * deleted then this is printed at warn to the given logger.
-     *
-     * @param directory to delete contents of
-     * @param filter if null then no filter is used
-     * @param logger to notify
-     * @throws IOException if abstract pathname does not denote a directory, or
-     * if an I/O error occurs
-     */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter,
-                                              final Logger logger) throws IOException {
-        FileUtils.deleteFilesInDirectory(directory, filter, logger, false);
-    }
-
-    /**
      * Deletes all files (not directories) in the given directory (recursive)
      * that match the given filename filter. If any file cannot be deleted then
      * this is printed at warn to the given logger.
      *
      * @param directory to delete contents of
      * @param filter if null then no filter is used
-     * @param logger to notify
-     * @param recurse true if should recurse
-     * @throws IOException if abstract pathname does not denote a directory, or
-     * if an I/O error occurs
-     */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger,
-                                              final boolean recurse) throws IOException {
-        FileUtils.deleteFilesInDirectory(directory, filter, logger, recurse, false);
-    }
-
-    /**
-     * Deletes all files (not directories) in the given directory (recursive)
-     * that match the given filename filter. If any file cannot be deleted then
-     * this is printed at warn to the given logger.
-     *
-     * @param directory to delete contents of
-     * @param filter if null then no filter is used
-     * @param logger to notify
      * @param recurse will look for contents of sub directories.
      * @param deleteEmptyDirectories default is false; if true will delete
      * directories found that are empty
@@ -168,7 +141,7 @@ public class FileUtils {
      * if an I/O error occurs
      */
     public static void deleteFilesInDirectory(
-        final File directory, final FilenameFilter filter, final Logger logger,
+        final File directory, final FilenameFilter filter,
         final boolean recurse, final boolean deleteEmptyDirectories) throws IOException {
         // ensure the specified directory is actually a directory and that it exists
         if (null != directory && directory.isDirectory()) {
@@ -180,13 +153,13 @@ public class FileUtils {
             for (File ingestFile : ingestFiles) {
                 boolean process = (filter == null) ? true : filter.accept(directory, ingestFile.getName());
                 if (ingestFile.isFile() && process) {
-                    FileUtils.deleteFile(ingestFile, logger, 3);
+                    FileUtils.deleteFile(ingestFile, 3);
                 }
                 if (ingestFile.isDirectory() && recurse) {
-                    FileUtils.deleteFilesInDirectory(ingestFile, filter, logger, recurse, deleteEmptyDirectories);
+                    FileUtils.deleteFilesInDirectory(ingestFile, filter, recurse, deleteEmptyDirectories);
                     String[] ingestFileList = ingestFile.list();
                     if (deleteEmptyDirectories && ingestFileList != null && ingestFileList.length == 0) {
-                        FileUtils.deleteFile(ingestFile, logger, 3);
+                        FileUtils.deleteFile(ingestFile, 3);
                     }
                 }
             }
@@ -212,7 +185,7 @@ public class FileUtils {
             FileUtils.deleteFiles(Arrays.asList(list), recurse);
         }
         //now delete the file itself regardless of whether it is plain file or a directory
-        if (!FileUtils.deleteFile(file, null, 5)) {
+        if (!FileUtils.deleteFile(file, 5)) {
             throw new IOException("Unable to delete " + file.getAbsolutePath());
         }
     }
@@ -229,14 +202,18 @@ public class FileUtils {
         try (ZipFile zipFile = new ZipFile(jarFile);) {
             ZipEntry entry = zipFile.getEntry("META-INF/bundled-dependencies");
             if (entry == null || !entry.isDirectory()) {
-                log.info("Jar file {} does not contain META-INF/bundled-dependencies, it is not a NAR file", jarFile);
+                log.info().attr("jarFile", jarFile)
+                        .log("Jar file does not contain META-INF/bundled-dependencies,"
+                                + " it is not a NAR file");
                 return false;
             } else {
-                log.info("Jar file {} contains META-INF/bundled-dependencies, it may be a NAR file", jarFile);
+                log.info().attr("jarFile", jarFile)
+                        .log("Jar file contains META-INF/bundled-dependencies,"
+                                + " it may be a NAR file");
                 return true;
             }
         } catch (IOException err) {
-            log.info("Cannot safely detect if {} is a NAR archive", jarFile, err);
+            log.info().attr("jarFile", jarFile).exception(err).log("Cannot safely detect if file is a NAR archive");
             return true;
         }
     }

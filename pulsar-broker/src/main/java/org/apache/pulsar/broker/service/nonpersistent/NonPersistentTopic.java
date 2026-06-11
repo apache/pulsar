@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.impl.EntryImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
@@ -71,7 +72,9 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -99,10 +102,11 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPolicyListener {
+
+    private static final Logger LOG = Logger.get(NonPersistentTopic.class);
+    protected final Logger log;
 
     // Subscriptions to this topic
     private final Map<String, NonPersistentSubscription> subscriptions = new ConcurrentHashMap<>();
@@ -152,6 +156,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     public NonPersistentTopic(String topic, BrokerService brokerService) {
         super(topic, brokerService);
+        this.log = LOG.with().ctx(super.log).build();
         this.isFenced = false;
         registerTopicPolicyListener();
     }
@@ -167,7 +172,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 .thenCompose(optPolicies -> {
                     final Policies policies;
                     if (optPolicies.isEmpty()) {
-                        log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
+                        log.warn("Policies not present and isEncryptionRequired will be set to false");
                         isEncryptionRequired = false;
                         policies = new Policies();
                     } else {
@@ -175,6 +180,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+                        isAllowAutoUpdateSchemaWithReplicator =
+                                policies.is_allow_auto_update_schema_with_replicator;
                     }
                     updatePublishRateLimiter();
                     updateResourceGroupLimiter(policies);
@@ -262,6 +269,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,
@@ -288,15 +296,17 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
             if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
-                }
+                log.debug()
+                        .attr("subscription", subscriptionName)
+                        .log("Consumer doesn't support batch-message");
                 future.completeExceptionally(new UnsupportedVersionException("Consumer doesn't support batch-message"));
                 return future;
             }
 
             if (subscriptionName.startsWith(replicatorPrefix)) {
-                log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
+                log.warn()
+                        .attr("subscription", subscriptionName)
+                        .log("Failed to create subscription");
                 future.completeExceptionally(
                         new NamingException("Subscription with reserved subscription name attempted"));
                 return future;
@@ -310,7 +320,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             lock.readLock().lock();
             try {
                 if (isFenced) {
-                    log.warn("[{}] Attempting to subscribe to a fenced topic", topic);
+                    log.warn("Attempting to subscribe to a fenced topic");
                     future.completeExceptionally(new TopicFencedException("Topic is temporarily unavailable"));
                     return future;
                 }
@@ -336,34 +346,50 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         consumer.close();
                     } catch (BrokerServiceException e) {
                         if (e instanceof ConsumerBusyException) {
-                            log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
-                                    consumerName);
+                            log.warn()
+                                    .attr("subscription", subscriptionName)
+                                    .attr("consumerId", consumerId)
+                                    .attr("consumerName", consumerName)
+                                    .log("Consumer already connected");
                         } else if (e instanceof SubscriptionBusyException) {
-                            log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                            log.warn()
+                                    .attr("subscription", subscriptionName)
+                                    .exceptionMessage(e)
+                                    .log("Failed to subscribe");
                         }
 
                         decrementUsageCount();
                         future.completeExceptionally(e);
                         return;
                     }
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                                consumer.consumerName(), currentUsageCount());
-                    }
+                    log.debug()
+                            .attr("subscription", subscriptionName)
+                            .attr("consumerName", consumer.consumerName())
+                            .attr("usageCount", currentUsageCount())
+                            .log("Subscribe failed");
                     future.completeExceptionally(
                             new BrokerServiceException.ConnectionClosedException(
                                     "Connection was closed while the opening the cursor "));
                 } else {
-                    log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                    log.info()
+                            .attr("subscription", subscriptionName)
+                            .attr("consumerId", consumerId)
+                            .log("Created new subscription");
                     future.complete(consumer);
                 }
             }).exceptionally(e -> {
                 Throwable throwable = e.getCause();
                 if (throwable instanceof ConsumerBusyException) {
-                    log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
-                            consumerName);
+                    log.warn()
+                            .attr("subscription", subscriptionName)
+                            .attr("consumerId", consumerId)
+                            .attr("consumerName", consumerName)
+                            .log("Consumer already connected");
                 } else if (throwable instanceof SubscriptionBusyException) {
-                    log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                    log.warn()
+                            .attr("subscription", subscriptionName)
+                            .exceptionMessage(e)
+                            .log("Failed to subscribe");
                 }
 
                 decrementUsageCount();
@@ -403,7 +429,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         lock.writeLock().lock();
         try {
             if (isFenced) {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
+                log.warn("Topic is already being closed or deleted");
                 deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return deleteFuture;
             }
@@ -417,7 +443,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Error closing clients", topic, ex);
+                    log.error().exception(ex).log("Error closing clients");
                     isFenced = false;
                     closeClientFuture.completeExceptionally(ex);
                     return null;
@@ -448,7 +474,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     futures.add(deleteTopicPolicies());
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
-                            log.error("[{}] Error deleting topic", topic, ex);
+                            log.error().exception(ex).log("Error deleting topic");
                             isFenced = false;
                             deleteFuture.completeExceptionally(ex);
                         } else {
@@ -457,7 +483,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                             brokerService.executor().execute(() -> {
                                 brokerService.removeTopicFromCache(NonPersistentTopic.this);
                                 unregisterTopicPolicyListener();
-                                log.info("[{}] Topic deleted", topic);
+                                log.info("Topic deleted");
                                 deleteFuture.complete(null);
                             });
                         }
@@ -505,7 +531,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
+                log.warn("Topic is already being closed or deleted");
                 closeFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return closeFuture;
             }
@@ -540,7 +566,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 try {
                     filter.close();
                 } catch (Throwable e) {
-                    log.warn("Error shutting down entry filter {}", filter, e);
+                    log.warn().attr("filter", filter).exception(e).log("Error shutting down entry filter");
                 }
             });
         }
@@ -550,7 +576,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         : FutureUtil.waitForAll(futures);
 
         clientCloseFuture.thenRun(() -> {
-            log.info("[{}] Topic closed", topic);
+            log.info("Topic closed");
             // unload topic iterates over topics map and removing from the map with the same thread creates deadlock.
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
@@ -563,7 +589,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             });
         }).exceptionally(exception -> {
-            log.error("[{}] Error closing topic", topic, exception);
+            log.error().exception(exception).log("Error closing topic");
             isFenced = false;
             closeFuture.completeExceptionally(exception);
             return null;
@@ -581,14 +607,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
-        if (!name.isGlobal() || NamespaceService.isHeartbeatNamespace(name)
+        if (NamespaceService.isHeartbeatNamespace(name)
                 || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Checking replication status", name);
-        }
+        log.debug().attr("name", name).log("Checking replication status");
 
         Set<String> configuredClusters = new HashSet<>(topicPolicies.getReplicationClusters().get());
 
@@ -619,7 +643,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
-        log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
+        log.info().attr("remoteCluster", remoteCluster).log("Starting replicator to remote");
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         return addReplicationCluster(remoteCluster, NonPersistentTopic.this, localCluster);
     }
@@ -628,16 +652,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             String localCluster) {
         return AbstractReplicator.validatePartitionedTopicAsync(nonPersistentTopic.getName(), brokerService)
                 .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
-                        .getClusterAsync(remoteCluster)
-                        .thenApply(clusterData ->
-                                brokerService.getReplicationClient(remoteCluster, clusterData)))
-                .thenAccept(replicationClient -> {
+                        .getClusterAsync(remoteCluster))
+                .thenAccept((clusterData) -> {
+                    PulsarClient replicationClient = brokerService.getReplicationClient(remoteCluster, clusterData);
+                    PulsarAdmin replicationAdmin = brokerService.getClusterPulsarAdmin(remoteCluster, clusterData);
                     replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
                             return new NonPersistentReplicator(NonPersistentTopic.this, localCluster,
-                                    remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
+                                    remoteCluster, brokerService, (PulsarClientImpl) replicationClient,
+                                    replicationAdmin);
                         } catch (PulsarServerException e) {
-                            log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
+                            log.error()
+                                    .attr("remoteCluster", remoteCluster)
+                                    .exception(e)
+                                    .log("Replicator startup failed");
                         }
                         return null;
                     });
@@ -650,17 +678,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
-        log.info("[{}] Removing replicator to {}", topic, remoteCluster);
+        log.info().attr("remoteCluster", remoteCluster).log("Removing replicator to");
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         String name = NonPersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
         replicators.get(remoteCluster).terminate().thenRun(() -> {
-            log.info("[{}] Successfully removed replicator {}", name, remoteCluster);
+            log.info().attr("name", name).attr("remoteCluster", remoteCluster).log("Successfully removed replicator");
             replicators.remove(remoteCluster);
 
         }).exceptionally(e -> {
-            log.error("[{}] Failed to close replication producer {} {}", topic, name, e.getMessage(), e);
+            log.error()
+                    .attr("name", name)
+
+                    .exception(e)
+                    .log("Failed to close replication producer");
             future.completeExceptionally(e);
             return null;
         });
@@ -671,11 +703,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     private CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
         CompletableFuture<Void> result = new CompletableFuture<Void>();
         checkReplication().thenAccept(res -> {
-            log.info("[{}] Policies updated successfully", topic);
+            log.info("Policies updated successfully");
             result.complete(null);
         }).exceptionally(th -> {
-            log.error("[{}] Policies update failed {}, scheduled retry in {} seconds", topic, th.getMessage(),
-                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
+            log.error()
+                    .exceptionMessage(th)
+                    .attr("POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS", POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS)
+                    .log("Policies update failed, scheduled retry in seconds");
             brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
                     POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
             result.completeExceptionally(th);
@@ -836,8 +870,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 topicStats.aggMsgThroughputOut += subMsgThroughputOut;
                 nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
             } catch (Exception e) {
-                log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
-                        e.getMessage(), e);
+                log.error()
+                        .attr("subscription", subscriptionName)
+                        .exception(e)
+                        .log("Got exception when creating consumer stats for subscription");
             }
         });
 
@@ -882,7 +918,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         try {
             return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog).get();
         } catch (InterruptedException | ExecutionException e) {
-            log.error("[{}] Fail to get stats", topic, e);
+            log.error().exception(e).log("Fail to get stats");
             return null;
         }
     }
@@ -892,12 +928,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         try {
             return asyncGetStats(getStatsOptions).get();
         } catch (InterruptedException | ExecutionException e) {
-            log.error("[{}] Fail to get stats", topic, e);
+            log.error().exception(e).log("Fail to get stats");
             return null;
         }
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                                         boolean subscriptionBacklogSize,
                                                                         boolean getEarliestTimeInBacklog) {
@@ -987,11 +1024,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     public boolean isActive() {
-        if (TopicName.get(topic).isGlobal()) {
-            // No local consumers and no local producers
-            return !subscriptions.isEmpty() || hasLocalProducers();
-        }
-        return currentUsageCount() != 0 || !subscriptions.isEmpty();
+        // No local consumers and no local producers
+        return !subscriptions.isEmpty() || hasLocalProducers();
     }
 
     @Override
@@ -1047,34 +1081,29 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         } else {
             if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
 
-                if (TopicName.get(topic).isGlobal()) {
-                    // For global namespace, close repl producers first.
-                    // Once all repl producers are closed, we can delete the topic,
-                    // provided no remote producers connected to the broker.
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                            maxInactiveDurationInSec);
-                    }
+                // Close repl producers first.
+                // Once all repl producers are closed, we can delete the topic,
+                // provided no remote producers connected to the broker.
+                log.debug()
+                        .attr("maxInactiveDurationInSec", maxInactiveDurationInSec)
+                        .log("Topic inactive for seconds, closing repl producers.");
 
-                    stopReplProducers().thenCompose(v -> delete(true, false))
-                            .thenCompose(__ -> tryToDeletePartitionedMetadata())
-                            .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
-                            .exceptionally(e -> {
-                                Throwable throwable = e.getCause();
-                                if (throwable instanceof TopicBusyException) {
-                                    // topic became active again
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("[{}] Did not delete busy topic: {}", topic,
-                                                throwable.getMessage());
-                                    }
-                                    replicators.forEach((region, replicator) -> replicator.startProducer());
-                                } else {
-                                    log.warn("[{}] Inactive topic deletion failed", topic, e);
-                                }
-                                return null;
-                            });
-
-                }
+                stopReplProducers().thenCompose(v -> delete(true, false))
+                        .thenCompose(__ -> tryToDeletePartitionedMetadata())
+                        .thenRun(() -> log.info("Topic deleted successfully due to inactivity"))
+                        .exceptionally(e -> {
+                            Throwable throwable = e.getCause();
+                            if (throwable instanceof TopicBusyException) {
+                                // topic became active again
+                                log.debug()
+                                        .exceptionMessage(throwable)
+                                        .log("Did not delete busy topic");
+                                replicators.forEach((region, replicator) -> replicator.startProducer());
+                            } else {
+                                log.warn().exception(e).log("Inactive topic deletion failed");
+                            }
+                            return null;
+                        });
             }
         }
     }
@@ -1121,15 +1150,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
-                    data.encryption_required);
-        }
+        log.debug()
+                .attr("isEncryptionRequired", isEncryptionRequired)
+                .attr("encryption_required", data.encryption_required)
+                .log("isEncryptionRequired changes: ->");
 
         updateTopicPolicyByNamespacePolicy(data);
 
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
+        isAllowAutoUpdateSchemaWithReplicator = data.is_allow_auto_update_schema_with_replicator;
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(
@@ -1144,7 +1174,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return FutureUtil.waitForAll(consumerCheckFutures)
                     .thenCompose((___) -> checkReplicationAndRetryOnFailure());
         }).exceptionally(ex -> {
-            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+            log.error()
+                    .attr("name", this.getName())
+                    .attr("data", data)
+                    .exception(ex)
+                    .log("update namespace polices : error");
             throw FutureUtil.wrapToCompletionException(ex);
         });
     }
@@ -1215,11 +1249,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<MessageId> getLastMessageId() {
-        throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic"));
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
-
     @Override
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema().thenCompose((hasSchema) -> {

@@ -25,10 +25,10 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class Actions {
     private List<Action> actions = new LinkedList<>();
 
@@ -91,7 +91,8 @@ public class Actions {
             try {
                 success = runAction(action);
             } catch (Exception e) {
-                log.error("Uncaught exception thrown when running action [ {} ]:", action.getActionName(), e);
+                log.error().attr("action", action.getActionName()).exception(e)
+                        .log("Uncaught exception thrown when running action");
                 success = false;
             }
             if (action.getContinueOn() != null) {
@@ -111,27 +112,31 @@ public class Actions {
             ActionResult actionResult = action.getSupplier().get();
 
             if (actionResult.isSuccess()) {
-                log.info("Successfully completed action [ {} ]", action.getActionName());
+                log.info().attr("action", action.getActionName())
+                        .log("Successfully completed action");
                 if (action.getOnSuccess() != null) {
                     action.getOnSuccess().accept(actionResult);
                 }
                 return true;
             } else {
                 if (actionResult.getErrorMsg() != null) {
-                    log.warn("Error completing action [ {} ] :- {} - [ATTEMPT] {}/{}",
-                            action.getActionName(),
-                            actionResult.getErrorMsg(),
-                            i + 1, action.getNumRetries());
+                    log.warn().attr("action", action.getActionName())
+                            .attr("errorMsg", actionResult.getErrorMsg())
+                            .attr("attempt", i + 1)
+                            .attr("maxRetries", action.getNumRetries())
+                            .log("Error completing action");
                 } else {
-                    log.warn("Error completing action [ {} ] [ATTEMPT] {}/{}",
-                            action.getActionName(),
-                            i + 1, action.getNumRetries());
+                    log.warn().attr("action", action.getActionName())
+                            .attr("attempt", i + 1)
+                            .attr("maxRetries", action.getNumRetries())
+                            .log("Error completing action");
                 }
 
                 Thread.sleep(action.sleepBetweenInvocationsMs);
             }
         }
-        log.error("Failed completing action [ {} ]. Giving up!", action.getActionName());
+        log.error().attr("action", action.getActionName())
+                .log("Failed completing action. Giving up!");
         if (action.getOnFail() != null) {
             action.getOnFail().accept(action.getSupplier().get());
         }

@@ -1,0 +1,134 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl.v5;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
+import org.apache.pulsar.common.api.proto.SegmentBrokerAddress;
+import org.apache.pulsar.common.api.proto.SegmentInfoProto;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+
+/**
+ * Client-side view of the segment layout for a scalable topic.
+ * Built from a ScalableTopicDAG protobuf message received from the broker.
+ */
+final class ClientSegmentLayout {
+
+    private final long epoch;
+    private final List<ActiveSegment> activeSegments;
+    private final List<ActiveSegment> sealedSegments;
+    private final Map<Long, String> segmentBrokerUrls;
+    private final String controllerBrokerUrl;
+    private final String controllerBrokerUrlTls;
+
+    private ClientSegmentLayout(long epoch,
+                                List<ActiveSegment> activeSegments,
+                                List<ActiveSegment> sealedSegments,
+                                Map<Long, String> segmentBrokerUrls,
+                                String controllerBrokerUrl,
+                                String controllerBrokerUrlTls) {
+        this.epoch = epoch;
+        this.activeSegments = Collections.unmodifiableList(activeSegments);
+        this.sealedSegments = Collections.unmodifiableList(sealedSegments);
+        this.segmentBrokerUrls = Map.copyOf(segmentBrokerUrls);
+        this.controllerBrokerUrl = controllerBrokerUrl;
+        this.controllerBrokerUrlTls = controllerBrokerUrlTls;
+    }
+
+    /**
+     * Build a client layout from the protobuf DAG received from the broker.
+     */
+    static ClientSegmentLayout fromProto(ScalableTopicDAG dag, TopicName parentTopic) {
+        long epoch = dag.getEpoch();
+
+        // Build broker URL map
+        Map<Long, String> brokerUrls = new java.util.HashMap<>();
+        for (int i = 0; i < dag.getSegmentBrokersCount(); i++) {
+            SegmentBrokerAddress addr = dag.getSegmentBrokerAt(i);
+            brokerUrls.put(addr.getSegmentId(), addr.getBrokerUrl());
+        }
+
+        // Partition segments into active and sealed lists.
+        List<ActiveSegment> activeSegments = new ArrayList<>();
+        List<ActiveSegment> sealedSegments = new ArrayList<>();
+        for (int i = 0; i < dag.getSegmentsCount(); i++) {
+            SegmentInfoProto seg = dag.getSegmentAt(i);
+            HashRange range = HashRange.of((int) seg.getHashStart(), (int) seg.getHashEnd());
+            String segTopicName = SegmentTopicName.fromParent(
+                    parentTopic, range, seg.getSegmentId()).toString();
+            // Legacy segments (synthetic-layout entries wrapping an existing, externally
+            // managed persistent:// topic) carry that URI. Regular controller-managed
+            // segments leave it null and attach to segTopicName instead.
+            String legacy = seg.hasLegacyTopicName() ? seg.getLegacyTopicName() : null;
+            ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName, legacy);
+            if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.ACTIVE) {
+                activeSegments.add(ref);
+            } else if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.SEALED) {
+                sealedSegments.add(ref);
+            }
+        }
+
+        // Sort by hash range start for efficient routing on the active side. Sealed order
+        // doesn't matter for correctness; sort for stable iteration in tests / logs.
+        activeSegments.sort(Comparator.comparingInt(s -> s.hashRange().start()));
+        sealedSegments.sort(Comparator.comparingLong(ActiveSegment::segmentId));
+
+        String controllerUrl = dag.hasControllerBrokerUrl() ? dag.getControllerBrokerUrl() : null;
+        String controllerUrlTls = dag.hasControllerBrokerUrlTls() ? dag.getControllerBrokerUrlTls() : null;
+
+        return new ClientSegmentLayout(epoch, activeSegments, sealedSegments, brokerUrls,
+                controllerUrl, controllerUrlTls);
+    }
+
+    long epoch() {
+        return epoch;
+    }
+
+    List<ActiveSegment> activeSegments() {
+        return activeSegments;
+    }
+
+    /**
+     * Sealed segments still present in the DAG. These have finite (eventually drained)
+     * data and a v4 consumer subscribing to one of them will receive any remaining
+     * messages and then a {@code TopicTerminatedException}.
+     */
+    List<ActiveSegment> sealedSegments() {
+        return sealedSegments;
+    }
+
+    Map<Long, String> segmentBrokerUrls() {
+        return segmentBrokerUrls;
+    }
+
+    String controllerBrokerUrl() {
+        return controllerBrokerUrl;
+    }
+
+    String controllerBrokerUrlTls() {
+        return controllerBrokerUrlTls;
+    }
+}

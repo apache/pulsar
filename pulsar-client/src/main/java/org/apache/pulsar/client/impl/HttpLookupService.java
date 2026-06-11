@@ -28,8 +28,10 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
@@ -51,17 +53,15 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
     private final String listenerName;
 
-    private static final String BasePathV1 = "lookup/v2/destination/";
-    private static final String BasePathV2 = "lookup/v2/topic/";
+    private static final String BasePath = "lookup/v2/topic/";
 
     private final LatencyHistogram histoGetBroker;
     private final LatencyHistogram histoGetTopicMetadata;
@@ -103,11 +103,17 @@ public class HttpLookupService implements LookupService {
      * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
-    @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
-        String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
-        String path = basePath + topicName.getLookupName();
+    @Override
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
+        if (lookupProperties == null) {
+            lookupProperties = httpClient.clientConf.getLookupProperties();
+        }
+        if (lookupProperties != null && !lookupProperties.isEmpty()) {
+            log.warn().attr("lookupProperties", lookupProperties)
+                    .log("Lookup properties aren't supported for http lookup service. lookupProperties");
+        }
+        String path = BasePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
 
         long startTime = System.nanoTime();
@@ -139,7 +145,10 @@ public class HttpLookupService implements LookupService {
                         false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
-                log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
+                log.warn().attr("topicName", topicName)
+                        .attr("url", uri)
+                        .exceptionMessage(e)
+                        .log("Lookup Failed due to invalid url");
                 return FutureUtil.failedFuture(e);
             }
         });
@@ -154,7 +163,7 @@ public class HttpLookupService implements LookupService {
             TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
 
-        String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
+        String format = "admin/v2/%s/partitions";
         CompletableFuture<PartitionedTopicMetadata> httpFuture =  httpClient.get(
                 String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation="
                         + metadataAutoCreationEnabled,
@@ -182,20 +191,22 @@ public class HttpLookupService implements LookupService {
 
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                                      String topicsPattern, String topicsHash) {
+                                                                      String topicsPattern, String topicsHash,
+                                                                      Map<String, String> properties) {
         long startTime = System.nanoTime();
 
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
-        String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
+        String format = "admin/v2/namespaces/%s/topics?mode=%s";
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
                 future.complete(new GetTopicsResult(topics));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                log.warn().attr("namespace", namespace)
+                        .exceptionMessage(cause)
+                        .log("Failed to getTopicsUnderNamespace namespace.");
                 future.completeExceptionally(cause);
                 return null;
             });
@@ -211,8 +222,8 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return getSchema(topicName, null);
+    public boolean isBinaryProtoLookupService() {
+        return false;
     }
 
     @Override
@@ -249,10 +260,10 @@ public class HttpLookupService implements LookupService {
             if (cause instanceof NotFoundException) {
                 future.complete(Optional.empty());
             } else {
-                log.warn("Failed to get schema for topic {} version {}",
-                        topicName,
-                        version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        cause);
+                log.warn().attr("topic", topicName)
+                        .attr("version", version != null ? Base64.getEncoder().encodeToString(version) : null)
+                        .exception(cause)
+                        .log("Failed to get schema for topic version");
                 future.completeExceptionally(cause);
             }
             return null;
@@ -271,6 +282,4 @@ public class HttpLookupService implements LookupService {
     public void close() throws Exception {
         httpClient.close();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
 }

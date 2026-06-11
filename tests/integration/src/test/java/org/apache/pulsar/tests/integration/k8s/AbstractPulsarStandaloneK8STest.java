@@ -53,10 +53,12 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.tools.tar.TarEntry;
 import org.apache.tools.tar.TarInputStream;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -73,14 +75,25 @@ import org.testng.annotations.BeforeClass;
  * with the deployed Pulsar instance and Kubernetes cluster.
  * The main reason to use this base class is to test features in Pulsar which are integrated into Kubernetes
  * APIs.
+ *
+ * For debugging purposes, it is useful to have the ability to leave containers running.
+ * This mode can be activated by setting environment variables
+ * PULSAR_CONTAINERS_LEAVE_RUNNING=true and TESTCONTAINERS_REUSE_ENABLE=true
+ * For example:
+ * PULSAR_CONTAINERS_LEAVE_RUNNING=true TESTCONTAINERS_REUSE_ENABLE=true ./gradlew \
+ *  :tests:integration:integrationTest --rerun --tests PulsarFunctionsK8STest --no-daemon
+ * Check the logs for KUBECONFIG file location to connect to the k3d cluster for debugging. For example:
+ * KUBECONFIG=/tmp/kubeconfig10863493890794345578.yaml k9s
+ * After debugging, one can use this command to kill all containers that were left running:
+ * docker kill $(docker ps -q --filter "label=pulsarcontainer=true")
  */
-@Slf4j
+@CustomLog
 public abstract class AbstractPulsarStandaloneK8STest {
     private static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/java-test-image:latest");
     private static final int PULSAR_NODE_PORT = 30101;
     private static final int PULSAR_HTTP_NODE_PORT = 30102;
-    private static final String K3S_IMAGE_NAME = "rancher/k3s:v1.33.5-k3s1";
+    private static final String K3S_IMAGE_NAME = "rancher/k3s:v1.34.8-k3s1";
     private static final String PULSAR_STANDALONE_POD = "pulsar-standalone-pod";
     K3sContainer k3sContainer;
     KubeConfig kubeConfig;
@@ -100,6 +113,14 @@ public abstract class AbstractPulsarStandaloneK8STest {
         k3sContainer = new K3sContainer(DockerImageName.parse(K3S_IMAGE_NAME));
         k3sContainer.addExposedPort(PULSAR_NODE_PORT);
         k3sContainer.addExposedPort(PULSAR_HTTP_NODE_PORT);
+        if (PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            // use Testcontainers reuse containers feature to leave the container running
+            k3sContainer.withReuse(true);
+            // add label that can be used to find containers that are left running.
+            k3sContainer.withLabel("pulsarcontainer", "true");
+            // add a random label to prevent reuse of containers
+            k3sContainer.withLabel("pulsarcontainer.random", UUID.randomUUID().toString());
+        }
         k3sContainer.start();
         dockerHostName = k3sContainer.getHost();
         pulsarBrokerUrl = "pulsar://" + dockerHostName + ":" + k3sContainer.getMappedPort(PULSAR_NODE_PORT);
@@ -110,8 +131,8 @@ public abstract class AbstractPulsarStandaloneK8STest {
         apiClient = Config.fromConfig(kubeConfig);
         kubeConfigFile = File.createTempFile("kubeconfig", ".yaml");
         Files.writeString(kubeConfigFile.toPath(), kubeConfigYaml);
-        log.info("Pulsar broker URL: {} http URL: {}", pulsarBrokerUrl, pulsarWebServiceUrl);
-        log.info("For debugging k8s, use KUBECONFIG={}", kubeConfigFile.getAbsolutePath());
+        log.info().attr("URL", pulsarBrokerUrl).attr("URL", pulsarWebServiceUrl).log("Pulsar broker URL: http URL");
+        log.info().attr("KUBECONFIG", kubeConfigFile.getAbsolutePath()).log("For debugging k8s, use KUBECONFIG");
         importPulsarImage();
         deployPulsarStandalonePod();
         log.info("Waiting for Pulsar cluster to be ready");
@@ -129,6 +150,10 @@ public abstract class AbstractPulsarStandaloneK8STest {
     public final void cleanupCluster() throws InterruptedException {
         if (k3sContainer != null) {
             copyLogsToTargetDirectory();
+            if (PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
+                log.warn("Ignoring stop due to PULSAR_CONTAINERS_LEAVE_RUNNING=true.");
+                return;
+            }
             k3sContainer.stop();
             kubeConfigFile.delete();
         }
@@ -139,7 +164,9 @@ public abstract class AbstractPulsarStandaloneK8STest {
             File targetDirectoryForLogs = getTargetDirectoryForLogs();
             Exec exec = new Exec(apiClient);
             try {
-                log.info("Copying logs from Pulsar standalone pod to target directory: {}", targetDirectoryForLogs);
+                log.info()
+                        .attr("directory", targetDirectoryForLogs)
+                        .log("Copying logs from Pulsar standalone pod to target directory");
                 Process process = exec.newExecutionBuilder(getNamespace(), PULSAR_STANDALONE_POD,
                         new String[]{"sh", "-c", "cd /pulsar/logs && tar cf - *"}
                 ).setTty(false).setStdin(false).setStderr(false).setStdout(true).execute();
@@ -153,25 +180,31 @@ public abstract class AbstractPulsarStandaloneK8STest {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error copying logs from Pulsar standalone pod to target directory.", e);
+                log.error().exception(e).log("Error copying logs from Pulsar standalone pod to target directory.");
             }
 
             CoreV1Api coreApi = new CoreV1Api(apiClient);
             File eventsFile = new File(targetDirectoryForLogs, "k8s_events.json");
             try {
-                log.info("Copying events from Kubernetes cluster namespace {} to {}.", getNamespace(), eventsFile);
+                log.info()
+                        .attr("namespace", getNamespace())
+                        .attr("to", eventsFile)
+                        .log("Copying events from Kubernetes cluster namespace to .");
                 CoreV1EventList eventList = coreApi.listNamespacedEvent(getNamespace()).execute();
                 Files.writeString(eventsFile.toPath(), eventList.toJson());
             } catch (Exception e) {
-                log.error("Error copying events from Kubernetes cluster to {}.", eventsFile, e);
+                log.error()
+                        .attr("to", eventsFile)
+                        .exception(e)
+                        .log("Error copying events from Kubernetes cluster to .");
             }
         }
     }
 
     private File getTargetDirectoryForLogs() {
-        String base = System.getProperty("maven.buildDirectory");
+        String base = System.getProperty("buildDirectory");
         if (base == null) {
-            base = "target";
+            base = "build";
         }
         // use the container-logs directory since it's used in CI for integration tests as the file location
         File directory = new File(new File(base, "container-logs"),
