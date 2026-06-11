@@ -408,6 +408,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 // cursor should be rewound since it was incremented when readMoreEntries
                 replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
                 replicator.doRewindCursor(false);
+                // The failed send has completed from the producer queue perspective. The cursor rewind
+                // makes the entry readable again, so this in-flight task must release its permit.
+                inFlightTask.incCompletedEntries();
             } else {
                 replicator.log.debug()
                         .exception(exception)
