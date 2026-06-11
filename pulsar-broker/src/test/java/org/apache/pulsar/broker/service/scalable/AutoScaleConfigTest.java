@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -52,6 +53,49 @@ public class AutoScaleConfigTest {
         assertTrue(c.splitBytesRateIn() > c.mergeBytesRateIn());
         assertTrue(c.splitMsgRateOut() > c.mergeMsgRateOut());
         assertTrue(c.splitBytesRateOut() > c.mergeBytesRateOut());
+    }
+
+    @Test
+    public void testValidationRejectsBadConfig() {
+        // Zero split threshold: the evaluator scores rate/threshold, so 0 would yield
+        // Infinity (or NaN for a zero rate) — must be rejected at resolution time.
+        ServiceConfiguration zeroSplit = new ServiceConfiguration();
+        zeroSplit.setScalableTopicSplitMsgRateInThreshold(0);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(zeroSplit));
+
+        // Hysteresis inversion: merge threshold at/above the split threshold.
+        ServiceConfiguration inverted = new ServiceConfiguration();
+        inverted.setScalableTopicMergeMsgRateInThreshold(
+                inverted.getScalableTopicSplitMsgRateInThreshold());
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(inverted));
+
+        // min/max segment inversion.
+        ServiceConfiguration minOverMax = new ServiceConfiguration();
+        minOverMax.setScalableTopicMinSegments(10);
+        minOverMax.setScalableTopicMaxSegments(5);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(minOverMax));
+
+        // Negative cooldown.
+        ServiceConfiguration negativeCooldown = new ServiceConfiguration();
+        negativeCooldown.setScalableTopicSplitCooldownSeconds(-1);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(negativeCooldown));
+    }
+
+    @Test
+    public void testZeroMergeThresholdsAllowedAsMergeDisable() {
+        // Merge thresholds of 0 are a legitimate "never merge" setting: no rate is ever
+        // strictly below 0, so segments never qualify as cold. Must validate cleanly.
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setScalableTopicMergeMsgRateInThreshold(0);
+        conf.setScalableTopicMergeBytesRateInThreshold(0L);
+        conf.setScalableTopicMergeMsgRateOutThreshold(0);
+        conf.setScalableTopicMergeBytesRateOutThreshold(0L);
+        AutoScaleConfig c = AutoScaleConfig.fromBrokerConfig(conf);
+        assertEquals(c.mergeMsgRateIn(), 0.0);
     }
 
     @Test

@@ -97,6 +97,50 @@ public record AutoScaleConfig(
                 .mergeBytesRateIn(conf.getScalableTopicMergeBytesRateInThreshold())
                 .mergeMsgRateOut(conf.getScalableTopicMergeMsgRateOutThreshold())
                 .mergeBytesRateOut(conf.getScalableTopicMergeBytesRateOutThreshold())
-                .build();
+                .build()
+                .validated();
+    }
+
+    /**
+     * Validate the invariants the evaluator depends on; returns {@code this} for chaining.
+     *
+     * <p>In particular every split threshold must be strictly positive — the evaluator
+     * scores overload as {@code rate / splitThreshold}, and a zero threshold would make any
+     * positive rate score {@code Infinity} (permanent split pressure) while a zero rate
+     * scores {@code NaN} (silently ignored). Catching misconfiguration here surfaces a
+     * clear error at the policy-resolution layer instead.
+     *
+     * @throws IllegalArgumentException if any invariant is violated
+     */
+    public AutoScaleConfig validated() {
+        check(minSegments >= 1, "minSegments must be >= 1");
+        check(maxSegments >= minSegments, "maxSegments must be >= minSegments");
+        check(maxDagDepth >= 0, "maxDagDepth must be >= 0");
+        check(!splitCooldown.isNegative(), "splitCooldown must not be negative");
+        check(!mergeCooldown.isNegative(), "mergeCooldown must not be negative");
+        check(!mergeWindow.isNegative(), "mergeWindow must not be negative");
+        check(splitMsgRateIn > 0, "splitMsgRateInThreshold must be > 0");
+        check(splitBytesRateIn > 0, "splitBytesRateInThreshold must be > 0");
+        check(splitMsgRateOut > 0, "splitMsgRateOutThreshold must be > 0");
+        check(splitBytesRateOut > 0, "splitBytesRateOutThreshold must be > 0");
+        check(mergeMsgRateIn >= 0, "mergeMsgRateInThreshold must be >= 0");
+        check(mergeBytesRateIn >= 0, "mergeBytesRateInThreshold must be >= 0");
+        check(mergeMsgRateOut >= 0, "mergeMsgRateOutThreshold must be >= 0");
+        check(mergeBytesRateOut >= 0, "mergeBytesRateOutThreshold must be >= 0");
+        check(splitMsgRateIn > mergeMsgRateIn,
+                "splitMsgRateInThreshold must be > mergeMsgRateInThreshold (hysteresis)");
+        check(splitBytesRateIn > mergeBytesRateIn,
+                "splitBytesRateInThreshold must be > mergeBytesRateInThreshold (hysteresis)");
+        check(splitMsgRateOut > mergeMsgRateOut,
+                "splitMsgRateOutThreshold must be > mergeMsgRateOutThreshold (hysteresis)");
+        check(splitBytesRateOut > mergeBytesRateOut,
+                "splitBytesRateOutThreshold must be > mergeBytesRateOutThreshold (hysteresis)");
+        return this;
+    }
+
+    private static void check(boolean condition, String message) {
+        if (!condition) {
+            throw new IllegalArgumentException("Invalid auto split/merge configuration: " + message);
+        }
     }
 }
