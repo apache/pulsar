@@ -133,7 +133,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .attr("entryId", entryId)
                 .attr("deliveryInMs", () -> deliverAt - clock.millis())
                 .log("Add message");
-        long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+        long timestamp = roundTimestamp(deliverAt);
 
         Roaring64Bitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new TreeMap<>())
             .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
@@ -151,6 +151,28 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         checkAndUpdateHighest(deliverAt);
 
         return true;
+    }
+
+    /**
+     * Round the deliverAt timestamp to the bucket boundary used as the key in {@link #delayedMessageMap}, so that
+     * all messages within the same bucket share a single map entry to reduce memory usage.
+     *
+     * In strict delivery mode the timestamp is rounded up: a bucket then becomes due only after every deliverAt
+     * time inside it has passed, so messages are delivered up to one bucket (less than tickTimeMillis) late, but
+     * never before their deliverAt time. Rounding down instead would let {@link #getScheduledMessages(int)} hand a
+     * message to the dispatcher before its deliverAt time; the dispatcher would put it back and re-trigger reads
+     * in a loop until the deliverAt time is reached (see issue #25996).
+     *
+     * In non-strict mode the timestamp is rounded down, since delivering up to tickTimeMillis early is allowed.
+     */
+    private long roundTimestamp(long deliverAt) {
+        if (isDeliverAtTimeStrict()) {
+            long precisionMillis = 1L << timestampPrecisionBitCnt;
+            // round up, saturating at Long.MAX_VALUE instead of overflowing for deliverAt close to Long.MAX_VALUE
+            long roundedUp = deliverAt + precisionMillis - 1;
+            return trimLowerBit(roundedUp < deliverAt ? Long.MAX_VALUE : roundedUp, timestampPrecisionBitCnt);
+        }
+        return trimLowerBit(deliverAt, timestampPrecisionBitCnt);
     }
 
     /**
@@ -226,10 +248,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 delayedMessageMap.remove(timestamp);
             }
         }
-            log.debug()
-                    .attr("messagesCount", positions.size())
-                    .log("Get scheduled messages");
-                if (delayedMessageMap.isEmpty()) {
+        log.debug()
+                .attr("messagesCount", positions.size())
+                .log("Get scheduled messages");
+        if (delayedMessageMap.isEmpty()) {
             // Reset to initial state
             highestDeliveryTimeTracked = 0;
             messagesHaveFixedDelay = true;

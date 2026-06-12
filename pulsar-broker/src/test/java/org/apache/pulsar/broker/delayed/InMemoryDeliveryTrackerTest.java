@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.delayed;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -33,10 +35,12 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
 import java.time.Clock;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
@@ -115,28 +119,37 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
-            case "testStrictModeTimerStallsAfterEarlyPopAndReAdd" -> {
+            case "testStrictModeNeverDeliversEarlyAndKeepsTimerArmed",
+                 "testStaleTimerTriggerDoesNotClearNewerTimer" -> {
                 // Mock timer that records the currently-armed timeouts so the test can observe whether a
-                // delivery timer is live. Cancelling a timeout removes it from the map, mirroring the wheel.
+                // delivery timer is live and fire it like the wheel would (passing the armed Timeout instance,
+                // which the tracker's run() compares against its current timeout). Cancelling a timeout removes
+                // it from the map; firing (polling) it does not mark it cancelled, mirroring the wheel.
                 Timer mockTimer = mock(Timer.class);
-                NavigableMap<Long, TimerTask> tasks = new TreeMap<>();
+                NavigableMap<Long, Map.Entry<TimerTask, Timeout>> tasks = new TreeMap<>();
                 when(mockTimer.newTimeout(any(), anyLong(), any())).then(invocation -> {
                     TimerTask task = invocation.getArgument(0, TimerTask.class);
-                    long timeout = invocation.getArgument(1, Long.class);
+                    long delay = invocation.getArgument(1, Long.class);
                     TimeUnit unit = invocation.getArgument(2, TimeUnit.class);
-                    long scheduleAt = clockTime.get() + unit.toMillis(timeout);
-                    tasks.put(scheduleAt, task);
+                    long scheduleAt = clockTime.get() + unit.toMillis(delay);
                     Timeout t = mock(Timeout.class);
-                    when(t.cancel()).then(i -> tasks.remove(scheduleAt, task));
-                    when(t.isCancelled()).then(i -> !tasks.containsValue(task));
+                    Map.Entry<TimerTask, Timeout> entry = Map.entry(task, t);
+                    AtomicBoolean cancelled = new AtomicBoolean();
+                    when(t.cancel()).then(i -> {
+                        cancelled.set(true);
+                        return tasks.remove(scheduleAt, entry);
+                    });
+                    when(t.isCancelled()).then(i -> cancelled.get());
+                    tasks.put(scheduleAt, entry);
                     return t;
                 });
-                // tickTimeMillis=1000 -> timestamps are trimmed to the lower 9 bits (multiples of 512ms),
-                // which is what lets getScheduledMessages pop a message up to ~511ms before its deliverAt.
+                // tickTimeMillis=1000 -> delivery timestamps are bucketed at 512ms granularity (lower 9 bits),
+                // rounded up in strict mode so that messages are never visible before their deliverAt time.
                 yield new Object[][]{{
                         new InMemoryDelayedDeliveryTracker(dispatcher, mockTimer, 1000, clock,
                                 true, 0),
-                        tasks
+                        tasks,
+                        mockTimer
                 }};
             }
             default -> new Object[][]{{
@@ -254,7 +267,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                 true, 0) {
             @Override
             public void run(Timeout timeout) throws Exception {
-                super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
+                rescheduleTimer(1);
                 if (timeout == null || timeout.isCancelled()) {
                     return;
                 }
@@ -300,62 +313,101 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
     }
 
     /**
-     * Reproduces https://github.com/apache/pulsar/issues/25996.
+     * Regression test for https://github.com/apache/pulsar/issues/25996 and for the strict-mode guarantee that
+     * messages are never delivered before their deliverAt time.
      *
-     * With isDelayedDeliveryDeliverAtTimeStrict=true and tickTimeMillis=1000, a message can be popped by
-     * getScheduledMessages up to ~511ms before its real deliverAt (because of timestamp trimming). The
-     * strict dispatcher re-adds the not-yet-due message, and {@code AbstractDelayedDeliveryTracker.updateTimer()}
-     * cancels the timer that was armed for the next message while taking its {@code delayMillis < 0} early
-     * return without clearing {@code currentTimeoutTarget}/{@code timeout}. When the early message is finally
-     * delivered, updateTimer() short-circuits on the stale {@code currentTimeoutTarget} and never re-arms the
-     * timer, so the remaining delayed messages stall indefinitely until an unrelated dispatch event occurs.
+     * With isDelayedDeliveryDeliverAtTimeStrict=true and tickTimeMillis=1000, delivery timestamps are bucketed
+     * at 512ms granularity and rounded UP, so a bucket only becomes due once every deliverAt time inside it has
+     * passed. Previously timestamps were rounded down, so a message could be popped up to ~511ms early; the
+     * dispatcher would re-add the not-yet-due message and the re-add left a stale {@code currentTimeoutTarget}
+     * behind that suppressed re-arming the delivery timer, stalling all remaining delayed messages until an
+     * unrelated dispatch event occurred.
      *
-     * The trimmed buckets (multiples of 512ms) used below:
-     *   M1 deliverAt=60400 -> bucket 59904   (gets popped early then re-added)
-     *   M2 deliverAt=61000 -> bucket 60928   (the message that must not be forgotten)
+     * The rounded-up buckets (multiples of 512ms) used below:
+     *   M1 deliverAt=60400 -> bucket 60416
+     *   M2 deliverAt=61000 -> bucket 61440
      */
     @Test(dataProvider = "delayedTracker")
-    public void testStrictModeTimerStallsAfterEarlyPopAndReAdd(InMemoryDelayedDeliveryTracker tracker,
-                                                               NavigableMap<Long, TimerTask> tasks) throws Exception {
+    public void testStrictModeNeverDeliversEarlyAndKeepsTimerArmed(InMemoryDelayedDeliveryTracker tracker,
+            NavigableMap<Long, Map.Entry<TimerTask, Timeout>> tasks, Timer mockTimer) throws Exception {
         clockTime.set(0);
 
-        // Two delayed messages in different trimmed buckets. A delivery timer is armed for the earliest.
+        // Two delayed messages in different buckets. A delivery timer is armed for the earliest.
         assertTrue(tracker.addMessage(1, 1, 60400));
         assertTrue(tracker.addMessage(2, 2, 61000));
         assertEquals(tasks.size(), 1, "a delivery timer should be armed for the earliest message");
+        assertEquals(tasks.firstKey().longValue(), 60416, "the timer should target M1's rounded-up bucket");
 
-        // The timer fires slightly late (wheel/scheduling granularity): now=60000 sits inside M1's trim
-        // window (bucket 59904 <= 60000 < deliverAt 60400). Mimic the wheel popping and running the task.
+        // Before M1's bucket time, nothing may be visible to the dispatcher (no early delivery), and a
+        // dispatch round that finds nothing must leave the delivery timer armed (issue #25996).
         clockTime.set(60000);
-        Timeout fired = mock(Timeout.class);
-        when(fired.isCancelled()).thenReturn(false);
-        tasks.pollFirstEntry().getValue().run(fired);
+        assertFalse(tracker.hasMessageAvailable());
+        assertTrue(tracker.getScheduledMessages(100).isEmpty(),
+                "strict mode must not deliver a message before its deliverAt time");
+        assertEquals(tasks.size(), 1, "the delivery timer must remain armed");
 
-        // Dispatcher reads the scheduled messages: M1 is popped ~400ms early; the timer re-arms for M2.
+        // The timer fires at M1's bucket time; M1 is delivered at 60416 >= deliverAt 60400, so the
+        // dispatcher never needs to re-add it.
+        clockTime.set(60416);
+        Map.Entry<TimerTask, Timeout> firedTimeout = tasks.pollFirstEntry().getValue();
+        firedTimeout.getKey().run(firedTimeout.getValue());
         Set<Position> scheduled = tracker.getScheduledMessages(100);
-        assertEquals(scheduled.size(), 1);
-        assertEquals(scheduled.iterator().next(), PositionFactory.create(1, 1));
-        assertEquals(tasks.size(), 1, "after popping M1 the timer should be re-armed for M2");
+        assertEquals(scheduled, Set.of(PositionFactory.create(1, 1)));
 
-        // Strict mode: M1 is not actually due yet (60400 > now 60000), so the dispatcher puts it back.
-        // This is the re-add that triggers the buggy updateTimer() early return.
-        assertTrue(tracker.addMessage(1, 1, 60400));
-
-        // M1's real deliverAt arrives; a dispatch round delivers it for real (it is no longer re-added).
-        clockTime.set(60400);
-        scheduled = tracker.getScheduledMessages(100);
-        assertEquals(scheduled.size(), 1);
-        assertEquals(scheduled.iterator().next(), PositionFactory.create(1, 1));
-
-        // M2 is still pending and not yet available...
+        // M2 is still pending and not yet due, so a delivery timer must have been re-armed for it. With the
+        // issue #25996 bug, the timer state went stale at this point and M2 stalled indefinitely.
         assertEquals(tracker.getNumberOfDelayedMessages(), 1);
         assertFalse(tracker.hasMessageAvailable());
+        assertEquals(tasks.size(), 1, "a delivery timer must remain armed for the pending message M2");
+        assertEquals(tasks.firstKey().longValue(), 61440, "the timer should target M2's rounded-up bucket");
 
-        // ...so a live delivery timer MUST exist to eventually deliver it. With the bug the timer was
-        // cancelled and never re-armed (currentTimeoutTarget stale), leaving M2 to stall forever.
-        assertFalse(tasks.isEmpty(),
-                "a delivery timer must remain armed for the pending message M2; "
-                        + "an empty timer set means it will never be delivered (issue #25996)");
+        // The timer fires again and M2 is delivered, also never early.
+        clockTime.set(61440);
+        firedTimeout = tasks.pollFirstEntry().getValue();
+        firedTimeout.getKey().run(firedTimeout.getValue());
+        scheduled = tracker.getScheduledMessages(100);
+        assertEquals(scheduled, Set.of(PositionFactory.create(2, 2)));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+
+        tracker.close();
+    }
+
+    /**
+     * A timeout that was superseded by a newer one may still fire: HashedWheelTimer can run a task that passed
+     * its isCancelled() check just before updateTimer() cancelled it. Such a stale trigger must not clear the
+     * state of the newer armed timer, otherwise the next updateTimer() call would arm a duplicate timer.
+     */
+    @Test(dataProvider = "delayedTracker")
+    public void testStaleTimerTriggerDoesNotClearNewerTimer(InMemoryDelayedDeliveryTracker tracker,
+            NavigableMap<Long, Map.Entry<TimerTask, Timeout>> tasks, Timer mockTimer) throws Exception {
+        clockTime.set(0);
+
+        // Arm a timer for M2, then supersede it with an earlier message M1.
+        assertTrue(tracker.addMessage(2, 2, 61000));
+        assertEquals(tasks.firstKey().longValue(), 61440);
+        assertTrue(tracker.addMessage(1, 1, 60400));
+        assertEquals(tasks.size(), 1);
+        assertEquals(tasks.firstKey().longValue(), 60416, "M1's timer should have replaced M2's");
+
+        // The superseded (cancelled) timeout for M2 fires anyway, racing with the cancellation. The tracker
+        // must keep the state of the currently armed timer for M1.
+        Timeout staleTimeout = mock(Timeout.class);
+        tracker.run(staleTimeout);
+
+        // A subsequent updateTimer() (here through hasMessageAvailable()) must recognize the armed timer
+        // instead of arming a duplicate one: still exactly the two newTimeout() calls from the adds above.
+        assertFalse(tracker.hasMessageAvailable());
+        assertEquals(tasks.size(), 1);
+        assertEquals(tasks.firstKey().longValue(), 60416);
+        verify(mockTimer, times(2)).newTimeout(any(), anyLong(), any());
+
+        // The armed timer fires and delivery proceeds normally.
+        clockTime.set(60416);
+        Map.Entry<TimerTask, Timeout> firedTimeout = tasks.pollFirstEntry().getValue();
+        firedTimeout.getKey().run(firedTimeout.getValue());
+        Set<Position> scheduled = tracker.getScheduledMessages(100);
+        assertEquals(scheduled, Set.of(PositionFactory.create(1, 1)));
+        assertEquals(tasks.size(), 1, "a delivery timer must be re-armed for the still pending M2");
 
         tracker.close();
     }
