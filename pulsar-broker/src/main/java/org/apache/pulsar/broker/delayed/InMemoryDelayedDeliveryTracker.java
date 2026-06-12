@@ -144,7 +144,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         boolean isNew = !bitmap.contains(entryId);
 
         if (isNew) {
-            bitmap.add(entryId);
+            bitmap.addLong(entryId);
             delayedMessagesCount.incrementAndGet();
         }
 
@@ -221,20 +221,22 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             for (var ledgerEntry : ledgerMap.entrySet()) {
                 long ledgerId = ledgerEntry.getKey();
                 Roaring64Bitmap entryIds = ledgerEntry.getValue();
-                int cardinality = (int) entryIds.getLongCardinality();
+                long cardinality = entryIds.getLongCardinality();
                 if (cardinality <= n) {
+                    int cardinalityInt = (int) cardinality;
                     entryIds.forEach(entryId -> {
                         positions.add(PositionFactory.create(ledgerId, entryId));
                     });
-                    n -= cardinality;
-                    delayedMessagesCount.addAndGet(-cardinality);
+                    n -= cardinalityInt;
+                    delayedMessagesCount.addAndGet(-cardinalityInt);
                     ledgerIdToDelete.add(ledgerId);
                 } else {
-                    long[] entryIdsArray = entryIds.toArray();
-                    for (int i = 0; i < n; i++) {
-                        positions.add(PositionFactory.create(ledgerId, entryIdsArray[i]));
-                        entryIds.removeLong(entryIdsArray[i]);
-                    }
+                    Roaring64Bitmap entryIdsToRemove = new Roaring64Bitmap();
+                    entryIds.stream().limit(n).forEach(entryId -> {
+                        positions.add(PositionFactory.create(ledgerId, entryId));
+                        entryIdsToRemove.addLong(entryId);
+                    });
+                    entryIds.andNot(entryIdsToRemove);
                     delayedMessagesCount.addAndGet(-n);
                     n = 0;
                 }

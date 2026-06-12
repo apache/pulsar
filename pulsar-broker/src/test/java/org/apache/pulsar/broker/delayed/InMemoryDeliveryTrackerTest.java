@@ -422,4 +422,50 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
         tracker.getScheduledMessages(10);
     }
+
+    /**
+     * Covers the partial drain of a per-ledger entry id bitmap in getScheduledMessages, where the bitmap holds
+     * more entries than the remaining maxMessages budget (the cardinality > n branch): only the lowest n entry
+     * ids may be returned and the rest must stay tracked, without duplicates across calls.
+     */
+    @Test(dataProvider = "delayedTracker")
+    public void testGetScheduledMessagesWithMaxMessagesSmallerThanBucket(InMemoryDelayedDeliveryTracker tracker)
+            throws Exception {
+        clockTime.set(0);
+
+        // Two ledgers within the same delivery bucket: ledger 1 with 2 entries, ledger 2 with 5 entries.
+        assertTrue(tracker.addMessage(1, 0, 10));
+        assertTrue(tracker.addMessage(1, 1, 10));
+        for (int entryId = 0; entryId < 5; entryId++) {
+            assertTrue(tracker.addMessage(2, entryId, 10));
+        }
+        assertEquals(tracker.getNumberOfDelayedMessages(), 7);
+
+        clockTime.set(10);
+
+        // maxMessages drains ledger 1 fully and ledger 2 partially (cardinality > n on ledger 2's bitmap).
+        Set<Position> scheduled = tracker.getScheduledMessages(4);
+        assertEquals(scheduled, Set.of(
+                PositionFactory.create(1, 0),
+                PositionFactory.create(1, 1),
+                PositionFactory.create(2, 0),
+                PositionFactory.create(2, 1)));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 3);
+
+        // Another partial drain of ledger 2's remaining entries (cardinality > n again): continues with the
+        // next lowest entry ids, no duplicates from the previous call.
+        scheduled = tracker.getScheduledMessages(2);
+        assertEquals(scheduled, Set.of(
+                PositionFactory.create(2, 2),
+                PositionFactory.create(2, 3)));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+
+        // The last remaining entry is returned and the tracker is emptied.
+        scheduled = tracker.getScheduledMessages(10);
+        assertEquals(scheduled, Set.of(PositionFactory.create(2, 4)));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        assertFalse(tracker.hasMessageAvailable());
+
+        tracker.close();
+    }
 }
