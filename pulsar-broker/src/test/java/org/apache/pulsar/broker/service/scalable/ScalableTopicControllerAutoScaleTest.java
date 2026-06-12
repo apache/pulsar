@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -39,7 +41,10 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -70,6 +75,10 @@ public class ScalableTopicControllerAutoScaleTest {
     private PulsarService pulsar;
     private ServiceConfiguration config;
     private ScalableTopics scalableTopics;
+    private PulsarResources pulsarResources;
+    private NamespaceResources namespaceResources;
+    /** Namespace policies served by the mocked resources; null = namespace has no policies. */
+    private Policies namespacePolicies;
     private ScalableTopicController controller;
     private TopicName topicName;
 
@@ -104,6 +113,19 @@ public class ScalableTopicControllerAutoScaleTest {
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
         when(pulsar.getExecutor()).thenReturn(scheduler);
         when(pulsar.getConfig()).thenReturn(config);
+
+        // Namespace policies feed the per-namespace auto-scale override resolution.
+        // Default: no policies → broker config applies. Tests install overrides via
+        // namespacePolicies. Reset explicitly — TestNG reuses the test instance.
+        namespacePolicies = null;
+        pulsarResources = mock(PulsarResources.class);
+        namespaceResources = mock(NamespaceResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        when(namespaceResources.getPoliciesAsync(any(NamespaceName.class)))
+                .thenAnswer(__ -> CompletableFuture.completedFuture(
+                        Optional.ofNullable(namespacePolicies)));
+
         when(pulsar.getAdminClient()).thenReturn(admin);
         when(admin.topics()).thenReturn(topics);
         when(admin.scalableTopics()).thenReturn(scalableTopics);
@@ -203,6 +225,81 @@ public class ScalableTopicControllerAutoScaleTest {
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
                 () -> assertEquals(activeSegmentCount(), 2,
                         "2 consumers on 1 segment should drive a split"));
+    }
+
+    @Test
+    public void testNamespaceOverrideDisablesAutoScale() throws Exception {
+        namespacePolicies = new Policies();
+        namespacePolicies.scalableTopicAutoScalePolicy =
+                AutoScalePolicyOverride.builder().enabled(false).build();
+
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2,
+                "namespace override enabled=false must suppress the split");
+    }
+
+    @Test
+    public void testTopicOverrideWinsOverNamespace() throws Exception {
+        // Namespace disables auto-scale; the topic explicitly re-enables it.
+        namespacePolicies = new Policies();
+        namespacePolicies.scalableTopicAutoScalePolicy =
+                AutoScalePolicyOverride.builder().enabled(false).build();
+
+        startController(2);
+        resources.updateScalableTopicAsync(topicName, md -> {
+            md.setAutoScalePolicy(AutoScalePolicyOverride.builder().enabled(true).build());
+            return md;
+        }).get();
+
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3,
+                "topic override enabled=true must win over the namespace disable");
+    }
+
+    @Test
+    public void testTopicOverrideMaxSegmentsCapsSplit() throws Exception {
+        startController(2);
+        resources.updateScalableTopicAsync(topicName, md -> {
+            md.setAutoScalePolicy(AutoScalePolicyOverride.builder().maxSegments(2).build());
+            return md;
+        }).get();
+
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2,
+                "per-topic maxSegments=2 must cap the split despite the hot segment");
+    }
+
+    @Test
+    public void testTopicOverrideSurvivesSplit() throws Exception {
+        // The override must survive a layout mutation (toMetadata must carry it over).
+        startController(2);
+        AutoScalePolicyOverride override =
+                AutoScalePolicyOverride.builder().maxSegments(3).build();
+        resources.updateScalableTopicAsync(topicName, md -> {
+            md.setAutoScalePolicy(override);
+            return md;
+        }).get();
+
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "first split allowed up to maxSegments=3");
+        assertEquals(resources.getScalableTopicMetadataAsync(topicName).get()
+                        .orElseThrow().getAutoScalePolicy(), override,
+                "the per-topic override must survive the split's metadata rewrite");
+
+        // At the cap now — further hot reports must not split.
+        resources.reportSegmentLoadAsync(topicName, 1,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "capped at the per-topic maxSegments");
     }
 
     @Test

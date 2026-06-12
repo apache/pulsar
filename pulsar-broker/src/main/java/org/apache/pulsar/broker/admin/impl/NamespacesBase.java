@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1304,6 +1306,36 @@ public abstract class NamespacesBase extends AdminResource {
                 })
                 .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
                     policies.autoTopicCreationOverride = autoTopicCreationOverride;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<AutoScalePolicyOverride> internalGetScalableTopicAutoScalePolicyAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SCALABLE_TOPIC_AUTO_SCALE,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.scalableTopicAutoScalePolicy);
+    }
+
+    protected CompletableFuture<Void> internalSetScalableTopicAutoScalePolicyAsync(
+            AutoScalePolicyOverride override) {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    if (override != null) {
+                        // The override only has to be valid in combination with the broker
+                        // defaults — resolve and let the invariant checks reject bad values
+                        // (e.g. zero split thresholds, split <= merge hysteresis inversion).
+                        try {
+                            AutoScaleConfig.resolve(pulsar().getConfig(), override, null);
+                        } catch (IllegalArgumentException e) {
+                            throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
+                        }
+                    }
+                })
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    policies.scalableTopicAutoScalePolicy = override;
                     return policies;
                 }));
     }

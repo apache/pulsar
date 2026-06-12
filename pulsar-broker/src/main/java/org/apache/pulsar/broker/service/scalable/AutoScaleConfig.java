@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import java.time.Duration;
 import lombok.Builder;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 
 /**
  * Fully-resolved auto split/merge policy for a single scalable topic (PIP-483).
@@ -81,6 +82,30 @@ public record AutoScaleConfig(
      * @return the resolved policy reflecting the {@code scalableTopic*} settings
      */
     public static AutoScaleConfig fromBrokerConfig(ServiceConfiguration conf) {
+        return brokerDefaults(conf).validated();
+    }
+
+    /**
+     * Resolve the effective policy for a topic: broker defaults, overlaid with the namespace
+     * override, overlaid with the topic override (most-specific wins per field; {@code null}
+     * override fields fall through).
+     *
+     * @param conf              the broker configuration (cluster-wide defaults)
+     * @param namespaceOverride the namespace-level override, or {@code null} if none
+     * @param topicOverride     the topic-level override, or {@code null} if none
+     * @return the validated effective policy
+     * @throws IllegalArgumentException if the resolved policy violates an invariant
+     */
+    public static AutoScaleConfig resolve(ServiceConfiguration conf,
+                                          AutoScalePolicyOverride namespaceOverride,
+                                          AutoScalePolicyOverride topicOverride) {
+        AutoScaleConfig config = brokerDefaults(conf);
+        config = applyOverride(config, namespaceOverride);
+        config = applyOverride(config, topicOverride);
+        return config.validated();
+    }
+
+    private static AutoScaleConfig brokerDefaults(ServiceConfiguration conf) {
         return AutoScaleConfig.builder()
                 .enabled(conf.isScalableTopicAutoScaleEnabled())
                 .maxSegments(conf.getScalableTopicMaxSegments())
@@ -97,8 +122,60 @@ public record AutoScaleConfig(
                 .mergeBytesRateIn(conf.getScalableTopicMergeBytesRateInThreshold())
                 .mergeMsgRateOut(conf.getScalableTopicMergeMsgRateOutThreshold())
                 .mergeBytesRateOut(conf.getScalableTopicMergeBytesRateOutThreshold())
-                .build()
-                .validated();
+                .build();
+    }
+
+    private static AutoScaleConfig applyOverride(AutoScaleConfig base, AutoScalePolicyOverride o) {
+        if (o == null) {
+            return base;
+        }
+        AutoScaleConfigBuilder b = base.toBuilder();
+        if (o.getEnabled() != null) {
+            b.enabled(o.getEnabled());
+        }
+        if (o.getMaxSegments() != null) {
+            b.maxSegments(o.getMaxSegments());
+        }
+        if (o.getMinSegments() != null) {
+            b.minSegments(o.getMinSegments());
+        }
+        if (o.getMaxDagDepth() != null) {
+            b.maxDagDepth(o.getMaxDagDepth());
+        }
+        if (o.getSplitCooldownSeconds() != null) {
+            b.splitCooldown(Duration.ofSeconds(o.getSplitCooldownSeconds()));
+        }
+        if (o.getMergeCooldownSeconds() != null) {
+            b.mergeCooldown(Duration.ofSeconds(o.getMergeCooldownSeconds()));
+        }
+        if (o.getMergeWindowSeconds() != null) {
+            b.mergeWindow(Duration.ofSeconds(o.getMergeWindowSeconds()));
+        }
+        if (o.getSplitMsgRateInThreshold() != null) {
+            b.splitMsgRateIn(o.getSplitMsgRateInThreshold());
+        }
+        if (o.getSplitBytesRateInThreshold() != null) {
+            b.splitBytesRateIn(o.getSplitBytesRateInThreshold());
+        }
+        if (o.getSplitMsgRateOutThreshold() != null) {
+            b.splitMsgRateOut(o.getSplitMsgRateOutThreshold());
+        }
+        if (o.getSplitBytesRateOutThreshold() != null) {
+            b.splitBytesRateOut(o.getSplitBytesRateOutThreshold());
+        }
+        if (o.getMergeMsgRateInThreshold() != null) {
+            b.mergeMsgRateIn(o.getMergeMsgRateInThreshold());
+        }
+        if (o.getMergeBytesRateInThreshold() != null) {
+            b.mergeBytesRateIn(o.getMergeBytesRateInThreshold());
+        }
+        if (o.getMergeMsgRateOutThreshold() != null) {
+            b.mergeMsgRateOut(o.getMergeMsgRateOutThreshold());
+        }
+        if (o.getMergeBytesRateOutThreshold() != null) {
+            b.mergeBytesRateOut(o.getMergeBytesRateOutThreshold());
+        }
+        return b.build();
     }
 
     /**

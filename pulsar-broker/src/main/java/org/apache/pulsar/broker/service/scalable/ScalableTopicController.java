@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.scalable.HashRange;
@@ -359,10 +360,6 @@ public class ScalableTopicController {
         if (brokerConfig == null) {
             return CompletableFuture.completedFuture(null);
         }
-        AutoScaleConfig config = AutoScaleConfig.fromBrokerConfig(brokerConfig);
-        if (!config.enabled()) {
-            return CompletableFuture.completedFuture(null);
-        }
         if (!autoScaleInFlight.compareAndSet(false, true)) {
             // Another evaluation or auto operation is already running. Don't drop the
             // trigger: mark it pending so the in-flight run re-evaluates on completion —
@@ -372,11 +369,18 @@ public class ScalableTopicController {
             return CompletableFuture.completedFuture(null);
         }
         try {
-            return collectConsumerCounts()
-                    .thenCombine(collectLoadSamples(), (consumers, load) ->
-                            AutoScalePolicyEvaluator.decide(currentLayout, load, consumers, config,
-                                    clock.millis(), lastSplitAtMs, lastMergeAtMs))
-                    .thenCompose(decision -> dispatch(decision, config, trigger))
+            return resolveAutoScaleConfig(brokerConfig)
+                    .thenCompose(config -> {
+                        if (!config.enabled()) {
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return collectConsumerCounts()
+                                .thenCombine(collectLoadSamples(), (consumers, load) ->
+                                        AutoScalePolicyEvaluator.decide(currentLayout, load,
+                                                consumers, config, clock.millis(),
+                                                lastSplitAtMs, lastMergeAtMs))
+                                .thenCompose(decision -> dispatch(decision, config, trigger));
+                    })
                     .whenComplete((__, ex) -> {
                         autoScaleInFlight.set(false);
                         if (autoScaleReEvaluate.getAndSet(false)) {
@@ -391,6 +395,28 @@ public class ScalableTopicController {
             autoScaleInFlight.set(false);
             throw t;
         }
+    }
+
+    /**
+     * Resolve the effective auto split/merge policy for this topic: broker defaults overlaid
+     * with the namespace-level override ({@code Policies.scalableTopicAutoScalePolicy}) and
+     * then the per-topic override ({@code ScalableTopicMetadata.autoScalePolicy}). Both reads
+     * are metadata-cache-backed, so this is cheap per evaluation and override changes take
+     * effect on the next tick without controller restarts.
+     */
+    private CompletableFuture<AutoScaleConfig> resolveAutoScaleConfig(
+            ServiceConfiguration brokerConfig) {
+        CompletableFuture<AutoScalePolicyOverride> namespaceOverride =
+                brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                        .getPoliciesAsync(topicName.getNamespaceObject())
+                        .thenApply(opt -> opt.map(p -> p.scalableTopicAutoScalePolicy)
+                                .orElse(null));
+        CompletableFuture<AutoScalePolicyOverride> topicOverride =
+                resources.getScalableTopicMetadataAsync(topicName)
+                        .thenApply(opt -> opt.map(ScalableTopicMetadata::getAutoScalePolicy)
+                                .orElse(null));
+        return namespaceOverride.thenCombine(topicOverride,
+                (ns, topic) -> AutoScaleConfig.resolve(brokerConfig, ns, topic));
     }
 
     private CompletableFuture<Void> dispatch(AutoScaleDecision decision, AutoScaleConfig config,
@@ -657,7 +683,7 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
               SegmentLayout updated = latest.splitSegment(segmentId, nowMs);
-              return updated.toMetadata(md.getProperties());
+              return updated.toMetadata(md);
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
@@ -706,7 +732,7 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
               SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs);
-              return updated.toMetadata(md.getProperties());
+              return updated.toMetadata(md);
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
@@ -1192,7 +1218,7 @@ public class ScalableTopicController {
                     updated = updated.pruneSegment(s.segmentId());
                 }
             }
-            return updated == latest ? md : updated.toMetadata(md.getProperties());
+            return updated == latest ? md : updated.toMetadata(md);
         }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());

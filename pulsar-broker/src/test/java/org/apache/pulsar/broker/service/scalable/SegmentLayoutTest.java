@@ -269,14 +269,19 @@ public class SegmentLayoutTest {
     @Test
     public void testToMetadata() {
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of("key", "value"));
+        // A layout mutation must round-trip every non-layout field, not just properties.
+        metadata.setAutoScalePolicy(org.apache.pulsar.common.policies.data.AutoScalePolicyOverride
+                .builder().enabled(false).maxSegments(8).build());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
-        ScalableTopicMetadata restored = afterSplit.toMetadata(Map.of("key", "value"));
+        ScalableTopicMetadata restored = afterSplit.toMetadata(metadata);
         assertEquals(restored.getEpoch(), 1);
         assertEquals(restored.getNextSegmentId(), 4);
         assertEquals(restored.getSegments().size(), 4);
         assertEquals(restored.getProperties().get("key"), "value");
+        assertEquals(restored.getAutoScalePolicy(), metadata.getAutoScalePolicy(),
+                "split/merge must not drop the per-topic auto-scale policy");
     }
 
     @Test

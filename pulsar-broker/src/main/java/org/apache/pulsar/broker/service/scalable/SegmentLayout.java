@@ -276,14 +276,17 @@ public class SegmentLayout {
     }
 
     /**
-     * Convert back to metadata for persistence.
+     * Convert back to metadata for persistence, carrying over the non-layout fields
+     * (properties, per-topic auto-scale policy) from the record being replaced. Layout
+     * mutations must never silently drop fields they don't model.
      */
-    public ScalableTopicMetadata toMetadata(Map<String, String> properties) {
+    public ScalableTopicMetadata toMetadata(ScalableTopicMetadata original) {
         return ScalableTopicMetadata.builder()
                 .epoch(epoch)
                 .nextSegmentId(nextSegmentId)
                 .segments(new LinkedHashMap<>(allSegments))
-                .properties(properties)
+                .properties(original.getProperties())
+                .autoScalePolicy(original.getAutoScalePolicy())
                 .build();
     }
 

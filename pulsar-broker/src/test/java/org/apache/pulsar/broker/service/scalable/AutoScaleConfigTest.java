@@ -56,6 +56,52 @@ public class AutoScaleConfigTest {
     }
 
     @Test
+    public void testResolveLayersOverrides() {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        org.apache.pulsar.common.policies.data.AutoScalePolicyOverride ns =
+                org.apache.pulsar.common.policies.data.AutoScalePolicyOverride.builder()
+                        .maxSegments(16)
+                        .splitMsgRateInThreshold(20_000.0)
+                        .build();
+        org.apache.pulsar.common.policies.data.AutoScalePolicyOverride topic =
+                org.apache.pulsar.common.policies.data.AutoScalePolicyOverride.builder()
+                        .maxSegments(4)
+                        .splitCooldownSeconds(5L)
+                        .build();
+
+        AutoScaleConfig c = AutoScaleConfig.resolve(conf, ns, topic);
+        // Topic wins where both set.
+        assertEquals(c.maxSegments(), 4);
+        // Namespace applies where the topic is silent.
+        assertEquals(c.splitMsgRateIn(), 20_000.0);
+        // Topic-only field applies.
+        assertEquals(c.splitCooldown(), Duration.ofSeconds(5));
+        // Untouched fields fall through to the broker defaults.
+        assertEquals(c.mergeCooldown(), Duration.ofMinutes(5));
+        assertTrue(c.enabled());
+    }
+
+    @Test
+    public void testResolveNullOverridesEqualsBrokerConfig() {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertEquals(AutoScaleConfig.resolve(conf, null, null),
+                AutoScaleConfig.fromBrokerConfig(conf));
+    }
+
+    @Test
+    public void testResolveRejectsInvalidCombination() {
+        // The override is only invalid in combination: a merge threshold raised above the
+        // broker-default split threshold breaks the hysteresis invariant.
+        ServiceConfiguration conf = new ServiceConfiguration();
+        org.apache.pulsar.common.policies.data.AutoScalePolicyOverride bad =
+                org.apache.pulsar.common.policies.data.AutoScalePolicyOverride.builder()
+                        .mergeMsgRateInThreshold(conf.getScalableTopicSplitMsgRateInThreshold())
+                        .build();
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.resolve(conf, null, bad));
+    }
+
+    @Test
     public void testValidationRejectsBadConfig() {
         // Zero split threshold: the evaluator scores rate/threshold, so 0 would yield
         // Infinity (or NaN for a zero rate) — must be rejected at resolution time.
