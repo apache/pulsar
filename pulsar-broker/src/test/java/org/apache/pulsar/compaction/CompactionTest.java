@@ -2697,8 +2697,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         triggerAndWaitCompaction(topic);
 
-        // Trigger the reconnection and trim the first ledger.
-        admin.namespaces().unload("my-tenant/my-ns");
         // Simulate the pending cumulative acknowledgment is flushed after the consumer is created
         // We don't need such interception if we can support controlling the acknowledgment flush for reader.
         final var firstTime = new AtomicBoolean(true);
@@ -2711,6 +2709,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             }
         };
 
+        // Trigger the reconnection and trim the first ledger.
+        admin.namespaces().unload("my-tenant/my-ns");
         admin.lookups().lookupTopic(topic);
         final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, true).get()
                 .orElseThrow();
