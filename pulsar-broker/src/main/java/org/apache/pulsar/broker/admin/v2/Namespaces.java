@@ -886,8 +886,9 @@ public class Namespaces extends NamespacesBase {
     @Operation(summary = "Get the scalable-topic auto split/merge policy override for a namespace")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
-                    description = "Get the scalable-topic auto split/merge policy override for a namespace",
+                    description = "The scalable-topic auto split/merge policy override for the namespace",
                     content = @Content(schema = @Schema(implementation = AutoScalePolicyOverride.class))),
+            @ApiResponse(responseCode = "204", description = "No override is set on this namespace"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
             @ApiResponse(responseCode = "404", description = "Tenant or namespace doesn't exist")})
     public void getScalableTopicAutoScalePolicy(@Suspended AsyncResponse asyncResponse,

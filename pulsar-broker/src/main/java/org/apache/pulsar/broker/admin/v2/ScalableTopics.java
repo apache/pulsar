@@ -487,9 +487,9 @@ public class ScalableTopics extends AdminResource {
     @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
     @Operation(summary = "Get the per-topic auto split/merge policy override.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The per-topic auto split/merge policy override; "
-                    + "empty body if no override is set.",
+            @ApiResponse(responseCode = "200", description = "The per-topic auto split/merge policy override.",
                     content = @Content(schema = @Schema(implementation = AutoScalePolicyOverride.class))),
+            @ApiResponse(responseCode = "204", description = "No override is set on this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
