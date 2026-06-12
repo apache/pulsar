@@ -97,6 +97,33 @@ public class ScalableTopicAutoScalePolicyTest extends SharedPulsarBaseTest {
     }
 
     @Test
+    public void testTopicOverrideValidatedAgainstNamespaceOverride() throws Exception {
+        // Each layer is valid against the broker defaults, but combined they invert the
+        // hysteresis invariant: ns raises mergeMsgRateIn to 5000, topic lowers
+        // splitMsgRateIn to 2000 → split <= merge. The topic-level set must see the
+        // current namespace override and reject with 412.
+        String namespace = getNamespace();
+        String topic = newScalableTopic();
+        try {
+            admin.namespaces().setScalableTopicAutoScalePolicy(namespace,
+                    AutoScalePolicyOverride.builder().mergeMsgRateInThreshold(5_000.0).build());
+
+            assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                    () -> admin.scalableTopics().setAutoScalePolicy(topic,
+                            AutoScalePolicyOverride.builder()
+                                    .splitMsgRateInThreshold(2_000.0).build()));
+
+            // The same topic override is accepted once the conflicting namespace layer
+            // is gone.
+            admin.namespaces().removeScalableTopicAutoScalePolicy(namespace);
+            admin.scalableTopics().setAutoScalePolicy(topic,
+                    AutoScalePolicyOverride.builder().splitMsgRateInThreshold(2_000.0).build());
+        } finally {
+            admin.namespaces().removeScalableTopicAutoScalePolicy(namespace);
+        }
+    }
+
+    @Test
     public void testTopicLevelOnMissingTopicIs404() {
         String missing = "topic://" + getNamespace() + "/does-not-exist";
         assertThrows(PulsarAdminException.NotFoundException.class,

@@ -577,17 +577,32 @@ public class ScalableTopics extends AdminResource {
     private void internalSetAutoScalePolicy(AsyncResponse asyncResponse, TopicName tn,
                                             AutoScalePolicyOverride override) {
         validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.WRITE)
-                .thenAccept(__ -> {
-                    if (override != null) {
-                        // The override must produce a valid policy in combination with the
-                        // broker defaults (the namespace layer can only have been valid the
-                        // same way). Reject invariant violations at set time.
-                        try {
-                            AutoScaleConfig.resolve(pulsar().getConfig(), null, override);
-                        } catch (IllegalArgumentException e) {
-                            throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
-                        }
+                .thenCompose(__ -> {
+                    if (override == null) {
+                        return CompletableFuture.completedFuture(null);
                     }
+                    // Validate the override in combination with the layers it will actually
+                    // be resolved with: the broker defaults AND the current namespace
+                    // override — two layers that are each valid against the defaults can
+                    // still combine into an invalid policy (e.g. the namespace raises a
+                    // merge threshold and the topic lowers the matching split threshold).
+                    // This check is best-effort: the namespace override can still change
+                    // afterwards, and broker defaults can differ across restarts — the
+                    // controller handles a combination that has become invalid by falling
+                    // back to disabled (see ScalableTopicController.resolveAutoScaleConfig).
+                    return pulsar().getPulsarResources().getNamespaceResources()
+                            .getPoliciesAsync(namespaceName)
+                            .thenAccept(optPolicies -> {
+                                AutoScalePolicyOverride nsOverride = optPolicies
+                                        .map(p -> p.scalableTopicAutoScalePolicy)
+                                        .orElse(null);
+                                try {
+                                    AutoScaleConfig.resolve(pulsar().getConfig(), nsOverride, override);
+                                } catch (IllegalArgumentException e) {
+                                    throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                            e.getMessage());
+                                }
+                            });
                 })
                 .thenCompose(__ -> resources().updateScalableTopicAsync(tn, md -> {
                     md.setAutoScalePolicy(override);

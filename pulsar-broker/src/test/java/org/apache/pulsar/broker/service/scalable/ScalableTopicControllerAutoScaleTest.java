@@ -303,6 +303,33 @@ public class ScalableTopicControllerAutoScaleTest {
     }
 
     @Test
+    public void testInvalidOverrideCombinationFallsBackToDisabled() throws Exception {
+        // Namespace and topic overrides that are each valid against the broker defaults but
+        // invalid combined: the namespace raises the merge threshold, the topic lowers the
+        // matching split threshold below it (hysteresis inversion). The controller must not
+        // fail the evaluation chain — it treats auto split/merge as disabled until fixed.
+        namespacePolicies = new Policies();
+        namespacePolicies.scalableTopicAutoScalePolicy = AutoScalePolicyOverride.builder()
+                .mergeMsgRateInThreshold(5_000.0)
+                .build();
+
+        startController(2);
+        resources.updateScalableTopicAsync(topicName, md -> {
+            md.setAutoScalePolicy(AutoScalePolicyOverride.builder()
+                    .splitMsgRateInThreshold(2_000.0)
+                    .build());
+            return md;
+        }).get();
+
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        // Must complete normally (no IllegalArgumentException) and take no action.
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2,
+                "invalid override combination must disable auto split/merge, not split");
+    }
+
+    @Test
     public void testConsumerBurstConvergesWithoutTicks() throws Exception {
         // A group of consumers joining in quick succession must converge to one segment
         // each purely from the event-driven evaluations + post-split follow-up chain — no

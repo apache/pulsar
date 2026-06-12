@@ -403,6 +403,13 @@ public class ScalableTopicController {
      * then the per-topic override ({@code ScalableTopicMetadata.autoScalePolicy}). Both reads
      * are metadata-cache-backed, so this is cheap per evaluation and override changes take
      * effect on the next tick without controller restarts.
+     *
+     * <p>Set-time validation is best-effort only (the namespace override can change after a
+     * topic override was validated against it, and broker defaults can change across
+     * restarts), so the stored combination can be invalid here. In that case auto split/merge
+     * is treated as <b>disabled</b> for the topic — predictable, and loudly logged on every
+     * evaluation until an operator fixes the overrides — rather than failing the evaluation
+     * chain.
      */
     private CompletableFuture<AutoScaleConfig> resolveAutoScaleConfig(
             ServiceConfiguration brokerConfig) {
@@ -415,8 +422,18 @@ public class ScalableTopicController {
                 resources.getScalableTopicMetadataAsync(topicName)
                         .thenApply(opt -> opt.map(ScalableTopicMetadata::getAutoScalePolicy)
                                 .orElse(null));
-        return namespaceOverride.thenCombine(topicOverride,
-                (ns, topic) -> AutoScaleConfig.resolve(brokerConfig, ns, topic));
+        return namespaceOverride.thenCombine(topicOverride, (ns, topic) -> {
+            try {
+                return AutoScaleConfig.resolve(brokerConfig, ns, topic);
+            } catch (IllegalArgumentException e) {
+                log.warn().attr("reason", e.getMessage())
+                        .log("Resolved auto split/merge policy is invalid; treating auto "
+                                + "split/merge as disabled for this topic until the namespace "
+                                + "or topic override is fixed");
+                return AutoScaleConfig.fromBrokerConfig(brokerConfig)
+                        .toBuilder().enabled(false).build();
+            }
+        });
     }
 
     private CompletableFuture<Void> dispatch(AutoScaleDecision decision, AutoScaleConfig config,
