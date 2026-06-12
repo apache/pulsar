@@ -133,7 +133,11 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
             // either not connected or slow.
             // We don't need to keep retriggering the timer. When the consumer
             // catches up, the dispatcher will do the readMoreEntries() and
-            // get these messages
+            // get these messages.
+            // Reset the tracked state so a subsequent updateTimer() call cannot short-circuit on a stale
+            // currentTimeoutTarget (the timeout was just cancelled above and no live timer remains). See #25996.
+            currentTimeoutTarget = -1;
+            timeout = null;
             return;
         }
 

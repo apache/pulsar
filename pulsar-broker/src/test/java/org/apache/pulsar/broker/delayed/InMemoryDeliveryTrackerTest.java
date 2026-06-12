@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -114,6 +115,30 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
+            case "testStrictModeTimerStallsAfterEarlyPopAndReAdd" -> {
+                // Mock timer that records the currently-armed timeouts so the test can observe whether a
+                // delivery timer is live. Cancelling a timeout removes it from the map, mirroring the wheel.
+                Timer mockTimer = mock(Timer.class);
+                NavigableMap<Long, TimerTask> tasks = new TreeMap<>();
+                when(mockTimer.newTimeout(any(), anyLong(), any())).then(invocation -> {
+                    TimerTask task = invocation.getArgument(0, TimerTask.class);
+                    long timeout = invocation.getArgument(1, Long.class);
+                    TimeUnit unit = invocation.getArgument(2, TimeUnit.class);
+                    long scheduleAt = clockTime.get() + unit.toMillis(timeout);
+                    tasks.put(scheduleAt, task);
+                    Timeout t = mock(Timeout.class);
+                    when(t.cancel()).then(i -> tasks.remove(scheduleAt, task));
+                    when(t.isCancelled()).then(i -> !tasks.containsValue(task));
+                    return t;
+                });
+                // tickTimeMillis=1000 -> timestamps are trimmed to the lower 9 bits (multiples of 512ms),
+                // which is what lets getScheduledMessages pop a message up to ~511ms before its deliverAt.
+                yield new Object[][]{{
+                        new InMemoryDelayedDeliveryTracker(dispatcher, mockTimer, 1000, clock,
+                                true, 0),
+                        tasks
+                }};
+            }
             default -> new Object[][]{{
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, 0)
@@ -271,6 +296,67 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
             assertEquals(position.getLedgerId(), i);
             assertEquals(position.getEntryId(), i);
         }
+        tracker.close();
+    }
+
+    /**
+     * Reproduces https://github.com/apache/pulsar/issues/25996.
+     *
+     * With isDelayedDeliveryDeliverAtTimeStrict=true and tickTimeMillis=1000, a message can be popped by
+     * getScheduledMessages up to ~511ms before its real deliverAt (because of timestamp trimming). The
+     * strict dispatcher re-adds the not-yet-due message, and {@code AbstractDelayedDeliveryTracker.updateTimer()}
+     * cancels the timer that was armed for the next message while taking its {@code delayMillis < 0} early
+     * return without clearing {@code currentTimeoutTarget}/{@code timeout}. When the early message is finally
+     * delivered, updateTimer() short-circuits on the stale {@code currentTimeoutTarget} and never re-arms the
+     * timer, so the remaining delayed messages stall indefinitely until an unrelated dispatch event occurs.
+     *
+     * The trimmed buckets (multiples of 512ms) used below:
+     *   M1 deliverAt=60400 -> bucket 59904   (gets popped early then re-added)
+     *   M2 deliverAt=61000 -> bucket 60928   (the message that must not be forgotten)
+     */
+    @Test(dataProvider = "delayedTracker")
+    public void testStrictModeTimerStallsAfterEarlyPopAndReAdd(InMemoryDelayedDeliveryTracker tracker,
+                                                               NavigableMap<Long, TimerTask> tasks) throws Exception {
+        clockTime.set(0);
+
+        // Two delayed messages in different trimmed buckets. A delivery timer is armed for the earliest.
+        assertTrue(tracker.addMessage(1, 1, 60400));
+        assertTrue(tracker.addMessage(2, 2, 61000));
+        assertEquals(tasks.size(), 1, "a delivery timer should be armed for the earliest message");
+
+        // The timer fires slightly late (wheel/scheduling granularity): now=60000 sits inside M1's trim
+        // window (bucket 59904 <= 60000 < deliverAt 60400). Mimic the wheel popping and running the task.
+        clockTime.set(60000);
+        Timeout fired = mock(Timeout.class);
+        when(fired.isCancelled()).thenReturn(false);
+        tasks.pollFirstEntry().getValue().run(fired);
+
+        // Dispatcher reads the scheduled messages: M1 is popped ~400ms early; the timer re-arms for M2.
+        Set<Position> scheduled = tracker.getScheduledMessages(100);
+        assertEquals(scheduled.size(), 1);
+        assertEquals(scheduled.iterator().next(), PositionFactory.create(1, 1));
+        assertEquals(tasks.size(), 1, "after popping M1 the timer should be re-armed for M2");
+
+        // Strict mode: M1 is not actually due yet (60400 > now 60000), so the dispatcher puts it back.
+        // This is the re-add that triggers the buggy updateTimer() early return.
+        assertTrue(tracker.addMessage(1, 1, 60400));
+
+        // M1's real deliverAt arrives; a dispatch round delivers it for real (it is no longer re-added).
+        clockTime.set(60400);
+        scheduled = tracker.getScheduledMessages(100);
+        assertEquals(scheduled.size(), 1);
+        assertEquals(scheduled.iterator().next(), PositionFactory.create(1, 1));
+
+        // M2 is still pending and not yet available...
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+        assertFalse(tracker.hasMessageAvailable());
+
+        // ...so a live delivery timer MUST exist to eventually deliver it. With the bug the timer was
+        // cancelled and never re-armed (currentTimeoutTarget stale), leaving M2 to stall forever.
+        assertFalse(tasks.isEmpty(),
+                "a delivery timer must remain armed for the pending message M2; "
+                        + "an empty timer set means it will never be delivered (issue #25996)");
+
         tracker.close();
     }
 
