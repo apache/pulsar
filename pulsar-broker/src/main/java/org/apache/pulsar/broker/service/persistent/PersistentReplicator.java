@@ -240,6 +240,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
+    @Data
+    @AllArgsConstructor
+    @VisibleForTesting
+    static class ReadEntriesRequest {
+        private InFlightTask inFlightTask;
+        private long bytesToRead;
+    }
+
     /**
      * Calculate available permits for read entries.
      */
@@ -287,9 +295,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (state.equals(Terminated) || state.equals(Terminating)) {
             return;
         }
-        // Acquire permits and check state of producer.
-        InFlightTask newInFlightTask = acquirePermitsIfNotFetchingSchema();
-        if (newInFlightTask == null) {
+        ReadEntriesRequest request = acquireReadEntriesRequestIfNeeded();
+        if (request == null) {
             // no permits from rate limit
             log.debug("Not scheduling read due to pending read or no permits");
             if (!hasPendingRead()) {
@@ -300,42 +307,58 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 return;
             }
         }
-        // If disabled RateLimiter.
-        if (!dispatchRateLimiter.isPresent() || !dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
-            cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, -1, this,
-                    newInFlightTask/* Context object */, topic.getMaxReadPosition());
-            return;
-        }
-        // No permits of RateLimiter.
-        AvailablePermits availablePermits = getRateLimiterAvailablePermits(newInFlightTask.readingEntries);
-        if (!availablePermits.isReadable()) {
-            // no rate limiter permits from rate limit
-            log.debug()
-                    .attr("messages", availablePermits.getMessages())
-                    .attr("bytes", availablePermits.getBytes())
-                    .log("Throttling replication traffic");
-            topic.getBrokerService().executor().schedule(
-                    () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-            return;
-        }
-        // Has permits of RateLimiter.
-        int messagesToRead = availablePermits.getMessages();
-        long bytesToRead = availablePermits.getBytes();
-        if (!isWritable()) {
-            log.debug("Throttling replication traffic because producer is not writable");
-            // Minimize the read size if the producer is disconnected or the window is already full
-            messagesToRead = 1;
-        }
-        // Update acquired permits exceeds limitation.
-        if (messagesToRead < newInFlightTask.readingEntries) {
-            newInFlightTask.setReadingEntries(messagesToRead);
-        }
+        InFlightTask newInFlightTask = request.getInFlightTask();
         log.debug()
                 .attr("readingEntries", newInFlightTask.readingEntries)
-                .attr("bytesToRead", bytesToRead)
+                .attr("bytesToRead", request.bytesToRead)
                 .log("Scheduling read");
-        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, bytesToRead, this,
+        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, request.bytesToRead, this,
                 newInFlightTask/* Context object */, topic.getMaxReadPosition());
+    }
+
+    @VisibleForTesting
+    ReadEntriesRequest acquireReadEntriesRequestIfNeeded() {
+        synchronized (inFlightTasks) {
+            if (hasPendingRead()) {
+                log.info("Skip the reading because there is a pending read task");
+                return null;
+            }
+            if (waitForCursorRewindingRefCnf > 0) {
+                log.info("Skip the reading due to new detected schema");
+                return null;
+            }
+            if (state != Started) {
+                log.info("Skip the reading because producer has not started");
+                return null;
+            }
+            int permits = getPermitsIfNoPendingRead();
+            if (permits == 0) {
+                return null;
+            }
+
+            int messagesToRead = permits;
+            long bytesToRead = -1;
+            if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
+                AvailablePermits availablePermits = getRateLimiterAvailablePermits(permits);
+                if (!availablePermits.isReadable()) {
+                    // no rate limiter permits from rate limit
+                    log.debug()
+                            .attr("messages", availablePermits.getMessages())
+                            .attr("bytes", availablePermits.getBytes())
+                            .log("Throttling replication traffic");
+                    return null;
+                }
+                messagesToRead = availablePermits.getMessages();
+                bytesToRead = availablePermits.getBytes();
+                if (!isWritable()) {
+                    log.debug("Throttling replication traffic because producer is not writable");
+                    // Minimize the read size if the producer is disconnected or the window is already full
+                    messagesToRead = 1;
+                }
+            }
+            return new ReadEntriesRequest(
+                    createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), messagesToRead), bytesToRead);
+        }
     }
 
     @Override
@@ -874,26 +897,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected InFlightTask acquirePermitsIfNotFetchingSchema() {
-        synchronized (inFlightTasks) {
-            if (hasPendingRead()) {
-                log.info("Skip the reading because there is a pending read task");
-                return null;
-            }
-            if (waitForCursorRewindingRefCnf > 0) {
-                log.info("Skip the reading due to new detected schema");
-                return null;
-            }
-            if (state != Started) {
-                log.info("Skip the reading because producer has not started");
-                return null;
-            }
-            // Guarantee that there is a unique cursor reading task.
-            int permits = getPermitsIfNoPendingRead();
-            if (permits == 0) {
-                return null;
-            }
-            return createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), permits);
-        }
+        ReadEntriesRequest request = acquireReadEntriesRequestIfNeeded();
+        return request == null ? null : request.getInFlightTask();
     }
 
     protected int getPermitsIfNoPendingRead() {

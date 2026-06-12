@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -196,6 +198,39 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         } finally {
             inFlightTasks.clear();
             inFlightTasks.addAll(originalTasks);
+        }
+    }
+
+    @Test
+    public void testRateLimiterWithoutPermitsDoesNotCreateInFlightTask() throws Exception {
+        assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(0, -1);
+        assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(-1, 0);
+    }
+
+    private void assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(long availableMessages,
+                                                                          long availableBytes) throws Exception {
+        PersistentReplicator replicator = getReplicator(topicName);
+
+        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
+        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
+        Optional<DispatchRateLimiter> originalRateLimiter = replicator.dispatchRateLimiter;
+        inFlightTasks.clear();
+
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.isDispatchRateLimitingEnabled()).thenReturn(true);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(availableMessages);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(availableBytes);
+        replicator.dispatchRateLimiter = Optional.of(rateLimiter);
+
+        try {
+            Assert.assertNull(replicator.acquireReadEntriesRequestIfNeeded());
+            Assert.assertTrue(inFlightTasks.isEmpty());
+            Assert.assertFalse(replicator.hasPendingRead());
+            assertEquals(replicator.getPermitsIfNoPendingRead(), 1000);
+        } finally {
+            inFlightTasks.clear();
+            inFlightTasks.addAll(originalTasks);
+            replicator.dispatchRateLimiter = originalRateLimiter;
         }
     }
 
