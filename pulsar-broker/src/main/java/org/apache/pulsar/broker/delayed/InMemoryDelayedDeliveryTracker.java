@@ -62,6 +62,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // The bit count to trim to reduce memory occupation.
     private final int timestampPrecisionBitCnt;
+    private final long precisionMillis;
 
     // Count of delayed messages in the tracker.
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
@@ -91,6 +92,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         this.log = LOG.with().ctx(super.log).build();
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
         this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
+        this.precisionMillis = 1L << timestampPrecisionBitCnt;
     }
 
     /**
@@ -167,7 +169,6 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     private long roundTimestamp(long deliverAt) {
         if (isDeliverAtTimeStrict()) {
-            long precisionMillis = 1L << timestampPrecisionBitCnt;
             // round up, saturating at Long.MAX_VALUE instead of overflowing for deliverAt close to Long.MAX_VALUE
             long roundedUp = deliverAt + precisionMillis - 1;
             return trimLowerBit(roundedUp < deliverAt ? Long.MAX_VALUE : roundedUp, timestampPrecisionBitCnt);
