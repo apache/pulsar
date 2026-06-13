@@ -98,7 +98,7 @@ public class PendingAcksMapBenchmark {
     @Benchmark
     public void populate(PopulateState state, Blackhole blackhole) {
         PendingAckStore store = createStore(state.implementation);
-        populate(store, state.entries, state.ledgers, null, null);
+        populate(store, state.parsedDataset, null, null);
         blackhole.consume(store);
     }
 
@@ -108,7 +108,9 @@ public class PendingAcksMapBenchmark {
         private String implementation;
 
         @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
-                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries2Ledgers",
+                "defaultUnacked50kEntries5Ledgers", "defaultUnacked50kEntries10Ledgers",
+                "defaultUnacked50kEntries20Ledgers", "residual1kEntries5Ledgers", "residual1kEntries100Ledgers",
                 "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
@@ -126,7 +128,7 @@ public class PendingAcksMapBenchmark {
             ledgerIds = new long[entries];
             entryIds = new long[entries];
             store = createStore(implementation);
-            populate(store, entries, ledgers, ledgerIds, entryIds);
+            populate(store, parsedDataset, ledgerIds, entryIds);
         }
     }
 
@@ -136,7 +138,9 @@ public class PendingAcksMapBenchmark {
         private String implementation;
 
         @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
-                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries2Ledgers",
+                "defaultUnacked50kEntries5Ledgers", "defaultUnacked50kEntries10Ledgers",
+                "defaultUnacked50kEntries20Ledgers", "residual1kEntries5Ledgers", "residual1kEntries100Ledgers",
                 "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
@@ -148,9 +152,9 @@ public class PendingAcksMapBenchmark {
         public void setup() {
             Dataset parsedDataset = Dataset.from(dataset);
             store = createStore(implementation);
-            populate(store, parsedDataset.entries, parsedDataset.ledgers, null, null);
+            populate(store, parsedDataset, null, null);
             markDeleteLedgerId = parsedDataset.ledgers / 2L;
-            markDeleteEntryId = parsedDataset.entries / parsedDataset.ledgers / 2L;
+            markDeleteEntryId = parsedDataset.entriesInLedger(markDeleteLedgerId) / 2L;
         }
     }
 
@@ -160,18 +164,17 @@ public class PendingAcksMapBenchmark {
         private String implementation;
 
         @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
-                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries2Ledgers",
+                "defaultUnacked50kEntries5Ledgers", "defaultUnacked50kEntries10Ledgers",
+                "defaultUnacked50kEntries20Ledgers", "residual1kEntries5Ledgers", "residual1kEntries100Ledgers",
                 "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
-        private int entries;
-        private int ledgers;
+        private Dataset parsedDataset;
 
         @Setup(Level.Trial)
         public void setup() {
-            Dataset parsedDataset = Dataset.from(dataset);
-            entries = parsedDataset.entries;
-            ledgers = parsedDataset.ledgers;
+            parsedDataset = Dataset.from(dataset);
         }
     }
 
@@ -191,7 +194,12 @@ public class PendingAcksMapBenchmark {
         RECEIVER_QUEUE_1K_ENTRIES_1_LEDGER("receiverQueue1kEntries1Ledger", 1_000, 1),
         BATCHED_RECEIVER_QUEUE_100_ENTRIES_1_LEDGER("batchedReceiverQueue100Entries1Ledger", 100, 1),
         DEFAULT_UNACKED_50K_ENTRIES_1_LEDGER("defaultUnacked50kEntries1Ledger", 50_000, 1),
+        DEFAULT_UNACKED_50K_ENTRIES_2_LEDGERS("defaultUnacked50kEntries2Ledgers", 50_000, 2),
         DEFAULT_UNACKED_50K_ENTRIES_5_LEDGERS("defaultUnacked50kEntries5Ledgers", 50_000, 5),
+        DEFAULT_UNACKED_50K_ENTRIES_10_LEDGERS("defaultUnacked50kEntries10Ledgers", 50_000, 10),
+        DEFAULT_UNACKED_50K_ENTRIES_20_LEDGERS("defaultUnacked50kEntries20Ledgers", 50_000, 20),
+        RESIDUAL_1K_ENTRIES_5_LEDGERS("residual1kEntries5Ledgers", 1_000, 5),
+        RESIDUAL_1K_ENTRIES_100_LEDGERS("residual1kEntries100Ledgers", 1_000, 100),
         ENTRIES_64K_LEDGERS_1K("64kEntries1kLedgers", 65_536, 1_024),
         ENTRIES_1M_LEDGERS_16K("1mEntries16kLedgers", 1_048_576, 16_384);
 
@@ -212,6 +220,12 @@ public class PendingAcksMapBenchmark {
                 }
             }
             throw new IllegalArgumentException("Unknown dataset: " + name);
+        }
+
+        private int entriesInLedger(long ledgerId) {
+            int baseEntries = entries / ledgers;
+            int extraEntries = entries % ledgers;
+            return baseEntries + (ledgerId < extraEntries ? 1 : 0);
         }
     }
 
@@ -239,16 +253,20 @@ public class PendingAcksMapBenchmark {
         };
     }
 
-    private static void populate(PendingAckStore store, int entries, int ledgers,
+    private static void populate(PendingAckStore store, Dataset dataset,
                                  long[] ledgerIds, long[] entryIds) {
-        for (int i = 0; i < entries; i++) {
-            long ledgerId = i % ledgers;
-            long entryId = i / ledgers;
-            if (ledgerIds != null) {
-                ledgerIds[i] = ledgerId;
-                entryIds[i] = entryId;
+        int index = 0;
+        // Managed ledger entries are appended sequentially inside one ledger before rollover.
+        for (long ledgerId = 0; ledgerId < dataset.ledgers; ledgerId++) {
+            int entriesInLedger = dataset.entriesInLedger(ledgerId);
+            for (long entryId = 0; entryId < entriesInLedger; entryId++) {
+                if (ledgerIds != null) {
+                    ledgerIds[index] = ledgerId;
+                    entryIds[index] = entryId;
+                }
+                store.addPendingAckIfAllowed(ledgerId, entryId, remaining(index), stickyKeyHash(index));
+                index++;
             }
-            store.addPendingAckIfAllowed(ledgerId, entryId, remaining(i), stickyKeyHash(i));
         }
     }
 

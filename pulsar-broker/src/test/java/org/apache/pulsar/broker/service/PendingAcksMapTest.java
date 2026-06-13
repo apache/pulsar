@@ -437,6 +437,35 @@ public class PendingAcksMapTest {
     }
 
     @Test
+    public void removeAllUpTo_RemovesWholeLedgersAndUnorderedBoundaryEntries() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 10L, 1, 110);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 5L, 1, 205);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 15L, 1, 215);
+        pendingAcksMap.addPendingAckIfAllowed(3L, 20L, 1, 320);
+        pendingAcksMap.addPendingAckIfAllowed(3L, 2L, 1, 302);
+        pendingAcksMap.addPendingAckIfAllowed(3L, 8L, 1, 308);
+        pendingAcksMap.addPendingAckIfAllowed(3L, 11L, 1, 311);
+        pendingAcksMap.addPendingAckIfAllowed(4L, 1L, 1, 401);
+
+        Set<String> removedEntries = new HashSet<>();
+        pendingAcksMap.removeAllUpTo(3L, 8L, (ledgerId, entryId, batchSize, stickyKeyHash) ->
+                removedEntries.add(ledgerId + ":" + entryId + ":" + stickyKeyHash));
+
+        assertEquals(removedEntries, Set.of("1:10:110", "2:5:205", "2:15:215", "3:2:302", "3:8:308"));
+        assertFalse(pendingAcksMap.contains(1L, 10L));
+        assertFalse(pendingAcksMap.contains(2L, 5L));
+        assertFalse(pendingAcksMap.contains(2L, 15L));
+        assertFalse(pendingAcksMap.contains(3L, 2L));
+        assertFalse(pendingAcksMap.contains(3L, 8L));
+        assertTrue(pendingAcksMap.contains(3L, 11L));
+        assertTrue(pendingAcksMap.contains(3L, 20L));
+        assertTrue(pendingAcksMap.contains(4L, 1L));
+        assertEquals(pendingAcksMap.size(), 3);
+    }
+
+    @Test
     public void size_RemainsCorrectAcrossCommonOperations() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
