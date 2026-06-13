@@ -107,7 +107,9 @@ public class PendingAcksMapBenchmark {
         @Param({"oldProduction", "production"})
         private String implementation;
 
-        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
         private PendingAckStore store;
@@ -133,7 +135,9 @@ public class PendingAcksMapBenchmark {
         @Param({"oldProduction", "production"})
         private String implementation;
 
-        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
         private PendingAckStore store;
@@ -155,7 +159,9 @@ public class PendingAcksMapBenchmark {
         @Param({"oldProduction", "production"})
         private String implementation;
 
-        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries5Ledgers",
+                "64kEntries1kLedgers", "1mEntries16kLedgers"})
         private String dataset;
 
         private int entries;
@@ -175,12 +181,17 @@ public class PendingAcksMapBenchmark {
 
         private int next(int entries) {
             int current = index;
-            index = current + 1;
-            return current & (entries - 1);
+            int next = current + 1;
+            index = next == entries ? 0 : next;
+            return current;
         }
     }
 
     private enum Dataset {
+        RECEIVER_QUEUE_1K_ENTRIES_1_LEDGER("receiverQueue1kEntries1Ledger", 1_000, 1),
+        BATCHED_RECEIVER_QUEUE_100_ENTRIES_1_LEDGER("batchedReceiverQueue100Entries1Ledger", 100, 1),
+        DEFAULT_UNACKED_50K_ENTRIES_1_LEDGER("defaultUnacked50kEntries1Ledger", 50_000, 1),
+        DEFAULT_UNACKED_50K_ENTRIES_5_LEDGERS("defaultUnacked50kEntries5Ledgers", 50_000, 5),
         ENTRIES_64K_LEDGERS_1K("64kEntries1kLedgers", 65_536, 1_024),
         ENTRIES_1M_LEDGERS_16K("1mEntries16kLedgers", 1_048_576, 16_384);
 
