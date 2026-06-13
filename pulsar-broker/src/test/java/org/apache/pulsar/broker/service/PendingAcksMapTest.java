@@ -44,6 +44,7 @@ public class PendingAcksMapTest {
 
         assertTrue(result);
         assertTrue(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 1);
     }
 
     @Test
@@ -57,6 +58,7 @@ public class PendingAcksMapTest {
 
         assertFalse(result);
         assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
@@ -69,6 +71,7 @@ public class PendingAcksMapTest {
 
         assertFalse(result);
         assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
@@ -108,6 +111,7 @@ public class PendingAcksMapTest {
 
         assertTrue(result);
         assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
@@ -124,6 +128,7 @@ public class PendingAcksMapTest {
         assertFalse(pendingAcksMap.contains(1L, 1L));
         assertFalse(pendingAcksMap.contains(1L, 2L));
         assertTrue(pendingAcksMap.contains(2L, 1L));
+        assertEquals(pendingAcksMap.size(), 1);
     }
 
     @Test
@@ -144,6 +149,7 @@ public class PendingAcksMapTest {
         assertFalse(pendingAcksMap.contains(2L, 1L));
         assertTrue(pendingAcksMap.contains(2L, 2L));
         assertTrue(pendingAcksMap.contains(3L, 1L));
+        assertEquals(pendingAcksMap.size(), 2);
     }
 
     @Test
@@ -234,6 +240,14 @@ public class PendingAcksMapTest {
         });
 
         assertEquals(pendingAcksMap.size(), 1);
+
+        assertFalse(pendingAcksMap.remove(2L, 1L, 10, 125));
+
+        assertEquals(pendingAcksMap.size(), 1);
+
+        assertTrue(pendingAcksMap.remove(2L, 1L, 1, 125));
+
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
@@ -292,6 +306,7 @@ public class PendingAcksMapTest {
         assertEquals(result.leftInt(), 5);
         assertEquals(result.rightInt(), 123);
         assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
@@ -302,6 +317,7 @@ public class PendingAcksMapTest {
         IntIntPair result = pendingAcksMap.removeAndGet(1L, 1L);
 
         assertTrue(result == null);
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
