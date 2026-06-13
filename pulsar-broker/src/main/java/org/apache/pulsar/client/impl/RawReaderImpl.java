@@ -230,6 +230,17 @@ public class RawReaderImpl implements RawReader {
             CompletableFuture<RawMessage> result = new CompletableFuture<>();
             pendingRawReceives.add(result);
             tryCompletePending();
+            // Once the consumer has reached a terminal state (for example it was closed after an
+            // unrecoverable error such as the topic or namespace being deleted), no further message
+            // will arrive and no close callback will run for receives enqueued from now on, so the
+            // future would never complete. Re-checking the state after enqueueing closes the race
+            // with a concurrent close() draining the queue, since close() drains only after moving to
+            // a terminal state. This matters for compaction: a never-completing read leaves the
+            // compaction future pending, which in turn blocks forced topic/namespace deletion.
+            State state = getState();
+            if (state == State.Closing || state == State.Closed || state == State.Failed) {
+                failPendingRawReceives();
+            }
             return result;
         }
 

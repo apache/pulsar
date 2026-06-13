@@ -624,6 +624,25 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, false);
     }
 
+    @Test(timeOut = 30000)
+    public void testReadNextAsyncCompletesAfterConsumerClosed() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        admin.topics().createNonPartitionedTopic(topic);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+
+        // Put the reader's underlying consumer into a terminal state. In production this happens when a
+        // compaction's RawReader hits an unrecoverable error (e.g. the topic/namespace is being deleted).
+        reader.closeAsync().get(5, TimeUnit.SECONDS);
+
+        // A read issued once the consumer has reached a terminal state must complete instead of hanging
+        // forever: a never-completing read keeps the compaction future pending, which blocks forced
+        // topic/namespace deletion (issue #24148).
+        CompletableFuture<RawMessage> readFuture = reader.readNextAsync();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertTrue(readFuture.isDone()));
+        assertTrue(readFuture.isCompletedExceptionally());
+    }
+
     @Test(timeOut = 100000)
     public void testPauseAndResume() throws Exception {
         log.info("-- Starting testPauseAndResume test --");
