@@ -23,7 +23,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import org.testng.annotations.Test;
 
 public class HashSetTest {
@@ -79,6 +82,39 @@ public class HashSetTest {
     }
 
     @Test
+    public void testLongOpenHashSetHandlesCollisionCluster() {
+        LongOpenHashSet set = new LongOpenHashSet(4);
+        List<Long> values = collidingLongValues(16, 20);
+
+        for (long value : values) {
+            assertTrue(set.add(value));
+            assertFalse(set.add(value));
+        }
+
+        assertEquals(set.size(), values.size());
+        for (long value : values) {
+            assertTrue(set.contains(value));
+        }
+        assertFalse(set.contains(Long.MIN_VALUE + 1));
+    }
+
+    @Test
+    public void testLongOpenHashSetRandomizedAgainstHashSet() {
+        LongOpenHashSet set = new LongOpenHashSet(4);
+        Set<Long> expected = new HashSet<>();
+        Set<Long> seenValues = new HashSet<>();
+        Random random = new Random(0x5eed1234L);
+
+        for (int i = 0; i < 10_000; i++) {
+            long value = randomLongWithEdgeCases(random, 512);
+            seenValues.add(value);
+
+            assertEquals(set.add(value), expected.add(value));
+            assertLongOpenHashSetMatches(expected, seenValues, set);
+        }
+    }
+
+    @Test
     public void testIntOpenHashSetBasic() {
         IntOpenHashSet set = new IntOpenHashSet();
         assertTrue(set.isEmpty());
@@ -101,5 +137,112 @@ public class HashSetTest {
         for (int i = 0; i < 100; i++) {
             assertTrue(set.contains(i));
         }
+    }
+
+    @Test
+    public void testIntOpenHashSetHandlesCollisionCluster() {
+        IntOpenHashSet set = new IntOpenHashSet(4);
+        List<Integer> values = collidingIntValues(16, 20);
+
+        for (int value : values) {
+            assertTrue(set.add(value));
+            assertFalse(set.add(value));
+        }
+
+        assertEquals(set.size(), values.size());
+        for (int value : values) {
+            assertTrue(set.contains(value));
+        }
+        assertFalse(set.contains(Integer.MIN_VALUE + 1));
+    }
+
+    @Test
+    public void testIntOpenHashSetRandomizedAgainstHashSet() {
+        IntOpenHashSet set = new IntOpenHashSet(4);
+        Set<Integer> expected = new HashSet<>();
+        Set<Integer> seenValues = new HashSet<>();
+        Random random = new Random(0x5eed1234L);
+
+        for (int i = 0; i < 10_000; i++) {
+            int value = randomIntWithEdgeCases(random, 512);
+            seenValues.add(value);
+
+            assertEquals(set.add(value), expected.add(value));
+            assertIntOpenHashSetMatches(expected, seenValues, set);
+        }
+    }
+
+    private static void assertLongOpenHashSetMatches(Set<Long> expected, Set<Long> seenValues, LongOpenHashSet actual) {
+        assertEquals(actual.isEmpty(), expected.isEmpty());
+        assertEquals(actual.size(), expected.size());
+        for (long value : seenValues) {
+            assertEquals(actual.contains(value), expected.contains(value));
+        }
+
+        Set<Long> iterated = new HashSet<>();
+        for (long value : actual) {
+            iterated.add(value);
+        }
+        assertEquals(iterated, expected);
+
+        Set<Long> forEachValues = new HashSet<>();
+        actual.forEach((long value) -> forEachValues.add(value));
+        assertEquals(forEachValues, expected);
+    }
+
+    private static void assertIntOpenHashSetMatches(Set<Integer> expected, Set<Integer> seenValues,
+                                                    IntOpenHashSet actual) {
+        assertEquals(actual.isEmpty(), expected.isEmpty());
+        assertEquals(actual.size(), expected.size());
+        for (int value : seenValues) {
+            assertEquals(actual.contains(value), expected.contains(value));
+        }
+    }
+
+    private static long randomLongWithEdgeCases(Random random, int bound) {
+        return switch (random.nextInt(64)) {
+            case 0 -> 0L;
+            case 1 -> Long.MIN_VALUE;
+            case 2 -> Long.MAX_VALUE;
+            default -> random.nextInt(bound) - bound / 2L;
+        };
+    }
+
+    private static int randomIntWithEdgeCases(Random random, int bound) {
+        return switch (random.nextInt(64)) {
+            case 0 -> 0;
+            case 1 -> Integer.MIN_VALUE;
+            case 2 -> Integer.MAX_VALUE;
+            default -> random.nextInt(bound) - bound / 2;
+        };
+    }
+
+    private static List<Long> collidingLongValues(int capacity, int count) {
+        int mask = capacity - 1;
+        int bucket = Long2ObjectOpenHashMap.hash(0) & mask;
+        List<Long> values = new ArrayList<>();
+        for (long candidate = 0; values.size() < count; candidate++) {
+            if ((Long2ObjectOpenHashMap.hash(candidate) & mask) == bucket) {
+                values.add(candidate);
+            }
+        }
+        return values;
+    }
+
+    private static List<Integer> collidingIntValues(int capacity, int count) {
+        int mask = capacity - 1;
+        int bucket = hash(0) & mask;
+        List<Integer> values = new ArrayList<>();
+        for (int candidate = 0; values.size() < count; candidate++) {
+            if ((hash(candidate) & mask) == bucket) {
+                values.add(candidate);
+            }
+        }
+        return values;
+    }
+
+    private static int hash(int value) {
+        int h = value * 0x9E3779B9;
+        return h ^ (h >>> 16);
     }
 }

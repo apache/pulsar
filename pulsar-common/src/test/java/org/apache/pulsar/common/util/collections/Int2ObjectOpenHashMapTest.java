@@ -22,6 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import org.testng.annotations.Test;
 
 public class Int2ObjectOpenHashMapTest {
@@ -65,6 +72,19 @@ public class Int2ObjectOpenHashMapTest {
     }
 
     @Test
+    public void testRemoveConditionalUsesReferenceEquality() {
+        Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>();
+        String value = new String("one");
+        String equalValue = new String("one");
+        map.put(1, value);
+
+        assertFalse(map.remove(1, equalValue));
+        assertEquals(map.get(1), value);
+        assertTrue(map.remove(1, value));
+        assertTrue(map.isEmpty());
+    }
+
+    @Test
     public void testClear() {
         Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>();
         map.put(1, "one");
@@ -84,5 +104,107 @@ public class Int2ObjectOpenHashMapTest {
         for (int i = 0; i < 100; i++) {
             assertEquals(map.get(i), Integer.valueOf(i));
         }
+    }
+
+    @Test
+    public void testRemovePreservesProbeChainWithCollisions() {
+        Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>(4);
+        List<Integer> keys = collidingIntKeys(16, 8);
+
+        for (int i = 0; i < keys.size(); i++) {
+            assertNull(map.put(keys.get(i), "v" + i));
+        }
+
+        assertEquals(map.remove(keys.get(0)), "v0");
+        assertEquals(map.remove(keys.get(4)), "v4");
+        assertEquals(map.remove(keys.get(7)), "v7");
+
+        for (int i = 1; i < keys.size() - 1; i++) {
+            int key = keys.get(i);
+            if (i != 4) {
+                assertEquals(map.get(key), "v" + i);
+            }
+        }
+        assertNull(map.get(keys.get(0)));
+        assertNull(map.get(keys.get(4)));
+        assertNull(map.get(keys.get(7)));
+
+        assertNull(map.put(keys.get(4), "new-v4"));
+        assertEquals(map.get(keys.get(4)), "new-v4");
+    }
+
+    @Test
+    public void testRandomizedOperationsAgainstHashMap() {
+        Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>(4);
+        Map<Integer, String> expected = new HashMap<>();
+        Set<Integer> seenKeys = new HashSet<>();
+        Random random = new Random(0x5eed1234L);
+
+        for (int i = 0; i < 20_000; i++) {
+            int key = randomIntWithEdgeCases(random, 256);
+            seenKeys.add(key);
+
+            int operation = random.nextInt(100);
+            if (operation < 35) {
+                String value = randomValue(random);
+                assertEquals(map.put(key, value), expected.put(key, value));
+            } else if (operation < 55) {
+                assertEquals(map.remove(key), expected.remove(key));
+            } else if (operation < 75) {
+                String current = expected.get(key);
+                String candidate = current != null && random.nextBoolean() ? current : randomValue(random);
+                boolean expectedRemoved = current != null && current == candidate;
+                if (expectedRemoved) {
+                    expected.remove(key);
+                }
+                assertEquals(map.remove(key, candidate), expectedRemoved);
+            } else if (operation < 95) {
+                assertEquals(map.get(key), expected.get(key));
+            } else {
+                map.clear();
+                expected.clear();
+            }
+
+            assertInt2ObjectMapMatches(expected, seenKeys, map);
+        }
+    }
+
+    private static void assertInt2ObjectMapMatches(Map<Integer, String> expected, Set<Integer> seenKeys,
+                                                   Int2ObjectOpenHashMap<String> actual) {
+        assertEquals(actual.isEmpty(), expected.isEmpty());
+        assertEquals(actual.size(), expected.size());
+        for (int key : seenKeys) {
+            assertEquals(actual.get(key), expected.get(key));
+        }
+    }
+
+    private static String randomValue(Random random) {
+        return "v" + random.nextInt(512);
+    }
+
+    private static int randomIntWithEdgeCases(Random random, int bound) {
+        return switch (random.nextInt(64)) {
+            case 0 -> 0;
+            case 1 -> Integer.MIN_VALUE;
+            case 2 -> Integer.MAX_VALUE;
+            default -> random.nextInt(bound) - bound / 2;
+        };
+    }
+
+    private static List<Integer> collidingIntKeys(int capacity, int count) {
+        int mask = capacity - 1;
+        int bucket = hash(0) & mask;
+        List<Integer> keys = new ArrayList<>();
+        for (int candidate = 0; keys.size() < count; candidate++) {
+            if ((hash(candidate) & mask) == bucket) {
+                keys.add(candidate);
+            }
+        }
+        return keys;
+    }
+
+    private static int hash(int key) {
+        int h = key * 0x9E3779B9;
+        return h ^ (h >>> 16);
     }
 }

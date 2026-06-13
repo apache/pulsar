@@ -23,9 +23,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import org.testng.annotations.Test;
 
 public class Long2ObjectOpenHashMapTest {
@@ -175,5 +179,121 @@ public class Long2ObjectOpenHashMapTest {
         for (int i = 0; i < 25; i++) {
             assertEquals(map.get(i), "new" + i);
         }
+    }
+
+    @Test
+    public void testRemovePreservesProbeChainWithCollisions() {
+        Long2ObjectOpenHashMap<String> map = new Long2ObjectOpenHashMap<>(4);
+        List<Long> keys = collidingLongKeys(16, 8);
+
+        for (int i = 0; i < keys.size(); i++) {
+            assertNull(map.put(keys.get(i), "v" + i));
+        }
+
+        assertEquals(map.remove(keys.get(0)), "v0");
+        assertEquals(map.remove(keys.get(4)), "v4");
+        assertEquals(map.remove(keys.get(7)), "v7");
+
+        for (int i = 1; i < keys.size() - 1; i++) {
+            long key = keys.get(i);
+            if (i != 4) {
+                assertEquals(map.get(key), "v" + i);
+            }
+        }
+        assertNull(map.get(keys.get(0)));
+        assertNull(map.get(keys.get(4)));
+        assertNull(map.get(keys.get(7)));
+
+        assertNull(map.put(keys.get(4), "new-v4"));
+        assertEquals(map.get(keys.get(4)), "new-v4");
+    }
+
+    @Test
+    public void testComputeIfAbsentDoesNotInsertNullValue() {
+        Long2ObjectOpenHashMap<String> map = new Long2ObjectOpenHashMap<>();
+
+        assertNull(map.computeIfAbsent(Long.MAX_VALUE, __ -> null));
+        assertNull(map.get(Long.MAX_VALUE));
+        assertEquals(map.size(), 0);
+
+        assertEquals(map.computeIfAbsent(Long.MAX_VALUE, __ -> "value"), "value");
+        assertEquals(map.computeIfAbsent(Long.MAX_VALUE, __ -> null), "value");
+        assertEquals(map.size(), 1);
+    }
+
+    @Test
+    public void testRandomizedOperationsAgainstHashMap() {
+        Long2ObjectOpenHashMap<String> map = new Long2ObjectOpenHashMap<>(4);
+        Map<Long, String> expected = new HashMap<>();
+        Set<Long> seenKeys = new HashSet<>();
+        Random random = new Random(0x5eed1234L);
+
+        for (int i = 0; i < 20_000; i++) {
+            long key = randomLongWithEdgeCases(random, 256);
+            seenKeys.add(key);
+
+            int operation = random.nextInt(100);
+            if (operation < 35) {
+                String value = randomValue(random);
+                assertEquals(map.put(key, value), expected.put(key, value));
+            } else if (operation < 55) {
+                assertEquals(map.remove(key), expected.remove(key));
+            } else if (operation < 75) {
+                String value = randomValue(random);
+                assertEquals(map.computeIfAbsent(key, __ -> value),
+                        expected.computeIfAbsent(key, __ -> value));
+            } else if (operation < 95) {
+                assertEquals(map.get(key), expected.get(key));
+            } else {
+                map.clear();
+                expected.clear();
+            }
+
+            assertLong2ObjectMapMatches(expected, seenKeys, map);
+        }
+    }
+
+    private static void assertLong2ObjectMapMatches(Map<Long, String> expected, Set<Long> seenKeys,
+                                                    Long2ObjectOpenHashMap<String> actual) {
+        assertEquals(actual.isEmpty(), expected.isEmpty());
+        assertEquals(actual.size(), expected.size());
+        for (long key : seenKeys) {
+            assertEquals(actual.get(key), expected.get(key));
+        }
+
+        Map<Long, String> entries = new HashMap<>();
+        actual.forEach(entries::put);
+        assertEquals(entries, expected);
+
+        List<String> actualValues = new ArrayList<>(actual.values());
+        List<String> expectedValues = new ArrayList<>(expected.values());
+        Collections.sort(actualValues);
+        Collections.sort(expectedValues);
+        assertEquals(actualValues, expectedValues);
+    }
+
+    private static String randomValue(Random random) {
+        return "v" + random.nextInt(512);
+    }
+
+    private static long randomLongWithEdgeCases(Random random, int bound) {
+        return switch (random.nextInt(64)) {
+            case 0 -> 0L;
+            case 1 -> Long.MIN_VALUE;
+            case 2 -> Long.MAX_VALUE;
+            default -> random.nextInt(bound) - bound / 2L;
+        };
+    }
+
+    private static List<Long> collidingLongKeys(int capacity, int count) {
+        int mask = capacity - 1;
+        int bucket = Long2ObjectOpenHashMap.hash(0) & mask;
+        List<Long> keys = new ArrayList<>();
+        for (long candidate = 0; keys.size() < count; candidate++) {
+            if ((Long2ObjectOpenHashMap.hash(candidate) & mask) == bucket) {
+                keys.add(candidate);
+            }
+        }
+        return keys;
     }
 }
