@@ -213,11 +213,27 @@ public class PendingAcksMapTest {
     public void size_ReturnsCorrectSize() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        assertEquals(pendingAcksMap.size(), 0);
+
         pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
         pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
         pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 125);
 
         assertEquals(pendingAcksMap.size(), 3);
+
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 10, 123);
+        pendingAcksMap.updateRemainingUnacked(1L, 1L, 2);
+
+        assertEquals(pendingAcksMap.size(), 3);
+
+        pendingAcksMap.remove(1L, 2L);
+
+        assertEquals(pendingAcksMap.size(), 2);
+
+        pendingAcksMap.removeAllUpTo(1L, 1L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
+
+        assertEquals(pendingAcksMap.size(), 1);
     }
 
     @Test
@@ -299,4 +315,5 @@ public class PendingAcksMapTest {
 
         verify(removeHandler).handleRemoving(consumer, 1L, 1L, 123, false);
     }
+
 }
