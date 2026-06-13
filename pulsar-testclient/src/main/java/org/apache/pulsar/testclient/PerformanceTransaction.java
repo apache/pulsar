@@ -121,6 +121,15 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             + "not trying to create a topic")
     public Integer partitions = null;
 
+    @Option(names = {"--scalable"}, description = "Create the producer/consumer topics as scalable"
+            + " topics (PIP-473) with --scalable-segments initial segments. Required for transactions"
+            + " against the scalable-topics (v5) coordinator. Mutually exclusive with --partitions.")
+    public boolean scalable = false;
+
+    @Option(names = {"--scalable-segments"}, description = "Number of initial segments for scalable"
+            + " topics created via --scalable.")
+    public int scalableSegments = 1;
+
     @Option(names = {"-time",
             "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
     public long testTime = 0;
@@ -208,7 +217,27 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
         for (int i = 0; i < payloadBytes.length; ++i) {
             payloadBytes[i] = (byte) (random.nextInt(26) + 65);
         }
-        if (this.partitions != null) {
+        if (this.scalable) {
+            // Scalable topics (PIP-473) must be pre-created via the admin API — they don't
+            // auto-create on produce. Create both the produce and consume topics so a
+            // transaction against the scalable-topics coordinator has segment participants.
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(this, this.adminURL);
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
+                List<String> allTopics = new ArrayList<>(this.producerTopic);
+                allTopics.addAll(this.consumerTopic);
+                for (String topic : allTopics) {
+                    try {
+                        adminClient.scalableTopics().createScalableTopic(topic, this.scalableSegments);
+                        log.info().attr("topic", topic).attr("segments", this.scalableSegments)
+                                .log("Created scalable topic");
+                    } catch (PulsarAdminException.ConflictException alreadyExists) {
+                        log.debug().attr("topic", topic).attr("exists", alreadyExists)
+                                .log("Scalable topic already exists");
+                    }
+                }
+            }
+        } else if (this.partitions != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
                     .createAdminBuilderFromArguments(this, this.adminURL);
 

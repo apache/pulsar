@@ -75,6 +75,35 @@ dependencies {
                 }
             }
         }
+        // com.sun.activation:jakarta.activation bundles the jakarta.activation API classes together
+        // with the implementation and was not republished past 2.0.x, so it conflicts with
+        // jakarta.activation:jakarta.activation-api 2.1.x. Replace it everywhere with the API artifact
+        // plus the Eclipse Angus implementation (the EE10 successor). async-http-client still depends
+        // on it (https://github.com/AsyncHttpClient/async-http-client/issues/2190) and this rule also
+        // guards against any future dependency pulling it in. Versions are pinned by the
+        // pulsar-dependencies platform.
+        all {
+            allVariants {
+                withDependencies {
+                    if (removeAll { it.group == "com.sun.activation" && it.name == "jakarta.activation" }) {
+                        add("jakarta.activation:jakarta.activation-api")
+                        add("org.eclipse.angus:angus-activation")
+                    }
+                }
+            }
+        }
+        // async-http-client depends on the classic io.netty:netty-codec module, which in Netty 4.2
+        // is an empty backwards-compatibility aggregator that only adds the unused
+        // netty-codec-marshalling and netty-codec-protobuf modules to the classpath. The codec
+        // modules async-http-client actually needs (netty-codec-base, netty-codec-compression)
+        // come in through its netty-codec-http dependency.
+        withModule("org.asynchttpclient:async-http-client") {
+            allVariants {
+                withDependencies {
+                    removeAll { it.group == "io.netty" && it.name == "netty-codec" }
+                }
+            }
+        }
         // libthrift is a transitive dependency of distributedlog-core.
         // libthrift 0.23.0 upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
         // transports, which distributedlog-core does not use (only TJSON/TMemory serialization is needed).
@@ -193,6 +222,11 @@ tasks.withType<Test>().configureEach {
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
+        // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
+        // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
+        // loopback interface resolves to an IPv6 link-local address (notably macOS) bookies bound to
+        // loopback would otherwise fail to start.
+        "-Djava.net.preferIPv4Stack=true",
     )
 }
 

@@ -60,7 +60,7 @@ dependencies {
     implementation(libs.guava)
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-client-original"))
-    implementation(libs.grpc.all)
+    implementation(libs.grpc.netty.shaded)
     implementation(libs.grpc.stub)
     implementation(libs.jetty.util)
     implementation(libs.byte.buddy)

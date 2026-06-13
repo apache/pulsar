@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.BookieServiceInfoUtils;
-import org.apache.bookkeeper.proto.DataFormats.BookieServiceInfoFormat;
+import org.apache.bookkeeper.proto.BookieServiceInfoFormat;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
 
@@ -40,25 +41,19 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
     @Override
     public byte[] serialize(String path, BookieServiceInfo bookieServiceInfo) throws IOException {
         log.debug().attr("bookieServiceInfo", bookieServiceInfo).log("serialize BookieServiceInfo");
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            BookieServiceInfoFormat.Builder builder = BookieServiceInfoFormat.newBuilder();
-            List<BookieServiceInfoFormat.Endpoint> bsiEndpoints = bookieServiceInfo.getEndpoints().stream()
-                    .map(e -> BookieServiceInfoFormat.Endpoint.newBuilder()
-                                .setId(e.getId())
-                                .setPort(e.getPort())
-                                .setHost(e.getHost())
-                                .setProtocol(e.getProtocol())
-                                .addAllAuth(e.getAuth())
-                                .addAllExtensions(e.getExtensions())
-                                .build())
-                    .collect(Collectors.toList());
-
-            builder.addAllEndpoints(bsiEndpoints);
-            builder.putAllProperties(bookieServiceInfo.getProperties());
-
-            builder.build().writeTo(os);
-            return os.toByteArray();
+        BookieServiceInfoFormat builder = new BookieServiceInfoFormat();
+        for (BookieServiceInfo.Endpoint e : bookieServiceInfo.getEndpoints()) {
+            builder.addEndpoint()
+                    .setId(e.getId())
+                    .setPort(e.getPort())
+                    .setHost(e.getHost())
+                    .setProtocol(e.getProtocol())
+                    .addAllAuths(e.getAuth())
+                    .addAllExtensions(e.getExtensions());
         }
+        bookieServiceInfo.getProperties().forEach(builder::putProperties);
+
+        return builder.toByteArray();
     }
 
     @Override
@@ -71,7 +66,8 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
             return BookieServiceInfoUtils.buildLegacyBookieServiceInfo(bookieId);
         }
 
-        BookieServiceInfoFormat builder = BookieServiceInfoFormat.parseFrom(bookieServiceInfo);
+        BookieServiceInfoFormat builder = new BookieServiceInfoFormat();
+        builder.parseFrom(bookieServiceInfo);
         BookieServiceInfo bsi = new BookieServiceInfo();
         List<BookieServiceInfo.Endpoint> endpoints = builder.getEndpointsList().stream()
                 .map(e -> {
@@ -80,14 +76,16 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
                     endpoint.setPort(e.getPort());
                     endpoint.setHost(e.getHost());
                     endpoint.setProtocol(e.getProtocol());
-                    endpoint.setAuth(e.getAuthList());
+                    endpoint.setAuth(e.getAuthsList());
                     endpoint.setExtensions(e.getExtensionsList());
                     return endpoint;
                 })
                 .collect(Collectors.toList());
 
         bsi.setEndpoints(endpoints);
-        bsi.setProperties(builder.getPropertiesMap());
+        Map<String, String> properties = new HashMap<>();
+        builder.forEachProperties(properties::put);
+        bsi.setProperties(properties);
 
         return bsi;
 

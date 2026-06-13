@@ -47,7 +47,7 @@ dependencies {
     implementation(libs.netty.reactive.streams)
     implementation(libs.slog)
     implementation(libs.commons.codec)
-    implementation(libs.sketches.core)
+    implementation(libs.datasketches.java)
     implementation(libs.gson)
     implementation(libs.avro) {
         exclude(group = "org.slf4j")

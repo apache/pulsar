@@ -398,7 +398,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.config = config;
         this.store = store;
         this.name = name;
-        this.log = slog.with().attr("managedLedger", name).build();
+        this.log = slog.with().ctx(config.getLoggerContext()).attr("managedLedger", name).build();
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
@@ -657,7 +657,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
             });
-        }, ledgerMetadata);
+        }, ledgerMetadata, log);
     }
 
     protected void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -899,7 +899,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("Creating a new ledger");
                 this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
                 mbean.startDataLedgerCreateOp();
-                asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+                asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap(), log);
             }
         } else {
             checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
@@ -2002,7 +2002,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
             // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
             this.executor.execute(() ->
-                    asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap()));
+                    asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap(), log));
         }
     }
 
@@ -2245,7 +2245,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     && info != null && info.hasOffloadContext()
                     && !info.getOffloadContext().isBookkeeperDeleted()) {
                 openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute();
+                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
+                        .withLoggerContext(log).execute();
 
             } else if (info != null && info.hasOffloadContext() && info.getOffloadContext().isComplete()) {
 
@@ -2260,7 +2261,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         offloadDriverMetadata);
             } else {
                 openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute();
+                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
+                        .withLoggerContext(log).execute();
             }
             openFuture.whenCompleteAsync((res, ex) -> {
                 mbean.endDataLedgerOpenOp();
@@ -4653,9 +4655,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param digestType
      * @param cb
      * @param metadata
+     * @param ctxLogger logger whose context attributes are propagated to the ledger handle logger
      */
     protected void asyncCreateLedger(BookKeeper bookKeeper, ManagedLedgerConfig config, DigestType digestType,
-            CreateCallback cb, Map<String, byte[]> metadata) {
+            CreateCallback cb, Map<String, byte[]> metadata, Logger ctxLogger) {
         CompletableFuture<LedgerHandle> ledgerFutureHook = new CompletableFuture<>();
         Map<String, byte[]> finalMetadata = new HashMap<>();
         finalMetadata.putAll(ledgerMetadata);
@@ -4675,8 +4678,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         createdLedgerCustomMetadata = finalMetadata;
         try {
-            bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                    config.getAckQuorumSize(), digestType, config.getPassword(), cb, ledgerFutureHook, finalMetadata);
+            bookKeeper.newCreateLedgerOp()
+                    .withEnsembleSize(config.getEnsembleSize())
+                    .withWriteQuorumSize(config.getWriteQuorumSize())
+                    .withAckQuorumSize(config.getAckQuorumSize())
+                    .withDigestType(digestType.toApiDigestType())
+                    .withPassword(config.getPassword())
+                    .withCustomMetadata(finalMetadata)
+                    .withLoggerContext(ctxLogger)
+                    .execute()
+                    .whenComplete((writeHandle, ex) -> {
+                        if (ex != null) {
+                            cb.createComplete(BKException.getExceptionCode(ex), null, ledgerFutureHook);
+                        } else {
+                            cb.createComplete(Code.OK, (LedgerHandle) writeHandle, ledgerFutureHook);
+                        }
+                    });
         } catch (Throwable cause) {
             log.error().exception(cause).log("Encountered unexpected error when creating ledger");
             ledgerFutureHook.completeExceptionally(cause);

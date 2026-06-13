@@ -121,6 +121,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Getter
     private final Timer timer;
     private boolean needStopTimer;
+    private boolean serviceUrlProviderInitialized;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
     private final ExecutorProvider lookupExecutorProvider;
@@ -274,6 +275,7 @@ public class PulsarClientImpl implements PulsarClient {
 
             if (conf.getServiceUrlProvider() != null) {
                 conf.getServiceUrlProvider().initialize(this);
+                serviceUrlProviderInitialized = true;
             }
 
             if (conf.isEnableTransaction()) {
@@ -1064,7 +1066,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             // close the service url provider allocated resource.
-            if (conf != null && conf.getServiceUrlProvider() != null) {
+            if (conf != null && conf.getServiceUrlProvider() != null && serviceUrlProviderInitialized) {
                 conf.getServiceUrlProvider().close();
             }
 

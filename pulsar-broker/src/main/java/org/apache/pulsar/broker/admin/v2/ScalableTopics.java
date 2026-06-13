@@ -55,13 +55,17 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
@@ -472,6 +476,153 @@ public class ScalableTopics extends AdminResource {
                 .exceptionally(ex -> {
                     log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
                             .exception(ex).log("Failed to get metadata for scalable topic");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    // --- Auto split/merge policy override (PIP-483) ---
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Get the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The per-topic auto split/merge policy override.",
+                    content = @Content(schema = @Schema(implementation = AutoScalePolicyOverride.class))),
+            @ApiResponse(responseCode = "204", description = "No override is set on this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.READ)
+                .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
+                .thenAccept(optMd -> {
+                    if (optMd.isEmpty()) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn));
+                    } else {
+                        asyncResponse.resume(optMd.get().getAutoScalePolicy());
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .exception(ex).log("Failed to get autoScalePolicy for scalable topic");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Set the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Override set successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "412",
+                    description = "The resolved auto split/merge policy violates an invariant"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void setAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @RequestBody(description = "Auto split/merge policy override", required = true)
+            AutoScalePolicyOverride override) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        internalSetAutoScalePolicy(asyncResponse, tn, override);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Remove the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Override removed successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void removeAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        internalSetAutoScalePolicy(asyncResponse, tn, null);
+    }
+
+    private void internalSetAutoScalePolicy(AsyncResponse asyncResponse, TopicName tn,
+                                            AutoScalePolicyOverride override) {
+        validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.WRITE)
+                .thenCompose(__ -> {
+                    if (override == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // Validate the override in combination with the layers it will actually
+                    // be resolved with: the broker defaults AND the current namespace
+                    // override — two layers that are each valid against the defaults can
+                    // still combine into an invalid policy (e.g. the namespace raises a
+                    // merge threshold and the topic lowers the matching split threshold).
+                    // This check is best-effort: the namespace override can still change
+                    // afterwards, and broker defaults can differ across restarts — the
+                    // controller handles a combination that has become invalid by falling
+                    // back to disabled (see ScalableTopicController.resolveAutoScaleConfig).
+                    return pulsar().getPulsarResources().getNamespaceResources()
+                            .getPoliciesAsync(namespaceName)
+                            .thenAccept(optPolicies -> {
+                                AutoScalePolicyOverride nsOverride = optPolicies
+                                        .map(p -> p.scalableTopicAutoScalePolicy)
+                                        .orElse(null);
+                                try {
+                                    AutoScaleConfig.resolve(pulsar().getConfig(), nsOverride, override);
+                                } catch (IllegalArgumentException e) {
+                                    throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                            e.getMessage());
+                                }
+                            });
+                })
+                .thenCompose(__ -> resources().updateScalableTopicAsync(tn, md -> {
+                    md.setAutoScalePolicy(override);
+                    return md;
+                }))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .attr("removed", override == null)
+                            .log("Updated autoScalePolicy on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn));
+                        return null;
+                    }
+                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .exception(ex).log("Failed to update autoScalePolicy for scalable topic");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

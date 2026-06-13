@@ -19,7 +19,8 @@
 
 // Convention plugin for publishing Pulsar modules to Maven repositories.
 // Configures maven-publish, GPG signing, POM metadata, sources/javadoc JARs,
-// and a local deploy repository for testing.
+// the ASF Nexus release/snapshot repositories, and a local deploy repository
+// for testing.
 
 plugins {
     `maven-publish`
@@ -86,12 +87,26 @@ run {
     // Capture values in a local scope so withXml closures don't capture the script object
     // (which would break configuration cache serialization)
     val projectName = project.name
-    val projectDescription = project.description
     val archivesNameValue = the<BasePluginExtension>().archivesName.get()
     val isPlatformProject = plugins.hasPlugin("java-platform")
     val isRootProject = project == rootProject
     val pulsarVersion = version.toString()
     val localDeployRepoDir = rootProject.layout.buildDirectory.dir("local-deploy-repo")
+
+    // Per-module POM name and description. Read in afterEvaluate so that a description
+    // assigned in a module's build script body is picked up, and captured as plain strings
+    // so the pom configuration stays configuration-cache compatible.
+    if (!isRootProject) {
+        afterEvaluate {
+            val projectDescription = project.description ?: "Apache Pulsar :: $projectName"
+            publishing.publications.withType<MavenPublication>().configureEach {
+                pom {
+                    name.set(projectDescription)
+                    description.set(projectDescription)
+                }
+            }
+        }
+    }
 
     publishing {
         publications {
@@ -99,12 +114,6 @@ run {
                 artifactId = archivesNameValue
 
                 pom {
-                    // Per-module name and description
-                    if (!isRootProject) {
-                        name.set("Apache Pulsar :: $projectName")
-                        description.set(projectDescription ?: "Apache Pulsar :: $projectName")
-                    }
-
                     // Clean up POM XML and inject <parent> reference
                     withXml {
                         val sb = asString()
@@ -153,6 +162,88 @@ run {
     }
 }
 
+// --- Apache distribution repositories (ASF Nexus) ---
+// Repository names follow the ASF parent POM (apache.releases.https / apache.snapshots.https).
+// Publish with one of:
+//   ./gradlew publishAllPublicationsToApacheSnapshotsRepository   (for -SNAPSHOT versions)
+//   ./gradlew publishAllPublicationsToApacheReleasesRepository    (for release versions)
+// Releases must be published with --no-parallel: when uploading to the Apache staging
+// repository, Nexus creates an implicit staging repository, and concurrent per-module uploads
+// can end up split across multiple implicitly-created staging repositories instead of being
+// collected into a single one.
+// Credentials are resolved by Gradle at execution time from the apacheReleasesUsername /
+// apacheReleasesPassword and apacheSnapshotsUsername / apacheSnapshotsPassword Gradle properties
+// (the credentials(PasswordCredentials::class) form, which keeps the publish tasks
+// configuration-cache compatible — explicitly assigned credentials would not be). Pass them as
+// ORG_GRADLE_PROJECT_-prefixed environment variables on the publish command line so the password
+// doesn't have to be stored in ~/.gradle/gradle.properties where it could leak to unrelated
+// builds; start the command line with a space to keep the password out of shell history:
+//    ORG_GRADLE_PROJECT_apacheReleasesUsername=$APACHE_USER \
+//    ORG_GRADLE_PROJECT_apacheReleasesPassword="<your ASF password>" \
+//    ./gradlew publishAllPublicationsToApacheReleasesRepository --no-parallel ...
+// The URLs can be overridden with the apacheReleasesRepoUrl / apacheSnapshotsRepoUrl Gradle
+// properties (e.g. a file:// URL for testing the publication layout).
+run {
+    fun MavenArtifactRepository.configureApacheRepository(urlProperty: String, defaultUrl: String) {
+        val repositoryUrl = uri(providers.gradleProperty(urlProperty).getOrElse(defaultUrl))
+        url = repositoryUrl
+        // The file transport (an URL overridden to file:// for testing) rejects credentials,
+        // and Gradle's credentials validation would fail when the properties aren't set.
+        if (repositoryUrl.scheme != "file") {
+            credentials(PasswordCredentials::class)
+        }
+    }
+
+    publishing {
+        repositories {
+            maven {
+                name = "apacheReleases"
+                configureApacheRepository(
+                    "apacheReleasesRepoUrl",
+                    "https://repository.apache.org/service/local/staging/deploy/maven2"
+                )
+            }
+            maven {
+                name = "apacheSnapshots"
+                configureApacheRepository(
+                    "apacheSnapshotsRepoUrl",
+                    "https://repository.apache.org/content/repositories/snapshots"
+                )
+            }
+        }
+    }
+
+    // Validate before any upload: only -SNAPSHOT versions may go to apacheSnapshots and only
+    // release versions to apacheReleases. (Maven's deploy picks the repository from the version;
+    // in Gradle the task name picks the repository, so the version must be checked instead.)
+    // The task's repository property is discarded by configuration cache serialization, so
+    // capture the repository name at configuration time and only register the validation
+    // action (capturing plain strings/booleans) for the Apache repositories.
+    val projectVersion = version.toString()
+    val isSnapshotVersion = projectVersion.endsWith("-SNAPSHOT")
+    tasks.withType<PublishToMavenRepository>().configureEach {
+        val repositoryName = repository.name
+        if (repositoryName == "apacheReleases" || repositoryName == "apacheSnapshots") {
+            doFirst {
+                if (repositoryName == "apacheSnapshots" && !isSnapshotVersion) {
+                    throw GradleException(
+                        "Refusing to publish non-snapshot version '$projectVersion' to the " +
+                            "'apacheSnapshots' repository. Use " +
+                            "publishAllPublicationsToApacheReleasesRepository for release versions."
+                    )
+                }
+                if (repositoryName == "apacheReleases" && isSnapshotVersion) {
+                    throw GradleException(
+                        "Refusing to publish snapshot version '$projectVersion' to the " +
+                            "'apacheReleases' repository. Use " +
+                            "publishAllPublicationsToApacheSnapshotsRepository for -SNAPSHOT versions."
+                    )
+                }
+            }
+        }
+    }
+}
+
 // --- GPG signing ---
 signing {
     isRequired = !version.toString().endsWith("-SNAPSHOT")
@@ -165,10 +256,13 @@ signing {
     sign(publishing.publications)
 }
 
-// Disable signing tasks when no key is configured (local dev without signing)
+// Disable signing tasks when no signing configuration is present (local dev without signing).
+// With -PuseGpgCmd=true, an explicit key isn't needed: the gpg command uses its default key
+// unless -Psigning.gnupg.keyName=<key id> selects one.
 tasks.withType<Sign>().configureEach {
     enabled = providers.gradleProperty("signing.keyId").isPresent ||
-        providers.gradleProperty("signing.gnupg.keyName").isPresent
+        providers.gradleProperty("signing.gnupg.keyName").isPresent ||
+        (providers.gradleProperty("useGpgCmd").orNull?.toBoolean() ?: false)
 }
 
 // Suppress enforced-platform validation: all java-library modules use

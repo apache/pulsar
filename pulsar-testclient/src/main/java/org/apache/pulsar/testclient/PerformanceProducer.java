@@ -545,7 +545,8 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
             AtomicReference<Transaction> transactionAtomicReference;
             if (this.isEnableTransaction) {
-                transactionAtomicReference = new AtomicReference<>(client.newTransaction());
+                transactionAtomicReference = new AtomicReference<>(
+                        PerfClientUtils.newTransactionWithRetry(client));
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
             }

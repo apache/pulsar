@@ -62,10 +62,6 @@ val distLib by configurations.creating {
     // Exclude non-JPMS JNA (we add jpms variants explicitly)
     exclude(group = "net.java.dev.jna", module = "jna")
     exclude(group = "net.java.dev.jna", module = "jna-platform")
-    // grpc modules not in server distribution (grpc-all transitively includes these)
-    exclude(group = "io.grpc", module = "grpc-netty")
-    exclude(group = "io.grpc", module = "grpc-okhttp")
-    exclude(group = "io.grpc", module = "grpc-testing")
     // Original zookeeper excluded — replaced by patched version
     exclude(group = "org.apache.zookeeper", module = "zookeeper")
     // Android annotations not in server dist
@@ -98,8 +94,7 @@ dependencies {
     distLib(project(":pulsar-broker-auth-oidc"))
     distLib(project(":pulsar-broker-auth-sasl"))
     distLib(project(":pulsar-client-auth-sasl"))
-    distLib(project(":jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider"))
-    distLib(project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics"))
+    distLib(libs.bookkeeper.prometheus.metrics.provider)
     distLib(project(":pulsar-package-management:pulsar-package-bookkeeper-storage")) {
         exclude(group = "org.objenesis")
     }
@@ -107,12 +102,9 @@ dependencies {
     distLib(project(":pulsar-client-tools"))
     distLib(project(":pulsar-testclient"))
     distLib(project(":pulsar-functions:pulsar-functions-worker")) {
-        exclude(group = "io.grpc")
         exclude(group = "org.bouncycastle")
     }
-    distLib(project(":pulsar-functions:pulsar-functions-local-runner-original")) {
-        exclude(group = "io.grpc")
-    }
+    distLib(project(":pulsar-functions:pulsar-functions-local-runner-original"))
 
     // Patched zookeeper (replaces the excluded original)
     distLib(project(":jetty-upgrade:zookeeper-with-patched-admin"))
@@ -138,7 +130,6 @@ dependencies {
     distLib(libs.jackson.dataformat.yaml)
     distLib(libs.bcpkix.jdk18on)
     distLib(libs.perfmark.api)
-    distLib(libs.grpc.all)
 
     // JNA (JPMS variants used in Maven distribution)
     distLib("net.java.dev.jna:jna-jpms:${libs.versions.jna.get()}")

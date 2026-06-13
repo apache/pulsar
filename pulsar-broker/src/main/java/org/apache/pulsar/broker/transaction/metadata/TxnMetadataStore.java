@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.transaction.metadata;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +31,7 @@ import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
@@ -396,6 +399,43 @@ public class TxnMetadataStore {
     public CompletableFuture<Void> deleteSegmentWatermark(String segment) {
         Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
         return store.deleteIfExists(TxnPaths.segmentWatermarkPath(segment), Optional.empty(), opts);
+    }
+
+    /**
+     * Delete all durable per-segment transaction state — every aborted-txn record and the watermark —
+     * when a segment is dropped (e.g. the scalable topic is deleted), so the {@code /txn/segment-state}
+     * records don't outlive the segment's data. Idempotent: missing records are no-ops.
+     */
+    public CompletableFuture<Void> deleteAllSegmentState(String segment) {
+        List<String> abortedKeys = Collections.synchronizedList(new ArrayList<>());
+        return scanAbortedTxns(segment,
+                TxnPaths.abortedByPositionSegmentLowerBound(segment),
+                TxnPaths.abortedByPositionSegmentUpperBound(segment),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                        if (txnIdKey != null) {
+                            abortedKeys.add(txnIdKey);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segment).exception(throwable)
+                                .log("Segment-state cleanup scan errored");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenCompose(__ -> {
+                    List<CompletableFuture<Void>> deletes = new ArrayList<>(abortedKeys.size());
+                    for (String txnIdKey : abortedKeys) {
+                        deletes.add(deleteAbortedTxn(segment, txnIdKey));
+                    }
+                    return FutureUtil.waitForAll(deletes);
+                }).thenCompose(__ -> deleteSegmentWatermark(segment));
     }
 
     // ---- TC sequence counter ----------------------------------------------

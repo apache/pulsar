@@ -32,17 +32,29 @@ plugins {
 // git metadata only invalidate this module's processResources / jar tasks and do NOT trigger
 // a recompile of pulsar-common or any downstream module's compileJava.
 //
-// Set `pulsar.includeBuildInfo=false` (e.g. in `~/.gradle/gradle.properties`) to skip generation
-// entirely during development. PulsarVersion then returns placeholder values at runtime.
-val includeBuildInfo = providers.gradleProperty("pulsar.includeBuildInfo")
+// `pulsarIncludeBuildInfo` (default `false` in the root gradle.properties) controls whether the
+// git/build metadata is captured at all. Release builds enable it with
+// `-PpulsarIncludeBuildInfo=true` or the `ORG_GRADLE_PROJECT_pulsarIncludeBuildInfo=true`
+// environment variable. When disabled, PulsarVersion returns placeholder values at runtime.
+val includeBuildInfo = providers.gradleProperty("pulsarIncludeBuildInfo")
     .map { it.toBoolean() }
     .orElse(true)
+
+// `pulsarBuildInfoFile` (optional) points to a snapshot file that keeps the captured build
+// metadata identical across separate Gradle invocations (the release process runs several).
+// If the file exists, its entries are used as-is; otherwise the metadata is captured and
+// written to the file so that subsequent invocations reuse it. Without the snapshot, values
+// such as `git.build.time` change on every capture and invalidate the build outputs.
+// A relative path is resolved against the root project directory.
+val buildInfoFile = providers.gradleProperty("pulsarBuildInfoFile")
+    .map { rootDir.resolve(it) }
 
 val generatePulsarBuildInfo by tasks.registering {
     description = "Generates pulsar-version.properties with version and (optionally) git/build metadata."
     val outputFile = layout.buildDirectory.file("generated-resources/buildinfo/org/apache/pulsar/pulsar-version.properties")
     val projectVersion = project.version.toString()
     val includeBuildInfoValue = includeBuildInfo
+    val buildInfoFileValue = buildInfoFile.orNull
 
     // Lazy providers — evaluated at execution time only (no impact on configuration cache).
     val gitCommitId = providers.exec {
@@ -68,33 +80,61 @@ val generatePulsarBuildInfo by tasks.registering {
 
     inputs.property("version", projectVersion)
     inputs.property("includeBuildInfo", includeBuildInfoValue)
+    // The snapshot file contents take part in up-to-date checking so that pointing
+    // `pulsarBuildInfoFile` at a different snapshot regenerates the resource.
+    inputs.property("buildInfoFileContents", providers.fileContents(layout.file(buildInfoFile)).asText.orElse(""))
     outputs.file(outputFile)
 
     doLast {
-        val entries = linkedMapOf<String, String>()
-        entries["version"] = projectVersion
-        if (includeBuildInfoValue.get()) {
-            entries["git.commit.id"] = gitCommitId.getOrElse("")
-            entries["git.dirty"] = gitDirty.getOrElse("true")
-            entries["git.branch"] = gitBranch.getOrElse("")
-            entries["git.build.user.email"] = gitUserEmail.getOrElse("")
-            entries["git.build.user.name"] = gitUserName.getOrElse("")
-            entries["git.build.host"] = InetAddress.getLocalHost().hostName
-            entries["git.build.time"] =
-                ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"))
-        }
-
-        val outFile = outputFile.get().asFile
-        outFile.parentFile.mkdirs()
         // Hand-rolled .properties writer so we don't get the non-deterministic timestamp comment
         // that java.util.Properties.store always emits. Values from git/InetAddress are ASCII
         // identifiers, so backslash escaping is sufficient.
-        outFile.writeText(buildString {
+        fun formatProperties(entries: Map<String, String>) = buildString {
             append("# Pulsar build info\n")
             entries.forEach { (key, value) ->
                 append(key).append('=').append(value.replace("\\", "\\\\")).append('\n')
             }
-        })
+        }
+
+        val entries = linkedMapOf<String, String>()
+        entries["version"] = projectVersion
+        if (includeBuildInfoValue.get()) {
+            val buildInfoEntries = linkedMapOf<String, String>()
+            if (buildInfoFileValue != null && buildInfoFileValue.exists()) {
+                // Reuse the previously captured snapshot so that the metadata stays identical
+                // across the multiple Gradle invocations of a release build.
+                buildInfoFileValue.readLines()
+                    .filter { it.isNotBlank() && !it.startsWith("#") }
+                    .forEach { line ->
+                        val separator = line.indexOf('=')
+                        if (separator > 0) {
+                            val key = line.substring(0, separator)
+                            // the version always comes from the project, never from the snapshot
+                            if (key != "version") {
+                                buildInfoEntries[key] = line.substring(separator + 1).replace("\\\\", "\\")
+                            }
+                        }
+                    }
+            } else {
+                buildInfoEntries["git.commit.id"] = gitCommitId.getOrElse("")
+                buildInfoEntries["git.dirty"] = gitDirty.getOrElse("true")
+                buildInfoEntries["git.branch"] = gitBranch.getOrElse("")
+                buildInfoEntries["git.build.user.email"] = gitUserEmail.getOrElse("")
+                buildInfoEntries["git.build.user.name"] = gitUserName.getOrElse("")
+                buildInfoEntries["git.build.host"] = InetAddress.getLocalHost().hostName
+                buildInfoEntries["git.build.time"] =
+                    ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"))
+                if (buildInfoFileValue != null) {
+                    buildInfoFileValue.parentFile?.mkdirs()
+                    buildInfoFileValue.writeText(formatProperties(buildInfoEntries))
+                }
+            }
+            entries += buildInfoEntries
+        }
+
+        val outFile = outputFile.get().asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(formatProperties(entries))
     }
 }
 
@@ -141,9 +181,9 @@ dependencies {
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-aarch_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-x86_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-aarch_64") })
-    implementation(libs.netty.incubator.transport.classes.io.uring)
-    implementation(variantOf(libs.netty.incubator.transport.native.io.uring) { classifier("linux-x86_64") })
-    implementation(variantOf(libs.netty.incubator.transport.native.io.uring) { classifier("linux-aarch_64") })
+    implementation(libs.netty.transport.classes.io.uring)
+    implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-x86_64") })
+    implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-aarch_64") })
     implementation(libs.netty.codec.haproxy)
     implementation(libs.commons.lang3)
     implementation(libs.jakarta.ws.rs.api)
