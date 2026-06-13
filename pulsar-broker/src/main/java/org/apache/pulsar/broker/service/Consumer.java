@@ -83,6 +83,7 @@ import org.apache.pulsar.transaction.common.exception.TransactionConflictExcepti
 public class Consumer {
 
     private static final Logger LOG = Logger.get(Consumer.class);
+    private static final int PENDING_ACK_NOT_FOUND = -1;
     private final Logger log;
 
     private final Subscription subscription;
@@ -649,10 +650,10 @@ public class Consumer {
                         addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
                     }
                 } else if (!hasAckSet) {
-                    IntIntPair removed = ackOwnerConsumer.removePendingAckAndGet(
+                    int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                             position.getLedgerId(), position.getEntryId());
-                    if (removed != null) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -removed.leftInt());
+                    if (removed != PENDING_ACK_NOT_FOUND) {
+                        addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
                         updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
                     }
                 }
@@ -744,10 +745,10 @@ public class Consumer {
                     }
                 }
             } else {
-                IntIntPair removed = ackOwnerConsumer.removePendingAckAndGet(
+                int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                         position.getLedgerId(), position.getEntryId());
-                if (removed != null) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -removed.leftInt());
+                if (removed != PENDING_ACK_NOT_FOUND) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
                 }
             }
             updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
@@ -841,16 +842,16 @@ public class Consumer {
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
-            IntIntPair pendingAck = getPendingAcks().get(ledgerId, entryId);
-            if (pendingAck != null) {
-                return ObjectIntPair.of(this, pendingAck.leftInt());
+            int remainingUnacked = getPendingAcks().getRemainingUnacked(ledgerId, entryId);
+            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                return ObjectIntPair.of(this, remainingUnacked);
             } else {
                 // If there are more consumers, this step will consume more CPU, and it should be optimized later.
                 for (Consumer consumer : subscription.getConsumers()) {
                     if (consumer != this) {
-                        pendingAck = consumer.getPendingAcks().get(ledgerId, entryId);
-                        if (pendingAck != null) {
-                            return ObjectIntPair.of(consumer, pendingAck.leftInt());
+                        remainingUnacked = consumer.getPendingAcks().getRemainingUnacked(ledgerId, entryId);
+                        if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                            return ObjectIntPair.of(consumer, remainingUnacked);
                         }
                     }
                 }
@@ -1208,6 +1209,20 @@ public class Consumer {
     }
 
     /**
+     * Atomically remove the pending ack entry and return its remaining unacked count.
+     *
+     * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * @return the remaining unacked count, or {@code -1} if not found
+     */
+    public int removePendingAckAndGetRemainingUnacked(long ledgerId, long entryId) {
+        if (pendingAcks != null) {
+            return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+        }
+        return PENDING_ACK_NOT_FOUND;
+    }
+
+    /**
      * Remove all pending acks up to the given mark-delete position and decrement the consumer's unacked message
      * counter by the remaining unacked count for each removed entry.
      *
@@ -1273,9 +1288,10 @@ public class Consumer {
         List<Position> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
-            IntIntPair pendingAck = pendingAcks.removeAndGet(position.getLedgerId(), position.getEntryId());
-            if (pendingAck != null) {
-                totalRedeliveryMessages += pendingAck.leftInt();
+            int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
+                    position.getLedgerId(), position.getEntryId());
+            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }
         }

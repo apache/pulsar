@@ -1,0 +1,434 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.pulsar.broker.service;
+
+import java.util.Iterator;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.pulsar.common.util.collections.IntIntPair;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
+
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@BenchmarkMode(Mode.AverageTime)
+@Fork(1)
+@Warmup(iterations = 2, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
+public class PendingAcksMapBenchmark {
+    private static final int PENDING_ACK_NOT_FOUND = -1;
+
+    @Benchmark
+    public int getRemainingUnackedHit(MapState state, CursorState cursor) {
+        int index = cursor.next(state.entries);
+        return state.store.getRemainingUnacked(state.ledgerIds[index], state.entryIds[index]);
+    }
+
+    @Benchmark
+    public boolean containsHit(MapState state, CursorState cursor) {
+        int index = cursor.next(state.entries);
+        return state.store.contains(state.ledgerIds[index], state.entryIds[index]);
+    }
+
+    @Benchmark
+    public boolean addOrReplace(MapState state, CursorState cursor) {
+        int index = cursor.next(state.entries);
+        return state.store.addPendingAckIfAllowed(state.ledgerIds[index], state.entryIds[index],
+                remaining(index), stickyKeyHash(index));
+    }
+
+    @Benchmark
+    public boolean updateRemainingUnacked(MapState state, CursorState cursor) {
+        int index = cursor.next(state.entries);
+        return state.store.updateRemainingUnacked(state.ledgerIds[index], state.entryIds[index], 1);
+    }
+
+    @Benchmark
+    public int removeAndAddRemaining(MapState state, CursorState cursor) {
+        int index = cursor.next(state.entries);
+        long ledgerId = state.ledgerIds[index];
+        long entryId = state.entryIds[index];
+        int removed = state.store.removeAndGetRemainingUnacked(ledgerId, entryId);
+        state.store.addPendingAckIfAllowed(ledgerId, entryId,
+                removed == PENDING_ACK_NOT_FOUND ? remaining(index) : removed, stickyKeyHash(index));
+        return removed;
+    }
+
+    @Benchmark
+    public long forEachAll(MapState state) {
+        return state.store.forEachAll();
+    }
+
+    @Benchmark
+    public long removeAllUpTo(RangeState state) {
+        return state.store.removeAllUpTo(state.markDeleteLedgerId, state.markDeleteEntryId);
+    }
+
+    @Benchmark
+    public void populate(PopulateState state, Blackhole blackhole) {
+        PendingAckStore store = createStore(state.implementation);
+        populate(store, state.entries, state.ledgers, null, null);
+        blackhole.consume(store);
+    }
+
+    @State(Scope.Benchmark)
+    public static class MapState {
+        @Param({"oldProduction", "production"})
+        private String implementation;
+
+        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        private String dataset;
+
+        private PendingAckStore store;
+        private long[] ledgerIds;
+        private long[] entryIds;
+        private int entries;
+        private int ledgers;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            Dataset parsedDataset = Dataset.from(dataset);
+            entries = parsedDataset.entries;
+            ledgers = parsedDataset.ledgers;
+            ledgerIds = new long[entries];
+            entryIds = new long[entries];
+            store = createStore(implementation);
+            populate(store, entries, ledgers, ledgerIds, entryIds);
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class RangeState {
+        @Param({"oldProduction", "production"})
+        private String implementation;
+
+        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        private String dataset;
+
+        private PendingAckStore store;
+        private long markDeleteLedgerId;
+        private long markDeleteEntryId;
+
+        @Setup(Level.Invocation)
+        public void setup() {
+            Dataset parsedDataset = Dataset.from(dataset);
+            store = createStore(implementation);
+            populate(store, parsedDataset.entries, parsedDataset.ledgers, null, null);
+            markDeleteLedgerId = parsedDataset.ledgers / 2L;
+            markDeleteEntryId = parsedDataset.entries / parsedDataset.ledgers / 2L;
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class PopulateState {
+        @Param({"oldProduction", "production"})
+        private String implementation;
+
+        @Param({"64kEntries1kLedgers", "1mEntries16kLedgers"})
+        private String dataset;
+
+        private int entries;
+        private int ledgers;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            Dataset parsedDataset = Dataset.from(dataset);
+            entries = parsedDataset.entries;
+            ledgers = parsedDataset.ledgers;
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class CursorState {
+        private int index;
+
+        private int next(int entries) {
+            int current = index;
+            index = current + 1;
+            return current & (entries - 1);
+        }
+    }
+
+    private enum Dataset {
+        ENTRIES_64K_LEDGERS_1K("64kEntries1kLedgers", 65_536, 1_024),
+        ENTRIES_1M_LEDGERS_16K("1mEntries16kLedgers", 1_048_576, 16_384);
+
+        private final String name;
+        private final int entries;
+        private final int ledgers;
+
+        Dataset(String name, int entries, int ledgers) {
+            this.name = name;
+            this.entries = entries;
+            this.ledgers = ledgers;
+        }
+
+        private static Dataset from(String name) {
+            for (Dataset dataset : values()) {
+                if (dataset.name.equals(name)) {
+                    return dataset;
+                }
+            }
+            throw new IllegalArgumentException("Unknown dataset: " + name);
+        }
+    }
+
+    private interface PendingAckStore {
+        boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash);
+
+        boolean contains(long ledgerId, long entryId);
+
+        int getRemainingUnacked(long ledgerId, long entryId);
+
+        boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta);
+
+        int removeAndGetRemainingUnacked(long ledgerId, long entryId);
+
+        long forEachAll();
+
+        long removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId);
+    }
+
+    private static PendingAckStore createStore(String implementation) {
+        return switch (implementation) {
+            case "oldProduction" -> new OldProductionPendingAckStore();
+            case "production" -> new ProductionPendingAckStore();
+            default -> throw new IllegalArgumentException("Unknown implementation: " + implementation);
+        };
+    }
+
+    private static void populate(PendingAckStore store, int entries, int ledgers,
+                                 long[] ledgerIds, long[] entryIds) {
+        for (int i = 0; i < entries; i++) {
+            long ledgerId = i % ledgers;
+            long entryId = i / ledgers;
+            if (ledgerIds != null) {
+                ledgerIds[i] = ledgerId;
+                entryIds[i] = entryId;
+            }
+            store.addPendingAckIfAllowed(ledgerId, entryId, remaining(i), stickyKeyHash(i));
+        }
+    }
+
+    private static int remaining(int index) {
+        return (index & 15) + 1;
+    }
+
+    private static int stickyKeyHash(int index) {
+        return index * 31;
+    }
+
+    private static final class ProductionPendingAckStore implements PendingAckStore {
+        private final PendingAcksMap pendingAcks = new PendingAcksMap(null, () -> null, () -> null);
+
+        @Override
+        public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked,
+                                              int stickyKeyHash) {
+            return pendingAcks.addPendingAckIfAllowed(ledgerId, entryId, remainingUnacked, stickyKeyHash);
+        }
+
+        @Override
+        public boolean contains(long ledgerId, long entryId) {
+            return pendingAcks.contains(ledgerId, entryId);
+        }
+
+        @Override
+        public int getRemainingUnacked(long ledgerId, long entryId) {
+            return pendingAcks.getRemainingUnacked(ledgerId, entryId);
+        }
+
+        @Override
+        public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta) {
+            return pendingAcks.updateRemainingUnacked(ledgerId, entryId, ackedDelta);
+        }
+
+        @Override
+        public int removeAndGetRemainingUnacked(long ledgerId, long entryId) {
+            return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+        }
+
+        @Override
+        public long forEachAll() {
+            long[] total = new long[1];
+            pendingAcks.forEach((ledgerId, entryId, remainingUnacked, stickyKeyHash) ->
+                    total[0] += remainingUnacked + stickyKeyHash);
+            return total[0];
+        }
+
+        @Override
+        public long removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+            long[] total = new long[1];
+            pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
+                    (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> total[0] += remainingUnacked);
+            return total[0];
+        }
+    }
+
+    private static final class OldProductionPendingAckStore implements PendingAckStore {
+        private final TreeMap<Long, TreeMap<Long, IntIntPair>> pendingAcks = new TreeMap<>();
+        private final Lock readLock;
+        private final Lock writeLock;
+
+        private OldProductionPendingAckStore() {
+            ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+            writeLock = readWriteLock.writeLock();
+            readLock = readWriteLock.readLock();
+        }
+
+        @Override
+        public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked,
+                                              int stickyKeyHash) {
+            try {
+                writeLock.lock();
+                TreeMap<Long, IntIntPair> ledgerPendingAcks =
+                        pendingAcks.computeIfAbsent(ledgerId, k -> new TreeMap<>());
+                ledgerPendingAcks.put(entryId, IntIntPair.of(remainingUnacked, stickyKeyHash));
+                return true;
+            } finally {
+                writeLock.unlock();
+            }
+        }
+
+        @Override
+        public boolean contains(long ledgerId, long entryId) {
+            try {
+                readLock.lock();
+                TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+                return ledgerMap != null && ledgerMap.containsKey(entryId);
+            } finally {
+                readLock.unlock();
+            }
+        }
+
+        @Override
+        public int getRemainingUnacked(long ledgerId, long entryId) {
+            try {
+                readLock.lock();
+                TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+                IntIntPair value = ledgerMap == null ? null : ledgerMap.get(entryId);
+                return value == null ? PENDING_ACK_NOT_FOUND : value.leftInt();
+            } finally {
+                readLock.unlock();
+            }
+        }
+
+        @Override
+        public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta) {
+            try {
+                writeLock.lock();
+                TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+                IntIntPair value = ledgerMap == null ? null : ledgerMap.get(entryId);
+                if (value == null) {
+                    return false;
+                }
+                ledgerMap.put(entryId, IntIntPair.of(value.leftInt() - ackedDelta, value.rightInt()));
+                return true;
+            } finally {
+                writeLock.unlock();
+            }
+        }
+
+        @Override
+        public int removeAndGetRemainingUnacked(long ledgerId, long entryId) {
+            try {
+                writeLock.lock();
+                TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+                if (ledgerMap == null) {
+                    return PENDING_ACK_NOT_FOUND;
+                }
+                IntIntPair value = ledgerMap.remove(entryId);
+                if (value == null) {
+                    return PENDING_ACK_NOT_FOUND;
+                }
+                if (ledgerMap.isEmpty()) {
+                    pendingAcks.remove(ledgerId);
+                }
+                return value.leftInt();
+            } finally {
+                writeLock.unlock();
+            }
+        }
+
+        @Override
+        public long forEachAll() {
+            try {
+                readLock.lock();
+                long total = 0;
+                for (Map.Entry<Long, TreeMap<Long, IntIntPair>> ledgerEntry : pendingAcks.entrySet()) {
+                    TreeMap<Long, IntIntPair> ledgerPendingAcks = ledgerEntry.getValue();
+                    for (IntIntPair value : ledgerPendingAcks.values()) {
+                        total += value.leftInt() + value.rightInt();
+                    }
+                }
+                return total;
+            } finally {
+                readLock.unlock();
+            }
+        }
+
+        @Override
+        public long removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+            try {
+                writeLock.lock();
+                long total = 0;
+                Iterator<Map.Entry<Long, TreeMap<Long, IntIntPair>>> ledgerIterator =
+                        pendingAcks.headMap(markDeleteLedgerId, true).entrySet().iterator();
+                while (ledgerIterator.hasNext()) {
+                    Map.Entry<Long, TreeMap<Long, IntIntPair>> ledgerEntry = ledgerIterator.next();
+                    long ledgerId = ledgerEntry.getKey();
+                    TreeMap<Long, IntIntPair> ledgerMap = ledgerEntry.getValue();
+                    if (ledgerId < markDeleteLedgerId) {
+                        for (IntIntPair value : ledgerMap.values()) {
+                            total += value.leftInt();
+                        }
+                        ledgerIterator.remove();
+                    } else {
+                        Iterator<Map.Entry<Long, IntIntPair>> entryIterator =
+                                ledgerMap.headMap(markDeleteEntryId, true).entrySet().iterator();
+                        while (entryIterator.hasNext()) {
+                            total += entryIterator.next().getValue().leftInt();
+                            entryIterator.remove();
+                        }
+                        if (ledgerMap.isEmpty()) {
+                            ledgerIterator.remove();
+                        }
+                    }
+                }
+                return total;
+            } finally {
+                writeLock.unlock();
+            }
+        }
+    }
+}
