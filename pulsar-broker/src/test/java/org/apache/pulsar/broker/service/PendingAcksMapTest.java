@@ -437,6 +437,65 @@ public class PendingAcksMapTest {
     }
 
     @Test
+    public void removeAllUpTo_KeepsSameLedgerEntriesAfterMarkDelete() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 10L, 1, 110);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 11L, 1, 111);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 12L, 1, 112);
+
+        assertEquals(pendingAcksMap.removeAndGetRemainingUnacked(2L, 10L), 1);
+        List<Long> removedEntries = new ArrayList<>();
+        pendingAcksMap.removeAllUpTo(2L, 10L, (ledgerId, entryId, batchSize, stickyKeyHash) ->
+                removedEntries.add(entryId));
+
+        assertTrue(removedEntries.isEmpty());
+        assertTrue(pendingAcksMap.contains(2L, 11L));
+        assertTrue(pendingAcksMap.contains(2L, 12L));
+        assertEquals(pendingAcksMap.size(), 2);
+    }
+
+    @Test
+    public void removeAllUpTo_HandlesLargeEntryGapsAfterFirstEntryRemoval() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 101);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 5000L, 1, 150);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 6000L, 1, 160);
+
+        assertTrue(pendingAcksMap.remove(2L, 1L));
+        pendingAcksMap.removeAllUpTo(2L, 4999L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
+        assertTrue(pendingAcksMap.contains(2L, 5000L));
+        assertTrue(pendingAcksMap.contains(2L, 6000L));
+
+        pendingAcksMap.removeAllUpTo(2L, 5000L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
+        assertFalse(pendingAcksMap.contains(2L, 5000L));
+        assertTrue(pendingAcksMap.contains(2L, 6000L));
+        assertEquals(pendingAcksMap.size(), 1);
+    }
+
+    @Test
+    public void removeAllUpTo_HandlesEntryIdsOutsideBitmapIndexRange() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        long firstLargeEntryId = (long) Integer.MAX_VALUE + 5L;
+        long secondLargeEntryId = firstLargeEntryId + 10L;
+        pendingAcksMap.addPendingAckIfAllowed(2L, firstLargeEntryId, 1, 101);
+        pendingAcksMap.addPendingAckIfAllowed(2L, secondLargeEntryId, 1, 102);
+
+        List<Long> removedEntries = new ArrayList<>();
+        pendingAcksMap.removeAllUpTo(2L, firstLargeEntryId, (ledgerId, entryId, batchSize, stickyKeyHash) ->
+                removedEntries.add(entryId));
+
+        assertEquals(removedEntries, List.of(firstLargeEntryId));
+        assertFalse(pendingAcksMap.contains(2L, firstLargeEntryId));
+        assertTrue(pendingAcksMap.contains(2L, secondLargeEntryId));
+        assertEquals(pendingAcksMap.size(), 1);
+    }
+
+    @Test
     public void removeAllUpTo_RemovesWholeLedgersAndUnorderedBoundaryEntries() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);

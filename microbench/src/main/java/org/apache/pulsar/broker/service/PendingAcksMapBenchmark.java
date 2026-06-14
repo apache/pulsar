@@ -96,10 +96,29 @@ public class PendingAcksMapBenchmark {
     }
 
     @Benchmark
+    public long removeAllUpToSameLedger(CleanupState state) {
+        return state.store.removeAllUpTo(state.markDeleteLedgerId, state.markDeleteEntryId);
+    }
+
+    @Benchmark
     public void populate(PopulateState state, Blackhole blackhole) {
         PendingAckStore store = createStore(state.implementation);
         populate(store, state.parsedDataset, null, null);
         blackhole.consume(store);
+    }
+
+    @Benchmark
+    public long dispatchAndAckCycle(RollingWindowState state) {
+        return state.dispatchAndAckCycle();
+    }
+
+    @Benchmark
+    public long dispatchAckAndPartialAckCycle(RollingWindowState state) {
+        long result = state.dispatchAndAckCycle();
+        if (state.shouldApplyPartialAck()) {
+            result += state.applyPartialAck();
+        }
+        return result;
     }
 
     @State(Scope.Benchmark)
@@ -175,6 +194,128 @@ public class PendingAcksMapBenchmark {
         @Setup(Level.Trial)
         public void setup() {
             parsedDataset = Dataset.from(dataset);
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class CleanupState {
+        @Param({"oldProduction", "production"})
+        private String implementation;
+
+        @Param({"receiverQueue1kEntries1Ledger", "defaultUnacked50kEntries1Ledger"})
+        private String dataset;
+
+        @Param({"beforePendingWindow", "smallPrefix"})
+        private String scenario;
+
+        private PendingAckStore store;
+        private long markDeleteLedgerId;
+        private long markDeleteEntryId;
+
+        @Setup(Level.Invocation)
+        public void setup() {
+            Dataset parsedDataset = Dataset.from(dataset);
+            int prefixEntries = Math.max(1, parsedDataset.entries / 50);
+            store = createStore(implementation);
+            markDeleteLedgerId = 0;
+            switch (scenario) {
+                case "beforePendingWindow" -> {
+                    populateSingleLedger(store, prefixEntries, parsedDataset.entries);
+                    markDeleteEntryId = prefixEntries - 1L;
+                }
+                case "smallPrefix" -> {
+                    populateSingleLedger(store, 0, parsedDataset.entries);
+                    markDeleteEntryId = prefixEntries - 1L;
+                }
+                default -> throw new IllegalArgumentException("Unknown cleanup scenario: " + scenario);
+            }
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class RollingWindowState {
+        private static final int PARTIAL_ACK_INTERVAL = 16;
+
+        @Param({"oldProduction", "production"})
+        private String implementation;
+
+        @Param({"receiverQueue1kEntries1Ledger", "batchedReceiverQueue100Entries1Ledger",
+                "defaultUnacked50kEntries1Ledger", "defaultUnacked50kEntries2Ledgers",
+                "defaultUnacked50kEntries5Ledgers", "defaultUnacked50kEntries10Ledgers",
+                "defaultUnacked50kEntries20Ledgers"})
+        private String dataset;
+
+        private PendingAckStore store;
+        private long[] ledgerIds;
+        private long[] entryIds;
+        private int[] remainingUnacked;
+        private int entries;
+        private long entriesPerLedger;
+        private int cursor;
+        private long nextSequence;
+        private long operations;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            Dataset parsedDataset = Dataset.from(dataset);
+            entries = parsedDataset.entries;
+            entriesPerLedger = Math.max(1, (entries + parsedDataset.ledgers - 1L) / parsedDataset.ledgers);
+            ledgerIds = new long[entries];
+            entryIds = new long[entries];
+            remainingUnacked = new int[entries];
+            store = createStore(implementation);
+            for (int i = 0; i < entries; i++) {
+                setSlot(i, i);
+                store.addPendingAckIfAllowed(ledgerIds[i], entryIds[i], remainingUnacked[i], stickyKeyHash(i));
+            }
+            nextSequence = entries;
+        }
+
+        private long dispatchAndAckCycle() {
+            int slot = cursor;
+            cursor = nextCursor(slot);
+
+            long ledgerIdToAck = ledgerIds[slot];
+            long entryIdToAck = entryIds[slot];
+            int removed = store.removeAndGetRemainingUnacked(ledgerIdToAck, entryIdToAck);
+
+            long sequence = nextSequence++;
+            setSlot(slot, sequence);
+            store.addPendingAckIfAllowed(ledgerIds[slot], entryIds[slot],
+                    remainingUnacked[slot], stickyKeyHash(sequence));
+            return removed + remainingUnacked[slot];
+        }
+
+        private boolean shouldApplyPartialAck() {
+            return (operations++ & (PARTIAL_ACK_INTERVAL - 1)) == 0;
+        }
+
+        private long applyPartialAck() {
+            int slot = cursor + entries / 2;
+            if (slot >= entries) {
+                slot -= entries;
+            }
+            int remaining = remainingUnacked[slot];
+            if (remaining <= 1) {
+                return 0;
+            }
+            boolean updated = store.updateRemainingUnacked(ledgerIds[slot], entryIds[slot], 1);
+            if (!updated) {
+                return 0;
+            }
+            remainingUnacked[slot] = remaining - 1;
+            return remaining;
+        }
+
+        private void setSlot(int slot, long sequence) {
+            ledgerIds[slot] = sequence / entriesPerLedger;
+            entryIds[slot] = sequence % entriesPerLedger;
+            remainingUnacked[slot] = remaining(sequence);
+        }
+
+        private int nextCursor(int current) {
+            int next = current + 1;
+            return next == entries ? 0 : next;
         }
     }
 
@@ -270,12 +411,19 @@ public class PendingAcksMapBenchmark {
         }
     }
 
-    private static int remaining(int index) {
-        return (index & 15) + 1;
+    private static void populateSingleLedger(PendingAckStore store, long firstEntryId, int entries) {
+        for (int index = 0; index < entries; index++) {
+            long entryId = firstEntryId + index;
+            store.addPendingAckIfAllowed(0, entryId, remaining(index), stickyKeyHash(index));
+        }
     }
 
-    private static int stickyKeyHash(int index) {
-        return index * 31;
+    private static int remaining(long index) {
+        return (int) (index & 15) + 1;
+    }
+
+    private static int stickyKeyHash(long index) {
+        return (int) (index * 31);
     }
 
     private static final class ProductionPendingAckStore implements PendingAckStore {
