@@ -103,7 +103,7 @@ public class PendingAcksMap {
     private final Lock readLock;
     private final Lock writeLock;
     private boolean closed = false;
-    private long size;
+    private volatile long size;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
                    Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
@@ -162,12 +162,7 @@ public class PendingAcksMap {
      * @return the size of the pending acks map
      */
     public long size() {
-        try {
-            readLock.lock();
-            return size;
-        } finally {
-            readLock.unlock();
-        }
+        return size;
     }
 
     /**
