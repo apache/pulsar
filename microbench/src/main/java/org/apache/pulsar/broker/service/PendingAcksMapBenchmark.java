@@ -280,6 +280,11 @@ public class PendingAcksMapBenchmark {
 
     private static final class ProductionPendingAckStore implements PendingAckStore {
         private final PendingAcksMap pendingAcks = new PendingAcksMap(null, () -> null, () -> null);
+        private long total;
+        private final PendingAcksMap.PendingAcksConsumer sumAllConsumer =
+                (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> total += remainingUnacked + stickyKeyHash;
+        private final PendingAcksMap.PendingAcksConsumer sumRemainingConsumer =
+                (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> total += remainingUnacked;
 
         @Override
         public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked,
@@ -309,18 +314,16 @@ public class PendingAcksMapBenchmark {
 
         @Override
         public long forEachAll() {
-            long[] total = new long[1];
-            pendingAcks.forEach((ledgerId, entryId, remainingUnacked, stickyKeyHash) ->
-                    total[0] += remainingUnacked + stickyKeyHash);
-            return total[0];
+            total = 0;
+            pendingAcks.forEach(sumAllConsumer);
+            return total;
         }
 
         @Override
         public long removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-            long[] total = new long[1];
-            pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
-                    (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> total[0] += remainingUnacked);
-            return total[0];
+            total = 0;
+            pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId, sumRemainingConsumer);
+            return total;
         }
     }
 

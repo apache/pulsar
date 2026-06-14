@@ -25,6 +25,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.util.collections.IntIntPair;
 import org.apache.pulsar.common.util.collections.Long2LongOpenHashMap;
 
@@ -518,7 +519,7 @@ public class PendingAcksMap {
                         retryWithWriteLock = true;
                         return;
                     }
-                    if (ledgerId == markDeleteLedgerId && containsEntryUpTo(ledgerMap, markDeleteEntryId)) {
+                    if (ledgerId == markDeleteLedgerId && !ledgerMap.isEmpty()) {
                         retryWithWriteLock = true;
                         return;
                     }
@@ -544,16 +545,16 @@ public class PendingAcksMap {
                     });
                     ledgerMapIterator.remove();
                 } else {
-                    boolean[] batchStartedHolder = new boolean[]{batchStarted};
+                    MutableBoolean batchStartedHolder = new MutableBoolean(batchStarted);
                     int removed = ledgerMap.removeIf((entryId, packedValue) -> {
                         if (entryId > markDeleteEntryId) {
                             return false;
                         }
                         int stickyKeyHash = unpackStickyKeyHash(packedValue);
                         if (pendingAcksRemoveHandler != null) {
-                            if (!batchStartedHolder[0]) {
+                            if (!batchStartedHolder.booleanValue()) {
                                 pendingAcksRemoveHandler.startBatch();
-                                batchStartedHolder[0] = true;
+                                batchStartedHolder.setTrue();
                             }
                             pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId,
                                     stickyKeyHash, closed);
@@ -564,7 +565,7 @@ public class PendingAcksMap {
                         }
                         return true;
                     });
-                    batchStarted = batchStartedHolder[0];
+                    batchStarted = batchStartedHolder.booleanValue();
                     if (removed > 0 && ledgerMap.isEmpty()) {
                         ledgerMapIterator.remove();
                     }
@@ -583,16 +584,6 @@ public class PendingAcksMap {
                 }
             }
         }
-    }
-
-    private static boolean containsEntryUpTo(Long2LongOpenHashMap ledgerMap, long maxEntryId) {
-        boolean[] found = new boolean[1];
-        ledgerMap.forEach((entryId, ignoredValue) -> {
-            if (entryId <= maxEntryId) {
-                found[0] = true;
-            }
-        });
-        return found[0];
     }
 
     // A packed value can legitimately be 0, so do not use Long2LongOpenHashMap.get() for lookups here.
