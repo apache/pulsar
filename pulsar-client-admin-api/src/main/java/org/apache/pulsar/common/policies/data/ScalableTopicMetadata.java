@@ -55,6 +55,12 @@ public class ScalableTopicMetadata {
     private Map<String, String> properties = Map.of();
 
     /**
+     * Per-topic auto split/merge policy override (PIP-483). {@code null} means no override:
+     * the namespace policy and then the broker configuration apply.
+     */
+    private AutoScalePolicyOverride autoScalePolicy;
+
+    /**
      * Describes a single segment in a scalable topic's DAG.
      */
     @Data

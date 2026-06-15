@@ -16,13 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.broker.service.scalable;
 
-import java.security.Provider;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
 
 /**
- * This interface declares a Bouncy Castle provider Loader.
+ * A segment's load record as the controller sees it: the persisted {@link SegmentLoadStats}
+ * plus the metadata store's last-modified timestamp for the record (PIP-483).
+ *
+ * <p>This is an in-memory evaluator input, never persisted — the timestamp comes from the
+ * metadata {@code Stat}, not from the stored value. {@code modifiedAtMs} is what the merge
+ * pass uses to require a segment has stayed cold for at least {@code mergeWindow}.
+ *
+ * @param stats        the persisted rates
+ * @param modifiedAtMs metadata-store last-modified time of the load record, in epoch millis
  */
-public interface BCLoader {
-    Provider getProvider();
+public record SegmentLoadSample(SegmentLoadStats stats, long modifiedAtMs) {
 }

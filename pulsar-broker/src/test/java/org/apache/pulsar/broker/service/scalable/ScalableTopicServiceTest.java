@@ -327,9 +327,20 @@ public class ScalableTopicServiceTest {
         service.createScalableTopic(tn, 2).get();
         assertTrue(resources.scalableTopicExistsAsync(tn).get());
 
+        // Seed child records under the topic — a subscription and a per-segment load
+        // record — to verify the delete is recursive and takes everything with it.
+        resources.createSubscriptionAsync(tn, "sub-a",
+                org.apache.pulsar.broker.resources.SubscriptionType.STREAM).get();
+        resources.reportSegmentLoadAsync(tn, 0,
+                new org.apache.pulsar.common.scalable.SegmentLoadStats(1, 1, 1, 1)).get();
+
         service.deleteScalableTopic(tn).get();
 
         assertFalse(resources.scalableTopicExistsAsync(tn).get());
+        assertFalse(resources.subscriptionExistsAsync(tn, "sub-a").get(),
+                "topic delete must remove subscription records");
+        assertFalse(resources.getSegmentLoadAsync(tn, 0).get().isPresent(),
+                "topic delete must remove segment load records");
         verify(scalableTopicsAdmin, org.mockito.Mockito.atLeast(2))
                 .deleteSegmentAsync(anyString(), anyBoolean());
     }

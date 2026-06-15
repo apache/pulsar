@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
@@ -144,6 +145,54 @@ public interface ScalableTopics {
      * @return the scalable topic metadata including segment DAG
      */
     CompletableFuture<ScalableTopicMetadata> getMetadataAsync(String topic);
+
+    /**
+     * Set the per-topic auto split/merge policy override (PIP-483). Overrides the namespace
+     * policy and the broker defaults for this topic; unset fields fall through.
+     *
+     * @param topic    Topic name in the format "tenant/namespace/topic"
+     * @param override the override to apply
+     */
+    void setAutoScalePolicy(String topic, AutoScalePolicyOverride override) throws PulsarAdminException;
+
+    /**
+     * Set the per-topic auto split/merge policy override asynchronously.
+     *
+     * @param topic    Topic name in the format "tenant/namespace/topic"
+     * @param override the override to apply
+     */
+    CompletableFuture<Void> setAutoScalePolicyAsync(String topic, AutoScalePolicyOverride override);
+
+    /**
+     * Get the per-topic auto split/merge policy override.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return the override, or {@code null} if none is set
+     */
+    AutoScalePolicyOverride getAutoScalePolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the per-topic auto split/merge policy override asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return the override, or {@code null} if none is set
+     */
+    CompletableFuture<AutoScalePolicyOverride> getAutoScalePolicyAsync(String topic);
+
+    /**
+     * Remove the per-topic auto split/merge policy override, letting the namespace policy
+     * and broker defaults apply.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     */
+    void removeAutoScalePolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the per-topic auto split/merge policy override asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     */
+    CompletableFuture<Void> removeAutoScalePolicyAsync(String topic);
 
     /**
      * Delete a scalable topic and all its underlying segment topics.

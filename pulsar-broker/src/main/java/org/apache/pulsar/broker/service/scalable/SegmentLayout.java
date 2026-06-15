@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -110,6 +114,43 @@ public class SegmentLayout {
                 .map(allSegments::get)
                 .filter(s -> s != null)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Number of merge operations in a segment's ancestry, including the segment itself.
+     *
+     * <p>A merge is the only operation that produces a segment with more than one parent
+     * (a split produces children with exactly one parent), so the merge depth is the count
+     * of segments in this segment's ancestor chain — itself included — that have
+     * {@code parentIds.size() >= 2}.
+     *
+     * <p>Used by auto split/merge (PIP-483) to cap split↔merge churn: a pair is only
+     * merge-eligible while neither side's merge depth has reached the configured maximum,
+     * which bounds the merge depth of the resulting child.
+     *
+     * @param segmentId the segment to measure
+     * @return the number of merges in this segment's lineage (0 for a never-merged segment)
+     */
+    public int mergeDepth(long segmentId) {
+        int depth = 0;
+        Deque<Long> toVisit = new ArrayDeque<>();
+        Set<Long> visited = new HashSet<>();
+        toVisit.add(segmentId);
+        while (!toVisit.isEmpty()) {
+            long id = toVisit.poll();
+            if (!visited.add(id)) {
+                continue;
+            }
+            SegmentInfo segment = allSegments.get(id);
+            if (segment == null) {
+                continue;
+            }
+            if (segment.parentIds().size() >= 2) {
+                depth++;
+            }
+            toVisit.addAll(segment.parentIds());
+        }
+        return depth;
     }
 
     /**
@@ -235,14 +276,17 @@ public class SegmentLayout {
     }
 
     /**
-     * Convert back to metadata for persistence.
+     * Convert back to metadata for persistence, carrying over the non-layout fields
+     * (properties, per-topic auto-scale policy) from the record being replaced. Layout
+     * mutations must never silently drop fields they don't model.
      */
-    public ScalableTopicMetadata toMetadata(Map<String, String> properties) {
+    public ScalableTopicMetadata toMetadata(ScalableTopicMetadata original) {
         return ScalableTopicMetadata.builder()
                 .epoch(epoch)
                 .nextSegmentId(nextSegmentId)
                 .segments(new LinkedHashMap<>(allSegments))
-                .properties(properties)
+                .properties(original.getProperties())
+                .autoScalePolicy(original.getAutoScalePolicy())
                 .build();
     }
 

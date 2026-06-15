@@ -24,10 +24,10 @@ plugins {
 dependencies {
     implementation(libs.slog)
     api(project(":pulsar-client-tools-api"))
-    implementation(project(":pulsar-client-admin-api"))
+    api(project(":pulsar-client-admin-api"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-original"))
-    implementation(project(":pulsar-client-api-v5"))
+    api(project(":pulsar-client-api-v5"))
     implementation(project(":pulsar-client-v5"))
     implementation(project(":pulsar-common"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
@@ -35,9 +35,9 @@ dependencies {
     implementation(project(":pulsar-websocket")) {
         exclude(group = "*", module = "*")
     }
-    implementation(libs.picocli)
+    api(libs.picocli)
     implementation(libs.picocli.shell.jline3)
-    implementation(libs.jline)
+    api(libs.jline)
     implementation(libs.commons.io)
     implementation(libs.commons.lang3)
     // guava was previously leaked onto the compile classpath via compileOnly(swagger-core 1.x)
@@ -45,11 +45,11 @@ dependencies {
     implementation(libs.commons.text)
     implementation(libs.asynchttpclient)
     implementation(libs.netty.reactive.streams)
-    implementation(libs.gson)
+    api(libs.gson)
     implementation(libs.javassist)
     implementation(libs.avro)
     implementation(libs.jetty.client)
-    implementation(libs.jetty.websocket.jetty.api)
+    api(libs.jetty.websocket.jetty.api)
     implementation(libs.jetty.websocket.jetty.client)
     runtimeOnly(libs.jna)
 

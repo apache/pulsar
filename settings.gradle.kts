@@ -68,10 +68,6 @@ include("pulsar-bom")
 
 // Tier 0 — no internal dependencies
 include("buildtools")
-// Maven artifactId is "bouncy-castle-bc" (directory is "bouncy-castle/bc")
-include("bouncy-castle:bouncy-castle-bc")
-project(":bouncy-castle:bouncy-castle-bc").projectDir = file("bouncy-castle/bc")
-include("bouncy-castle:bcfips")
 include("pulsar-config-validation")
 include("pulsar-client-api")
 include("pulsar-client-api-v5")
@@ -180,8 +176,9 @@ project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file(
 include("jetty-upgrade:zookeeper-with-patched-admin")
 project(":jetty-upgrade:zookeeper-with-patched-admin").projectDir = file("jetty-upgrade/zookeeper-with-patched-admin")
 
-// Tier 6.5 — bouncy castle test
-include("bouncy-castle:bcfips-include-test")
+// Tier 6.5 — FIPS BouncyCastle TLS integration test
+include("tests:pulsar-client-test-bcfips")
+project(":tests:pulsar-client-test-bcfips").projectDir = file("tests/pulsar-client-test-bcfips")
 
 // Tier 7
 include("pulsar-proxy")
