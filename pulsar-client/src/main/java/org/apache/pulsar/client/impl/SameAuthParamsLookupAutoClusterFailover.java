@@ -37,6 +37,14 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
+/**
+ * A service URL provider that probes multiple Pulsar service URLs with the same authentication
+ * parameters and fails over according to service health.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
 @CustomLog
 @SuppressFBWarnings(value = {"EI_EXPOSE_REP2"})
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
@@ -65,7 +73,10 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
     private SameAuthParamsLookupAutoClusterFailover() {}
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.currentPulsarServiceIndex = 0;
         this.pulsarClient = (PulsarClientImpl) client;
         this.executor = EventLoopUtil.newEventLoopGroup(1, false,
@@ -110,7 +121,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
 
     @SuppressWarnings("deprecation")
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (closed) {
             return;
         }
@@ -377,4 +388,3 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         }
     }
 }
-

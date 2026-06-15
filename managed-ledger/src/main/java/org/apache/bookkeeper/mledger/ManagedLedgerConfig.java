@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.github.merlimat.slog.Logger;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
@@ -81,6 +82,7 @@ public class ManagedLedgerConfig {
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private Logger loggerContext;
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
@@ -594,6 +596,27 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setLedgerOffloader(LedgerOffloader offloader) {
         this.ledgerOffloader = offloader;
+        return this;
+    }
+
+    /**
+     * Get the parent logger whose context attributes are inherited by the managed ledger logger.
+     *
+     * @return the parent logger, or null if none was set
+     */
+    public Logger getLoggerContext() {
+        return loggerContext;
+    }
+
+    /**
+     * Set a parent slog {@link Logger} whose context attributes (e.g. {@code topic}, {@code subscription}) are
+     * inherited by the managed ledger logger and propagated to the BookKeeper client when ledgers are created or
+     * opened, so that log statements emitted by the BookKeeper client carry the application context.
+     *
+     * @param loggerContext logger whose context attributes to inherit; null means no extra context
+     */
+    public ManagedLedgerConfig setLoggerContext(Logger loggerContext) {
+        this.loggerContext = loggerContext;
         return this;
     }
 

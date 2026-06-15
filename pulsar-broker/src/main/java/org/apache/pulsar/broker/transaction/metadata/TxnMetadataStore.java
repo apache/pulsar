@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.transaction.metadata;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
@@ -118,13 +122,17 @@ public class TxnMetadataStore {
      * {@code path} carries the generated sequence key.
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
-        Option.SecondaryIndex idx = switch (op.getKind()) {
+        Option.SecondaryIndex participantIdx = switch (op.getKind()) {
             case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT,
                     TxnPaths.segmentKey(op.getSegment()));
             case ACK -> new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
                     TxnPaths.ackIndexKey(op.getSegment(), op.getSubscription()));
         };
-        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), idx, APPEND_DELTAS);
+        // Also index by txnId so the TC's endTxn can enumerate this txn's ops without scanning
+        // the whole /txn/op namespace.
+        Option.SecondaryIndex byTxnIdx = new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, txnId);
+        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), participantIdx, byTxnIdx,
+                APPEND_DELTAS);
         return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opts);
     }
 
@@ -154,6 +162,18 @@ public class TxnMetadataStore {
                             && segment.equals(op.getSegment())
                             && subscription.equals(op.getSubscription());
                 },
+                consumer);
+    }
+
+    /**
+     * Stream all {@code /txn/op} records for {@code txnId} via the {@link TxnPaths#IDX_OPS_BY_TXN}
+     * index. Used by the v5 TC at end-txn time to enumerate participants — distinct segments for
+     * writes, distinct {@code (segment, subscription)} pairs for acks.
+     */
+    public CompletableFuture<Void> listOpsByTxn(String txnId, ScanConsumer consumer) {
+        return store.scanByIndex(TxnPaths.TXN_OP_PREFIX, TxnPaths.IDX_OPS_BY_TXN,
+                txnId, txnId,
+                gr -> txnId.equals(TxnPaths.txnIdFromOpPath(gr.getStat().getPath())),
                 consumer);
     }
 
@@ -379,6 +399,73 @@ public class TxnMetadataStore {
     public CompletableFuture<Void> deleteSegmentWatermark(String segment) {
         Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
         return store.deleteIfExists(TxnPaths.segmentWatermarkPath(segment), Optional.empty(), opts);
+    }
+
+    /**
+     * Delete all durable per-segment transaction state — every aborted-txn record and the watermark —
+     * when a segment is dropped (e.g. the scalable topic is deleted), so the {@code /txn/segment-state}
+     * records don't outlive the segment's data. Idempotent: missing records are no-ops.
+     */
+    public CompletableFuture<Void> deleteAllSegmentState(String segment) {
+        List<String> abortedKeys = Collections.synchronizedList(new ArrayList<>());
+        return scanAbortedTxns(segment,
+                TxnPaths.abortedByPositionSegmentLowerBound(segment),
+                TxnPaths.abortedByPositionSegmentUpperBound(segment),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                        if (txnIdKey != null) {
+                            abortedKeys.add(txnIdKey);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segment).exception(throwable)
+                                .log("Segment-state cleanup scan errored");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenCompose(__ -> {
+                    List<CompletableFuture<Void>> deletes = new ArrayList<>(abortedKeys.size());
+                    for (String txnIdKey : abortedKeys) {
+                        deletes.add(deleteAbortedTxn(segment, txnIdKey));
+                    }
+                    return FutureUtil.waitForAll(deletes);
+                }).thenCompose(__ -> deleteSegmentWatermark(segment));
+    }
+
+    // ---- TC sequence counter ----------------------------------------------
+
+    /**
+     * Atomically increment the per-tc txnId sequence counter and return the assigned value.
+     * Retries on {@link MetadataStoreException.BadVersionException} so concurrent callers
+     * (within a TC partition's broker) serialise correctly. The returned value becomes a
+     * txn's {@code leastSigBits}; monotonic per {@code tcId} ⟹ no txnId reuse.
+     */
+    public CompletableFuture<Long> nextTxnSequence(long tcId) {
+        String path = TxnPaths.tcSequencePath(tcId);
+        return store.get(path).thenCompose(opt -> {
+            long current = opt.map(gr -> fromJson(gr.getValue(), TcSequence.class).next() - 1).orElse(-1L);
+            long assigned = current + 1;
+            TcSequence updated = new TcSequence(assigned + 1);
+            Optional<Long> expectedVersion = opt.map(gr -> gr.getStat().getVersion())
+                    .map(Optional::of).orElse(Optional.of(-1L));
+            return store.put(path, toJson(updated), expectedVersion, Set.of())
+                    .thenApply(stat -> assigned)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = ex instanceof CompletionException && ex.getCause() != null
+                                ? ex.getCause() : ex;
+                        if (cause instanceof MetadataStoreException.BadVersionException) {
+                            // Concurrent write — retry.
+                            return nextTxnSequence(tcId);
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
+        });
     }
 
     // ---- JSON helpers ------------------------------------------------------

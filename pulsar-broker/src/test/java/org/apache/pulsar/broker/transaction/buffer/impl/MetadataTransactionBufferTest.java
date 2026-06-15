@@ -158,12 +158,54 @@ public class MetadataTransactionBufferTest {
     }
 
     @Test
+    public void terminalTxns_prunedFromCache_visibilityUnchanged() throws Exception {
+        // Resolve many transactions (mixed commit/abort) and confirm the in-memory per-txn cache is
+        // pruned back to empty rather than growing for the segment's lifetime, while visibility stays
+        // correct: aborted txns remain filtered (via the durable aborted set) and committed/unknown
+        // txns remain visible.
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        int n = 20;
+        TxnID lastAborted = null;
+        Position lastAbortedPos = null;
+        TxnID lastCommitted = null;
+        for (int i = 1; i <= n; i++) {
+            TxnID txnId = new TxnID(1, i);
+            createOpenHeader(txnId);
+            Position p = tb.appendBufferToTxn(txnId, 0, payload("v" + i)).get();
+            if (i % 2 == 0) {
+                commitTxn(txnId);
+                txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.COMMITTED)).get();
+                lastCommitted = txnId;
+            } else {
+                abortTxn(txnId);
+                txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.ABORTED)).get();
+                lastAborted = txnId;
+                lastAbortedPos = p;
+            }
+        }
+
+        // Once every txn is terminal, the cache holds nothing (no OPEN txns remain).
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(tb.getOngoingTxnCount()).isZero();
+            assertThat(tb.trackedTxnCount()).isZero();
+        });
+
+        // Visibility correctness survives pruning.
+        assertThat(tb.isTxnAborted(lastAborted, lastAbortedPos)).isTrue();
+        assertThat(tb.isTxnAborted(lastCommitted, PositionFactory.create(1, 0))).isFalse();
+        assertThat(tb.getCommittedTxnCount()).isEqualTo(n / 2);
+        assertThat(tb.getAbortedTxnCount()).isEqualTo(n / 2);
+    }
+
+    @Test
     public void appendToCommittedTxn_failsTxnConflict() throws Exception {
         TxnID txnId = new TxnID(1, 1);
         // Pre-set header to COMMITTED — txn is terminal before any append.
         Stat created = txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.COMMITTED, Duration.ofMillis(5000),
-                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000))).get();
+                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000), null)).get();
         assertThat(created.getVersion()).isZero();
 
         MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
@@ -235,6 +277,36 @@ public class MetadataTransactionBufferTest {
         tb.checkIfTBRecoverCompletely().get();
 
         assertThat(tb.isTxnAborted(oldAbortedTxn, PositionFactory.create(3, 5))).isTrue();
+    }
+
+    @Test
+    public void pruneTrimmedAborted_dropsBelowFirstValid_retainsAbove() throws Exception {
+        // An aborted txn whose data the ML has fully trimmed (max position below the first valid
+        // position) is dropped from both the durable aborted records and the in-memory set; an
+        // aborted txn whose data is still readable is retained.
+        TxnID trimmedTxn = new TxnID(1, 100);   // max position on ledger 1 — will be trimmed away
+        TxnID liveTxn = new TxnID(1, 200);      // max position on ledger 10 — still readable
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(trimmedTxn), 1L, 5L).get();
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(liveTxn), 10L, 5L).get();
+
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+        assertThat(tb.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isTrue();
+        assertThat(tb.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+
+        // The ML has trimmed everything below ledger 5.
+        when(ledger.getFirstPosition()).thenReturn(PositionFactory.create(5, 0));
+        tb.pruneTrimmedAbortedTxns().get();
+
+        // In-memory: trimmed dropped, live retained.
+        assertThat(tb.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isFalse();
+        assertThat(tb.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+
+        // Durable record also deleted: a fresh TB recovers only the live txn.
+        MetadataTransactionBuffer tb2 = new MetadataTransactionBuffer(topic, txnStore);
+        tb2.checkIfTBRecoverCompletely().get();
+        assertThat(tb2.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isFalse();
+        assertThat(tb2.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
     }
 
     @Test
@@ -393,14 +465,14 @@ public class MetadataTransactionBufferTest {
     private void createOpenHeader(TxnID txnId) throws Exception {
         txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.OPEN, Duration.ofMillis(60_000),
-                        Instant.ofEpochMilli(1000), null)).get();
+                        Instant.ofEpochMilli(1000), null, null)).get();
     }
 
     private void commitTxn(TxnID txnId) throws Exception {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 
@@ -408,7 +480,7 @@ public class MetadataTransactionBufferTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 

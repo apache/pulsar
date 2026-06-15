@@ -30,6 +30,10 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectReader;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -46,10 +50,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -175,16 +175,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException.NotFoundException e) {
             // topic may already be deleted
         }
-        try {
-            admin.namespaces().deleteNamespace(myNamespace, true);
-        } catch (PulsarAdminException.NotFoundException e) {
-            // namespace may already be deleted
-        }
-        try {
-            admin.namespaces().deleteNamespace(myNamespaceV1, true);
-        } catch (PulsarAdminException.NotFoundException e) {
-            // namespace may already be deleted
-        }
+        // Use deleteNamespaceWithRetry since the forced namespace deletion can fail transiently with HTTP 422 when a
+        // topic deletion in the cascade races with concurrent topic loading; the helper retries and treats an
+        // already-deleted namespace as success.
+        deleteNamespaceWithRetry(myNamespace, true);
+        deleteNamespaceWithRetry(myNamespaceV1, true);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
         admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);

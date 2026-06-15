@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 
@@ -114,6 +115,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncPutRequest(path, entity);
     }
 
+    // --- Migrate ---
+
+    @Override
+    public void migrateToScalable(String topic, boolean force) throws PulsarAdminException {
+        sync(() -> migrateToScalableAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> migrateToScalableAsync(String topic, boolean force) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("migrate").queryParam("force", force);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     // --- Get metadata ---
 
     @Override
@@ -125,6 +140,43 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<ScalableTopicMetadata> getMetadataAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncGetRequest(topicPath(tn), ScalableTopicMetadata.class);
+    }
+
+    // --- Auto split/merge policy override (PIP-483) ---
+
+    @Override
+    public void setAutoScalePolicy(String topic, AutoScalePolicyOverride override)
+            throws PulsarAdminException {
+        sync(() -> setAutoScalePolicyAsync(topic, override));
+    }
+
+    @Override
+    public CompletableFuture<Void> setAutoScalePolicyAsync(String topic, AutoScalePolicyOverride override) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("autoScalePolicy");
+        return asyncPostRequest(path, Entity.entity(override, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public AutoScalePolicyOverride getAutoScalePolicy(String topic) throws PulsarAdminException {
+        return sync(() -> getAutoScalePolicyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<AutoScalePolicyOverride> getAutoScalePolicyAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        return asyncGetRequest(topicPath(tn).path("autoScalePolicy"), AutoScalePolicyOverride.class);
+    }
+
+    @Override
+    public void removeAutoScalePolicy(String topic) throws PulsarAdminException {
+        sync(() -> removeAutoScalePolicyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAutoScalePolicyAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        return asyncDeleteRequest(topicPath(tn).path("autoScalePolicy"));
     }
 
     // --- Delete ---

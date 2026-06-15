@@ -32,6 +32,8 @@ import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -377,10 +379,22 @@ public class ProxyConnection extends PulsarHandler {
                 .attr("hasProxyToBrokerUrl", hasProxyToBrokerUrl)
                 .log("complete connection, init proxy handler. authenticated with role");
         if (hasProxyToBrokerUrl) {
-            // Optimize proxy connection to fail-fast if the target broker isn't active
-            // Pulsar client will retry connecting after a back off timeout
-            if (service.getConfiguration().isCheckActiveBrokers()
+            if (proxyToBrokerUrl.isBlank()) {
+                // An empty proxyToBrokerUrl is the "pair me to any broker" sentinel: the
+                // client (e.g. a scalable-topic control connection) doesn't target a specific
+                // broker, so the proxy selects one and bridges the connection to it.
+                String anyBroker = selectAnyBrokerHostAndPort();
+                if (anyBroker == null) {
+                    state = State.Closing;
+                    writeAndFlushAndClose(Commands.newError(-1,
+                            ServerError.ServiceNotReady, "No broker available to proxy the connection."));
+                    return;
+                }
+                proxyToBrokerUrl = anyBroker;
+            } else if (service.getConfiguration().isCheckActiveBrokers()
                     && !isBrokerActive(proxyToBrokerUrl)) {
+                // Optimize proxy connection to fail-fast if the target broker isn't active
+                // Pulsar client will retry connecting after a back off timeout
                 state = State.Closing;
                 log.warn()
                         .attr("remoteAddress", remoteAddress)
@@ -459,6 +473,44 @@ public class ProxyConnection extends PulsarHandler {
         }
     }
 
+    /**
+     * Select a broker for an "any broker" proxy pairing (empty proxyToBrokerUrl). Returns the
+     * broker as {@code host:port} (the format {@link BrokerProxyValidator} expects), or
+     * {@code null} if no broker is available.
+     */
+    private String selectAnyBrokerHostAndPort() {
+        boolean tls = service.getConfiguration().isTlsEnabledWithBroker();
+        String brokerUrl = tls
+                ? service.getConfiguration().getBrokerServiceURLTLS()
+                : service.getConfiguration().getBrokerServiceURL();
+        if (brokerUrl == null || brokerUrl.isBlank()) {
+            try {
+                ServiceLookupData broker = service.getDiscoveryProvider().nextBroker();
+                brokerUrl = tls ? broker.getPulsarServiceUrlTls() : broker.getPulsarServiceUrl();
+            } catch (Exception e) {
+                log.warn()
+                        .attr("remoteAddress", remoteAddress)
+                        .exception(e)
+                        .log("Failed to select a broker for any-broker proxying");
+                return null;
+            }
+        }
+        if (brokerUrl == null || brokerUrl.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = new URI(brokerUrl);
+            if (uri.getHost() == null || uri.getPort() < 0) {
+                log.warn().attr("brokerUrl", brokerUrl).log("Broker URL is missing host or port");
+                return null;
+            }
+            return uri.getHost() + ":" + uri.getPort();
+        } catch (URISyntaxException e) {
+            log.warn().attr("brokerUrl", brokerUrl).exception(e).log("Invalid broker URL");
+            return null;
+        }
+    }
+
     private void handleBrokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
         assert ctx.executor().inEventLoop();
         if (state == State.ProxyConnectingToBroker && ctx.channel().isOpen() && this.directProxyHandler == null) {
@@ -468,7 +520,9 @@ public class ProxyConnection extends PulsarHandler {
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
                     connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers(),
-                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics());
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics(),
+                    connected.hasFeatureFlags()
+                            && connected.getFeatureFlags().isSupportsTcMetadataDiscovery());
             writeAndFlush(msg);
             // Start auth refresh task only if we are not forwarding authorization credentials
             if (!service.getConfiguration().isForwardAuthorizationCredentials()) {

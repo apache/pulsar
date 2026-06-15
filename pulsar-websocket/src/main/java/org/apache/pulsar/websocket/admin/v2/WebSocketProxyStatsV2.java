@@ -19,43 +19,48 @@
 package org.apache.pulsar.websocket.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import java.util.Collection;
 import java.util.Map;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.admin.WebSocketProxyStatsBase;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 
 @Path("/proxy-stats")
-@Api(value = "/proxy", description = "Stats for web-socket proxy", tags = "proxy-stats")
+@Tag(name = "proxy-stats", description = "Stats for web-socket proxy")
 @Produces(MediaType.APPLICATION_JSON)
-@SuppressWarnings("deprecation")
 public class WebSocketProxyStatsV2 extends WebSocketProxyStatsBase {
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring",
-                  notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
-                  response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Gets the metrics for Monitoring",
+                  description = "The request should be executed by the Monitoring agent on each proxy "
+                          + "to fetch the metrics")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Gets the metrics for Monitoring",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Metrics.class)))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public Collection<Metrics> internalGetMetrics() throws Exception {
         return super.internalGetMetrics();
     }
 
     @GET
     @Path("/{domain}/{tenant}/{namespace}/{topic}/stats")
-    @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+    @Operation(summary = "Get the stats for the topic.")
+    @ApiResponses(value = { @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Topic does not exist") })
     public ProxyTopicStat getStats(@PathParam("domain") String domain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
         return super.internalGetStats(TopicName.get(domain, tenant, namespace, decode(encodedTopic)));
@@ -63,8 +68,8 @@ public class WebSocketProxyStatsV2 extends WebSocketProxyStatsBase {
 
     @GET
     @Path("/stats")
-    @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get the stats for the topic.")
+    @ApiResponses(value = { @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public Map<String, ProxyTopicStat> internalGetProxyStats() {
         return super.internalGetProxyStats();
     }

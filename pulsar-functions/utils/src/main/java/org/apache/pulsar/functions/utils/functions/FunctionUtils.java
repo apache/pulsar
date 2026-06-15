@@ -25,12 +25,16 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.zeroturnaround.zip.ZipUtil;
@@ -41,6 +45,17 @@ import org.zeroturnaround.zip.ZipUtil;
 public class FunctionUtils {
 
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
+
+    /**
+     * Computes MD5 digest of a file as lower-case hex (for function archive identity on reload).
+     */
+    public static String computeArchiveMd5Hex(Path path) throws IOException {
+        return calculateMd5Hex(path.toAbsolutePath().normalize().toFile());
+    }
+
+    private static String calculateMd5Hex(File file) throws IOException {
+        return HexFormat.of().formatHex(FileUtils.calculateMd5sum(file));
+    }
 
     /**
      * Extract the Pulsar Function class from a function or archive.
@@ -108,5 +123,73 @@ public class FunctionUtils {
         }
 
         return functions;
+    }
+
+    /**
+     * Reloads functions from disk against {@code previous}, reusing {@link FunctionArchive} instances when path and
+     * archive MD5 are unchanged (keeps class loaders open). New or changed archives get new instances.
+     * <p>
+     * {@link ReloadFunctionsResult#functionsToClose()} lists function archives evicted from the active set (replaced
+     * or no longer present on disk); the caller must {@link FunctionArchive#close()} each.
+     *
+     * @param previous functions from the previous scan (may be empty, never null)
+     * @param functionsDirectory same semantics as {@link #searchForFunctions}
+     * @param narExtractionDirectory same semantics as {@link #searchForFunctions}
+     * @param enableClassloading same semantics as {@link #searchForFunctions}
+     * @return new map keyed by function name (reused values are identical instances from {@code previous}) and
+     *         functions the caller should close
+     */
+    public static ReloadFunctionsResult reloadFunctions(
+            Map<String, FunctionArchive> previous,
+            String functionsDirectory,
+            String narExtractionDirectory,
+            boolean enableClassloading) throws IOException {
+
+        TreeMap<String, FunctionArchive> remaining = new TreeMap<>(previous);
+        TreeMap<String, FunctionArchive> next = new TreeMap<>();
+        List<FunctionArchive> toClose = new ArrayList<>();
+
+        Path dir = Paths.get(functionsDirectory).toAbsolutePath().normalize();
+        if (!dir.toFile().exists()) {
+            toClose.addAll(remaining.values());
+            return new ReloadFunctionsResult(next, toClose);
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.nar")) {
+            for (Path archive : stream) {
+                try {
+                    FunctionDefinition funcDef = FunctionUtils.getFunctionDefinition(archive.toFile());
+                    if (!StringUtils.isEmpty(funcDef.getFunctionClass())) {
+                        String name = funcDef.getName();
+                        String md5Hex = computeArchiveMd5Hex(archive);
+                        FunctionArchive prev = remaining.remove(name);
+                        if (prev != null
+                                && prev.getArchivePath() != null
+                                && archive.equals(prev.getArchivePath())
+                                && md5Hex.equals(prev.getArchiveMd5Hex())) {
+                            next.put(name, prev);
+                        } else {
+                            if (prev != null) {
+                                log.info()
+                                        .attr("function", name)
+                                        .attr("archive", archive)
+                                        .attr("previousArchive", prev.getArchivePath())
+                                        .log("Reloading changed function");
+                                toClose.add(prev);
+                            }
+                            next.put(name, new FunctionArchive(archive, funcDef, narExtractionDirectory,
+                                    enableClassloading, md5Hex));
+                        }
+                    }
+                } catch (Throwable t) {
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load function");
+                }
+            }
+        }
+        toClose.addAll(remaining.values());
+        return new ReloadFunctionsResult(next, toClose);
     }
 }

@@ -53,7 +53,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -220,6 +222,31 @@ public class PulsarClientImplTest {
     }
 
     @Test
+    public void testFailedServiceUrlProviderInitializationDoesNotCloseProvider() throws Exception {
+        CloseCountingServiceUrlProvider provider = new CloseCountingServiceUrlProvider();
+
+        ClientConfigurationData firstConf = new ClientConfigurationData();
+        firstConf.setServiceUrl(provider.getServiceUrl());
+        firstConf.setServiceUrlProvider(provider);
+        initializeEventLoopGroup(firstConf);
+
+        PulsarClientImpl client = new PulsarClientImpl(firstConf, eventLoopGroup);
+        assertEquals(provider.getCloseCount(), 0);
+
+        ClientConfigurationData secondConf = new ClientConfigurationData();
+        secondConf.setServiceUrl(provider.getServiceUrl());
+        secondConf.setServiceUrlProvider(provider);
+
+        Throwable error = org.testng.Assert.expectThrows(IllegalStateException.class,
+                () -> new PulsarClientImpl(secondConf, eventLoopGroup));
+        assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        assertEquals(provider.getCloseCount(), 0);
+
+        client.close();
+        assertEquals(provider.getCloseCount(), 1);
+    }
+
+    @Test
     public void testInitializingWithExecutorProviders() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
@@ -341,5 +368,32 @@ public class PulsarClientImplTest {
         ex = segFuture.handle((v, t) -> t).join();
         assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
         assertTrue(ex.getMessage().contains("V5 client SDK"));
+    }
+
+    private static class CloseCountingServiceUrlProvider implements ServiceUrlProvider {
+        private PulsarClient client;
+        private int closeCount;
+
+        @Override
+        public synchronized void initialize(PulsarClient client) {
+            if (this.client != null) {
+                throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+            }
+            this.client = client;
+        }
+
+        @Override
+        public String getServiceUrl() {
+            return "pulsar://localhost:6650";
+        }
+
+        @Override
+        public synchronized void close() {
+            closeCount++;
+        }
+
+        synchronized int getCloseCount() {
+            return closeCount;
+        }
     }
 }

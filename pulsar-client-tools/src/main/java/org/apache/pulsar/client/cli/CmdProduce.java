@@ -35,7 +35,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -49,19 +48,19 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonDecoder;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.api.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.client.api.v5.MessageBuilder;
+import org.apache.pulsar.client.api.v5.Producer;
+import org.apache.pulsar.client.api.v5.ProducerBuilder;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
+import org.apache.pulsar.client.api.v5.config.ChunkingPolicy;
+import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.api.v5.schema.SchemaInfo;
+import org.apache.pulsar.client.api.v5.schema.SchemaType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.client.HttpClient;
@@ -89,8 +88,6 @@ import picocli.CommandLine.Spec;
 public class CmdProduce extends AbstractCmd {
     private static final int MAX_MESSAGES = 1000;
     static final String KEY_VALUE_ENCODING_TYPE_NOT_SET = "";
-    private static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
-    private static final String KEY_VALUE_ENCODING_TYPE_INLINE = "inline";
 
     @Parameters(description = "TopicName", arity = "1")
     private String topic;
@@ -160,7 +157,7 @@ public class CmdProduce extends AbstractCmd {
             "--disable-replication" }, description = "Disable geo-replication for messages.")
     private boolean disableReplication = false;
 
-    private ClientBuilder clientBuilder;
+    private PulsarClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
 
@@ -171,7 +168,7 @@ public class CmdProduce extends AbstractCmd {
     /**
      * Set Pulsar client configuration.
      */
-    public void updateConfig(ClientBuilder newBuilder, Authentication authentication, String serviceURL) {
+    public void updateConfig(PulsarClientBuilder newBuilder, Authentication authentication, String serviceURL) {
         this.clientBuilder = newBuilder;
         this.authentication = authentication;
         this.serviceURL = serviceURL;
@@ -186,20 +183,15 @@ public class CmdProduce extends AbstractCmd {
      *
      * @return list of message bodies
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
-                                              Schema schema) {
+                                              org.apache.avro.Schema avroSchema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
-            if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-                // JSON TO AVRO
-                @SuppressWarnings("unchecked")
-                Optional<org.apache.avro.Schema> nativeSchema =
-                        (Optional<org.apache.avro.Schema>) (Optional<?>) schema.getNativeSchema();
-                org.apache.avro.Schema avroSchema = nativeSchema.get();
-                byte[] encoded = jsonToAvro(m, avroSchema);
-                messageBodies.add(encoded);
+            if (avroSchema != null) {
+                // JSON TO AVRO — the V5 Schema does not expose the native Avro schema, so the
+                // caller passes the parsed Avro definition directly.
+                messageBodies.add(jsonToAvro(m, avroSchema));
             } else {
                 messageBodies.add(m.getBytes());
             }
@@ -267,15 +259,11 @@ public class CmdProduce extends AbstractCmd {
 
         if (keyValueEncodingType == null) {
             keyValueEncodingType = KEY_VALUE_ENCODING_TYPE_NOT_SET;
-        } else {
-            switch (keyValueEncodingType) {
-                case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                case KEY_VALUE_ENCODING_TYPE_INLINE:
-                    break;
-                default:
-                    throw (new IllegalArgumentException("--key-value-encoding-type "
-                            + keyValueEncodingType + " is not valid, only 'separated' or 'inline'"));
-            }
+        } else if (!KEY_VALUE_ENCODING_TYPE_NOT_SET.equals(keyValueEncodingType)) {
+            // KeyValue schemas are not yet supported by the V5-based pulsar-client.
+            throw new IllegalArgumentException("KeyValue schemas (--key-value-encoding-type) are not "
+                    + "supported by this version of pulsar-client; produce with a plain value schema "
+                    + "(-vs bytes|string|avro:<def>|json:<def>) instead.");
         }
 
         int totalMessages = (messages.size() + messageFileNames.size()) * numTimesProduce;
@@ -296,24 +284,25 @@ public class CmdProduce extends AbstractCmd {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.build()){
-            Schema<?> schema = buildSchema(this.keySchema, this.valueSchema, this.keyValueEncodingType);
-            ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
+        if (this.disableReplication) {
+            log.warn("--disable-replication has no effect on this version of pulsar-client and is ignored.");
+        }
+
+        try (PulsarClient client = clientBuilder.build()) {
+            ValueSchema vs = buildValueSchema(this.valueSchema);
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer(vs.schema).topic(topic);
             if (this.chunkingAllowed) {
-                producerBuilder.enableChunking(true);
-                producerBuilder.enableBatching(false);
+                producerBuilder.chunkingPolicy(ChunkingPolicy.builder().enabled(true).build());
+                producerBuilder.batchingPolicy(BatchingPolicy.ofDisabled());
             } else if (this.disableBatching) {
-                producerBuilder.enableBatching(false);
+                producerBuilder.batchingPolicy(BatchingPolicy.ofDisabled());
             }
             if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {
-                producerBuilder.addEncryptionKey(this.encKeyName);
-                producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
+                producerBuilder.encryptionPolicy(buildEncryptionPolicy(this.encKeyName, this.encKeyValue));
             }
-            try (Producer<?> producer = producerBuilder.create();) {
-                Schema<?> schemaForPayload = schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
-                        ? ((KeyValueSchema) schema).getValueSchema() : schema;
+            try (Producer<byte[]> producer = producerBuilder.create()) {
                 List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
-                        schemaForPayload);
+                        vs.avroNative);
                 RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
                 Map<String, String> kvMap = new HashMap<>();
@@ -322,63 +311,21 @@ public class CmdProduce extends AbstractCmd {
                     kvMap.put(kv[0], kv[1]);
                 }
 
-                final byte[] keyValueKeyBytes;
-                if (this.keyValueKey != null) {
-                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new IllegalArgumentException(
-                            "Key value encoding type must be set when using --key-value-key");
-                    }
-                    keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
-                } else if (this.keyValueKeyFile != null) {
-                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new IllegalArgumentException(
-                            "Key value encoding type must be set when using --key-value-key-file");
-                    }
-                    keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
-                } else if (this.key != null) {
-                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
-                } else {
-                    keyValueKeyBytes = null;
-                }
-
                 for (int i = 0; i < this.numTimesProduce; i++) {
                     for (byte[] content : messageBodies) {
                         if (limiter != null) {
                             limiter.acquire();
                         }
 
-                        @SuppressWarnings("unchecked")
-                        TypedMessageBuilder<Object> message = (TypedMessageBuilder<Object>) producer.newMessage();
-
+                        MessageBuilder<byte[]> message = producer.newMessage();
                         if (!kvMap.isEmpty()) {
                             message.properties(kvMap);
                         }
-
-                        switch (keyValueEncodingType) {
-                            case KEY_VALUE_ENCODING_TYPE_NOT_SET:
-                                if (key != null && !key.isEmpty()) {
-                                    message.key(key);
-                                }
-                                message.value(content);
-                                break;
-                            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                            case KEY_VALUE_ENCODING_TYPE_INLINE:
-                                KeyValue<byte[], byte[]> kv = new KeyValue<>(
-                                        keyValueKeyBytes,
-                                        content);
-                                message.value(kv);
-                                break;
-                            default:
-                                throw new IllegalStateException();
+                        if (key != null && !key.isEmpty()) {
+                            message.key(key);
                         }
-
-                        if (disableReplication) {
-                            message.disableReplication();
-                        }
-
+                        message.value(content);
                         message.send();
-
-
                         numMessagesSent++;
                     }
                 }
@@ -393,52 +340,43 @@ public class CmdProduce extends AbstractCmd {
         return returnCode;
     }
 
-    static Schema<?> buildSchema(String keySchema, String schema, String keyValueEncodingType) {
-        switch (keyValueEncodingType) {
-            case KEY_VALUE_ENCODING_TYPE_NOT_SET:
-                return buildComponentSchema(schema);
-            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
-                        KeyValueEncodingType.SEPARATED);
-            case KEY_VALUE_ENCODING_TYPE_INLINE:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
-                        KeyValueEncodingType.INLINE);
-            default:
-                throw new IllegalArgumentException("Invalid KeyValueEncodingType "
-                        + keyValueEncodingType + ", only: 'none','separated' and 'inline");
-        }
+    /** A V5 producer schema (always {@code byte[]}) plus, for {@code avro:}, the parsed Avro
+     *  definition used to convert JSON input into Avro bytes. */
+    record ValueSchema(Schema<byte[]> schema, org.apache.avro.Schema avroNative) {
     }
 
-    private static Schema<?> buildComponentSchema(String schema) {
-        Schema<?> base;
-        switch (schema) {
-            case "string":
-                base = Schema.STRING;
-                break;
+    static ValueSchema buildValueSchema(String valueSchema) {
+        switch (valueSchema) {
             case "bytes":
-                // no need for wrappers
-                return Schema.BYTES;
+                return new ValueSchema(Schema.bytes(), null);
+            case "string":
+                return new ValueSchema(Schema.autoProduceBytesOf(Schema.string()), null);
             default:
-                if (schema.startsWith("avro:")) {
-                    base = buildGenericSchema(SchemaType.AVRO, schema.substring(5));
-                } else if (schema.startsWith("json:")) {
-                    base = buildGenericSchema(SchemaType.JSON, schema.substring(5));
-                } else {
-                    throw new IllegalArgumentException("Invalid schema type: " + schema);
+                if (valueSchema.startsWith("avro:")) {
+                    String def = valueSchema.substring(5);
+                    org.apache.avro.Schema avroNative = new org.apache.avro.Schema.Parser().parse(def);
+                    Schema<?> generic = Schema.generic(
+                            SchemaInfo.of("client", SchemaType.AVRO,
+                                    def.getBytes(StandardCharsets.UTF_8), null));
+                    return new ValueSchema(Schema.autoProduceBytesOf(generic), avroNative);
+                } else if (valueSchema.startsWith("json:")) {
+                    String def = valueSchema.substring(5);
+                    Schema<?> generic = Schema.generic(
+                            SchemaInfo.of("client", SchemaType.JSON,
+                                    def.getBytes(StandardCharsets.UTF_8), null));
+                    return new ValueSchema(Schema.autoProduceBytesOf(generic), null);
                 }
+                throw new IllegalArgumentException("Invalid schema type: " + valueSchema);
         }
-        return Schema.AUTO_PRODUCE_BYTES(base);
     }
 
-    private static Schema<?> buildGenericSchema(SchemaType type, String definition) {
-        return Schema.generic(SchemaInfoImpl
-                .builder()
-                .schema(definition.getBytes(StandardCharsets.UTF_8))
-                .name("client")
-                .properties(new HashMap<>())
-                .type(type)
-                .build());
-
+    private static ProducerEncryptionPolicy buildEncryptionPolicy(String keyName, String keyUri) {
+        return ProducerEncryptionPolicy.builder()
+                .publicKeyProvider(org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider.builder()
+                        .publicKey(keyName, fileUriToPath(keyUri))
+                        .build())
+                .keyName(keyName)
+                .build();
     }
 
     @VisibleForTesting
@@ -501,7 +439,7 @@ public class CmdProduce extends AbstractCmd {
         }
 
         try {
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames, Schema.BYTES);
+            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames, null);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
             for (int i = 0; i < this.numTimesProduce; i++) {
                 int index = i * 10;

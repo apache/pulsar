@@ -35,6 +35,9 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -49,8 +52,6 @@ import java.util.regex.PatternSyntaxException;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.login.LoginException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -332,6 +333,16 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 return false;
             }
         }
+    }
+
+    @VisibleForTesting
+    Cache<Long, AuthenticationState> getAuthStates() {
+        return authStates;
+    }
+
+    @VisibleForTesting
+    void setAuthStates(Cache<Long, AuthenticationState> authStates) {
+        this.authStates = authStates;
     }
 
     private String sanitizeHeaderValue(String value) {
