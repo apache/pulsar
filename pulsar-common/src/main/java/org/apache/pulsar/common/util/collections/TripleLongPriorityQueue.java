@@ -94,9 +94,6 @@ public class TripleLongPriorityQueue implements AutoCloseable {
             array.increaseCapacity();
         }
 
-        array.writeLong(arrayIdx, n1);
-        array.writeLong(arrayIdx + 1, n2);
-        array.writeLong(arrayIdx + 2, n3);
         siftUp(tuplesCount, n1, n2, n3);
         ++tuplesCount;
     }
@@ -137,9 +134,11 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     public void pop() {
         checkArgument(tuplesCount != 0);
 
-        long lastIdx = --tuplesCount;
-        long lastBase = lastIdx * ITEMS_COUNT;
+        if (--tuplesCount == 0) {
+            return;
+        }
 
+        long lastBase = tuplesCount * ITEMS_COUNT;
         long n1 = array.readLong(lastBase);
         long n2 = array.readLong(lastBase + 1);
         long n3 = array.readLong(lastBase + 2);
