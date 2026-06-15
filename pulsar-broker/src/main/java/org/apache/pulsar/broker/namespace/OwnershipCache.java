@@ -117,10 +117,10 @@ public class OwnershipCache {
         // At this moment, the variables "webServiceAddress" and "webServiceAddressTls" and so on have not been
         // initialized, so we will get an empty "selfOwnerInfo" and an empty "selfOwnerInfoDisabled" here.
         // But do not worry, these two fields will be set by the method "refreshSelfOwnerInfo" soon.
-        this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
+        this.selfOwnerInfo = new NamespaceEphemeralData(null, ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 false, pulsar.getAdvertisedListeners());
-        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
+        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(null, ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
@@ -349,10 +349,10 @@ public class OwnershipCache {
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
-        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerId(), pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
-        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(pulsar.getBrokerId(), pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(), true, pulsar.getAdvertisedListeners());
         return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;

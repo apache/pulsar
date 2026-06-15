@@ -23,7 +23,24 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":pulsar-client-api"))
+    // Bundled into the shaded jar (kept on the runtime classpath so shadowJar packs them):
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
+
+    // Non-bundled runtime dependencies. These are the ONLY entries in the dependency-reduced
+    // published POM/Gradle Module Metadata (the `shadow` component). The bundled modules above and
+    // their relocated third-party deps live inside the jar and must NOT appear as POM dependencies.
+    // pulsar-client-api, protobuf, jackson-annotations, the BouncyCastle jars (signed, not
+    // relocatable), OpenTelemetry and jspecify are deliberately not bundled. Logging is slf4j + slog
+    // only — never log4j.
+    "shadow"(project(":pulsar-client-api"))
+    "shadow"(libs.protobuf.java)
+    "shadow"(libs.jackson.annotations)
+    "shadow"(libs.bcprov.jdk18on)
+    "shadow"(libs.bcpkix.jdk18on)
+    "shadow"(libs.opentelemetry.api)
+    "shadow"(libs.opentelemetry.api.incubator)
+    "shadow"(libs.jspecify)
+    "shadow"(libs.slf4j.api)
+    "shadow"(libs.slog)
 }

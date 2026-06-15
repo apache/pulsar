@@ -30,8 +30,6 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
-import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,12 +59,11 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManager;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManagerForLoadManagerMigration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -111,7 +108,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.jspecify.annotations.Nullable;
 
@@ -149,7 +145,7 @@ public class NamespaceService implements AutoCloseable {
 
     private final List<NamespaceBundleSplitListener> bundleSplitListeners;
 
-    private final RedirectManager redirectManager;
+    private final RedirectManagerForLoadManagerMigration redirectManagerForLoadManagerMigration;
 
     public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
@@ -199,7 +195,7 @@ public class NamespaceService implements AutoCloseable {
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
-        this.redirectManager = new RedirectManager(pulsar);
+        this.redirectManagerForLoadManagerMigration = new RedirectManagerForLoadManagerMigration(pulsar);
 
         this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
                 .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
@@ -220,7 +216,8 @@ public class NamespaceService implements AutoCloseable {
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> {
                     // Do redirection if the cluster is in rollback or deploying.
-                    return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
+                    return redirectIfLoadBalancerOnBrokerIsNotExpected(bundle, options).thenCompose(
+                            optResult -> {
                         if (optResult.isPresent()) {
                             log.info()
                                     .attr("brokerId", pulsar.getBrokerId())
@@ -265,11 +262,12 @@ public class NamespaceService implements AutoCloseable {
         return future;
     }
 
-    private CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync(ServiceUnitId bundle) {
+    private CompletableFuture<Optional<LookupResult>> redirectIfLoadBalancerOnBrokerIsNotExpected(
+            ServiceUnitId bundle, LookupOptions options) {
         if (isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
-        return redirectManager.findRedirectLookupResultAsync();
+        return redirectManagerForLoadManagerMigration.redirectIfLoadBalancerOnBrokerIsNotExpected(options);
     }
 
     public CompletableFuture<NamespaceBundle> getBundleAsync(TopicName topic) {
@@ -303,84 +301,63 @@ public class NamespaceService implements AutoCloseable {
      * <p>
      * If the service unit is not owned, return a CompletableFuture with empty optional.
      */
-    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) {
+    public CompletableFuture<Optional<LookupResult>> getLookupResultForWebRequestAsync(ServiceUnitId suName,
+                                                                                       LookupOptions options) {
         if (suName instanceof TopicName name) {
-                log.debug()
-                        .attr("topic", name)
-                        .attr("options", options)
-                        .log("Getting web service URL of topic: - options");
-                        return getBundleAsync(name)
+            log.debug()
+                    .attr("topic", name)
+                    .attr("options", options)
+                    .log("Getting web service URL of topic: - options");
+            return getBundleAsync(name)
                     .thenCompose(namespaceBundle ->
-                            internalGetWebServiceUrl(name, namespaceBundle, options));
+                            internalGetLookupResultForWebRequestAsync(name, namespaceBundle, options));
         }
 
         if (suName instanceof NamespaceName namespaceName) {
             return getFullBundleAsync(namespaceName)
                     .thenCompose(namespaceBundle ->
-                            internalGetWebServiceUrl(null, namespaceBundle, options));
+                            internalGetLookupResultForWebRequestAsync(null, namespaceBundle, options));
         }
 
         if (suName instanceof NamespaceBundle namespaceBundle) {
-            return internalGetWebServiceUrl(null, namespaceBundle, options);
+            return internalGetLookupResultForWebRequestAsync(null, namespaceBundle, options);
         }
 
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
     }
 
     /**
-     * Return the URL of the broker who's owning a particular service unit.
-     * <p>
-     * If the service unit is not owned, return an empty optional
+     * Return the LookupResult of the broker that owns a particular service unit.
+     *
+     * <p>The returned LookupResult will not necessarily point to the broker that currently owns the service unit.
+     * When the cluster contains multiple brokers with different load manager implementations (e.g. during a
+     * load-manager migration), the LookupResult may point to a broker running the expected load manager, so the
+     * caller redirects the request to a broker that can handle it.
+     *
+     * <p>If the service unit is not owned, return an empty optional.
      */
-    public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
-        return getWebServiceUrlAsync(suName, options)
+    public Optional<LookupResult> getLookupResultForWebRequest(ServiceUnitId suName, LookupOptions options)
+            throws Exception {
+        return getLookupResultForWebRequestAsync(suName, options)
                 .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
     }
 
-    private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(@Nullable ServiceUnitId topic,
-                                                                      NamespaceBundle bundle,
-                                                                      LookupOptions options) {
-        return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
+    private CompletableFuture<Optional<LookupResult>> internalGetLookupResultForWebRequestAsync(
+            @Nullable ServiceUnitId topic, NamespaceBundle bundle, LookupOptions options) {
+        return redirectIfLoadBalancerOnBrokerIsNotExpected(bundle, options).thenCompose(optResult -> {
             if (optResult.isPresent()) {
                 log.info()
                         .attr("brokerId", pulsar.getBrokerId())
                         .attr("redirect", optResult.get())
                         .attr("topic", topic)
                         .log("Redirect lookup request");
-                try {
-                    LookupData lookupData = optResult.get().getLookupData();
-                    final String redirectUrl = options.isRequestHttps()
-                            ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                    return CompletableFuture.completedFuture(Optional.of(new URL(redirectUrl)));
-                } catch (Exception e) {
-                    // just log the exception, nothing else to do
-                    log.warn()
-                            .exception(e)
-                            .log("internalGetWebServiceUrl");
-                }
-                return CompletableFuture.completedFuture(Optional.empty());
+                return CompletableFuture.completedFuture(optResult);
             }
             CompletableFuture<Optional<LookupResult>> future =
                     ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
                     ? loadManager.get().findBrokerServiceUrl(Optional.ofNullable(topic), bundle, options) :
                     findBrokerServiceUrl(bundle, options);
-
-            return future.thenApply(lookupResult -> {
-                if (lookupResult.isPresent()) {
-                    try {
-                        LookupData lookupData = lookupResult.get().getLookupData();
-                        final String redirectUrl = options.isRequestHttps()
-                                ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                        return Optional.of(new URL(redirectUrl));
-                    } catch (Exception e) {
-                        // just log the exception, nothing else to do
-                        log.warn()
-                                .exception(e)
-                                .log("internalGetWebServiceUrl");
-                    }
-                }
-                return Optional.empty();
-            });
+            return future;
         });
     }
 
@@ -472,11 +449,11 @@ public class NamespaceService implements AutoCloseable {
      */
     private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
-            log.debug()
-                    .attr("bundle", bundle)
-                    .attr("options", options)
-                    .log("findBrokerServiceUrl");
-                Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        log.debug()
+                .attr("bundle", bundle)
+                .attr("options", options)
+                .log("findBrokerServiceUrl");
+        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {
@@ -502,31 +479,13 @@ public class NamespaceService implements AutoCloseable {
                     future.completeExceptionally(
                             new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
                 } else {
-                        log.debug().attr("bundle", bundle).attr("owner", nsData)
-                                .log("Namespace bundle already owned");
-                                        // find the target
-                    if (options.hasAdvertisedListenerName()) {
-                        AdvertisedListener listener =
-                                nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
-                        if (listener == null) {
-                            future.completeExceptionally(
-                                    new PulsarServerException("the broker do not have "
-                                            + options.getAdvertisedListenerName() + " listener"));
-                        } else {
-                            URI url = listener.getBrokerServiceUrl();
-                            URI urlTls = listener.getBrokerServiceUrlTls();
-                            future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    url == null ? null : url.toString(),
-                                    urlTls == null ? null : urlTls.toString())));
-                        }
-                    } else {
-                        future.complete(Optional.of(new LookupResult(nsData.get())));
-                    }
+                    log.debug().attr("bundle", bundle).attr("owner", nsData)
+                            .log("Namespace bundle already owned");
+                    resolveBrokerServiceLookupResult(options, nsData.get(), future);
                 }
             }).exceptionally(exception -> {
                 log.warn()
                         .attr("bundle", bundle)
-
                         .exception(exception)
                         .log("Failed to check owner for bundle");
                 future.completeExceptionally(exception);
@@ -569,10 +528,38 @@ public class NamespaceService implements AutoCloseable {
         return CompletableFuture.completedFuture(null);
     }
 
+    // package-private for tests
+    static void resolveBrokerServiceLookupResult(LookupOptions options, NamespaceEphemeralData nsData,
+                                                 CompletableFuture<Optional<LookupResult>> future) {
+        LookupResult result = LookupResult.create(nsData, options);
+
+        // fail the lookup if advertised listener name is provided and does not match
+        if (options.hasAdvertisedListenerName()
+                && !Objects.equals(result.getBrokerServiceListenerName(), options.getAdvertisedListenerName())) {
+            future.completeExceptionally(
+                    new PulsarServerException("The broker '" + result.getLookupData().getBrokerId() + "' does not "
+                            + "have '" + options.getAdvertisedListenerName() + "' listener configured."));
+            return;
+        }
+
+        // Tolerate a missing web service listener on the target broker — during a rolling cluster
+        // upgrade, older brokers may not have published the listener yet. Fall back to the default
+        // web service URL (the broker's primary HTTP/HTTPS) in that case; toRedirectUri picks it up
+        // because httpUrl/httpUrlTls were left at the broker's defaults by LookupResult.create.
+        if (options.hasWebServiceAdvertisedListenerName()
+                && !Objects.equals(result.getWebServiceListenerName(), options.getWebServiceAdvertisedListenerName())) {
+            log.warn()
+                    .attr("brokerId", result.getLookupData().getBrokerId())
+                    .attr("webServiceListenerName", options.getWebServiceAdvertisedListenerName())
+                    .log("Target broker has no matching web service listener; redirecting to its default URL.");
+        }
+
+        future.complete(Optional.of(result));
+    }
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
-        String candidateBroker;
         LeaderElectionService les = pulsar.getLeaderElectionService();
         if (les == null) {
             log.warn()
@@ -583,72 +570,102 @@ public class NamespaceService implements AutoCloseable {
             return;
         }
 
+        selectCandidateBroker(bundle, options, les)
+                .thenAcceptAsync(selection -> {
+                    if (selection.isEmpty()) {
+                        log.warn()
+                                .attr("namespaceBundle", bundle)
+                                .log("Load manager didn't return any available broker. Returning empty result to"
+                                        + " lookup. NamespaceBundle");
+                        lookupFuture.complete(Optional.empty());
+                        return;
+                    }
+                    acquireOwnershipOrRedirect(bundle, options, selection.get(), lookupFuture);
+                }, pulsar.getExecutor())
+                .exceptionally(e -> {
+                    log.warn()
+                            .attr("acquire", bundle)
+                            .exception(e)
+                            .log("Error when searching for candidate broker to acquire");
+                    lookupFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                    return null;
+                });
+    }
+
+    /** The broker selected for a bundle assignment, and whether the redirect to it is authoritative. */
+    private record CandidateBrokerSelection(String candidateBroker, boolean authoritativeRedirect) { }
+
+    private CompletableFuture<Optional<CandidateBrokerSelection>> selectCandidateBroker(
+            NamespaceBundle bundle, LookupOptions options, LeaderElectionService les) {
         boolean authoritativeRedirect = les.isLeader();
 
-        try {
-            // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
-                    CompletableFuture.completedFuture(isBrokerActive(cb)))
-                    .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-
-            if (candidateBroker == null) {
-                Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
-
-                if (options.isAuthoritative()) {
-                    // leader broker already assigned the current broker as owner
-                    candidateBroker = pulsar.getBrokerId();
-                } else {
+        // check if this is Heartbeat or SLAMonitor namespace
+        return getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
+                CompletableFuture.completedFuture(isBrokerActive(cb)))
+                .thenComposeAsync(heartbeatOrSlaBroker -> {
+                    if (heartbeatOrSlaBroker != null) {
+                        return completedSelection(heartbeatOrSlaBroker, authoritativeRedirect);
+                    }
+                    if (options.isAuthoritative()) {
+                        // leader broker already assigned the current broker as owner
+                        return completedSelection(pulsar.getBrokerId(), authoritativeRedirect);
+                    }
                     LoadManager loadManager = this.loadManager.get();
-                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
-                    if (!makeLoadManagerDecisionOnThisBroker) {
-                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                    if (!loadManager.isCentralized() || les.isLeader()) {
+                        return selectLeastLoadedBroker(bundle);
+                    }
+                    // The load manager decision belongs to the leader: read the leader
+                    // authoritatively (waits for an in-progress election to settle) instead of
+                    // acting on a possibly-empty snapshot during a leadership handoff.
+                    return les.readCurrentLeader().thenComposeAsync(currentLeader -> {
                         boolean leaderBrokerActive = currentLeader.isPresent()
                                 && isBrokerActive(currentLeader.get().getBrokerId());
-                        if (!leaderBrokerActive) {
-                            makeLoadManagerDecisionOnThisBroker = true;
-                            if (currentLeader.isEmpty()) {
-                                log.warn()
-                                        .attr("namespaceBundle", bundle)
-                                        .log("Leader broker info unavailable."
-                                                + " Using decentralized load"
-                                                + " manager decisions");
-                            } else {
-                                log.warn()
-                                        .attr("broker", currentLeader.get())
-                                        .attr("namespaceBundle", bundle)
-                                        .log("The current leader broker isn't active. Handling load manager"
-                                                + " decisions in a decentralized way. NamespaceBundle");
-                            }
+                        if (leaderBrokerActive) {
+                            // forward to leader broker to make assignment
+                            return completedSelection(currentLeader.get().getBrokerId(), authoritativeRedirect);
                         }
-                    }
-                    if (makeLoadManagerDecisionOnThisBroker) {
-                        Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
-                        if (availableBroker.isEmpty()) {
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        if (currentLeader.isEmpty()) {
                             log.warn()
                                     .attr("namespaceBundle", bundle)
-                                    .log("Load manager didn't return any available broker. Returning empty result to"
-                                            + " lookup. NamespaceBundle");
-                            lookupFuture.complete(Optional.empty());
-                            return;
+                                    .log("Leader broker info unavailable."
+                                            + " Using decentralized load"
+                                            + " manager decisions");
+                        } else {
+                            log.warn()
+                                    .attr("broker", currentLeader.get())
+                                    .attr("namespaceBundle", bundle)
+                                    .log("The current leader broker isn't active. Handling load manager"
+                                            + " decisions in a decentralized way. NamespaceBundle");
                         }
-                        candidateBroker = availableBroker.get();
-                        authoritativeRedirect = true;
-                    } else {
-                        // forward to leader broker to make assignment
-                        candidateBroker = currentLeader.get().getBrokerId();
-                    }
-                }
-            }
+                        return selectLeastLoadedBroker(bundle);
+                    }, pulsar.getExecutor());
+                }, pulsar.getExecutor());
+    }
+
+    private static CompletableFuture<Optional<CandidateBrokerSelection>> completedSelection(
+            String candidateBroker, boolean authoritativeRedirect) {
+        return CompletableFuture.completedFuture(
+                Optional.of(new CandidateBrokerSelection(candidateBroker, authoritativeRedirect)));
+    }
+
+    // The decentralized decision is authoritative: this broker picked the owner itself.
+    private CompletableFuture<Optional<CandidateBrokerSelection>> selectLeastLoadedBroker(NamespaceBundle bundle) {
+        Optional<String> availableBroker;
+        try {
+            availableBroker = getLeastLoadedFromLoadManager(bundle);
         } catch (Exception e) {
-            log.warn()
-                    .attr("acquire", bundle)
-
-                    .exception(e)
-                    .log("Error when searching for candidate broker to acquire");
-            lookupFuture.completeExceptionally(e);
-            return;
+            return CompletableFuture.failedFuture(e);
         }
+        return CompletableFuture.completedFuture(
+                availableBroker.map(broker -> new CandidateBrokerSelection(broker, true)));
+    }
 
+    private void acquireOwnershipOrRedirect(NamespaceBundle bundle, LookupOptions options,
+                                            CandidateBrokerSelection selection,
+                                            CompletableFuture<Optional<LookupResult>> lookupFuture) {
+        final String candidateBroker = selection.candidateBroker();
+        final boolean authoritativeRedirect = selection.authoritativeRedirect();
         try {
             Objects.requireNonNull(candidateBroker);
 
@@ -666,25 +683,8 @@ public class NamespaceService implements AutoCloseable {
                             // Schedule the task to preload topics
                             pulsar.loadNamespaceTopics(bundle);
                         }
-                        // find the target
-                        if (options.hasAdvertisedListenerName()) {
-                            AdvertisedListener listener =
-                                    ownerInfo.getAdvertisedListeners().get(options.getAdvertisedListenerName());
-                            if (listener == null) {
-                                lookupFuture.completeExceptionally(
-                                        new PulsarServerException("the broker do not have "
-                                                + options.getAdvertisedListenerName() + " listener"));
-                            } else {
-                                URI url = listener.getBrokerServiceUrl();
-                                URI urlTls = listener.getBrokerServiceUrlTls();
-                                lookupFuture.complete(Optional.of(
-                                        new LookupResult(ownerInfo,
-                                                url == null ? null : url.toString(),
-                                                urlTls == null ? null : urlTls.toString())));
-                            }
-                        } else {
-                            lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
-                        }
+
+                        resolveBrokerServiceLookupResult(options, ownerInfo, lookupFuture);
                     }
                 }).exceptionally(exception -> {
                     log.warn()
@@ -698,18 +698,17 @@ public class NamespaceService implements AutoCloseable {
 
             } else {
                 // Load managed decider some other broker should try to acquire ownership
-                    log.debug()
-                            .attr("broker", candidateBroker)
-                            .attr("bundle", bundle)
-                            .log("Redirecting to broker to acquire ownership of bundle");
-                                // Now setting the redirect url
-                createLookupResult(candidateBroker, authoritativeRedirect, options.getAdvertisedListenerName())
+                log.debug()
+                        .attr("broker", candidateBroker)
+                        .attr("bundle", bundle)
+                        .log("Redirecting to broker to acquire ownership of bundle");
+                // Now setting the redirect url
+                createLookupResult(candidateBroker, authoritativeRedirect, options)
                         .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
                             return null;
                         });
-
             }
         } catch (Exception e) {
             log.warn()
@@ -721,7 +720,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
-                                                                 final String advertisedListenerName) {
+                                                                 LookupOptions options) {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
@@ -730,25 +729,9 @@ public class NamespaceService implements AutoCloseable {
 
             localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
-                    LocalBrokerData lookupData = reportData.get();
-                    if (StringUtils.isNotBlank(advertisedListenerName)) {
-                        AdvertisedListener listener = lookupData.getAdvertisedListeners().get(advertisedListenerName);
-                        if (listener == null) {
-                            lookupFuture.completeExceptionally(
-                                    new PulsarServerException(
-                                            "the broker do not have " + advertisedListenerName + " listener"));
-                        } else {
-                            URI url = listener.getBrokerServiceUrl();
-                            URI urlTls = listener.getBrokerServiceUrlTls();
-                            lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                                    lookupData.getWebServiceUrlTls(), url == null ? null : url.toString(),
-                                    urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
-                        }
-                    } else {
-                        lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                                lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
-                                lookupData.getPulsarServiceUrlTls(), authoritativeRedirect));
-                    }
+                    LookupResult lookupResult =
+                            LookupResult.create(reportData.get(), options, authoritativeRedirect);
+                    lookupFuture.complete(lookupResult);
                 } else {
                     lookupFuture.completeExceptionally(new MetadataStoreException.NotFoundException(path));
                 }
@@ -788,7 +771,7 @@ public class NamespaceService implements AutoCloseable {
      * Helper function to encapsulate the logic to invoke between old and new load manager.
      *
      * @param serviceUnit the service unit
-     * @return the least loaded broker addresses
+     * @return the least loaded brokerId
      * @throws Exception if an error occurs
      */
     private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
@@ -798,12 +781,12 @@ public class NamespaceService implements AutoCloseable {
             return Optional.empty();
         }
 
-        String lookupAddress = leastLoadedBroker.get().getResourceId();
-            log.debug()
-                    .attr("brokerId", pulsar.getBrokerId())
-                    .attr("address", lookupAddress)
-                    .log("redirecting to the least loaded broker, lookup address");
-                return Optional.of(lookupAddress);
+        String leastLoadedBrokerId = leastLoadedBroker.get().getResourceId();
+        log.debug()
+                .attr("brokerId", pulsar.getBrokerId())
+                .attr("leastLoadedBrokerId", leastLoadedBrokerId)
+                .log("redirecting to the least loaded broker");
+        return Optional.of(leastLoadedBrokerId);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {

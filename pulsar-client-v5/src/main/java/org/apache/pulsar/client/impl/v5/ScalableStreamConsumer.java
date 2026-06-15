@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 
 /**
  * V5 StreamConsumer implementation for scalable topics.
@@ -377,6 +378,14 @@ final class ScalableStreamConsumer<T>
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setSubscriptionType(SubscriptionType.Exclusive);
+        // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
+        // migration pre-check inspects, so mark just those connections as V5-managed —
+        // connections to real segment:// topics are never examined.
+        if (segment.isLegacy()) {
+            segConf.getProperties().put(
+                    ScalableTopicConstants.V5_MANAGED_METADATA_KEY,
+                    ScalableTopicConstants.V5_MANAGED_METADATA_VALUE);
+        }
         if (consumerConf.getConsumerName() != null) {
             segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
         }

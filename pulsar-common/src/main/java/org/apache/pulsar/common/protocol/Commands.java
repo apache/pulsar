@@ -313,6 +313,13 @@ public class Commands {
 
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
                                                   boolean supportsTopicWatchers, boolean supportsScalableTopics) {
+        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, false);
+    }
+
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers, boolean supportsScalableTopics,
+                                                  boolean supportsTcMetadataDiscovery) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -333,6 +340,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
         connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsScalableTopics(supportsScalableTopics);
+        connected.setFeatureFlags().setSupportsTcMetadataDiscovery(supportsTcMetadataDiscovery);
         return cmd;
     }
 
@@ -340,6 +348,12 @@ public class Commands {
                                        boolean supportsScalableTopics) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
                 supportsScalableTopics));
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                       boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
@@ -710,8 +724,12 @@ public class Commands {
     }
 
     public static ByteBuf newTcClientConnectRequest(long tcId, long requestId) {
+        return newTcClientConnectRequest(tcId, requestId, false);
+    }
+
+    public static ByteBuf newTcClientConnectRequest(long tcId, long requestId, boolean scalable) {
         BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_REQUEST);
-        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId);
+        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId).setScalable(scalable);
         return serializeWithSize(cmd);
     }
 
@@ -1417,12 +1435,17 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlMillis) {
+        return newTxn(tcId, requestId, ttlMillis, false);
+    }
+
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlMillis, boolean scalable) {
         BaseCommand cmd = localCmd(Type.NEW_TXN);
         cmd.setNewTxn()
                 .setTcId(tcId)
                 .setRequestId(requestId)
-                .setTxnTtlSeconds(ttlSeconds);
+                .setTxnTtlMillis(ttlMillis)
+                .setScalable(scalable);
         return serializeWithSize(cmd);
     }
 
@@ -1449,11 +1472,17 @@ public class Commands {
 
     public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                List<String> partitions) {
+        return newAddPartitionToTxn(requestId, txnIdLeastBits, txnIdMostBits, partitions, false);
+    }
+
+    public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                               List<String> partitions, boolean scalable) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN);
         CommandAddPartitionToTxn req = cmd.setAddPartitionToTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits);
+                .setTxnidMostBits(txnIdMostBits)
+                .setScalable(scalable);
         if (partitions != null) {
             partitions.forEach(req::addPartition);
         }
@@ -1489,11 +1518,17 @@ public class Commands {
 
     public static ByteBuf newAddSubscriptionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
             List<Subscription> subscriptions) {
+        return newAddSubscriptionToTxn(requestId, txnIdLeastBits, txnIdMostBits, subscriptions, false);
+    }
+
+    public static ByteBuf newAddSubscriptionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+            List<Subscription> subscriptions, boolean scalable) {
         BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN);
         CommandAddSubscriptionToTxn add = cmd.setAddSubscriptionToTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
-                .setTxnidMostBits(txnIdMostBits);
+                .setTxnidMostBits(txnIdMostBits)
+                .setScalable(scalable);
         subscriptions.forEach(s -> add.addSubscription().copyFrom(s));
         return serializeWithSize(cmd);
     }
@@ -1522,11 +1557,17 @@ public class Commands {
     }
 
     public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
+        return newEndTxn(requestId, txnIdLeastBits, txnIdMostBits, txnAction, false);
+    }
+
+    public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction,
+                                        boolean scalable) {
         BaseCommand cmd = localCmd(Type.END_TXN);
         cmd.setEndTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
-                .setTxnAction(txnAction);
+                .setTxnAction(txnAction)
+                .setScalable(scalable);
         return cmd;
     }
 
@@ -1863,6 +1904,58 @@ public class Commands {
     public static ByteBuf newWatchScalableTopicsError(long watchId, ServerError error, String message) {
         BaseCommand cmd = new BaseCommand().setType(Type.WATCH_SCALABLE_TOPICS_UPDATE);
         cmd.setWatchScalableTopicsUpdate()
+                .setWatchId(watchId)
+                .setError(error)
+                .setMessage(message);
+        return serializeWithSize(cmd);
+    }
+
+    // --- Transaction-coordinator assignment watch ---
+
+    /** Client -> Broker: open the TC-assignment watch. */
+    public static ByteBuf newWatchTcAssignments(long watchId) {
+        BaseCommand cmd = localCmd(Type.WATCH_TC_ASSIGNMENTS);
+        cmd.setWatchTcAssignments().setWatchId(watchId);
+        return serializeWithSize(cmd);
+    }
+
+    /** Client -> Broker: close the TC-assignment watch. */
+    public static ByteBuf newWatchTcAssignmentsClose(long watchId) {
+        BaseCommand cmd = localCmd(Type.WATCH_TC_ASSIGNMENTS_CLOSE);
+        cmd.setWatchTcAssignmentsClose().setWatchId(watchId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
+     * Broker -> Client: emit the full {@code partition -> leader} snapshot. Sent on initial watch
+     * and again, in full, on every leadership change. A partition currently mid-election is simply
+     * absent from {@code leaders}; the client parks transactions routed there until a later
+     * snapshot fills it in. URLs in a leader entry may be {@code null} (broker advertises only one
+     * of plaintext / TLS).
+     *
+     * @param leaders partition -> {brokerServiceUrl, brokerServiceUrlTls}
+     */
+    public static ByteBuf newWatchTcAssignmentsSnapshot(long watchId, int parallelism,
+            java.util.Map<Integer, String[]> leaders) {
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TC_ASSIGNMENTS_UPDATE);
+        var snapshot = cmd.setWatchTcAssignmentsUpdate().setWatchId(watchId)
+                .setSnapshot().setParallelism(parallelism);
+        for (var entry : leaders.entrySet()) {
+            String[] urls = entry.getValue();
+            var assignment = snapshot.addAssignment().setTcId(entry.getKey());
+            if (urls[0] != null) {
+                assignment.setBrokerServiceUrl(urls[0]);
+            }
+            if (urls[1] != null) {
+                assignment.setBrokerServiceUrlTls(urls[1]);
+            }
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newWatchTcAssignmentsError(long watchId, ServerError error, String message) {
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TC_ASSIGNMENTS_UPDATE);
+        cmd.setWatchTcAssignmentsUpdate()
                 .setWatchId(watchId)
                 .setError(error)
                 .setMessage(message);

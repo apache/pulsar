@@ -35,6 +35,10 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -53,10 +57,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
@@ -212,7 +212,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             confBuilder.setAcquireFreeChannelTimeout(conf.getRequestTimeoutMs());
         }
         if (conf.getConnectionMaxIdleSeconds() > 0) {
-            confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
+            confBuilder.setPooledConnectionIdleTimeout(Duration.ofSeconds(conf.getConnectionMaxIdleSeconds()));
         }
         if (sharedResources != null) {
             if (this.eventLoopGroup != null) {
@@ -225,14 +225,14 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
-        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
-        confBuilder.setConnectTimeout(connectTimeoutMs);
-        confBuilder.setReadTimeout(readTimeoutMs);
+        confBuilder.setRequestTimeout(Duration.ofMillis(conf.getRequestTimeoutMs()));
+        confBuilder.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        confBuilder.setReadTimeout(Duration.ofMillis(readTimeoutMs));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
                 PulsarVersion.getVersion(),
                 (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
         ));
-        confBuilder.setRequestTimeout(requestTimeoutMs);
+        confBuilder.setRequestTimeout(Duration.ofMillis(requestTimeoutMs));
         confBuilder.setIoThreadsCount(conf.getNumIoThreads());
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
@@ -243,7 +243,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                         && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
-        confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        confBuilder.setSslEngineFactory(
+                new PulsarHttpAsyncSslEngineFactory(sslFactory, null, conf.isTlsHostnameVerificationEnable()));
         configureSocks5ProxyIfNeeded(confBuilder, conf);
     }
 
@@ -270,7 +271,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         }
         String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
                 .resolveHostUri().getHost();
-        SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname);
+        SslEngineFactory sslEngineFactory =
+                new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname, conf.isTlsHostnameVerificationEnable());
         confBuilder.setSslEngineFactory(sslEngineFactory);
         confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
@@ -318,7 +320,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             } else {
                 ClientResponse jerseyResponse =
                         new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
-                jerseyResponse.setStatusInfo(new javax.ws.rs.core.Response.StatusType() {
+                jerseyResponse.setStatusInfo(new jakarta.ws.rs.core.Response.StatusType() {
                     @Override
                     public int getStatusCode() {
                         return response.getStatusCode();

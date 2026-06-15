@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 @CustomLog
@@ -90,18 +91,34 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             );
         }
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
-        long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
-        if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0
-                && managedLedgerMaxReadsInFlightSizeBytes < conf.getDispatcherMaxReadSizeBytes()) {
-            log.warn()
-                    .attr("managedLedgerMaxReadsInFlightSizeInMB", conf.getManagedLedgerMaxReadsInFlightSizeInMB())
-                    .attr("dispatcherMaxReadSizeBytes", conf.getDispatcherMaxReadSizeBytes())
-                    .attr("minManagedLedgerMaxReadsInFlightSizeInMB",
-                            (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1)
-                    .log("Invalid configuration:"
-                            + " managedLedgerMaxReadsInFlightSizeInMB in bytes"
-                            + " should be greater than"
-                            + " dispatcherMaxReadSizeBytes");
+        Long managedLedgerMaxReadsInFlightSizeInMB = conf.getManagedLedgerMaxReadsInFlightSizeInMB();
+        // A single dispatcher read can retain up to dispatcherMaxReadSizeBytes bytes. The in-flight reads
+        // limit must be at least this size, otherwise the limiter can block the completion of a single read.
+        long dispatcherMaxReadSizeBytes = conf.getDispatcherMaxReadSizeBytes();
+        final long managedLedgerMaxReadsInFlightSizeBytes;
+        if (managedLedgerMaxReadsInFlightSizeInMB == null) {
+            // When unset, default to 15% of the available JVM direct memory, but never below the maximum
+            // size of a single read (dispatcherMaxReadSizeBytes) so that the limiter can never block the
+            // completion of one read.
+            long fractionOfDirectMemory = (long) (0.15d * DirectMemoryUtils.jvmMaxDirectMemory());
+            managedLedgerMaxReadsInFlightSizeBytes = Math.max(fractionOfDirectMemory, dispatcherMaxReadSizeBytes);
+        } else {
+            // An explicit 0 disables the feature; an explicit value > 0 is used as-is.
+            managedLedgerMaxReadsInFlightSizeBytes = managedLedgerMaxReadsInFlightSizeInMB * 1024L * 1024L;
+            // Warn when the feature is enabled but manually configured below the size of a single read, since
+            // the limiter would then be unable to admit one read. Disabled (0) is ignored.
+            if (managedLedgerMaxReadsInFlightSizeBytes > 0 && dispatcherMaxReadSizeBytes > 0
+                    && managedLedgerMaxReadsInFlightSizeBytes < dispatcherMaxReadSizeBytes) {
+                log.warn()
+                        .attr("managedLedgerMaxReadsInFlightSizeInMB", managedLedgerMaxReadsInFlightSizeInMB)
+                        .attr("dispatcherMaxReadSizeBytes", dispatcherMaxReadSizeBytes)
+                        .attr("minManagedLedgerMaxReadsInFlightSizeInMB",
+                                (dispatcherMaxReadSizeBytes + (1024L * 1024L) - 1) / (1024L * 1024L))
+                        .log("Invalid configuration:"
+                                + " managedLedgerMaxReadsInFlightSizeInMB in bytes should be greater than or"
+                                + " equal to dispatcherMaxReadSizeBytes, otherwise the in-flight reads limiter"
+                                + " can block the completion of a single read.");
+            }
         }
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(

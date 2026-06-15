@@ -41,14 +41,13 @@ public class LookupOptions {
      */
     private final boolean loadTopicsInBundle;
 
-    /**
-     * The lookup request was made through HTTPs.
-     */
-    private final boolean requestHttps;
-
+    private final String webServiceAdvertisedListenerName;
     private final String advertisedListenerName;
     private final Map<String, String> properties;
 
+    public boolean hasWebServiceAdvertisedListenerName() {
+        return StringUtils.isNotBlank(webServiceAdvertisedListenerName);
+    }
     public boolean hasAdvertisedListenerName() {
         return StringUtils.isNotBlank(advertisedListenerName);
     }

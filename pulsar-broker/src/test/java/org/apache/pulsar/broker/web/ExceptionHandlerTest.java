@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import static org.eclipse.jetty.http.HttpStatus.INTERNAL_SERVER_ERROR_500;
 import static org.eclipse.jetty.http.HttpStatus.PRECONDITION_FAILED_412;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.mockito.Mockito;

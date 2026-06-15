@@ -190,6 +190,12 @@ public class ClientCnx extends PulsarHandler {
                     .concurrencyLevel(1)
                     .build();
 
+    private final ConcurrentLongHashMap<TcAssignmentsWatcherSession> tcAssignmentsWatchers =
+            ConcurrentLongHashMap.<TcAssignmentsWatcherSession>newBuilder()
+                    .expectedItems(2)
+                    .concurrencyLevel(1)
+                    .build();
+
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
 
@@ -210,6 +216,11 @@ public class ClientCnx extends PulsarHandler {
     private final int rejectedRequestResetTimeSec = 60;
     protected final int protocolVersion;
     private final long operationTimeoutMs;
+
+    // Value set as proxyToTargetBrokerAddress to ask the proxy to pair this connection to any broker
+    // it selects. It must be present-but-empty on the wire: a null proxyToBrokerUrl would be omitted
+    // entirely, leaving the proxy in plain lookup mode instead of pairing the connection.
+    static final String PROXY_TO_ANY_BROKER_URL = "";
 
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
@@ -233,6 +244,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsTopicWatcherReconcile;
     @Getter
     private boolean supportsScalableTopics;
+    @Getter
+    private boolean supportsTcMetadataDiscovery;
 
     /** Idle stat. **/
     @Getter
@@ -388,6 +401,7 @@ public class ClientCnx extends PulsarHandler {
         dagWatchSessions.forEach((__, session) -> session.connectionClosed());
         scalableConsumerSessions.forEach((__, session) -> session.connectionClosed());
         scalableTopicsWatchers.forEach((__, session) -> session.connectionClosed());
+        tcAssignmentsWatchers.forEach((__, session) -> session.connectionClosed());
 
         waitingLookupRequests.clear();
 
@@ -397,6 +411,7 @@ public class ClientCnx extends PulsarHandler {
         dagWatchSessions.clear();
         scalableConsumerSessions.clear();
         scalableTopicsWatchers.clear();
+        tcAssignmentsWatchers.clear();
 
         timeoutTask.cancel(true);
     }
@@ -453,6 +468,8 @@ public class ClientCnx extends PulsarHandler {
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatcherReconcile();
         supportsScalableTopics =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics();
+        supportsTcMetadataDiscovery =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTcMetadataDiscovery();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -1511,6 +1528,62 @@ public class ClientCnx extends PulsarHandler {
         scalableTopicsWatchers.remove(watchId);
     }
 
+    /** Client-side receiver for transaction-coordinator assignment snapshots. */
+    public interface TcAssignmentsWatcherSession {
+        void onSnapshot(int parallelism, java.util.Map<Long, String[]> leaders);
+
+        void onError(org.apache.pulsar.common.api.proto.ServerError error, String message);
+
+        void connectionClosed();
+    }
+
+    public void registerTcAssignmentsWatcher(long watchId, TcAssignmentsWatcherSession watcher) {
+        tcAssignmentsWatchers.put(watchId, watcher);
+    }
+
+    public void removeTcAssignmentsWatcher(long watchId) {
+        tcAssignmentsWatchers.remove(watchId);
+    }
+
+    @Override
+    protected void handleCommandWatchTcAssignmentsUpdate(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsUpdate cmd) {
+        checkArgument(state == State.Ready);
+        long watchId = cmd.getWatchId();
+        log.debug().attr("watchId", watchId).log("Received WatchTcAssignmentsUpdate");
+
+        if (cmd.hasError()) {
+            TcAssignmentsWatcherSession session = tcAssignmentsWatchers.remove(watchId);
+            if (session != null) {
+                session.onError(cmd.getError(), cmd.hasMessage() ? cmd.getMessage() : null);
+            } else {
+                log.warn().attr("watchId", watchId)
+                        .log("Received TC-assignments watch error for unknown watcher");
+            }
+            return;
+        }
+
+        TcAssignmentsWatcherSession session = tcAssignmentsWatchers.get(watchId);
+        if (session == null) {
+            log.warn().attr("watchId", watchId)
+                    .log("Received TC-assignments watch update for unknown watcher");
+            return;
+        }
+        if (!cmd.hasSnapshot()) {
+            log.warn().attr("watchId", watchId).log("TC-assignments update with no snapshot payload");
+            return;
+        }
+        var snapshot = cmd.getSnapshot();
+        java.util.Map<Long, String[]> leaders = new java.util.HashMap<>();
+        for (int i = 0; i < snapshot.getAssignmentsCount(); i++) {
+            var a = snapshot.getAssignmentAt(i);
+            leaders.put(a.getTcId(), new String[] {
+                    a.hasBrokerServiceUrl() ? a.getBrokerServiceUrl() : null,
+                    a.hasBrokerServiceUrlTls() ? a.getBrokerServiceUrlTls() : null});
+        }
+        session.onSnapshot(snapshot.getParallelism(), leaders);
+    }
+
     /**
      * check serverError and take appropriate action.
      * <ul>
@@ -1583,6 +1656,20 @@ public class ClientCnx extends PulsarHandler {
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {
         this.proxyToTargetBrokerAddress = String.format("%s:%d", targetBrokerAddress.getHostString(),
                 targetBrokerAddress.getPort());
+    }
+
+    void setProxyToAnyBroker() {
+        this.proxyToTargetBrokerAddress = PROXY_TO_ANY_BROKER_URL;
+    }
+
+    /**
+     * Whether this connection goes through a proxy. True for both a specific-broker proxy connection
+     * (proxyToTargetBrokerAddress is a {@code host:port}) and an any-broker pairing
+     * ({@link #PROXY_TO_ANY_BROKER_URL}, the empty string); only a direct, non-proxied connection
+     * leaves it null. Hence the null check rather than a comparison against the any-broker sentinel.
+     */
+    public boolean isProxied() {
+        return proxyToTargetBrokerAddress != null;
     }
 
      void setRemoteHostName(String remoteHostName) {

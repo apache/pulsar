@@ -55,6 +55,12 @@ public class ScalableTopicMetadata {
     private Map<String, String> properties = Map.of();
 
     /**
+     * Per-topic auto split/merge policy override (PIP-483). {@code null} means no override:
+     * the namespace policy and then the broker configuration apply.
+     */
+    private AutoScalePolicyOverride autoScalePolicy;
+
+    /**
      * Describes a single segment in a scalable topic's DAG.
      */
     @Data
@@ -70,12 +76,23 @@ public class ScalableTopicMetadata {
         private long createdAtEpoch;
         private long sealedAtEpoch;
 
+        /**
+         * For a legacy segment, the externally managed {@code persistent://...} topic this
+         * segment wraps; {@code null} for regular controller-managed segments. Populated for
+         * the sealed parent segments produced by a regular-to-scalable migration (PIP-475).
+         */
+        private String legacyTopicName;
+
         public boolean isActive() {
             return "ACTIVE".equals(state);
         }
 
         public boolean isSealed() {
             return "SEALED".equals(state);
+        }
+
+        public boolean isLegacy() {
+            return legacyTopicName != null && !legacyTopicName.isEmpty();
         }
     }
 

@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import java.io.OutputStream;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.util.Collection;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -48,10 +50,12 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 public class BrokerStatsBase extends AdminResource {
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring",
-            notes = "Requested should be executed by Monitoring agent on each broker to fetch the metrics",
-            response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Gets the metrics for Monitoring",
+            description = "The request should be executed by the Monitoring agent on each broker to fetch the metrics")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Gets the metrics for Monitoring",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Metrics.class)))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public Collection<Metrics> getMetrics() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -66,9 +70,11 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/mbeans")
-    @ApiOperation(value = "Get all the mbean details of this broker JVM",
-            response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get all the mbean details of this broker JVM")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get all the mbean details of this broker JVM",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Metrics.class)))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public Collection<Metrics> getMBeans() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -83,10 +89,13 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/destinations")
-    @ApiOperation(value = "Get all the topic stats by namespace", response = OutputStream.class,
-            responseContainer = "OutputStream") // https://github.com/swagger-api/swagger-ui/issues/558
-    // map support missing
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get all the topic stats by namespace")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get all the topic stats by namespace",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object", description = "Nested JSON object:"
+                                    + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public StreamingOutput getTopics2() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -101,9 +110,13 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/allocator-stats/{allocator}")
-    @ApiOperation(value = "Get the stats for the Netty allocator. Available allocators are 'default' and 'ml-cache'",
-            response = AllocatorStats.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get the stats for the Netty allocator. Available allocators are 'default' and 'ml-cache'")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Get the stats for the Netty allocator. Available allocators are 'default' "
+                            + "and 'ml-cache'",
+                    content = @Content(schema = @Schema(implementation = AllocatorStats.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public AllocatorStats getAllocatorStats(@PathParam("allocator") String allocatorName) throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -120,15 +133,14 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/bookieops")
-    @ApiOperation(value = "Get pending bookie client op stats by namespace",
-            notes = "Returns a nested map structure which Swagger does not fully support for display. "
-                    + "Structure: Map<String, Map<String, PendingBookieOpsStats>>."
-                    + " Please refer to this structure for details.",
-            response = PendingBookieOpsStats.class,
-            // https://github.com/swagger-api/swagger-core/issues/449
-            // nested containers are not supported
-            responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get pending bookie client op stats by namespace",
+            description = "Returns a nested map structure: Map<String, Map<String, PendingBookieOpsStats>>.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get pending bookie client op stats by namespace",
+                    content = @Content(schema = @Schema(type = "object"),
+                            additionalPropertiesSchema =
+                            @Schema(additionalPropertiesSchema = PendingBookieOpsStats.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public Map<String, Map<String, PendingBookieOpsStats>> getPendingBookieOpsStats() {
         // Ensure super user access only
         validateSuperUserAccess();
@@ -144,9 +156,11 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/load-report")
-    @ApiOperation(value = "Get Load for this broker", notes = "consists of topics stats & systemResourceUsage",
-            response = LoadReport.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(summary = "Get Load for this broker", description = "consists of topics stats & systemResourceUsage")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get Load for this broker",
+                    content = @Content(schema = @Schema(implementation = LoadReport.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public LoadManagerReport getLoadReport() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();

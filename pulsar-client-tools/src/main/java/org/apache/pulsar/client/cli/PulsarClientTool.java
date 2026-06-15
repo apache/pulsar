@@ -22,19 +22,19 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.ProxyProtocol;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.internal.CommandHook;
 import org.apache.pulsar.internal.CommanderFactory;
 import picocli.CommandLine;
@@ -130,42 +130,117 @@ public class PulsarClientTool implements CommandHook {
         commander.addSubcommand("consume", consumeCommand);
         commander.addSubcommand("read", readCommand);
         commander.addSubcommand("generate_documentation", generateDocumentation);
+        enableCaseInsensitiveEnums();
+    }
+
+    /**
+     * Accept enum flag values regardless of case across the root command and all subcommands. The
+     * V5 client enums are uppercase (LATEST, EARLIEST, FAIL, ...) while users have long passed the
+     * mixed-case v4 spellings (Latest, Earliest, ...); case-insensitive parsing keeps that flag UX
+     * working. Picocli's {@code setCaseInsensitiveEnumValuesAllowed} does not propagate to
+     * subcommands, so it must be applied to each command explicitly.
+     */
+    private void enableCaseInsensitiveEnums() {
+        applyCaseInsensitiveEnums(commander);
+    }
+
+    private static void applyCaseInsensitiveEnums(CommandLine cmd) {
+        cmd.setCaseInsensitiveEnumValuesAllowed(true);
+        cmd.getSubcommands().values().forEach(PulsarClientTool::applyCaseInsensitiveEnums);
     }
 
     protected void addCommand(String name, Object cmd) {
         commander.addSubcommand(name, cmd);
+        enableCaseInsensitiveEnums();
     }
 
     private int updateConfig() throws UnsupportedAuthenticationException {
-        Map<String, Object> conf = new HashMap<>();
         Properties properties = pulsarClientPropertiesProvider.getProperties();
-        for (String key : properties.stringPropertyNames()) {
-            conf.put(key, properties.getProperty(key));
-        }
 
-        ClientBuilder clientBuilder = PulsarClient.builder().loadConf(conf)
-                .memoryLimit(rootParams.memoryLimit, SizeUnit.BYTES);
+        PulsarClientBuilder clientBuilder = PulsarClient.builder()
+                .memoryLimit(MemorySize.ofBytes(rootParams.memoryLimit));
+
+        // The v4 Authentication object is still needed by the WebSocket produce/consume path,
+        // which talks HTTP and is not migrated to the binary-only V5 client.
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
-            clientBuilder.authentication(authentication);
+            try {
+                clientBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
+            } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+                throw new UnsupportedAuthenticationException(e);
+            }
         }
         if (isNotBlank(this.rootParams.listenerName)) {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
-        clientBuilder.serviceUrl(rootParams.serviceURL);
-        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath);
+
+        // serviceUrl is only set on the V5 (binary) client for pulsar:// / pulsar+ssl:// URLs.
+        // A ws:// URL means the WebSocket path is used instead, which never builds a V5 client,
+        // and the V5 builder rejects non-broker schemes at configure time.
+        String serviceUrl = rootParams.serviceURL;
+        if (serviceUrl != null
+                && (serviceUrl.startsWith("pulsar://") || serviceUrl.startsWith("pulsar+ssl://"))) {
+            clientBuilder.serviceUrl(serviceUrl);
+        }
+
+        applyTlsPolicy(clientBuilder, serviceUrl, properties);
+
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {
                 commander.getErr().println("proxy-protocol must be provided with proxy-url");
                 return 1;
             }
-            clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
+            clientBuilder.connectionPolicy(ConnectionPolicy.builder()
+                    .proxy(rootParams.proxyServiceURL,
+                            org.apache.pulsar.client.api.v5.config.ProxyProtocol.valueOf(
+                                    rootParams.proxyProtocol.name()))
+                    .build());
         }
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         return 0;
+    }
+
+    /**
+     * Translate the client.conf TLS settings onto the typed V5 {@link TlsPolicy}. V5 has no
+     * untyped {@code loadConf}, so the conf-file keys that have no dedicated CLI flag
+     * ({@code tlsAllowInsecureConnection}, {@code tlsEnableHostnameVerification}, the mTLS
+     * cert/key paths) are read from the properties here.
+     *
+     * <p>TLS is enabled only when the service URL uses {@code pulsar+ssl://} or the conf sets
+     * {@code useTls=true}; otherwise we leave the policy untouched so a plaintext broker is not
+     * accidentally contacted over TLS (calling {@code tlsPolicy()} always flips {@code useTls}
+     * on). Keystore TLS has no V5 equivalent and is reported as unsupported.
+     */
+    private void applyTlsPolicy(PulsarClientBuilder clientBuilder, String serviceUrl, Properties properties) {
+        boolean tlsByUrl = serviceUrl != null && serviceUrl.startsWith("pulsar+ssl://");
+        boolean tlsByConf = Boolean.parseBoolean(properties.getProperty("useTls", "false"));
+        if (!tlsByUrl && !tlsByConf) {
+            return;
+        }
+        if (Boolean.parseBoolean(properties.getProperty("useKeyStoreTls", "false"))) {
+            commander.getErr().println("Warning: keystore TLS (useKeyStoreTls) is not supported by the "
+                    + "V5-based pulsar-client; PEM trust/cert/key settings are used instead.");
+        }
+        TlsPolicy.Builder tls = TlsPolicy.builder()
+                .allowInsecureConnection(
+                        Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false")))
+                .enableHostnameVerification(
+                        Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false")));
+        if (isNotBlank(rootParams.tlsTrustCertsFilePath)) {
+            tls.trustCertsFilePath(rootParams.tlsTrustCertsFilePath);
+        }
+        String certFile = properties.getProperty("tlsCertificateFilePath");
+        if (isNotBlank(certFile)) {
+            tls.certificateFilePath(certFile);
+        }
+        String keyFile = properties.getProperty("tlsKeyFilePath");
+        if (isNotBlank(keyFile)) {
+            tls.keyFilePath(keyFile);
+        }
+        clientBuilder.tlsPolicy(tls.build());
     }
 
     public int run(String[] args) {
@@ -199,6 +274,7 @@ public class PulsarClientTool implements CommandHook {
             commander.getCommandSpec().removeSubcommand("produce");
         }
         commander.addSubcommand("produce", this.produceCommand);
+        enableCaseInsensitiveEnums();
     }
 
     @VisibleForTesting

@@ -344,6 +344,29 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
+    public void testGetServiceUrl() throws Exception {
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
+
+        KubernetesRuntime container1 = factory.createContainer(
+            config, userJarFile, userJarFile, null, null, 30L);
+        assertEquals(container1.getServiceUrl("my-job", "my-namespace", 0),
+            "my-job-0.my-job.my-namespace.svc.cluster.local");
+
+        KubernetesRuntimeFactory factory2 = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        java.lang.reflect.Field field = KubernetesRuntimeFactory.class.getDeclaredField(
+            "kubernetesServiceDomainSuffix");
+        field.setAccessible(true);
+        field.set(factory2, "custom.gateway.internal");
+
+        KubernetesRuntime container2 = factory2.createContainer(
+            config, userJarFile, userJarFile, null, null, 30L);
+        assertEquals(container2.getServiceUrl("my-job", "my-namespace", 0),
+            "my-job-0.my-job.my-namespace.custom.gateway.internal");
+    }
+
+
+    @Test
     public void testRamPadding() throws Exception {
         verifyRamPadding(0, 1000, 1000);
         verifyRamPadding(5, 1000, 1050);

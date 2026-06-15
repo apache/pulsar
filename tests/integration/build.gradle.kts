@@ -30,6 +30,8 @@ dependencies {
     testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-client-original"))
+    testImplementation(project(":pulsar-client-api-v5"))
+    testImplementation(project(":pulsar-client-v5"))
     testImplementation(project(":pulsar-client-admin-original"))
     testImplementation(project(":pulsar-proxy"))
     testImplementation(project(":managed-ledger"))
@@ -57,12 +59,16 @@ dependencies {
         exclude(group = "org.bouncycastle")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
         exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
     }
     testImplementation(libs.kubernetes.client.java.api.fluent) {
         exclude(group = "io.prometheus", module = "simpleclient_httpserver")
         exclude(group = "org.bouncycastle")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
         exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
     }
 }
 

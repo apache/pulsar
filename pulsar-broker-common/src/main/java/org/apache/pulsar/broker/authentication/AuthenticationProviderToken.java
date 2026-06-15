@@ -30,6 +30,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
@@ -38,8 +40,6 @@ import java.util.Date;
 import java.util.Optional;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
@@ -432,7 +432,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+    private static final class HttpServletRequestWrapper extends jakarta.servlet.http.HttpServletRequestWrapper {
         private final HttpServletRequest request;
 
         public HttpServletRequestWrapper(HttpServletRequest request) {

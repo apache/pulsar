@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.BrokersBase;
 
 @Path("/brokers")
-@Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers")
+@Tag(name = "brokers", description = "Brokers admin apis")
 @Produces(MediaType.APPLICATION_JSON)
-@SuppressWarnings("deprecation")
 public class Brokers extends BrokersBase {
 }

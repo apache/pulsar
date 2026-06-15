@@ -410,6 +410,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
                     EXCEPTION_PYTHON_CLASS, schema, null);
+        } else if (runtime == Runtime.GO) {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_GO_FILE,
+                    null, schema, null);
         } else {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema, null);

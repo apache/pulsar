@@ -20,13 +20,13 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
