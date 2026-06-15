@@ -106,6 +106,7 @@ public class PendingAcksMap {
     private final Lock readLock;
     private final Lock writeLock;
     private boolean closed = false;
+    private volatile long size;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
                    Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
@@ -148,7 +149,10 @@ public class PendingAcksMap {
             }
             TreeMap<Long, Long> ledgerPendingAcks =
                     pendingAcks.computeIfAbsent(ledgerId, k -> new TreeMap<>());
-            ledgerPendingAcks.put(entryId, packPendingAckValue(remainingUnacked, stickyKeyHash));
+            Long previous = ledgerPendingAcks.put(entryId, packPendingAckValue(remainingUnacked, stickyKeyHash));
+            if (previous == null) {
+                size++;
+            }
             return true;
         } finally {
             writeLock.unlock();
@@ -161,12 +165,7 @@ public class PendingAcksMap {
      * @return the size of the pending acks map
      */
     public long size() {
-        try {
-            readLock.lock();
-            return pendingAcks.values().stream().mapToInt(TreeMap::size).sum();
-        } finally {
-            readLock.unlock();
-        }
+        return size;
     }
 
     /**
@@ -242,6 +241,7 @@ public class PendingAcksMap {
                 processPendingAcks(processor);
             }
             pendingAcks.clear();
+            size = 0;
         } finally {
             writeLock.unlock();
         }
@@ -325,6 +325,7 @@ public class PendingAcksMap {
             }
             boolean removed = ledgerMap.remove(entryId, packPendingAckValue(batchSize, stickyKeyHash));
             if (removed) {
+                size--;
                 handleRemovePendingAck(ledgerId, entryId, stickyKeyHash);
             }
             if (removed && ledgerMap.isEmpty()) {
@@ -381,6 +382,7 @@ public class PendingAcksMap {
             Long removedEntry = ledgerMap.remove(entryId);
             boolean removed = removedEntry != null;
             if (removed) {
+                size--;
                 handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             }
             if (removed && ledgerMap.isEmpty()) {
@@ -410,6 +412,7 @@ public class PendingAcksMap {
             }
             Long removedEntry = ledgerMap.remove(entryId);
             if (removedEntry != null) {
+                size--;
                 handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             }
             if (removedEntry != null && ledgerMap.isEmpty()) {
@@ -437,6 +440,7 @@ public class PendingAcksMap {
             if (removedEntry == null) {
                 return PENDING_ACK_NOT_FOUND;
             }
+            size--;
             handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
@@ -527,6 +531,7 @@ public class PendingAcksMap {
                     if (ledgerId == markDeleteLedgerId) {
                         ledgerMap.remove(entryId);
                     }
+                    size--;
                 }
                 if (ledgerMap.isEmpty()) {
                     if (!acquiredWriteLock) {

@@ -37,8 +37,11 @@ val distLib by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
-    // Inherit version constraints from the root project's version catalog
-    extendsFrom(configurations["implementation"])
+    // Inherit the enforced version-alignment platform so bundled dependency versions match the
+    // version catalog (the platform lives on the non-published `internalPlatform` bucket from
+    // pulsar.java-conventions; `implementation` no longer carries it). Keeps the distribution's
+    // resolved versions aligned with what checkBinaryLicense expects.
+    extendsFrom(configurations["implementation"], configurations["internalPlatform"])
     // Global exclusions
     exclude(group = "org.projectlombok", module = "lombok")
     // Exclude test frameworks that leak through transitive deps
@@ -142,8 +145,9 @@ dependencies {
     distLib(libs.vertx.core)
     distLib(libs.vertx.web)
 
-    // Bouncy Castle
-    distLib(project(":bouncy-castle:bouncy-castle-bc"))
+    // Bouncy Castle (non-FIPS JCA provider for client-side message crypto + TLS)
+    distLib(libs.bcprov.jdk18on)
+    distLib(libs.bcpkix.jdk18on)
 
     // BookKeeper native JARs (these modules publish .nar artifacts by default;
     // we exclude .nar files below and add the .jar variants explicitly)
@@ -263,11 +267,7 @@ val serverDistTar by tasks.registering(Tar::class) {
                     "${id.group}-${id.module}-${id.version}${classifier}.${ext}"
                 }
                 is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
-                    var mappedName = file.nameWithoutExtension
-                    // For bouncy-castle-bc, add -pkg classifier
-                    if (mappedName.startsWith("bouncy-castle-bc-")) {
-                        mappedName = mappedName + "-pkg"
-                    }
+                    val mappedName = file.nameWithoutExtension
                     "org.apache.pulsar-${mappedName}.${ext}"
                 }
                 else -> file.name

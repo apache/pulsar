@@ -23,12 +23,12 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":managed-ledger"))
+    api(project(":managed-ledger"))
     implementation(project(":pulsar-common"))
-    implementation(project(":pulsar-broker"))
+    api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
-    implementation(libs.guava)
-    implementation("org.openjdk.jmh:jmh-core:1.37")
+    api(libs.guava)
+    api("org.openjdk.jmh:jmh-core:1.37")
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 }
 

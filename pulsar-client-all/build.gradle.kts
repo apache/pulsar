@@ -23,10 +23,25 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":pulsar-client-api"))
+    // Bundled into the shaded jar (kept on the runtime classpath so shadowJar packs them):
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
+
+    // Non-bundled runtime dependencies for the dependency-reduced published POM/GMM (the `shadow`
+    // component) — union of the client and admin shaded sets. Logging is slf4j + slog only — never
+    // log4j (the log4j entries below are test-only and never reach the publication).
+    "shadow"(project(":pulsar-client-api"))
+    "shadow"(project(":pulsar-client-admin-api"))
+    "shadow"(libs.protobuf.java)
+    "shadow"(libs.jackson.annotations)
+    "shadow"(libs.bcprov.jdk18on)
+    "shadow"(libs.bcpkix.jdk18on)
+    "shadow"(libs.opentelemetry.api)
+    "shadow"(libs.opentelemetry.api.incubator)
+    "shadow"(libs.jspecify)
+    "shadow"(libs.slf4j.api)
+    "shadow"(libs.slog)
 
     testImplementation(libs.log4j.api)
     testImplementation(libs.log4j.core)

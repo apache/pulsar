@@ -621,6 +621,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Amount of seconds to timeout initializing the topic policies cache of a namespace (reading the "
+                    + "namespace's __change_events system topic to the end). Topic loading waits for this "
+                    + "initialization, so if the system-topic reader gets stuck (for example after __change_events is "
+                    + "unloaded and the reconnected reader stops making progress), this bounds the wait: the broker "
+                    + "fails the initialization, closes the stuck reader and clears the cached state so that loading "
+                    + "the namespace's topics can be retried with a fresh reader instead of hanging until the broker "
+                    + "is restarted. Set to 0 or a negative value to disable the timeout (not recommended)."
+    )
+    private long topicPoliciesCacheInitTimeoutSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Whether we should enable metadata operations batching"
     )
     private boolean metadataStoreBatchingEnabled = true;

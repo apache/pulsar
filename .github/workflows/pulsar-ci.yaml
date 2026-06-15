@@ -178,6 +178,9 @@ jobs:
       - name: Check binary licenses
         run: ./gradlew checkBinaryLicense --no-configuration-cache
 
+      - name: Check that project's public libraries can be published to a Maven repository
+        run: ./gradlew publishAllPublicationsToLocalDeployRepository
+
       - name: Upload Gradle reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

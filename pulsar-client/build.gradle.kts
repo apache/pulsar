@@ -24,13 +24,15 @@ plugins {
 
 dependencies {
     api(project(":pulsar-client-api"))
-    implementation(project(":pulsar-common")) {
+    api(project(":pulsar-common")) {
         exclude(group = "io.prometheus", module = "simpleclient_caffeine")
     }
-    implementation(project(":bouncy-castle:bouncy-castle-bc"))
+    // Non-FIPS BouncyCastle JCA provider, needed at runtime by pulsar-client-messagecrypto-bc.
+    implementation(libs.bcprov.jdk18on)
+    implementation(libs.bcpkix.jdk18on)
     compileOnly(project(":pulsar-client-messagecrypto-bc"))
 
-    implementation(libs.opentelemetry.api)
+    api(libs.opentelemetry.api)
     implementation(libs.opentelemetry.api.incubator)
     implementation(libs.netty.codec.http)
     implementation(libs.netty.handler.proxy)
@@ -38,18 +40,18 @@ dependencies {
     implementation(libs.netty.resolver.dns)
     implementation(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-aarch_64") })
     implementation(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-x86_64") })
-    implementation(libs.guava)
+    api(libs.guava)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
     }
     implementation(libs.commons.lang3)
-    implementation(libs.asynchttpclient)
+    api(libs.asynchttpclient)
     implementation(libs.netty.reactive.streams)
-    implementation(libs.slog)
+    api(libs.slog)
     implementation(libs.commons.codec)
     implementation(libs.datasketches.java)
     implementation(libs.gson)
-    implementation(libs.avro) {
+    api(libs.avro) {
         exclude(group = "org.slf4j")
     }
     implementation(libs.avro.protobuf) {
@@ -57,7 +59,7 @@ dependencies {
     }
     implementation(libs.jackson.module.jsonSchema)
     implementation(libs.jsr305)
-    implementation(libs.jspecify)
+    api(libs.jspecify)
     implementation(libs.roaringbitmap)
 
     compileOnly(libs.swagger.annotations)

@@ -25,7 +25,7 @@ dependencies {
     implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-instance"))
     api(project(":pulsar-functions:pulsar-functions-runtime"))
-    implementation(libs.picocli)
+    api(libs.picocli)
     implementation(libs.gson)
     implementation(libs.commons.lang3)
     implementation(libs.simpleclient.httpserver)

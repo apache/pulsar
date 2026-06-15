@@ -29,8 +29,8 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
@@ -64,6 +64,7 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -71,7 +72,6 @@ import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
@@ -91,7 +91,22 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // from assuming hardcoded value. However, it will increase the size of the message even further.
     public static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
     public static final String AESGCM = "AES/GCM/NoPadding";
-    private static final String AESGCM_PROVIDER_NAME;
+
+    // BouncyCastle JCA provider, resolved lazily on first use via the initialization-on-demand holder
+    // idiom. Resolution is delegated to SecurityUtility.getProvider() — the same FIPS-agnostic lookup
+    // used elsewhere in Pulsar (e.g. TLS) — so message crypto uses whichever BouncyCastle provider is
+    // present on the classpath: the non-FIPS "BC" (org.bouncycastle.jce.provider.BouncyCastleProvider)
+    // or the FIPS "BCFIPS" (org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider), rather than
+    // hardcoding one. The resolved provider is passed directly to the JCA getInstance(...) calls.
+    // Deferring the lookup to first use (asymmetric key wrapping with RSA-OAEP/ECIES, or EC key
+    // loading) keeps any resolution failure out of class loading.
+    private static final class BcProviderHolder {
+        static final Provider PROVIDER = SecurityUtility.getProvider();
+    }
+
+    private static Provider bcProvider() {
+        return BcProviderHolder.PROVIDER;
+    }
 
     private static final int tagLen = 16 * 8;
     private final String logCtx;
@@ -117,29 +132,36 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Initial seed
         secureRandom.nextBytes(new byte[IV_LEN]);
-
-        // Prefer SunJCE provider for AES-GCM for performance reason.
-        // For cases where SunJCE is not available (e.g. non-hotspot JVM), use BouncyCastle as fallback.
-        String sunJceProviderName = "SunJCE";
-        if (Security.getProvider(sunJceProviderName) != null) {
-            AESGCM_PROVIDER_NAME = sunJceProviderName;
-        } else {
-            AESGCM_PROVIDER_NAME = BouncyCastleProvider.PROVIDER_NAME;
-        }
-
-        // Add provider only if it's not in the JVM
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
     }
 
     // Thread-local instances for non-thread-safe JCA classes
     private static final FastThreadLocal<Cipher> THREAD_LOCAL_CIPHER = new FastThreadLocal<Cipher>() {
         @Override
         protected Cipher initialValue() throws Exception {
-            return Cipher.getInstance(AESGCM, AESGCM_PROVIDER_NAME);
+            return createAesGcmCipher();
         }
     };
+
+    /**
+     * Creates an AES-GCM cipher, preferring a JDK-provided implementation for performance and broad
+     * JVM compatibility. SunJCE is used when present (HotSpot); otherwise the platform default
+     * provider is used (e.g. IBMJCE on IBM JDKs), and BouncyCastle is the last resort. The provider
+     * is resolved here — lazily, per thread — rather than during class initialization, so a missing
+     * or unusual provider surfaces as a normal crypto exception at use time instead of breaking class
+     * loading.
+     */
+    private static Cipher createAesGcmCipher() throws NoSuchAlgorithmException, NoSuchPaddingException {
+        Provider sunJce = Security.getProvider("SunJCE");
+        if (sunJce != null) {
+            return Cipher.getInstance(AESGCM, sunJce);
+        }
+        try {
+            // No explicit provider: let the JVM select its default AES-GCM implementation.
+            return Cipher.getInstance(AESGCM);
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            return Cipher.getInstance(AESGCM, bcProvider());
+        }
+    }
 
     private static final FastThreadLocal<KeyGenerator> THREAD_LOCAL_KEY_GENERATOR =
             new FastThreadLocal<KeyGenerator>() {
@@ -215,7 +237,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         PublicKey publicKey;
         try (PEMParser pemReader = new PEMParser(keyReader)) {
             Object pemObj = pemReader.readObject();
-            JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+            JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter().setProvider(bcProvider());
             SubjectPublicKeyInfo keyInfo;
             X9ECParameters ecParam = null;
 
@@ -244,11 +266,11 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             if (ecParam != null && ECDSA.equals(publicKey.getAlgorithm())) {
                 ECParameterSpec ecSpec = new ECParameterSpec(ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
                         ecParam.getH(), ecParam.getSeed());
-                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
+                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, bcProvider());
                 ECPublicKeySpec keySpec = new ECPublicKeySpec(((ECPublicKey) publicKey).getQ(), ecSpec);
                 publicKey = keyFactory.generatePublic(keySpec);
             }
-        } catch (IOException | NoSuchAlgorithmException | NoSuchProviderException | InvalidKeySpecException e) {
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new Exception(e);
         }
         return publicKey;
@@ -279,10 +301,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
             if (pemObj instanceof PEMKeyPair) {
                 PrivateKeyInfo pKeyInfo = ((PEMKeyPair) pemObj).getPrivateKeyInfo();
-                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter().setProvider(bcProvider());
                 privateKey = pemConverter.getPrivateKey(pKeyInfo);
             } else if (pemObj instanceof PrivateKeyInfo) {
-                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter().setProvider(bcProvider());
                 privateKey = pemConverter.getPrivateKey((PrivateKeyInfo) pemObj);
             }
 
@@ -291,7 +313,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             if (ecParam != null && ECDSA.equals(privateKey.getAlgorithm())) {
                 ECParameterSpec ecSpec = new ECParameterSpec(ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
                         ecParam.getH(), ecParam.getSeed());
-                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
+                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, bcProvider());
                 ECPrivateKeySpec keySpec = new ECPrivateKeySpec(((ECPrivateKey) privateKey).getS(), ecSpec);
                 privateKey = keyFactory.generatePrivate(keySpec);
             }
@@ -346,9 +368,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             AlgorithmParameterSpec params = null;
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, bcProvider());
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(ECIES, bcProvider());
                 params = createIESParameterSpec();
             } else {
                 String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
@@ -361,7 +383,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
             }
             encryptedKey = dataKeyCipher.doFinal(encryptionKey.getEncoded());
-        } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
+        } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException
                  | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error().attr("logCtx", logCtx).attr("keyName", keyName)
                     .exceptionMessage(e).log("Failed to encrypt data key");
@@ -508,9 +530,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             Cipher dataKeyCipher;
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, bcProvider());
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(ECIES, bcProvider());
                 params = createIESParameterSpec();
             } else {
                 log.error().attr("keyType", privateKey.getAlgorithm()).attr("keyName", keyName)

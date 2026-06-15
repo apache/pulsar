@@ -18,11 +18,11 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
-    implementation(project(":pulsar-client-api-v5"))
+    api(project(":pulsar-client-api-v5"))
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
     implementation(libs.slf4j.api)
