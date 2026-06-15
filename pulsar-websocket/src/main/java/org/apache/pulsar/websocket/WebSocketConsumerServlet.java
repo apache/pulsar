@@ -19,8 +19,8 @@
 package org.apache.pulsar.websocket;
 
 import java.time.Duration;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServletFactory;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServletFactory;
 
 public class WebSocketConsumerServlet extends JettyWebSocketServlet {
     private static final long serialVersionUID = 1L;

@@ -65,6 +65,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private volatile LayoutChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    private volatile boolean usingProxy = false;
     /** Canonical topic://t/n/x identity returned by the broker. Resolved on the first
      *  update; used as the parent topic when computing segment:// URIs for real DAGs. */
     private volatile TopicName resolvedTopicName;
@@ -117,6 +118,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             }
             return;
         }
+        this.usingProxy = newCnx.isProxied();
         this.cnx = newCnx;
         newCnx.registerDagWatchSession(sessionId, this);
         newCnx.ctx().writeAndFlush(
@@ -237,6 +239,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
                     scheduleReconnect();
                     return null;
                 });
+    }
+
+    /** Whether the DAG-watch connection was established through a proxy. */
+    boolean isUsingProxy() {
+        return usingProxy;
     }
 
     ClientSegmentLayout currentLayout() {

@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
@@ -165,7 +166,21 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 return;
             }
             recoveryFuture.complete(null);
-            pendingAckHandle.changeToReadyState();
+            // Mirror the legacy MLPendingAckStore completion: flip the handle to Ready and
+            // complete the handle future — PersistentSubscription.addConsumer blocks on that
+            // future, so skipping it hangs every subscribe on a segment topic — then drain any
+            // ack requests queued during recovery. Run on the pinned executor so the
+            // state-machine transition and the cache drain stay single-threaded.
+            executorService.execute(() -> {
+                if (pendingAckHandle.changeToReadyState()) {
+                    pendingAckHandle.completeHandleFuture();
+                } else {
+                    pendingAckHandle.exceptionHandleFuture(
+                            new BrokerServiceException.ServiceUnitNotReadyException(
+                                    "Failed to change PendingAckHandle state to Ready"));
+                }
+                pendingAckHandle.handleCacheRequest();
+            });
             // Drain any events that fired during recovery.
             triggerReconcile();
         });

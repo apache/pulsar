@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authorization;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.collect.Sets;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -679,6 +679,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_METADATA:
                                 return canLookupAsync(topicName, role, authData);
                             case PRODUCE:
+                            case MIGRATE_TO_SCALABLE:
                                 return canProduceAsync(topicName, role, authData);
                             case GET_SUBSCRIPTIONS:
                             case CONSUME:

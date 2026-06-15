@@ -210,7 +210,7 @@ public class MetadataPendingAckStoreTest {
 
         txnStore.createHeader(TxnIds.toKey(committedTxn),
                 new TxnHeader(TxnState.COMMITTED, Duration.ofMillis(5000),
-                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000))).get();
+                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000), null)).get();
         txnStore.appendOp(TxnIds.toKey(committedTxn),
                 new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, 3L, false)).get();
 
@@ -253,7 +253,7 @@ public class MetadataPendingAckStoreTest {
     private void createOpenHeader(TxnID txnId) throws Exception {
         txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.OPEN, Duration.ofMillis(60_000),
-                        Instant.ofEpochMilli(1000), null)).get();
+                        Instant.ofEpochMilli(1000), null, null)).get();
     }
 
     private void commitHeader(TxnID txnId) throws Exception {
@@ -261,7 +261,7 @@ public class MetadataPendingAckStoreTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         created = txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
         assertThat(created.getVersion()).isPositive();
     }
@@ -270,7 +270,7 @@ public class MetadataPendingAckStoreTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 }

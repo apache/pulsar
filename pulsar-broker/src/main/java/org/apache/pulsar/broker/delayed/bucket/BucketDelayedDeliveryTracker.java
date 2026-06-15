@@ -712,12 +712,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                 System.currentTimeMillis() - loadStartTime);
                     }
-                    synchronized (this) {
-                        if (timeout != null) {
-                            timeout.cancel();
-                        }
-                        timeout = timer.newTimeout(this, 0, TimeUnit.MILLISECONDS);
-                    }
+                    rescheduleTimer(0);
                 });
 
                 if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {

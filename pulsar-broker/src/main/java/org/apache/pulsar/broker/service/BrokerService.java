@@ -29,6 +29,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInte
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.RateLimiter;
+import io.github.merlimat.slog.LoggerBuilder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -120,6 +121,7 @@ import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -136,6 +138,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryCla
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -184,6 +187,8 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
@@ -231,9 +236,6 @@ public class BrokerService implements Closeable {
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
     private final Map<String, Map<String, Map<String, Topic>>> multiLayerTopicsMap = new ConcurrentHashMap<>();
-    // Keep track of topics and partitions served by this broker for fast lookup.
-    @Getter
-    private final Map<String, Set<Integer>> owningTopics = new ConcurrentHashMap<>();
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -287,6 +289,9 @@ public class BrokerService implements Closeable {
     private final SingleThreadNonConcurrentFixedRateScheduler compactionMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler consumedLedgersMonitor;
     private SingleThreadNonConcurrentFixedRateScheduler deduplicationSnapshotMonitor;
+    /** PIP-483: periodic sweep that writes per-segment load records for auto split/merge. */
+    private SingleThreadNonConcurrentFixedRateScheduler segmentLoadReporterMonitor;
+    private SegmentLoadReporter segmentLoadReporter;
     protected final PublishRateLimiter brokerPublishRateLimiter;
     private final DispatchRateLimiterFactory dispatchRateLimiterFactory;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
@@ -684,7 +689,67 @@ public class BrokerService implements Closeable {
         this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
+        this.startSegmentLoadReporter();
         this.startClearInvalidateTopicNameCacheTask();
+    }
+
+    /**
+     * Start the periodic per-segment load reporter (PIP-483). On each tick this broker sweeps
+     * the {@code segment://} topics it currently hosts, computes their ingest/dispatch rates,
+     * and writes a {@link SegmentLoadStats} record to the metadata store — but only when a rate
+     * changed materially since the last write (see {@link SegmentLoadReporter}). The controller
+     * leader reads these records to drive auto split/merge.
+     */
+    protected void startSegmentLoadReporter() {
+        ServiceConfiguration conf = pulsar().getConfiguration();
+        if (!conf.isScalableTopicsEnabled()) {
+            return;
+        }
+        var resources = pulsar().getPulsarResources().getScalableTopicResources();
+        if (resources == null) {
+            return;
+        }
+        int interval = conf.getScalableTopicLoadReportIntervalSeconds();
+        if (interval <= 0) {
+            return;
+        }
+        this.segmentLoadReporter = new SegmentLoadReporter(resources,
+                () -> pulsar().getConfiguration().getScalableTopicLoadReportRateChangeThreshold());
+        this.segmentLoadReporterMonitor =
+                new SingleThreadNonConcurrentFixedRateScheduler("scalable-segment-load-reporter");
+        segmentLoadReporterMonitor.scheduleAtFixedRateNonConcurrently(
+                () -> forEachTopic(this::reportSegmentLoad), interval, interval, TimeUnit.SECONDS);
+    }
+
+    @VisibleForTesting
+    public void runSegmentLoadReportOnceForTest() {
+        forEachTopic(this::reportSegmentLoad);
+    }
+
+    private void reportSegmentLoad(Topic topic) {
+        SegmentLoadReporter reporter = this.segmentLoadReporter;
+        if (reporter == null) {
+            return;
+        }
+        TopicName topicName = TopicName.get(topic.getName());
+        if (topicName.getDomain() != TopicDomain.segment) {
+            return;
+        }
+        try {
+            TopicName parent = SegmentTopicName.getParentTopicName(topicName);
+            long segmentId = SegmentTopicName.getSegmentId(topicName);
+            var stats = topic.getStats(false, false, false);
+            SegmentLoadStats load = new SegmentLoadStats(
+                    stats.msgRateIn, stats.msgThroughputIn, stats.msgRateOut, stats.msgThroughputOut);
+            reporter.reportIfChanged(parent, segmentId, load).exceptionally(ex -> {
+                log.debug().attr("segment", topicName).exceptionMessage(ex)
+                        .log("Failed to report segment load");
+                return null;
+            });
+        } catch (Exception e) {
+            log.debug().attr("segment", topicName).exceptionMessage(e)
+                    .log("Failed to sample segment load");
+        }
     }
 
     protected void startClearInvalidateTopicNameCacheTask() {
@@ -968,7 +1033,8 @@ public class BrokerService implements Closeable {
                                                 consumedLedgersMonitor,
                                                 backlogQuotaChecker,
                                                 topicOrderedExecutor,
-                                                deduplicationSnapshotMonitor)
+                                                deduplicationSnapshotMonitor,
+                                                segmentLoadReporterMonitor)
                                         .handle());
 
                                 CompletableFuture<Void> combined =
@@ -1951,6 +2017,16 @@ public class BrokerService implements Closeable {
             // Once we have the configuration, we can proceed with the async open operation
             ManagedLedgerFactory managedLedgerFactory =
                     getManagedLedgerFactoryForTopic(topicName, managedLedgerConfig.getStorageClassName());
+            LoggerBuilder loggerContextBuilder = log.with();
+            if (topicName.isSegment()) {
+                loggerContextBuilder
+                        .attr("topic", TopicName.get(TopicDomain.topic.value(), topicName.getTenant(),
+                                topicName.getNamespacePortion(), topicName.getLocalName()).toString())
+                        .attr("segment", topicName.getSegmentDescriptor());
+            } else {
+                loggerContextBuilder.attr("topic", topicName.toString());
+            }
+            managedLedgerConfig.setLoggerContext(loggerContextBuilder.build());
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
@@ -2698,7 +2774,32 @@ public class BrokerService implements Closeable {
         if (compactor != null) {
             compactor.getStats().removeTopic(topic);
         }
+        forgetSegmentLoad(topic);
         topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
+    }
+
+    /**
+     * Drop the load reporter's last-written cache entry for a segment topic this broker no
+     * longer owns (unload / delete). Without this the cache grows unboundedly with segment
+     * churn, and on a later re-acquire the first sample could be wrongly suppressed as
+     * immaterial.
+     */
+    private void forgetSegmentLoad(String topic) {
+        SegmentLoadReporter reporter = this.segmentLoadReporter;
+        if (reporter == null) {
+            return;
+        }
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.getDomain() != TopicDomain.segment) {
+            return;
+        }
+        try {
+            reporter.forget(SegmentTopicName.getParentTopicName(topicName),
+                    SegmentTopicName.getSegmentId(topicName));
+        } catch (Exception e) {
+            log.debug().attr("segment", topicName).exceptionMessage(e)
+                    .log("Failed to forget segment load cache entry");
+        }
     }
 
     public long getNumberOfNamespaceBundles() {
@@ -3910,6 +4011,28 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(false);
         }
 
+        // PIP-475: never auto-create a persistent:// topic that has been migrated to a
+        // scalable topic — recreating it would shadow the scalable topic and let a stray v4
+        // client write to a name that is now owned by topic://t/n/x. The migrated topic's
+        // old ledgers are terminated (not deleted) at migration time, so this only bites
+        // once retention GC removes them and a v4 client looks the name up again. The check
+        // is metadata-cache-backed (present and absent verdicts are both cached).
+        if (topicName.getDomain() == TopicDomain.persistent
+                && pulsar.getConfiguration().isScalableTopicsEnabled()) {
+            ScalableTopicResources scalableResources =
+                    pulsar.getPulsarResources().getScalableTopicResources();
+            if (scalableResources != null) {
+                return scalableResources.getScalableTopicMetadataAsync(topicName.toScalableTopic())
+                        .thenCompose(scalableMetadata -> scalableMetadata.isPresent()
+                                ? CompletableFuture.completedFuture(false)
+                                : isAllowAutoTopicCreationResolvedAsync(topicName, policies));
+            }
+        }
+        return isAllowAutoTopicCreationResolvedAsync(topicName, policies);
+    }
+
+    private CompletableFuture<Boolean> isAllowAutoTopicCreationResolvedAsync(
+            final TopicName topicName, final Optional<Policies> policies) {
         //Other system topics can be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);

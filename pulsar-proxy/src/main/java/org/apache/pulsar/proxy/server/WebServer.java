@@ -21,6 +21,14 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -34,14 +42,6 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -58,9 +58,9 @@ import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
-import org.eclipse.jetty.ee8.servlet.FilterHolder;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Connector;
@@ -256,6 +256,9 @@ public class WebServer {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, MATCH_ALL);
+        // Allow %2F-encoded path separators (admin paths embed encoded topic names); Jetty 12 ee10 rejects
+        // ambiguous URIs at the servlet layer by default (PIP-472 / Jetty 12).
+        context.getServletHandler().setDecodeAmbiguousURIs(true);
         context.addFilter(new FilterHolder(new CustomHeaderFilter(config)), "/*", null);
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
@@ -263,9 +266,36 @@ public class WebServer {
 
         filterInitializer.addFilters(context, requireAuthentication);
 
-        handlers.add(context.get());
+        // The ee10 ServletContextHandler is itself an org.eclipse.jetty.server.Handler
+        handlers.add(context);
 
         return context;
+    }
+
+    /**
+     * Registers a legacy {@code javax.servlet}-based servlet in Jetty's ee8 environment, used to keep existing
+     * {@code AdditionalServlet} plugins reporting {@code JAVAX_SERVLET} working without recompilation (PIP-472).
+     * The proxy filter chain is jakarta-typed (ee10) and is therefore not applied to the ee8 environment.
+     */
+    public void addServletEe8(String basePath, org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder,
+                              List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+        if (existingPath.isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        }
+        servletPaths.add(basePath);
+
+        org.eclipse.jetty.ee8.servlet.ServletContextHandler context =
+                new org.eclipse.jetty.ee8.servlet.ServletContextHandler(
+                        org.eclipse.jetty.ee8.servlet.ServletContextHandler.SESSIONS);
+        context.setContextPath(basePath);
+        context.addServlet(servletHolder, MATCH_ALL);
+        for (Pair<String, Object> attribute : attributes) {
+            context.setAttribute(attribute.getLeft(), attribute.getRight());
+        }
+        // The ee8 ServletContextHandler.get() bridges the ee8 context to a core org.eclipse.jetty.server.Handler
+        handlers.add(context.get());
     }
 
     private static void popularServletParams(ServletHolder servletHolder, ProxyConfiguration config) {

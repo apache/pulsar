@@ -317,6 +317,7 @@ message FeatureFlags {
   optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
   optional bool supports_topic_watcher_reconcile = 7 [default = false];
   optional bool supports_scalable_topics = 8 [default = false];
+  optional bool supports_tc_metadata_discovery = 9 [default = false];
 }
 
 message CommandConnected {
@@ -1013,6 +1014,48 @@ message CommandWatchScalableTopicsClose {
     required uint64 watch_id = 1;
 }
 
+/// --- Transaction-coordinator assignment watch ---
+// The scalable-topics transaction coordinator's discovery surface. The client opens one watch
+// and the broker replies with the full (partition -> leader) map, then pushes a fresh full
+// snapshot whenever any partition's leader changes. There is no point lookup and no diff: the
+// map is bounded (parallelism, ~16) and changes rarely, so always sending the whole snapshot is
+// simpler and removes a class of apply-ordering / drift bugs. Gated by the
+// supports_tc_metadata_discovery feature flag.
+
+// Client -> Broker: open the assignment watch.
+message CommandWatchTcAssignments {
+    required uint64 watch_id = 1;   // client-assigned
+}
+
+// One (partition -> leader) entry. A partition currently mid-election is simply absent from the
+// snapshot; the client parks any transaction routed there until a later snapshot fills it in.
+message TcAssignment {
+    required uint64 tc_id                  = 1;   // TC partition = TxnID.mostSigBits
+    optional string broker_service_url     = 2;
+    optional string broker_service_url_tls = 3;
+}
+
+// Full map. Sent on initial watch and again, in full, on every change. The client replaces its
+// local map wholesale — no merge, no ordering rules. parallelism lets the client size its handler
+// array without a separate metadata read.
+message TcAssignmentsSnapshot {
+    required uint32 parallelism       = 1;
+    repeated TcAssignment assignments = 2;
+}
+
+// Broker -> Client: the current full snapshot, or (on initial-watch failure) an error.
+message CommandWatchTcAssignmentsUpdate {
+    required uint64 watch_id                 = 1;
+    optional TcAssignmentsSnapshot snapshot  = 2;
+    optional ServerError error               = 3;
+    optional string message                  = 4;
+}
+
+// Client -> Broker: close the watch.
+message CommandWatchTcAssignmentsClose {
+    required uint64 watch_id = 1;
+}
+
 message CommandGetSchema {
     required uint64 request_id = 1;
     required string topic      = 2;
@@ -1054,6 +1097,8 @@ enum TxnAction {
 message CommandTcClientConnectRequest {
     required uint64 request_id = 1;
     required uint64 tc_id = 2 [default = 0];
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 3 [default = false];
 }
 
 message CommandTcClientConnectResponse {
@@ -1064,8 +1109,15 @@ message CommandTcClientConnectResponse {
 
 message CommandNewTxn {
     required uint64 request_id = 1;
-    optional uint64 txn_ttl_seconds = 2 [default = 0];
+    // Transaction timeout in milliseconds. Despite the field number's legacy name history, the value
+    // has always been carried in milliseconds (the client sends unit.toMillis(...) and both
+    // coordinators consume it as ms); the field is named accordingly to avoid confusion.
+    optional uint64 txn_ttl_millis = 2 [default = 0];
     optional uint64 tc_id = 3 [default = 0];
+    // When true, route to the metadata-driven (scalable-topics, PIP-473) transaction coordinator
+    // instead of the legacy one. Set by v5 clients; absent for v4 clients. Lets both coordinators
+    // serve their own clients on the same cluster.
+    optional bool scalable = 4 [default = false];
 }
 
 message CommandNewTxnResponse {
@@ -1081,6 +1133,8 @@ message CommandAddPartitionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated string partitions = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddPartitionToTxnResponse {
@@ -1100,6 +1154,8 @@ message CommandAddSubscriptionToTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     repeated Subscription subscription = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandAddSubscriptionToTxnResponse {
@@ -1115,6 +1171,8 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
+    // Route to the scalable-topics (PIP-473) coordinator. See CommandNewTxn.scalable.
+    optional bool scalable = 5 [default = false];
 }
 
 message CommandEndTxnResponse {
@@ -1262,6 +1320,10 @@ message BaseCommand {
         WATCH_SCALABLE_TOPICS                 = 76;
         WATCH_SCALABLE_TOPICS_UPDATE          = 77;
         WATCH_SCALABLE_TOPICS_CLOSE           = 78;
+
+        WATCH_TC_ASSIGNMENTS                  = 79;
+        WATCH_TC_ASSIGNMENTS_UPDATE           = 80;
+        WATCH_TC_ASSIGNMENTS_CLOSE            = 81;
     }
 
 
@@ -1357,4 +1419,8 @@ message BaseCommand {
     optional CommandWatchScalableTopics watchScalableTopics                           = 76;
     optional CommandWatchScalableTopicsUpdate watchScalableTopicsUpdate               = 77;
     optional CommandWatchScalableTopicsClose watchScalableTopicsClose                 = 78;
+
+    optional CommandWatchTcAssignments watchTcAssignments                             = 79;
+    optional CommandWatchTcAssignmentsUpdate watchTcAssignmentsUpdate                 = 80;
+    optional CommandWatchTcAssignmentsClose watchTcAssignmentsClose                   = 81;
 }

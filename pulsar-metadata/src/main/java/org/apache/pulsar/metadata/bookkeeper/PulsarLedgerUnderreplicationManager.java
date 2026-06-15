@@ -20,16 +20,8 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.bookkeeper.proto.DataFormats.CheckAllLedgersFormat;
-import static org.apache.bookkeeper.proto.DataFormats.LedgerRereplicationLayoutFormat;
-import static org.apache.bookkeeper.proto.DataFormats.LockDataFormat;
-import static org.apache.bookkeeper.proto.DataFormats.PlacementPolicyCheckFormat;
-import static org.apache.bookkeeper.proto.DataFormats.ReplicasCheckFormat;
-import static org.apache.bookkeeper.proto.DataFormats.UnderreplicatedLedgerFormat;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import com.google.common.base.Joiner;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.TextFormat;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,7 +48,12 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.meta.UnderreplicatedLedger;
 import org.apache.bookkeeper.net.DNS;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
-import org.apache.bookkeeper.proto.DataFormats;
+import org.apache.bookkeeper.proto.CheckAllLedgersFormat;
+import org.apache.bookkeeper.proto.LedgerRereplicationLayoutFormat;
+import org.apache.bookkeeper.proto.LockDataFormat;
+import org.apache.bookkeeper.proto.PlacementPolicyCheckFormat;
+import org.apache.bookkeeper.proto.ReplicasCheckFormat;
+import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
@@ -164,23 +161,23 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     }
 
     public static byte[] getLockData() {
-        DataFormats.LockDataFormat.Builder lockDataBuilder = DataFormats.LockDataFormat.newBuilder();
+        LockDataFormat lockData = new LockDataFormat();
         try {
-            lockDataBuilder.setBookieId(DNS.getDefaultHost("default"));
+            lockData.setBookieId(DNS.getDefaultHost("default"));
         } catch (UnknownHostException uhe) {
             // if we cant get the address, ignore. it's optional
             // in the data structure in any case
         }
-        return lockDataBuilder.build().toString().getBytes(UTF_8);
+        return lockData.toTextFormat().getBytes(UTF_8);
     }
 
     private void checkLayout() throws ReplicationException.CompatibilityException {
         while (true) {
             if (!store.exists(layoutPath).join()) {
-                LedgerRereplicationLayoutFormat.Builder builder = LedgerRereplicationLayoutFormat.newBuilder();
-                builder.setType(LAYOUT).setVersion(LAYOUT_VERSION);
+                LedgerRereplicationLayoutFormat layoutFormat = new LedgerRereplicationLayoutFormat();
+                layoutFormat.setType(LAYOUT).setVersion(LAYOUT_VERSION);
                 try {
-                    store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).get();
+                    store.put(layoutPath, layoutFormat.toTextFormat().getBytes(UTF_8), Optional.of(-1L)).get();
                 } catch (ExecutionException | InterruptedException e) {
                     if (!(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
                         throw new RuntimeException(e);
@@ -189,17 +186,16 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             } else {
                 byte[] layoutData = store.get(layoutPath).join().get().getValue();
 
-                LedgerRereplicationLayoutFormat.Builder builder = LedgerRereplicationLayoutFormat.newBuilder();
+                LedgerRereplicationLayoutFormat layout = new LedgerRereplicationLayoutFormat();
 
                 try {
-                    TextFormat.merge(new String(layoutData, UTF_8), builder);
-                    LedgerRereplicationLayoutFormat layout = builder.build();
+                    layout.parseFromTextFormat(layoutData);
                     if (!layout.getType().equals(LAYOUT)
                             || layout.getVersion() != LAYOUT_VERSION) {
                         throw new ReplicationException.CompatibilityException(
                                 "Incompatible layout found (" + LAYOUT + ":" + LAYOUT_VERSION + ")");
                     }
-                } catch (TextFormat.ParseException pe) {
+                } catch (RuntimeException pe) {
                     throw new ReplicationException.CompatibilityException(
                             "Invalid data found", pe);
                 }
@@ -293,12 +289,11 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
             byte[] data = optRes.get().getValue();
 
-            UnderreplicatedLedgerFormat.Builder builder = UnderreplicatedLedgerFormat.newBuilder();
+            UnderreplicatedLedgerFormat underreplicatedLedgerFormat = new UnderreplicatedLedgerFormat();
 
-            TextFormat.merge(new String(data, UTF_8), builder);
-            UnderreplicatedLedgerFormat underreplicatedLedgerFormat = builder.build();
+            underreplicatedLedgerFormat.parseFromTextFormat(data);
             PulsarUnderreplicatedLedger underreplicatedLedger = new PulsarUnderreplicatedLedger(ledgerId);
-            List<String> replicaList = underreplicatedLedgerFormat.getReplicaList();
+            List<String> replicaList = underreplicatedLedgerFormat.getReplicasList();
             long ctime = (underreplicatedLedgerFormat.hasCtime() ? underreplicatedLedgerFormat.getCtime()
                     : UnderreplicatedLedger.UNASSIGNED_CTIME);
             underreplicatedLedger.setCtime(ctime);
@@ -309,7 +304,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while connecting metadata store", ie);
-        } catch (TextFormat.ParseException pe) {
+        } catch (RuntimeException pe) {
             throw new ReplicationException.UnavailableException("Error parsing proto message", pe);
         }
     }
@@ -327,12 +322,12 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private void tryMarkLedgerUnderreplicatedAsync(final String path,
                                                    final Collection<String> missingReplicas,
                                                    final CompletableFuture<Void> finalFuture) {
-        final UnderreplicatedLedgerFormat.Builder builder = UnderreplicatedLedgerFormat.newBuilder();
+        final UnderreplicatedLedgerFormat builder = new UnderreplicatedLedgerFormat();
         if (conf.getStoreSystemTimeAsLedgerUnderreplicatedMarkTime()) {
             builder.setCtime(System.currentTimeMillis());
         }
         missingReplicas.forEach(builder::addReplica);
-        final byte[] urLedgerData = builder.build().toString().getBytes(UTF_8);
+        final byte[] urLedgerData = builder.toTextFormat().getBytes(UTF_8);
         store.put(path, urLedgerData, Optional.of(-1L))
                 .thenRun(() -> {
                     FutureUtils.complete(finalFuture, null);
@@ -361,20 +356,19 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             byte[] existingUrLedgerData = optRes.get().getValue();
 
             // deserialize existing underreplicated ledger data
-            final UnderreplicatedLedgerFormat.Builder builder = UnderreplicatedLedgerFormat.newBuilder();
+            final UnderreplicatedLedgerFormat builder = new UnderreplicatedLedgerFormat();
             try {
-                TextFormat.merge(new String(existingUrLedgerData, UTF_8), builder);
-            } catch (TextFormat.ParseException e) {
+                builder.parseFromTextFormat(existingUrLedgerData);
+            } catch (RuntimeException e) {
                 // corrupted metadata in zookeeper
                 FutureUtils.completeExceptionally(finalFuture,
                         new ReplicationException.UnavailableException(
                                 "Invalid underreplicated ledger data for ledger " + path, e));
                 return;
             }
-            UnderreplicatedLedgerFormat existingUrLedgerFormat = builder.build();
             boolean replicaAdded = false;
             for (String missingReplica : missingReplicas) {
-                if (existingUrLedgerFormat.getReplicaList().contains(missingReplica)) {
+                if (builder.getReplicasList().contains(missingReplica)) {
                     continue;
                 } else {
                     builder.addReplica(missingReplica);
@@ -388,7 +382,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (conf.getStoreSystemTimeAsLedgerUnderreplicatedMarkTime()) {
                 builder.setCtime(System.currentTimeMillis());
             }
-            final byte[] newUrLedgerData = builder.build().toString().getBytes(UTF_8);
+            final byte[] newUrLedgerData = builder.toTextFormat().getBytes(UTF_8);
 
             store.put(path, newUrLedgerData, Optional.of(optRes.get().getStat().getVersion()))
                     .thenRun(() -> {
@@ -883,9 +877,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             }
 
             byte[] lockData = optRes.get().getValue();
-            LockDataFormat.Builder lockDataBuilder = LockDataFormat.newBuilder();
-            TextFormat.merge(new String(lockData, UTF_8), lockDataBuilder);
-            LockDataFormat lock = lockDataBuilder.build();
+            LockDataFormat lock = new LockDataFormat();
+            lock.parseFromTextFormat(lockData);
             return lock.getBookieId();
         } catch (ExecutionException | TimeoutException e) {
             log.error().exception(e).log("Error while getting ReplicationWorkerId rereplicating Ledger");
@@ -895,7 +888,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             log.error().exception(e).log("Got interrupted while getting ReplicationWorkerId rereplicating Ledger");
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", e);
-        } catch (TextFormat.ParseException e) {
+        } catch (RuntimeException e) {
             log.error().exception(e).log("Error while parsing ZK data of lock");
             throw new ReplicationException.UnavailableException("Error while parsing ZK data of lock", e);
         }
@@ -905,9 +898,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     public void setCheckAllLedgersCTime(long checkAllLedgersCTime) throws ReplicationException.UnavailableException {
         log.debug("setCheckAllLedgersCTime");
         try {
-            CheckAllLedgersFormat.Builder builder = CheckAllLedgersFormat.newBuilder();
+            CheckAllLedgersFormat builder = new CheckAllLedgersFormat();
             builder.setCheckAllLedgersCTime(checkAllLedgersCTime);
-            byte[] checkAllLedgersFormatByteArray = builder.build().toByteArray();
+            byte[] checkAllLedgersFormatByteArray = builder.toByteArray();
 
             store.put(checkAllLedgersCtimePath, checkAllLedgersFormatByteArray, Optional.empty())
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
@@ -929,7 +922,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 return -1;
             }
             byte[] data = optRes.get().getValue();
-            CheckAllLedgersFormat checkAllLedgersFormat = CheckAllLedgersFormat.parseFrom(data);
+            CheckAllLedgersFormat checkAllLedgersFormat = new CheckAllLedgersFormat();
+            checkAllLedgersFormat.parseFrom(data);
             return checkAllLedgersFormat.hasCheckAllLedgersCTime() ? checkAllLedgersFormat.getCheckAllLedgersCTime()
                     : -1;
         } catch (ExecutionException | TimeoutException ee) {
@@ -937,7 +931,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);
-        } catch (InvalidProtocolBufferException ipbe) {
+        } catch (RuntimeException ipbe) {
             throw new ReplicationException.UnavailableException("Error while parsing ZK protobuf binary data", ipbe);
         }
     }
@@ -947,9 +941,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             ReplicationException.UnavailableException {
         log.debug("setPlacementPolicyCheckCTime");
         try {
-            PlacementPolicyCheckFormat.Builder builder = PlacementPolicyCheckFormat.newBuilder();
+            PlacementPolicyCheckFormat builder = new PlacementPolicyCheckFormat();
             builder.setPlacementPolicyCheckCTime(placementPolicyCheckCTime);
-            byte[] placementPolicyCheckFormatByteArray = builder.build().toByteArray();
+            byte[] placementPolicyCheckFormatByteArray = builder.toByteArray();
             store.put(placementPolicyCheckCtimePath, placementPolicyCheckFormatByteArray, Optional.empty())
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException ke) {
@@ -971,7 +965,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 return -1;
             }
             byte[] data = optRes.get().getValue();
-            PlacementPolicyCheckFormat placementPolicyCheckFormat = PlacementPolicyCheckFormat.parseFrom(data);
+            PlacementPolicyCheckFormat placementPolicyCheckFormat = new PlacementPolicyCheckFormat();
+            placementPolicyCheckFormat.parseFrom(data);
             return placementPolicyCheckFormat.hasPlacementPolicyCheckCTime()
                     ? placementPolicyCheckFormat.getPlacementPolicyCheckCTime() : -1;
         } catch (ExecutionException | TimeoutException ee) {
@@ -979,7 +974,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);
-        } catch (InvalidProtocolBufferException ipbe) {
+        } catch (RuntimeException ipbe) {
             throw new ReplicationException.UnavailableException("Error while parsing ZK protobuf binary data", ipbe);
         }
     }
@@ -987,9 +982,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @Override
     public void setReplicasCheckCTime(long replicasCheckCTime) throws ReplicationException.UnavailableException {
         try {
-            ReplicasCheckFormat.Builder builder = ReplicasCheckFormat.newBuilder();
+            ReplicasCheckFormat builder = new ReplicasCheckFormat();
             builder.setReplicasCheckCTime(replicasCheckCTime);
-            byte[] replicasCheckFormatByteArray = builder.build().toByteArray();
+            byte[] replicasCheckFormatByteArray = builder.toByteArray();
             store.put(replicasCheckCtimePath, replicasCheckFormatByteArray, Optional.empty())
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             log.debug("setReplicasCheckCTime completed successfully");
@@ -1011,7 +1006,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 return -1;
             }
             byte[] data = optRes.get().getValue();
-            ReplicasCheckFormat replicasCheckFormat = ReplicasCheckFormat.parseFrom(data);
+            ReplicasCheckFormat replicasCheckFormat = new ReplicasCheckFormat();
+            replicasCheckFormat.parseFrom(data);
             log.debug("getReplicasCheckCTime completed successfully");
             return replicasCheckFormat.hasReplicasCheckCTime() ? replicasCheckFormat.getReplicasCheckCTime() : -1;
         } catch (ExecutionException | TimeoutException ee) {
@@ -1019,7 +1015,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);
-        } catch (InvalidProtocolBufferException ipbe) {
+        } catch (RuntimeException ipbe) {
             throw new ReplicationException.UnavailableException("Error while parsing ZK protobuf binary data", ipbe);
         }
     }

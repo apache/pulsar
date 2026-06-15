@@ -63,8 +63,11 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     private final BrokerService brokerService;
 
     private final String metadataPath;
-    /** Canonical {@code topic://...} identity returned to the client regardless of the
-     *  input form ({@code topic://}, {@code persistent://}, or short-form). */
+    /** Canonical {@code topic://...} identity, regardless of the input form ({@code topic://},
+     *  {@code persistent://}, or short-form). Used both as the {@code resolved_topic_name}
+     *  reported to the client and as the parent when computing {@code segment://} URIs for a
+     *  real DAG (those require the {@code topic://} domain). */
+    private final TopicName scalableTopicName;
     private final String resolvedTopicName;
     private volatile boolean closed = false;
 
@@ -79,7 +82,8 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         this.resources = resources;
         this.brokerService = brokerService;
         this.metadataPath = resources.topicPath(topicName);
-        this.resolvedTopicName = topicName.toScalableTopic().toString();
+        this.scalableTopicName = topicName.toScalableTopic();
+        this.resolvedTopicName = scalableTopicName.toString();
         this.log = LOG.with().attr("topic", topicName).attr("sessionId", sessionId).build();
     }
 
@@ -341,9 +345,11 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         Map<Long, String> result = new LinkedHashMap<>();
         CompletableFuture<?>[] futures = layout.getActiveSegments().values().stream()
                 .map(segment -> {
-                    // Resolve which broker owns this segment's underlying segment:// topic
+                    // Resolve which broker owns this segment's underlying segment:// topic.
+                    // SegmentTopicName.fromParent requires the topic:// domain, so use the
+                    // canonical scalable name (the session's input may be persistent://).
                     TopicName segTn = org.apache.pulsar.common.scalable.SegmentTopicName.fromParent(
-                            topicName, segment.hashRange(), segment.segmentId());
+                            scalableTopicName, segment.hashRange(), segment.segmentId());
                     var lookupOptions = org.apache.pulsar.broker.namespace.LookupOptions.builder()
                             .readOnly(false).authoritative(false).build();
                     return brokerService.getPulsar().getNamespaceService()

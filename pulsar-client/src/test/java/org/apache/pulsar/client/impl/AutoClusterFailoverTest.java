@@ -31,10 +31,12 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -145,6 +147,25 @@ public class AutoClusterFailoverTest {
             assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
             Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
+        }
+    }
+
+    @Test
+    public void testInitializeCanOnlyBeCalledOnce() throws Exception {
+        String primary = "pulsar://localhost:6650";
+        String secondary = "pulsar://localhost:6651";
+
+        ServiceUrlProvider provider = AutoClusterFailover.builder()
+                .primary(primary)
+                .secondary(Collections.singletonList(secondary))
+                .failoverDelay(1, TimeUnit.SECONDS)
+                .switchBackDelay(1, TimeUnit.SECONDS)
+                .checkInterval(30, TimeUnit.SECONDS)
+                .build();
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrlProvider(provider).build()) {
+            Throwable error = Assert.expectThrows(IllegalStateException.class, () -> provider.initialize(client));
+            assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
         }
     }
 

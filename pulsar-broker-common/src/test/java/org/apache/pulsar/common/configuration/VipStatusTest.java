@@ -19,6 +19,9 @@
 package org.apache.pulsar.common.configuration;
 
 import static org.testng.Assert.assertEquals;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +31,6 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
-import javax.servlet.ServletContext;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.assertj.core.util.Files;

@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -471,6 +472,23 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("position", position)
                     .log("Cumulative ack on");
             AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            if (dispatcher instanceof AbstractDispatcherSingleActiveConsumer singleConsumerDispatcher) {
+                // For compacted consumer, we should ignore the position that does not exist in the managed ledger,
+                // otherwise, the `asyncMarkDelete` call could jump the read position to the active ledger, which will
+                // skip all entries present in the compacted ledger but not present in the managed ledger.
+                final var consumer = singleConsumerDispatcher.getActiveConsumer();
+                final var ml = cursor.getManagedLedger();
+                if (consumer != null
+                        && consumer.readCompacted()
+                        && !cursor.isDurable()
+                        && ml.getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
+                    if (ml.getFirstPosition() == null || position.getLedgerId() > ml.getFirstPosition().getLedgerId()) {
+                        log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
+                                + ml.getLedgersInfo().keySet());
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }
+            }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
                     callback, callback);
 

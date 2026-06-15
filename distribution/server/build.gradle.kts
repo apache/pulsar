@@ -37,8 +37,11 @@ val distLib by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
-    // Inherit version constraints from the root project's version catalog
-    extendsFrom(configurations["implementation"])
+    // Inherit the enforced version-alignment platform so bundled dependency versions match the
+    // version catalog (the platform lives on the non-published `internalPlatform` bucket from
+    // pulsar.java-conventions; `implementation` no longer carries it). Keeps the distribution's
+    // resolved versions aligned with what checkBinaryLicense expects.
+    extendsFrom(configurations["implementation"], configurations["internalPlatform"])
     // Global exclusions
     exclude(group = "org.projectlombok", module = "lombok")
     // Exclude test frameworks that leak through transitive deps
@@ -62,10 +65,6 @@ val distLib by configurations.creating {
     // Exclude non-JPMS JNA (we add jpms variants explicitly)
     exclude(group = "net.java.dev.jna", module = "jna")
     exclude(group = "net.java.dev.jna", module = "jna-platform")
-    // grpc modules not in server distribution (grpc-all transitively includes these)
-    exclude(group = "io.grpc", module = "grpc-netty")
-    exclude(group = "io.grpc", module = "grpc-okhttp")
-    exclude(group = "io.grpc", module = "grpc-testing")
     // Original zookeeper excluded — replaced by patched version
     exclude(group = "org.apache.zookeeper", module = "zookeeper")
     // Android annotations not in server dist
@@ -98,8 +97,7 @@ dependencies {
     distLib(project(":pulsar-broker-auth-oidc"))
     distLib(project(":pulsar-broker-auth-sasl"))
     distLib(project(":pulsar-client-auth-sasl"))
-    distLib(project(":jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider"))
-    distLib(project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics"))
+    distLib(libs.bookkeeper.prometheus.metrics.provider)
     distLib(project(":pulsar-package-management:pulsar-package-bookkeeper-storage")) {
         exclude(group = "org.objenesis")
     }
@@ -107,12 +105,9 @@ dependencies {
     distLib(project(":pulsar-client-tools"))
     distLib(project(":pulsar-testclient"))
     distLib(project(":pulsar-functions:pulsar-functions-worker")) {
-        exclude(group = "io.grpc")
         exclude(group = "org.bouncycastle")
     }
-    distLib(project(":pulsar-functions:pulsar-functions-local-runner-original")) {
-        exclude(group = "io.grpc")
-    }
+    distLib(project(":pulsar-functions:pulsar-functions-local-runner-original"))
 
     // Patched zookeeper (replaces the excluded original)
     distLib(project(":jetty-upgrade:zookeeper-with-patched-admin"))
@@ -138,7 +133,6 @@ dependencies {
     distLib(libs.jackson.dataformat.yaml)
     distLib(libs.bcpkix.jdk18on)
     distLib(libs.perfmark.api)
-    distLib(libs.grpc.all)
 
     // JNA (JPMS variants used in Maven distribution)
     distLib("net.java.dev.jna:jna-jpms:${libs.versions.jna.get()}")
@@ -151,8 +145,9 @@ dependencies {
     distLib(libs.vertx.core)
     distLib(libs.vertx.web)
 
-    // Bouncy Castle
-    distLib(project(":bouncy-castle:bouncy-castle-bc"))
+    // Bouncy Castle (non-FIPS JCA provider for client-side message crypto + TLS)
+    distLib(libs.bcprov.jdk18on)
+    distLib(libs.bcpkix.jdk18on)
 
     // BookKeeper native JARs (these modules publish .nar artifacts by default;
     // we exclude .nar files below and add the .jar variants explicitly)
@@ -272,11 +267,7 @@ val serverDistTar by tasks.registering(Tar::class) {
                     "${id.group}-${id.module}-${id.version}${classifier}.${ext}"
                 }
                 is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
-                    var mappedName = file.nameWithoutExtension
-                    // For bouncy-castle-bc, add -pkg classifier
-                    if (mappedName.startsWith("bouncy-castle-bc-")) {
-                        mappedName = mappedName + "-pkg"
-                    }
+                    val mappedName = file.nameWithoutExtension
                     "org.apache.pulsar-${mappedName}.${ext}"
                 }
                 else -> file.name
