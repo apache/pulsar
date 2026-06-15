@@ -24,6 +24,25 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Provides a priority-queue implementation specialized on items composed by 3 longs.
  *
  * <p>This class is not thread safe and the items are stored in direct memory.
+ *
+ * <h3>Algorithm</h3>
+ *
+ * <p>This is a <b>binary min-heap</b> stored in a flat array, where each heap node occupies
+ * 3 consecutive longs (the tuple). The children of the node at index {@code i} are at
+ * {@code 2i + 1} and {@code 2i + 2}; the parent of node {@code i} is at {@code (i - 1) / 2}.
+ *
+ * <p>Both {@code siftUp} (on insert) and {@code siftDown} (on remove) use the
+ * <b>hole-based</b> (also called "bottom-up" or "Floyd's") optimization: instead of swapping
+ * the displaced element with its parent/child at each level, the displaced values are held in
+ * local variables (registers) and written only once at the final position. This reduces the
+ * number of array writes per sift layer from 6 (swap: 3 reads + 3 writes on each side) to 3
+ * (one directional write), and avoids re-reading the displaced element from the array on every
+ * comparison.
+ *
+ * <p>Comparison is lexicographic on (n1, n2, n3), using {@code Long.compare} at each level.
+ *
+ * @see <a href="https://en.wikipedia.org/wiki/Heapsort#Bottom-up_heapsort">Bottom-up heapsort
+ *      (Wikipedia)</a>
  */
 public class TripleLongPriorityQueue implements AutoCloseable {
     private static final int DEFAULT_INITIAL_CAPACITY = 16;
