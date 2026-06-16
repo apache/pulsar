@@ -616,7 +616,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         AtomicInteger callbackCount = new AtomicInteger();
         lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         lum.disableLedgerReplication();
-        log.info("Disabled Ledeger Replication");
+        log.info("Disabled Ledger Replication");
 
         try {
             lum.markLedgerUnderreplicated(ledgerA, missingReplica);
@@ -636,7 +636,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
     }
 
     /**
-     * Test enabling the ledger re-replication. After enableLedegerReplication,
+     * Test enabling the ledger re-replication. After enableLedgerReplication,
      * should continue getLedgerToRereplicate() task
      */
     @Test(timeOut = 60000, dataProvider = "impl")
@@ -657,7 +657,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         // disabling replication
         lum.disableLedgerReplication();
-        log.debug("Disabled Ledeger Replication");
+        log.debug("Disabled Ledger Replication");
 
         String znodeA = getUrLedgerZnode(ledgerA);
         final CountDownLatch znodeLatch = new CountDownLatch(2);
@@ -666,7 +666,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         store.registerListener(n -> {
             if (n.getType() == NotificationType.Created && n.getPath().equals(urLockLedgerA)) {
                 znodeLatch.countDown();
-                log.debug("Recieved node creation event for the zNodePath:" + n.getPath());
+                log.debug("Received node creation event for the zNodePath:" + n.getPath());
             }
         });
 
@@ -688,7 +688,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
             lum.enableLedgerReplication();
             znodeLatch.await(5, TimeUnit.SECONDS);
-            log.debug("Enabled Ledeger Replication");
+            log.debug("Enabled Ledger Replication");
             assertEquals(znodeLatch.getCount(), 0, "Failed to disable ledger replication!");
             assertEquals(callbackCount.get(), 2, "Notify callback times mismatch");
         } finally {

@@ -1267,7 +1267,7 @@ public class CmdFunctions extends CmdBase {
         addCommand("restart", getRestarter());
         addCommand("stop", getStopper());
         addCommand("start", getStarter());
-        // TODO depecreate getstatus
+        // TODO deprecate getstatus
         addCommand("status", getStatuser(), "getstatus");
         addCommand("stats", getFunctionStats());
         addCommand("list", getLister());

@@ -93,7 +93,7 @@ public class CmdSources extends CmdBase {
         addCommand("update", updateSource);
         addCommand("delete", deleteSource);
         addCommand("get", getSource);
-        // TODO depecreate getstatus
+        // TODO deprecate getstatus
         addCommand("status", getSourceStatus, "getstatus");
         addCommand("list", listSources);
         addCommand("stop", stopSource);
