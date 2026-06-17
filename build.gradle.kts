@@ -27,8 +27,9 @@ plugins {
     alias(libs.plugins.crlf) apply false
     alias(libs.plugins.idea.ext)
     alias(libs.plugins.spotless) apply false // workaround for https://github.com/diffplug/spotless/issues/2877
-    `maven-publish`
-    signing
+    // Publish repositories (local + ASF Nexus), signing, upload lock and snapshot/release validation
+    // for the org.apache.pulsar:pulsar parent POM published below — shared with every module.
+    id("pulsar.publish-repositories-conventions")
 }
 
 versionCatalogUpdate {
@@ -47,8 +48,6 @@ tasks.named<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask>("
         nonStable && !(isOpenTelemetry && candidate.version.contains("alpha"))
     }
 }
-
-val pulsarVersion = version.toString()
 
 // ── Apache RAT (Release Audit Tool) ─────────────────────────────────────────
 tasks.named<org.nosphere.apache.rat.RatTask>("rat").configure {
@@ -170,25 +169,4 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = "localDeploy"
-            url = uri(layout.buildDirectory.dir("local-deploy-repo"))
-        }
-    }
-}
-
-signing {
-    isRequired = !pulsarVersion.endsWith("-SNAPSHOT")
-    val useGpgCmd = providers.gradleProperty("useGpgCmd").orNull?.toBoolean() ?: false
-    if (useGpgCmd) {
-        useGpgCmd()
-    }
-    sign(publishing.publications)
-}
-
-tasks.withType<Sign>().configureEach {
-    enabled = providers.gradleProperty("signing.keyId").isPresent ||
-        providers.gradleProperty("signing.gnupg.keyName").isPresent
 }

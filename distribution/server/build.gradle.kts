@@ -71,6 +71,9 @@ val distLib by configurations.creating {
     exclude(group = "com.google.android", module = "annotations")
     // Annotation libraries not needed at runtime
     exclude(group = "org.codehaus.mojo", module = "animal-sniffer-annotations")
+    // The full fastutil jar (~25MB) is replaced by :pulsar-broker-fastutil-minimized below,
+    // which ships only the fastutil classes actually used on the server (and client) side.
+    exclude(group = "it.unimi.dsi", module = "fastutil")
 }
 
 // Resolvable configurations for cross-project artifact dependencies.
@@ -91,6 +94,9 @@ dependencies {
     // Version constraints from the enforced platform (inherited via implementation,
     // which distLib extends) ensure consistent versions without manual resolutionStrategy.
     distLib(project(":pulsar-broker"))
+    // Minimized fastutil (replaces the full fastutil jar excluded from distLib above): only the
+    // fastutil classes reachable from the broker and the bundled pulsar-client-original.
+    distLib(project(":pulsar-broker-fastutil-minimized"))
     distLib(project(":pulsar-metadata"))
     distLib(project(":pulsar-docs-tools"))
     distLib(project(":pulsar-proxy"))

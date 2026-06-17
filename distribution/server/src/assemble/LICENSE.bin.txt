@@ -262,6 +262,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.21.3.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.4.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
+ * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
  * LMAX Disruptor -- com.lmax-disruptor-4.0.0.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.63.2.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar

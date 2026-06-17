@@ -19,7 +19,7 @@
 [versions]
 # Docker
 docker-jdk = "21"
-pulsar-client-python = "3.10.0"
+pulsar-client-python = "3.12.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
@@ -80,6 +80,7 @@ opentelemetry-gcp-resources = "1.57.0-alpha"
 # Data structures / Utils
 guava = "33.6.0-jre"
 caffeine = "3.2.4"
+fastutil = "8.5.18"
 jctools = "4.0.6"
 roaringbitmap = "1.6.9"
 hppc = "0.9.1"
@@ -175,7 +176,7 @@ thrift = "0.23.0"
 datasketches-memory = "4.1.0"
 datasketches-java = "7.0.1"
 # Shading
-shadow = "9.4.1"
+shadow = "9.4.2"
 
 [libraries]
 # SLF4J
@@ -330,6 +331,7 @@ rocksdbjni = { module = "org.rocksdb:rocksdbjni", version.ref = "rocksdb" }
 error-prone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 # Data structures
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+fastutil = { module = "it.unimi.dsi:fastutil", version.ref = "fastutil" }
 jctools-core = { module = "org.jctools:jctools-core", version.ref = "jctools" }
 jctools-core-jdk11 = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
 roaringbitmap = { module = "org.roaringbitmap:RoaringBitmap", version.ref = "roaringbitmap" }

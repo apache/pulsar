@@ -427,12 +427,12 @@ The Apache Software License, Version 2.0
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
  * RoaringBitmap -- RoaringBitmap-1.6.9.jar
+ * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
  * JSpecify -- jspecify-1.0.0.jar
  * JetBrains Annotations -- annotations-26.1.0.jar
 
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
- * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt

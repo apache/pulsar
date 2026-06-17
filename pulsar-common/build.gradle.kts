@@ -181,6 +181,7 @@ dependencies {
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-aarch_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-x86_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-aarch_64") })
+    implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("windows-x86_64") })
     implementation(libs.netty.transport.classes.io.uring)
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-aarch_64") })

@@ -21,9 +21,14 @@ package org.apache.pulsar.broker.delayed;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timer;
+import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.time.Clock;
 import java.util.NavigableSet;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +36,6 @@ import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.common.util.collections.LongOpenHashSet;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
@@ -40,9 +44,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     protected final Logger log;
 
     // timestamp -> ledgerId -> entryId
-    // TreeMap -> TreeMap -> RoaringBitmap
-    protected final TreeMap<Long, TreeMap<Long, Roaring64Bitmap>>
-            delayedMessageMap = new TreeMap<>();
+    // AVL tree -> OpenHashMap -> RoaringBitmap
+    protected final Long2ObjectSortedMap<Long2ObjectSortedMap<Roaring64Bitmap>>
+            delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -137,7 +141,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .log("Add message");
         long timestamp = roundTimestamp(deliverAt);
 
-        Roaring64Bitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new TreeMap<>())
+        Roaring64Bitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
             .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
         // Roaring64Bitmap does not store duplicates, so track if it a new element
         // so we can keep delayedMessagesCount in sync
@@ -194,7 +198,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public boolean hasMessageAvailable() {
         boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
-                && delayedMessageMap.firstKey() <= getCutoffTime();
+                && delayedMessageMap.firstLongKey() <= getCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
@@ -211,15 +215,15 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         long cutoffTime = getCutoffTime();
 
         while (n > 0 && !delayedMessageMap.isEmpty()) {
-            long timestamp = delayedMessageMap.firstKey();
+            long timestamp = delayedMessageMap.firstLongKey();
             if (timestamp > cutoffTime) {
                 break;
             }
 
-            LongOpenHashSet ledgerIdToDelete = new LongOpenHashSet();
-            TreeMap<Long, Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
-            for (var ledgerEntry : ledgerMap.entrySet()) {
-                long ledgerId = ledgerEntry.getKey();
+            LongSet ledgerIdToDelete = new LongOpenHashSet();
+            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
+            for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                long ledgerId = ledgerEntry.getLongKey();
                 Roaring64Bitmap entryIds = ledgerEntry.getValue();
                 long cardinality = entryIds.getLongCardinality();
                 if (cardinality <= n) {
@@ -309,6 +313,6 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     protected long nextDeliveryTime() {
-        return delayedMessageMap.firstKey();
+        return delayedMessageMap.firstLongKey();
     }
 }

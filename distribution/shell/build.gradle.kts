@@ -42,9 +42,15 @@ val distLib by configurations.creating {
     exclude(group = "net.java.dev.jna", module = "jna-platform")
     exclude(group = "io.netty", module = "netty-transport-native-kqueue")
     exclude(group = "io.prometheus", module = "simpleclient_caffeine")
+    // The full fastutil jar (~24MB) is replaced by :pulsar-client-fastutil-minimized below,
+    // which ships only the fastutil classes the client-side modules actually use.
+    exclude(group = "it.unimi.dsi", module = "fastutil")
 }
 dependencies {
     distLib(project(":pulsar-client-tools"))
+    // Minimized fastutil (replaces the full fastutil jar excluded from distLib above): only the
+    // fastutil classes reachable from the client-side modules (client, client-tools, admin).
+    distLib(project(":pulsar-client-fastutil-minimized"))
     distLib(libs.log4j.core)
     distLib(libs.log4j.web)
     distLib(libs.log4j.layout.template.json)
