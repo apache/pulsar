@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -360,6 +361,7 @@ public class PendingAcksMapTest {
 
         verify(removeHandler).handleRemoving(consumer, 1L, 1L, Integer.MIN_VALUE, false);
         verify(removeHandler).handleRemoving(consumer, 1L, 2L, -1, false);
+        verifyNoMoreInteractions(removeHandler);
         assertEquals(pendingAcksMap.size(), 0);
     }
 
@@ -405,6 +407,19 @@ public class PendingAcksMapTest {
         assertTrue(pendingAcksMap.updateRemainingUnacked(1L, 1L, 4));
 
         assertPendingAck(pendingAcksMap.get(1L, 1L), 6, Integer.MIN_VALUE);
+    }
+
+    @Test
+    public void updateRemainingUnacked_AllowsZeroRemainingUnacked() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, -1);
+
+        assertTrue(pendingAcksMap.updateRemainingUnacked(1L, 1L, 1));
+
+        assertEquals(pendingAcksMap.getRemainingUnacked(1L, 1L), 0);
+        assertPendingAck(pendingAcksMap.get(1L, 1L), 0, -1);
+        assertEquals(pendingAcksMap.size(), 1);
     }
 
     @Test
@@ -456,6 +471,9 @@ public class PendingAcksMapTest {
 
         expectThrows(IllegalArgumentException.class,
                 () -> pendingAcksMap.addPendingAckIfAllowed(1L, 1L, PendingAcksMap.PENDING_ACK_NOT_FOUND, 0));
+
+        assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
