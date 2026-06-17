@@ -57,6 +57,10 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
             public void run(Timeout t) throws Exception {
+                if (t.isCancelled()) {
+                    return;
+                }
+
                 writeLock.lock();
                 try {
                     HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
