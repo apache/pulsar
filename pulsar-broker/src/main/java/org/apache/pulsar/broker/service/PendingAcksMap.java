@@ -45,6 +45,10 @@ import java.util.function.Supplier;
 public class PendingAcksMap {
     static final int PENDING_ACK_NOT_FOUND = -1;
     private static final long STICKY_KEY_HASH_MASK = 0xFFFF_FFFFL;
+    // The remaining unacked count is a non-negative message count. Reserve a packed negative count as the
+    // Long2LongSortedMap default return value so lookups can distinguish missing entries with a single get.
+    private static final long PACKED_PENDING_ACK_NOT_FOUND =
+            packPendingAckValueUnchecked(PENDING_ACK_NOT_FOUND, 0);
 
     /**
      * Callback interface for handling the addition of pending acknowledgments.
@@ -137,6 +141,7 @@ public class PendingAcksMap {
      * @return true if the pending ack was added, and it's allowed to send a message, false otherwise
      */
     public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash) {
+        long packedValue = packPendingAckValue(remainingUnacked, stickyKeyHash);
         try {
             writeLock.lock();
             // prevent adding sticky hash to pending acks if the PendingAcksMap has already been closed
@@ -152,10 +157,9 @@ public class PendingAcksMap {
                 return false;
             }
             Long2LongSortedMap ledgerPendingAcks =
-                    pendingAcks.computeIfAbsent(ledgerId, k -> new Long2LongRBTreeMap());
-            boolean containsEntry = ledgerPendingAcks.containsKey(entryId);
-            ledgerPendingAcks.put(entryId, packPendingAckValue(remainingUnacked, stickyKeyHash));
-            if (!containsEntry) {
+                    pendingAcks.computeIfAbsent(ledgerId, k -> newLedgerPendingAcks());
+            long previous = ledgerPendingAcks.put(entryId, packedValue);
+            if (previous == PACKED_PENDING_ACK_NOT_FOUND) {
                 size++;
             }
             return true;
@@ -278,15 +282,19 @@ public class PendingAcksMap {
      * @param ledgerId the ledger ID
      * @param entryId the entry ID
      * @return the pending ack, or null if not found
+     * @deprecated use {@link #getRemainingUnacked(long, long)} when only the remaining unacked count is needed.
+     * This method materializes an {@link IntIntPair}.
      */
+    @Deprecated
     public IntIntPair get(long ledgerId, long entryId) {
         try {
             readLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return null;
             }
-            return unpackPendingAckValue(ledgerMap.get(entryId));
+            long packedValue = ledgerMap.get(entryId);
+            return packedValue == PACKED_PENDING_ACK_NOT_FOUND ? null : unpackPendingAckValue(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -301,10 +309,12 @@ public class PendingAcksMap {
         try {
             readLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return PENDING_ACK_NOT_FOUND;
             }
-            return unpackRemainingUnacked(ledgerMap.get(entryId));
+            long packedValue = ledgerMap.get(entryId);
+            return packedValue == PACKED_PENDING_ACK_NOT_FOUND
+                    ? PENDING_ACK_NOT_FOUND : unpackRemainingUnacked(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -323,8 +333,11 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
+            if (batchSize < 0) {
+                return false;
+            }
             long expectedValue = packPendingAckValue(batchSize, stickyKeyHash);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId) || ledgerMap.get(entryId) != expectedValue) {
+            if (ledgerMap == null || ledgerMap.get(entryId) != expectedValue) {
                 return false;
             }
             ledgerMap.remove(entryId);
@@ -352,11 +365,17 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return false;
             }
             long packedValue = ledgerMap.get(entryId);
+            if (packedValue == PACKED_PENDING_ACK_NOT_FOUND) {
+                return false;
+            }
             int newRemaining = unpackRemainingUnacked(packedValue) - ackedDelta;
+            if (newRemaining < 0) {
+                return false;
+            }
             ledgerMap.put(entryId, packPendingAckValue(newRemaining, unpackStickyKeyHash(packedValue)));
             return true;
         } finally {
@@ -375,10 +394,13 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return false;
             }
             long removedEntry = ledgerMap.remove(entryId);
+            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+                return false;
+            }
             size--;
             handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
@@ -398,15 +420,21 @@ public class PendingAcksMap {
      * @param ledgerId the ledger ID
      * @param entryId the entry ID
      * @return the removed entry as an IntIntPair (batchSize, stickyKeyHash), or null if not found
+     * @deprecated use {@link #removeAndGetRemainingUnacked(long, long)} when only the remaining unacked count
+     * is needed. This method materializes an {@link IntIntPair}.
      */
+    @Deprecated
     public IntIntPair removeAndGet(long ledgerId, long entryId) {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return null;
             }
             long removedEntry = ledgerMap.remove(entryId);
+            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+                return null;
+            }
             size--;
             handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
@@ -427,10 +455,13 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null || !ledgerMap.containsKey(entryId)) {
+            if (ledgerMap == null) {
                 return PENDING_ACK_NOT_FOUND;
             }
             long removedEntry = ledgerMap.remove(entryId);
+            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+                return PENDING_ACK_NOT_FOUND;
+            }
             size--;
             handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
@@ -544,7 +575,20 @@ public class PendingAcksMap {
     }
 
     private static long packPendingAckValue(int remainingUnacked, int stickyKeyHash) {
+        if (remainingUnacked < 0) {
+            throw new IllegalArgumentException("remainingUnacked must be non-negative");
+        }
+        return packPendingAckValueUnchecked(remainingUnacked, stickyKeyHash);
+    }
+
+    private static long packPendingAckValueUnchecked(int remainingUnacked, int stickyKeyHash) {
         return ((long) remainingUnacked << Integer.SIZE) | (stickyKeyHash & STICKY_KEY_HASH_MASK);
+    }
+
+    private static Long2LongSortedMap newLedgerPendingAcks() {
+        Long2LongRBTreeMap ledgerPendingAcks = new Long2LongRBTreeMap();
+        ledgerPendingAcks.defaultReturnValue(PACKED_PENDING_ACK_NOT_FOUND);
+        return ledgerPendingAcks;
     }
 
     private static IntIntPair unpackPendingAckValue(long packedValue) {

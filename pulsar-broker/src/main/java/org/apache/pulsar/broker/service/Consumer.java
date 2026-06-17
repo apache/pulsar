@@ -1214,7 +1214,11 @@ public class Consumer {
      *
      * @return the removed {@link IntIntPair#leftInt() remainingUnacked} and
      *         {@link IntIntPair#rightInt() stickyKeyHash}, or {@code null} if not found
+     * @deprecated use {@link #removePendingAckAndGetRemainingUnacked(long, long)} when only the remaining unacked
+     * count is needed. This method materializes an {@link IntIntPair}.
      */
+    @Deprecated
+    @SuppressWarnings("deprecation")
     public IntIntPair removePendingAckAndGet(long ledgerId, long entryId) {
         if (pendingAcks != null) {
             return pendingAcks.removeAndGet(ledgerId, entryId);

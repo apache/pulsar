@@ -29,11 +29,13 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.util.ArrayList;
 import java.util.List;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("deprecation")
 public class PendingAcksMapTest {
     @Test
     public void addPendingAckIfAllowed_AddsAckWhenAllowed() {
@@ -369,7 +371,7 @@ public class PendingAcksMapTest {
                 {1, 123},
                 {0, 0},
                 {Integer.MAX_VALUE, Integer.MIN_VALUE},
-                {Integer.MIN_VALUE, Integer.MAX_VALUE},
+                {2, Integer.MAX_VALUE},
                 {42, -123456789}
         };
 
@@ -406,6 +408,17 @@ public class PendingAcksMapTest {
     }
 
     @Test
+    public void updateRemainingUnacked_DoesNotStoreNegativeRemainingUnacked() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+
+        assertFalse(pendingAcksMap.updateRemainingUnacked(1L, 1L, 2));
+
+        assertPendingAck(pendingAcksMap.get(1L, 1L), 1, 123);
+    }
+
+    @Test
     public void removeAllUpTo_PreservesPackedFieldsInCallback() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
@@ -434,6 +447,27 @@ public class PendingAcksMapTest {
         assertFalse(pendingAcksMap.remove(1L, 1L, Integer.MAX_VALUE, 1));
         assertTrue(pendingAcksMap.remove(1L, 1L, Integer.MAX_VALUE, -1));
         assertFalse(pendingAcksMap.contains(1L, 1L));
+    }
+
+    @Test
+    public void addPendingAckIfAllowed_RejectsNegativeRemainingUnacked() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+
+        expectThrows(IllegalArgumentException.class,
+                () -> pendingAcksMap.addPendingAckIfAllowed(1L, 1L, PendingAcksMap.PENDING_ACK_NOT_FOUND, 0));
+    }
+
+    @Test
+    public void removeWithValue_RejectsNegativeRemainingUnackedWithoutRemovingEntry() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 0);
+
+        assertFalse(pendingAcksMap.remove(1L, 1L, PendingAcksMap.PENDING_ACK_NOT_FOUND, 0));
+
+        assertTrue(pendingAcksMap.contains(1L, 1L));
+        assertEquals(pendingAcksMap.getRemainingUnacked(1L, 1L), 1);
     }
 
     private static void assertPendingAck(IntIntPair pendingAck, int remainingUnacked, int stickyKeyHash) {
