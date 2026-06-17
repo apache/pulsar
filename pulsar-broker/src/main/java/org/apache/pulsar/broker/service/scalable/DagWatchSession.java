@@ -37,6 +37,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 
@@ -53,6 +55,10 @@ import org.apache.pulsar.metadata.api.NotificationType;
 public class DagWatchSession implements ScalableTopicResources.MetadataPathListener {
 
     private static final Logger LOG = Logger.get(DagWatchSession.class);
+
+    /** Initial segment count for an auto-created scalable topic. */
+    private static final int AUTO_CREATE_INITIAL_SEGMENTS = 1;
+
     private final Logger log;
 
     @Getter
@@ -132,8 +138,47 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
                     if (topicName.getDomain() == TopicDomain.persistent) {
                         return buildSyntheticResponse();
                     }
+                    if (topicName.getDomain() == TopicDomain.topic) {
+                        return maybeAutoCreateAndBuildResponse();
+                    }
                     return CompletableFuture.failedFuture(
                             new IllegalStateException("Scalable topic not found: " + topicName));
+                });
+    }
+
+    /**
+     * A lookup for a {@code topic://...} scalable topic that doesn't exist yet. Auto-create it
+     * with a single initial segment — gated by the same broker/namespace auto-topic-creation
+     * policy as regular topics ({@link BrokerService#isAllowAutoTopicCreationAsync}) — then
+     * return its layout. If the policy disallows it, fail with the same not-found error as
+     * before so the client sees no behavioural change when auto-creation is off.
+     */
+    private CompletableFuture<ScalableTopicLayoutResponse> maybeAutoCreateAndBuildResponse() {
+        return brokerService.isAllowAutoTopicCreationAsync(scalableTopicName)
+                .thenCompose(allowed -> {
+                    if (!allowed) {
+                        return CompletableFuture.failedFuture(
+                                new IllegalStateException("Scalable topic not found: " + topicName));
+                    }
+                    return brokerService.getScalableTopicService()
+                            .createScalableTopic(scalableTopicName, AUTO_CREATE_INITIAL_SEGMENTS)
+                            // Tolerate a concurrent lookup that created it first; any other
+                            // failure propagates.
+                            .handle((v, ex) -> ex)
+                            .thenCompose(ex -> {
+                                if (ex != null && !(FutureUtil.unwrapCompletionException(ex)
+                                        instanceof MetadataStoreException.AlreadyExistsException)) {
+                                    return CompletableFuture.<ScalableTopicLayoutResponse>failedFuture(ex);
+                                }
+                                log.info().log("Auto-created scalable topic");
+                                return resources.getScalableTopicMetadataAsync(scalableTopicName, true)
+                                        .thenCompose(opt -> opt.isPresent()
+                                                ? buildResponse(opt.get())
+                                                : CompletableFuture.failedFuture(
+                                                        new IllegalStateException(
+                                                                "Scalable topic not found after "
+                                                                        + "auto-create: " + topicName)));
+                            });
                 });
     }
 
