@@ -51,6 +51,7 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
     protected final Clock clock;
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
+
     private final Object triggerLock;
     // Guards the timer state (timeout, currentTimeoutTarget, lastTickRun) against concurrent access from
     // dispatcher threads (updateTimer/rescheduleTimer/close) and the timer thread (run). It is a leaf lock:
@@ -139,6 +140,7 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
             }
             return;
         }
+
         if (timestamp == currentTimeoutTarget) {
             // The timer is already set to the correct target time
             return;

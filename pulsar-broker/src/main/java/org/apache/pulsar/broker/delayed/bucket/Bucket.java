@@ -135,7 +135,22 @@ abstract class Bucket {
             List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
         final String cursorName = Codec.decode(cursor.getName());
-        final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));
+        final String suffix = " / " + cursorName;
+        final int suffixIndex = dispatcherName.lastIndexOf(suffix);
+        final String topicName;
+        if (suffixIndex >= 0) {
+            topicName = dispatcherName.substring(0, suffixIndex);
+        } else {
+            // Fallback for dispatcher names that don't follow the "<topic> / <cursor>" pattern.
+            // This can happen in tests or benchmarks that use a simplified dispatcher name.
+            // Using the full dispatcherName as topicName avoids StringIndexOutOfBoundsException
+            // while still providing a meaningful identifier to the snapshot storage.
+            topicName = dispatcherName;
+            log.debug()
+                    .attr("dispatcher", dispatcherName)
+                    .attr("suffix", suffix)
+                    .log("Dispatcher name does not contain expected suffix, using full dispatcherName as topic name");
+        }
         return executeWithRetry(
                 () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
                                 topicName, cursorName)

@@ -54,19 +54,27 @@ class MutableBucket extends Bucket implements AutoCloseable {
             TripleLongPriorityQueue sharedQueue) {
         return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment,
                 maxIndexesPerBucketSnapshotSegment, sharedQueue,
-                TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
+                TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId, false);
     }
 
     Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
             final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
-            log.debug()
-                    .attr("dispatcher", dispatcherName)
-                    .attr("startLedgerId", startLedgerId)
-                    .attr("endLedgerId", endLedgerId)
-                    .log("Creating bucket snapshot");
-                if (delayedIndexQueue.isEmpty()) {
+        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment,
+                maxIndexesPerBucketSnapshotSegment, sharedQueue, delayedIndexQueue, startLedgerId, endLedgerId, true);
+    }
+
+    private Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
+            final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
+            TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
+            final long endLedgerId, boolean removeSourceIndexBits) {
+        log.debug()
+                .attr("dispatcher", dispatcherName)
+                .attr("startLedgerId", startLedgerId)
+                .attr("endLedgerId", endLedgerId)
+                .log("Creating bucket snapshot");
+        if (delayedIndexQueue.isEmpty()) {
             return null;
         }
         long numMessages = 0;
@@ -96,7 +104,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long ledgerId = delayedIndex.getLedgerId();
             final long entryId = delayedIndex.getEntryId();
 
-            removeIndexBit(ledgerId, entryId);
+            if (removeSourceIndexBits) {
+                removeIndexBit(ledgerId, entryId);
+            }
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
@@ -146,7 +156,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         // optimize bm
         immutableBucketBitMap.values().forEach(RoaringBitmap::runOptimize);
-        this.delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
+        if (removeSourceIndexBits) {
+            this.delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
+        }
 
         SnapshotMetadata bucketSnapshotMetadata = new SnapshotMetadata();
         for (SnapshotSegmentMetadata sm : segmentMetadataList) {
@@ -231,7 +243,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         if (startLedgerId == -1L) {
             this.startLedgerId = ledgerId;
         }
-        this.endLedgerId = ledgerId;
+        this.endLedgerId = Math.max(endLedgerId, ledgerId);
         putIndexBit(ledgerId, entryId);
     }
 }

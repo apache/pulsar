@@ -48,12 +48,11 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * JMH benchmarks for {@link BucketDelayedDeliveryTracker}.
- *
- * <p>This benchmark measures tracker throughput under different read/write ratios
- * and initial message counts without implying a specific lock implementation.
- *
- * <p>Run with: mvn exec:java -Dexec.mainClass="org.openjdk.jmh.Main"
+ * Enhanced JMH Benchmarks for BucketDelayedDeliveryTracker with ReentrantReadWriteLock.
+ * This benchmark tests the performance improvements made by transitioning from
+ * StampedLock to ReentrantReadWriteLock for fine-grained concurrency control.
+ * <p>
+ * Run with: mvn exec:java -Dexec.mainClass="org.openjdk.jmh.Main"
  *           -Dexec.args="BucketDelayedDeliveryTrackerBenchmark"
  */
 @BenchmarkMode(Mode.Throughput)
@@ -170,6 +169,9 @@ public class BucketDelayedDeliveryTrackerBenchmark {
 
     @Benchmark
     public boolean benchmarkMixedOperations() {
+        String[] parts = readWriteRatio.split("_");
+        int readPercentage = Integer.parseInt(parts[0]);
+
         if (ThreadLocalRandom.current().nextInt(100) < readPercentage) {
             // Read operations
             return performReadOperation();

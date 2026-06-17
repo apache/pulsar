@@ -46,6 +46,8 @@ public class DispatcherDelayedDeliveryContext implements DelayedDeliveryContext 
 
     @Override
     public void triggerReadMoreEntries() {
-        dispatcher.readMoreEntriesAsync();
+        synchronized (dispatcher) {
+            dispatcher.readMoreEntriesAsync();
+        }
     }
 }
