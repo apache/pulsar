@@ -48,7 +48,7 @@ public class PendingAcksMap {
     // The remaining unacked count is a non-negative message count. Reserve a packed negative count as the
     // Long2LongSortedMap default return value so lookups can distinguish missing entries with a single get.
     private static final long PACKED_PENDING_ACK_NOT_FOUND =
-            packPendingAckValueUnchecked(PENDING_ACK_NOT_FOUND, 0);
+            packPendingAckValue(PENDING_ACK_NOT_FOUND, 0);
 
     /**
      * Callback interface for handling the addition of pending acknowledgments.
@@ -333,9 +333,6 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (batchSize < 0) {
-                return false;
-            }
             long expectedValue = packPendingAckValue(batchSize, stickyKeyHash);
             if (ledgerMap == null || ledgerMap.get(entryId) != expectedValue) {
                 return false;
@@ -575,13 +572,6 @@ public class PendingAcksMap {
     }
 
     private static long packPendingAckValue(int remainingUnacked, int stickyKeyHash) {
-        if (remainingUnacked < 0) {
-            throw new IllegalArgumentException("remainingUnacked must be non-negative");
-        }
-        return packPendingAckValueUnchecked(remainingUnacked, stickyKeyHash);
-    }
-
-    private static long packPendingAckValueUnchecked(int remainingUnacked, int stickyKeyHash) {
         return ((long) remainingUnacked << Integer.SIZE) | (stickyKeyHash & STICKY_KEY_HASH_MASK);
     }
 

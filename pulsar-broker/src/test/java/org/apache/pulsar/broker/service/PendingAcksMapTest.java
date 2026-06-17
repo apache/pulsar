@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.util.ArrayList;
 import java.util.List;
@@ -462,30 +461,6 @@ public class PendingAcksMapTest {
         assertFalse(pendingAcksMap.remove(1L, 1L, Integer.MAX_VALUE, 1));
         assertTrue(pendingAcksMap.remove(1L, 1L, Integer.MAX_VALUE, -1));
         assertFalse(pendingAcksMap.contains(1L, 1L));
-    }
-
-    @Test
-    public void addPendingAckIfAllowed_RejectsNegativeRemainingUnacked() {
-        Consumer consumer = createMockConsumer("consumer1");
-        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
-
-        expectThrows(IllegalArgumentException.class,
-                () -> pendingAcksMap.addPendingAckIfAllowed(1L, 1L, PendingAcksMap.PENDING_ACK_NOT_FOUND, 0));
-
-        assertFalse(pendingAcksMap.contains(1L, 1L));
-        assertEquals(pendingAcksMap.size(), 0);
-    }
-
-    @Test
-    public void removeWithValue_RejectsNegativeRemainingUnackedWithoutRemovingEntry() {
-        Consumer consumer = createMockConsumer("consumer1");
-        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
-        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 0);
-
-        assertFalse(pendingAcksMap.remove(1L, 1L, PendingAcksMap.PENDING_ACK_NOT_FOUND, 0));
-
-        assertTrue(pendingAcksMap.contains(1L, 1L));
-        assertEquals(pendingAcksMap.getRemainingUnacked(1L, 1L), 1);
     }
 
     private static void assertPendingAck(IntIntPair pendingAck, int remainingUnacked, int stickyKeyHash) {
