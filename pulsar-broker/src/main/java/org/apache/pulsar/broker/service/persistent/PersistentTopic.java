@@ -3392,7 +3392,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean hasBacklogs(boolean getPreciseBacklog) {
-        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(getPreciseBacklog) > 0);
+        return subscriptions.values().stream().anyMatch(sub -> sub.hasBacklog(getPreciseBacklog));
     }
 
     @Override
@@ -3542,8 +3542,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Void> checkAndUnsubscribeSubscriptions() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         subscriptions.forEach((s, subscription) -> {
-            if (subscription.getNumberOfEntriesInBacklog(true) == 0
-                    && subscription.getConsumers().isEmpty()) {
+            if (subscription.getConsumers().isEmpty() && !subscription.hasBacklog(true)) {
                 futures.add(subscription.delete());
             }
         });
@@ -3563,7 +3562,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Void> checkAndDisconnectReplicators() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         replicators.forEach((r, replicator) -> {
-            if (replicator.getNumberOfEntriesInBacklog() <= 0) {
+            if (!replicator.hasBacklog()) {
                 futures.add(replicator.terminate());
             }
         });
@@ -3577,7 +3576,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public boolean isReplicationBacklogExist() {
         for (Replicator replicator : replicators.values()) {
-            if (replicator.getNumberOfEntriesInBacklog() > 0) {
+            if (replicator.hasBacklog()) {
                 return true;
             }
         }

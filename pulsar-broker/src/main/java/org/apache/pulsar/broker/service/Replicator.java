@@ -54,6 +54,10 @@ public interface Replicator {
 
     long getNumberOfEntriesInBacklog();
 
+    default boolean hasBacklog() {
+        return getNumberOfEntriesInBacklog() > 0;
+    }
+
     boolean isTerminated();
 
     ReplicatorStatsImpl getStats();

@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -65,6 +66,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -82,6 +84,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -225,6 +228,127 @@ public class PersistentTopicTest extends BrokerTestBase {
         blockField.set(sharedConsumer, true);
         producer.newMessage().value("test").eventTime(5).send();
         assertFalse(sharedSub.checkAndUnblockIfStuck());
+    }
+
+    @Test
+    public void testHasBacklogTracksRealProduceConsumeAckOrders() throws Exception {
+        int messageCount = 20;
+        List<int[]> ackOrders = List.of(
+                IntStream.range(0, messageCount).toArray(),
+                IntStream.iterate(messageCount - 1, i -> i - 1).limit(messageCount).toArray(),
+                IntStream.concat(IntStream.range(0, messageCount).filter(i -> i % 2 == 0),
+                        IntStream.range(0, messageCount).filter(i -> i % 2 != 0)).toArray(),
+                IntStream.concat(IntStream.range(0, messageCount).filter(i -> i % 2 != 0),
+                        IntStream.range(0, messageCount).filter(i -> i % 2 == 0)).toArray(),
+                IntStream.range(0, messageCount).map(i -> (i * 7 + 3) % messageCount).toArray());
+        for (boolean batchingEnabled : List.of(false, true)) {
+            for (int[] ackOrder : ackOrders) {
+                assertHasBacklogTracksRealProduceConsumeAcks(batchingEnabled, messageCount, ackOrder);
+            }
+        }
+    }
+
+    private void assertHasBacklogTracksRealProduceConsumeAcks(boolean batchingEnabled, int messageCount, int[] ackOrder)
+            throws Exception {
+        final String topicName = "persistent://prop/ns-abc/hasBacklogRealProduceConsume-"
+                + batchingEnabled + "-" + UUID.randomUUID();
+        final String subName = "sub";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(batchingEnabled)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+        if (batchingEnabled) {
+            producerBuilder.batchingMaxMessages(5)
+                    .batchingMaxPublishDelay(1, TimeUnit.HOURS);
+        }
+        @Cleanup
+        Producer<String> producer = producerBuilder.create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription subscription = topic.getSubscription(subName);
+        assertNotNull(subscription);
+        assertBacklogStateMatchesCounts(subscription, false);
+
+        List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            sends.add(producer.sendAsync("msg-" + i));
+        }
+        producer.flush();
+        CompletableFuture.allOf(sends.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
+
+        List<Message<String>> messages = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message);
+            messages.add(message);
+        }
+
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+
+        for (int i = 0; i < ackOrder.length; i++) {
+            consumer.acknowledge(messages.get(ackOrder[i]));
+            boolean hasBacklog = i < ackOrder.length - 1;
+            Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, hasBacklog));
+        }
+    }
+
+    private static void assertBacklogStateMatchesCounts(PersistentSubscription subscription, boolean expected) {
+        long preciseBacklog = subscription.getNumberOfEntriesInBacklog(true);
+        boolean hasPreciseBacklog = subscription.hasBacklog(true);
+        assertEquals(hasPreciseBacklog, preciseBacklog > 0);
+        assertEquals(hasPreciseBacklog, expected);
+
+        long impreciseBacklog = subscription.getNumberOfEntriesInBacklog(false);
+        assertEquals(subscription.hasBacklog(false), impreciseBacklog > 0);
+    }
+
+    @Test
+    public void testHasBacklogTracksRealSubscriptionLifecycleOperations() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/hasBacklogLifecycle-" + UUID.randomUUID();
+        final String subName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription subscription = topic.getSubscription(subName);
+        assertNotNull(subscription);
+        assertBacklogStateMatchesCounts(subscription, false);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send("msg-" + i);
+        }
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+
+        ManagedCursor cursor = subscription.getCursor();
+        ManagedLedger managedLedger = cursor.getManagedLedger();
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        Position fifthPosition = managedLedger.getPositionAfterN(initialMarkDelete, 5, PositionBound.startExcluded);
+
+        subscription.skipMessages(3).get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+
+        subscription.resetCursor(initialMarkDelete).get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+
+        assertTrue(subscription.expireMessages(fifthPosition));
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+
+        subscription.clearBacklog().get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, false));
     }
 
     @Test

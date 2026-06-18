@@ -209,6 +209,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
         return cursor.getNumberOfEntriesInBacklog(true);
     }
 
+    @Override
+    public boolean hasBacklog() {
+        return cursor.hasBacklog();
+    }
+
     public long getMessageExpiredCount() {
         return expiryMonitor.getTotalMessageExpired();
     }
