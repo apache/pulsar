@@ -614,7 +614,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 .attr("consumerCount", consumerList.size())
                 .log("Distributing messages to consumers");
 
-        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        long size = getTotalBytesSize(entries);
         updatePendingBytesToDispatch(size);
 
         // dispatch messages to a separate thread, but still in order for this subscription
