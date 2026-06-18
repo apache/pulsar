@@ -1077,6 +1077,11 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public boolean hasBacklog(boolean getPreciseBacklog) {
+        return cursor.hasBacklog(getPreciseBacklog);
+    }
+
+    @Override
     public synchronized Dispatcher getDispatcher() {
         return this.dispatcher;
     }
@@ -1624,8 +1629,12 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public boolean isSubscriptionMigrated() {
-        log.info().attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(true)).log("Backlog");
-        return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
+        if (!topic.isMigrated()) {
+            return false;
+        }
+        boolean hasBacklog = cursor.hasBacklog();
+        log.info().attr("hasBacklog", hasBacklog).log("Backlog");
+        return !hasBacklog;
     }
 
     @Override

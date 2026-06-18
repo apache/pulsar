@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -2337,6 +2338,45 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getMarkDeletedPosition(), p4);
         assertEquals(c1.getReadPosition(), p4.getNext());
+    }
+
+    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
+    void hasBacklogAccountsForIndividuallyDeletedMessages(boolean useOpenRangeSet) throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger",
+                new ManagedLedgerConfig()
+                        .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet)
+                        .setMaxEntriesPerLedger(2));
+
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
+
+        assertTrue(c1.hasBacklog());
+
+        c1.delete(p1);
+        c1.delete(p3);
+        assertTrue(c1.hasBacklog());
+
+        c1.delete(p2);
+        assertFalse(c1.hasBacklog());
+        assertFalse(c1.hasBacklog(true));
+        assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
+    }
+
+    @Test
+    void hasBacklogDefaultMethodsDelegateToBacklogCount() {
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doCallRealMethod().when(cursor).hasBacklog();
+        doCallRealMethod().when(cursor).hasBacklog(true);
+        doCallRealMethod().when(cursor).hasBacklog(false);
+
+        when(cursor.getNumberOfEntriesInBacklog(true)).thenReturn(1L);
+        when(cursor.getNumberOfEntriesInBacklog(false)).thenReturn(0L);
+
+        assertTrue(cursor.hasBacklog());
+        assertFalse(cursor.hasBacklog(false));
     }
 
     @Test(timeOut = 10000, dataProvider = "useOpenRangeSet")

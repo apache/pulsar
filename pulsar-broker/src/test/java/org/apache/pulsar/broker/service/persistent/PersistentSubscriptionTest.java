@@ -20,11 +20,15 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -313,5 +317,18 @@ public class PersistentSubscriptionTest {
         public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
             return CompletableFuture.completedFuture(true);
         }
+    }
+
+    @Test
+    public void testHasBacklogDelegatesToCursor() {
+        doReturn(true).when(cursorMock).hasBacklog(true);
+        doReturn(false).when(cursorMock).hasBacklog(false);
+
+        assertTrue(persistentSubscription.hasBacklog(true));
+        assertFalse(persistentSubscription.hasBacklog(false));
+
+        verify(cursorMock).hasBacklog(true);
+        verify(cursorMock).hasBacklog(false);
+        verify(cursorMock, never()).getNumberOfEntriesInBacklog(anyBoolean());
     }
 }

@@ -29,11 +29,13 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -137,6 +139,8 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -2115,6 +2119,102 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(nonDeletableSubscription1, times(0)).delete();
         verify(deletableSubscription1, times(1)).delete();
         verify(nonDeletableSubscription2, times(0)).delete();
+    }
+
+    @Test
+    public void testIsReplicationBacklogExistUsesReplicatorHasBacklog() {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        Replicator replicator = mock(Replicator.class);
+        topic.getReplicators().put("remote", replicator);
+
+        doReturn(false).when(replicator).hasBacklog();
+        assertFalse(topic.isReplicationBacklogExist());
+
+        doReturn(true).when(replicator).hasBacklog();
+        assertTrue(topic.isReplicationBacklogExist());
+
+        verify(replicator, times(2)).hasBacklog();
+        verify(replicator, never()).getNumberOfEntriesInBacklog();
+    }
+
+    @Test
+    public void testCheckClusterMigrationUsesHasBacklogForCleanup() throws Exception {
+        setClusterMigration(true);
+        try {
+            pulsarTestContext.getConfig().setClusterMigrationAutoResourceCreation(false);
+            doReturn(false).when(ledgerMock).isMigrated();
+            doReturn(CompletableFuture.completedFuture(PositionFactory.LATEST)).when(ledgerMock).asyncMigrate();
+
+            PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+            Replicator drainedReplicator = mock(Replicator.class);
+            doReturn(false).when(drainedReplicator).hasBacklog();
+            doReturn(CompletableFuture.completedFuture(null)).when(drainedReplicator).terminate();
+            topic.getReplicators().put("remote", drainedReplicator);
+
+            PersistentSubscription drainedSubscription = mock(PersistentSubscription.class);
+            doReturn(Collections.emptyList()).when(drainedSubscription).getConsumers();
+            doReturn(false).when(drainedSubscription).hasBacklog(true);
+            doReturn(CompletableFuture.completedFuture(null)).when(drainedSubscription).delete();
+            topic.getSubscriptions().put("drained", drainedSubscription);
+
+            PersistentSubscription backloggedSubscription = mock(PersistentSubscription.class);
+            doReturn(Collections.emptyList()).when(backloggedSubscription).getConsumers();
+            doReturn(true).when(backloggedSubscription).hasBacklog(true);
+            doReturn(CompletableFuture.completedFuture(null)).when(backloggedSubscription).delete();
+            topic.getSubscriptions().put("backlogged", backloggedSubscription);
+
+            PersistentSubscription activeSubscription = mock(PersistentSubscription.class);
+            doReturn(List.of(mock(Consumer.class))).when(activeSubscription).getConsumers();
+            doReturn(false).when(activeSubscription).hasBacklog(true);
+            doReturn(CompletableFuture.completedFuture(null)).when(activeSubscription).delete();
+            topic.getSubscriptions().put("active", activeSubscription);
+
+            topic.checkClusterMigration().get(5, TimeUnit.SECONDS);
+
+            verify(ledgerMock).asyncMigrate();
+            verify(drainedReplicator, times(2)).hasBacklog();
+            verify(drainedReplicator).terminate();
+            verify(drainedReplicator, never()).getNumberOfEntriesInBacklog();
+
+            verify(drainedSubscription).hasBacklog(true);
+            verify(drainedSubscription).delete();
+            verify(drainedSubscription, never()).getNumberOfEntriesInBacklog(anyBoolean());
+
+            verify(backloggedSubscription).hasBacklog(true);
+            verify(backloggedSubscription, never()).delete();
+            verify(backloggedSubscription, never()).getNumberOfEntriesInBacklog(anyBoolean());
+
+            verify(activeSubscription, never()).hasBacklog(anyBoolean());
+            verify(activeSubscription, never()).delete();
+            verify(activeSubscription, never()).getNumberOfEntriesInBacklog(anyBoolean());
+        } finally {
+            setClusterMigration(false);
+        }
+    }
+
+    @Test
+    public void testReplicatorHasBacklogDefaultMethodDelegatesToBacklogCount() {
+        Replicator replicator = mock(Replicator.class);
+        doCallRealMethod().when(replicator).hasBacklog();
+
+        doReturn(1L).when(replicator).getNumberOfEntriesInBacklog();
+        assertTrue(replicator.hasBacklog());
+
+        doReturn(0L).when(replicator).getNumberOfEntriesInBacklog();
+        assertFalse(replicator.hasBacklog());
+    }
+
+    private void setClusterMigration(boolean migrated) {
+        ClusterUrl migratedUrl = new ClusterUrl("http://migration.example:8080", null,
+                "pulsar://migration.example:6650", null);
+        pulsarTestContext.getPulsarResources().getClusterResources().getClusterPoliciesResources()
+                .setPoliciesWithCreateAsync(pulsarTestContext.getConfig().getClusterName(),
+                        old -> ClusterPoliciesImpl.builder()
+                                .migrated(migrated)
+                                .migratedClusterUrl(migratedUrl)
+                                .build())
+                .join();
     }
 
     @Test
