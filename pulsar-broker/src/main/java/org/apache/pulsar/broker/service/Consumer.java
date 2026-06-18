@@ -980,20 +980,16 @@ public class Consumer {
         }
     }
 
-    public boolean checkAndApplyTopicMigration() {
-        if (subscription.isSubscriptionMigrated()) {
-            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar(),
-                    topicName);
-            if (clusterUrl.isPresent()) {
-                ClusterUrl url = clusterUrl.get();
-                cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
-                        url.getBrokerServiceUrlTls());
-                // disconnect consumer after sending migrated cluster url
-                disconnect();
-                return true;
-            }
+    public CompletableFuture<Boolean> checkAndApplyTopicMigrationAsync() {
+        if (!subscription.isSubscriptionMigrated()) {
+            return CompletableFuture.completedFuture(false);
         }
-        return false;
+        return AbstractTopic.getMigratedClusterUrlAsync(cnx.getBrokerService().getPulsar(), topicName)
+                .thenApply(clusterUrl -> {
+                    // topicMigrated() sends the migrated cluster url and disconnects the consumer if present
+                    topicMigrated(clusterUrl);
+                    return clusterUrl.isPresent();
+                });
     }
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
