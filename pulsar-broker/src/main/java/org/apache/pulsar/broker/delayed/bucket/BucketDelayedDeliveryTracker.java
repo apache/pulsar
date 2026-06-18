@@ -758,17 +758,26 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized void close() {
-        super.close();
-        lastMutableBucket.close();
-        sharedBucketPriorityQueue.close();
-        try {
-            List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
+    public void close() {
+        // Block for AutoCloseable / synchronous callers; asynchronous callers should use closeAsync().
+        closeAsync().join();
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        List<CompletableFuture<Long>> completableFutures;
+        synchronized (this) {
+            super.close();
+            lastMutableBucket.close();
+            sharedBucketPriorityQueue.close();
+            completableFutures = immutableBuckets.asMapOfRanges().values().stream()
                     .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
-            FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.warn().exception(e).log("Failed wait to snapshot generate");
         }
+        return FutureUtil.waitForAll(completableFutures)
+                .exceptionally(e -> {
+                    log.warn().exception(e).log("Failed wait to snapshot generate");
+                    return null;
+                });
     }
 
     private CompletableFuture<Void> cleanImmutableBuckets() {
