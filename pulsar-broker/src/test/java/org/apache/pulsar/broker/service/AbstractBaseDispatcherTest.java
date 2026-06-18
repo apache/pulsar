@@ -56,6 +56,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AbstractBaseDispatcherTest {
 
+    private static final int MANY_ENTRIES_COUNT = 512;
+
     private AbstractBaseDispatcherTestHelper helper;
 
     private ServiceConfiguration svcConfig;
@@ -82,6 +84,29 @@ public class AbstractBaseDispatcherTest {
         assertEquals(size, 0);
     }
 
+    @Test
+    public void testFilterEntriesForConsumerSkipsFilterWhenNoFiltersConfigured() {
+        EntriesAndExpectedMetadata entries = createEntriesWithVaryingBatchSizes(MANY_ENTRIES_COUNT);
+
+        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.entries.size());
+        try {
+            int size = this.helper.filterEntriesForConsumer(entries.entries, batchSizes, sendMessageInfo,
+                    null, null, false, null);
+
+            assertEquals(size, MANY_ENTRIES_COUNT);
+            assertEquals(this.helper.getFilterInvocationCount(), 0);
+            assertEquals(sendMessageInfo.getTotalMessages(), entries.expectedMessages);
+            assertEquals(sendMessageInfo.getTotalBytes(), entries.expectedBytes);
+            assertEquals(sendMessageInfo.getTotalChunkedMessages(), 0);
+            for (int i = 0; i < MANY_ENTRIES_COUNT; i++) {
+                assertEquals(batchSizes.getBatchSize(i), batchSizeForEntry(i));
+            }
+        } finally {
+            entries.release();
+            batchSizes.recyle();
+        }
+    }
 
     @Test
     public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
@@ -192,6 +217,53 @@ public class AbstractBaseDispatcherTest {
                 Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
+    private ByteBuf createBatchMessage(String message, int sequenceId, int batchSize) {
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setSequenceId(sequenceId)
+                .setProducerName("testProducer")
+                .setPartitionKeyB64Encoded(false)
+                .setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(batchSize);
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
+                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    }
+
+    private EntriesAndExpectedMetadata createEntriesWithVaryingBatchSizes(int entryCount) {
+        EntriesAndExpectedMetadata entries = new EntriesAndExpectedMetadata(entryCount);
+        for (int i = 0; i < entryCount; i++) {
+            int batchSize = batchSizeForEntry(i);
+            ByteBuf message = createBatchMessage(messagePayload(i), i, batchSize);
+            Entry entry = EntryImpl.create(1, i, message);
+            message.release();
+            entries.entries.add(entry);
+            entries.expectedMessages += batchSize;
+            entries.expectedBytes += entry.getLength();
+        }
+        return entries;
+    }
+
+    private static int batchSizeForEntry(int index) {
+        return 1 + (index % 10);
+    }
+
+    private static String messagePayload(int index) {
+        return "message-" + index + "-" + "x".repeat(1 + (index % 128));
+    }
+
+    private static final class EntriesAndExpectedMetadata {
+        private final List<Entry> entries;
+        private int expectedMessages;
+        private long expectedBytes;
+
+        private EntriesAndExpectedMetadata(int entryCount) {
+            this.entries = new ArrayList<>(entryCount);
+        }
+
+        private void release() {
+            entries.forEach(Entry::release);
+        }
+    }
+
     private ByteBuf createTnxMessage(String message, int sequenceId) {
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setSequenceId(sequenceId)
@@ -231,6 +303,7 @@ public class AbstractBaseDispatcherTest {
     private static class AbstractBaseDispatcherTestHelper extends AbstractBaseDispatcher {
 
         private final Optional<DispatchRateLimiter> dispatchRateLimiter;
+        private int filterInvocationCount;
 
         protected AbstractBaseDispatcherTestHelper(Subscription subscription,
                                                    ServiceConfiguration serviceConfig,
@@ -242,6 +315,17 @@ public class AbstractBaseDispatcherTest {
         @Override
         public Optional<DispatchRateLimiter> getRateLimiter() {
             return dispatchRateLimiter;
+        }
+
+        @Override
+        public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
+                                                           Consumer consumer) {
+            filterInvocationCount++;
+            return super.runFiltersForEntry(entry, msgMetadata, consumer);
+        }
+
+        int getFilterInvocationCount() {
+            return filterInvocationCount;
         }
 
         @Override

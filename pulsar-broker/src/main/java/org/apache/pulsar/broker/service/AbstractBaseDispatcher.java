@@ -135,6 +135,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         int filteredMessageCount = 0;
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
+        final boolean hasFilter = this.hasFilter;
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
         List<Position> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
@@ -161,29 +162,27 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 this.filterProcessedMsgs.add(entryMsgCnt);
             }
 
-            EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
-            if (filterResult == EntryFilter.FilterResult.REJECT) {
-                entriesToFiltered.add(entry.getPosition());
-                entries.set(i, null);
-                // FilterResult will be always `ACCEPTED` when there is No Filter
-                // dont need to judge whether `hasFilter` is true or not.
-                this.filterRejectedMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
-                entry.release();
-                continue;
-            } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                entriesToRedeliver.add(entry.getPosition());
-                entries.set(i, null);
-                // FilterResult will be always `ACCEPTED` when there is No Filter
-                // dont need to judge whether `hasFilter` is true or not.
-                this.filterRescheduledMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
-                entry.release();
-                continue;
+            if (hasFilter) {
+                EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
+                if (filterResult == EntryFilter.FilterResult.REJECT) {
+                    entriesToFiltered.add(entry.getPosition());
+                    entries.set(i, null);
+                    this.filterRejectedMsgs.add(entryMsgCnt);
+                    filteredEntryCount++;
+                    filteredMessageCount += entryMsgCnt;
+                    filteredBytesCount += metadataAndPayload.readableBytes();
+                    entry.release();
+                    continue;
+                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                    entriesToRedeliver.add(entry.getPosition());
+                    entries.set(i, null);
+                    this.filterRescheduledMsgs.add(entryMsgCnt);
+                    filteredEntryCount++;
+                    filteredMessageCount += entryMsgCnt;
+                    filteredBytesCount += metadataAndPayload.readableBytes();
+                    entry.release();
+                    continue;
+                }
             }
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
