@@ -781,6 +781,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final long sessionId = commandScalableTopicLookup.getSessionId();
         final String topicStr = commandScalableTopicLookup.getTopic();
+        // Capture now: the command object is recycled once this handler returns, before the
+        // async authorization continuation that builds the session runs.
+        final boolean createIfMissing = commandScalableTopicLookup.isCreateIfMissing();
 
         log.debug().attr("topic", topicStr).attr("sessionId", sessionId)
                 .log("Received ScalableTopicLookup");
@@ -836,7 +839,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     // Create a DagWatchSession that will send the initial layout and watch for changes
                     var session = new DagWatchSession(
-                            sessionId, topicName, this, resources, service);
+                            sessionId, topicName, this, resources, service, createIfMissing);
                     dagWatchSessions.put(sessionId, session);
 
                     session.start()
