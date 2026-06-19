@@ -190,9 +190,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         log.error().attr("error", error).attr("message", message)
                 .log("DAG watch session error");
         if (!initialLayoutFuture.isDone()) {
+            String detail = "Scalable topic lookup failed: " + error + " - " + message;
             initialLayoutFuture.completeExceptionally(
-                    new PulsarClientException(
-                            "Scalable topic lookup failed: " + error + " - " + message));
+                    error == ServerError.TopicNotFound
+                            ? new PulsarClientException.NotFoundException(detail)
+                            : new PulsarClientException(detail));
         }
         // After the initial layout has arrived, broker-side errors on this session
         // (e.g., metadata unavailable) are transient — a reconnect typically clears

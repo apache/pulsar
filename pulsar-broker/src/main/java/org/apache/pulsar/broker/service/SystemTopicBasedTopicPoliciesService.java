@@ -35,6 +35,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -496,16 +497,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicPoliciesService.unwrapEventKey(msg.getKey())
                     .getPartitionedTopicName());
-            List<TopicPolicyListener> listeners = this.listeners.get(topicName);
-            if (listeners != null) {
-                for (TopicPolicyListener listener : listeners) {
-                    try {
-                        listener.onUpdate(null);
-                    } catch (Throwable error) {
-                        log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                    }
-                }
-            }
+            notifyListenersForTopic(topicName, null);
             return;
         }
 
@@ -515,17 +507,60 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
         TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
                 event.getNamespace(), event.getTopic());
-        List<TopicPolicyListener> listeners = this.listeners.get(topicName);
-        if (listeners != null) {
-            TopicPolicies policies = event.getPolicies();
-            for (TopicPolicyListener listener : listeners) {
-                try {
-                    listener.onUpdate(policies);
-                } catch (Throwable error) {
-                    log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                }
+        notifyListenersForTopic(topicName, event.getPolicies());
+    }
+
+    /**
+     * Notifies the topic-policy listeners registered for {@code topicName} of a policy update.
+     *
+     * <p>The {@link TopicPolicyListener#onUpdate} calls are dispatched to the per-topic ordered executor
+     * rather than run inline. The reader callbacks that drive notifications (the {@link #initPolicesCache}
+     * replay loop and {@link #readMorePoliciesAsync}) run on the single, process-wide shared
+     * {@code broker-client-shared-internal-executor} thread. A listener (e.g.
+     * {@code PersistentTopic.onUpdate} -> {@code applyUpdatedTopicPolicies}) can perform non-trivial and
+     * even blocking work, so running it inline serializes and can stall topic-policy loading for every
+     * namespace (issue #26037). Keying {@code executeOrdered} by {@code topicName} preserves per-topic
+     * notification ordering.
+     */
+    private void notifyListenersForTopic(TopicName topicName, @Nullable TopicPolicies policies) {
+        // The per-topic value is a CopyOnWriteArrayList, so iterating it later on the executor thread stays
+        // safe even if a listener is registered/unregistered between dispatch and execution.
+        List<TopicPolicyListener> topicListeners = listeners.get(topicName);
+        if (topicListeners == null || topicListeners.isEmpty()) {
+            return;
+        }
+        pulsarService.getBrokerService().getTopicPoliciesNotifyThread(topicName).execute(() -> {
+            internalNotifyTopicListeners(topicName, policies, topicListeners);
+        });
+    }
+
+    // this method should only be called from the topic ordered executor thread
+    // use notifyListenersForTopic/notifyListenersForTopicAsync instead
+    private static void internalNotifyTopicListeners(TopicName topicName, @Nullable TopicPolicies policies,
+                                  List<TopicPolicyListener> topicListeners) {
+        for (TopicPolicyListener listener : topicListeners) {
+            try {
+                listener.onUpdate(policies);
+            } catch (Throwable error) {
+                log.error().attr("topic", topicName).attr("listener", listener).exception(error)
+                        .log("Error in notifying listener on topic policy update.");
             }
         }
+    }
+
+    private CompletableFuture<Void> notifyListenersForTopicAsync(TopicName topicName,
+                                                                 @Nullable TopicPolicies policies) {
+        // The per-topic value is a CopyOnWriteArrayList, so iterating it later on the executor thread stays
+        // safe even if a listener is registered/unregistered between dispatch and execution.
+        List<TopicPolicyListener> topicListeners = listeners.get(topicName);
+        if (topicListeners == null || topicListeners.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        ExecutorService pinnedTopicOrderedExecutor =
+                pulsarService.getBrokerService().getTopicPoliciesNotifyThread(topicName);
+        return CompletableFuture.runAsync(() -> {
+            internalNotifyTopicListeners(topicName, policies, topicListeners);
+        }, pinnedTopicOrderedExecutor);
     }
 
     @Override
@@ -855,19 +890,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         .log("Reach the end of the system topic.");
 
                 // replay policy message
-                policiesCache.forEach(((topicName, topicPolicies) -> {
-                    if (listeners.get(topicName) != null) {
-                        for (TopicPolicyListener listener : listeners.get(topicName)) {
-                            try {
-                                listener.onUpdate(topicPolicies);
-                            } catch (Throwable error) {
-                                log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                            }
-                        }
-                    }
-                }));
-
-                future.complete(null);
+                List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
+                for (Map.Entry<TopicName, TopicPolicies> entry : policiesCache.entrySet()) {
+                    TopicName topicName = entry.getKey();
+                    TopicPolicies policies = entry.getValue();
+                    notifyFutures.add(notifyListenersForTopicAsync(topicName, policies));
+                }
+                FutureUtil.completeAfter(future, FutureUtil.waitForAll(notifyFutures));
             }
         });
     }

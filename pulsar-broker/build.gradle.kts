@@ -198,6 +198,18 @@ protobuf {
     }
 }
 
+// Align the protobuf plugin's resolvable proto-path classpaths with the enforced version platform.
+// The protobuf-gradle-plugin creates `<sourceSet>ProtoPath` configurations that resolve the proto
+// closure of the project's dependencies. They are build-time only and never published, but the
+// GitHub dependency-submission resolves every resolvable configuration, and without the alignment
+// bucket these report transitive versions that diverge from the version catalog (e.g.
+// netty-codec-http2, commons-configuration2), which Dependabot then flags. Extending the
+// non-consumable `internalPlatform` bucket (see pulsar.java-conventions) keeps them consistent
+// with the catalog without affecting any published metadata.
+configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
+    extendsFrom(configurations["internalPlatform"])
+}
+
 // All main proto files now use lightproto. Only test protos use standard protobuf.
 sourceSets["main"].proto {
     exclude("TransactionPendingAck.proto")

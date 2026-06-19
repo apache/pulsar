@@ -1071,11 +1071,21 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             if (addressResolver != null) {
-                addressResolver.close();
+                try {
+                    addressResolver.close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close addressResolver");
+                    throwable = t;
+                }
             }
 
             if (dnsResolverGroupLocalInstance != null) {
-                dnsResolverGroupLocalInstance.close();
+                try {
+                    dnsResolverGroupLocalInstance.close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close dnsResolverGroup");
+                    throwable = t;
+                }
             }
 
             try {

@@ -104,11 +104,15 @@ public class DagWatchSessionTest {
     // --- start() ---
 
     @Test
-    public void testStartFailsWhenTopicMetadataMissing() {
-        // topic://... input + no scalable metadata = TopicNotFound. Synthetic layouts
-        // are only produced for persistent://... input (regular topics).
+    public void testStartFailsWhenTopicMetadataMissingAndAutoCreateDisallowed() {
+        // topic://... input + no scalable metadata + auto-create disallowed by policy =
+        // TopicNotFound. (When auto-create is allowed the topic is created instead — covered
+        // end-to-end by V5ScalableTopicAutoCreateTest.) Synthetic layouts are only produced
+        // for persistent://... input (regular topics).
         when(resources.getScalableTopicMetadataAsync(TOPIC, true))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(brokerService.isAllowAutoTopicCreationAsync(TOPIC))
+                .thenReturn(CompletableFuture.completedFuture(false));
 
         CompletableFuture<ScalableTopicLayoutResponse> future = session.start();
 

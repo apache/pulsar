@@ -96,8 +96,22 @@ protobuf {
 // Only generate protobuf for test sources (no main protos)
 sourceSets["main"].proto { exclude("**/*") }
 
+// Align the protobuf plugin's resolvable proto-path classpaths with the enforced version platform.
+// These build-time-only `<sourceSet>ProtoPath` configurations are never published, but the GitHub
+// dependency-submission resolves every resolvable configuration and would otherwise report
+// transitive versions diverging from the version catalog (e.g. netty-codec-http2), which Dependabot
+// flags. See the matching comment in pulsar-broker/build.gradle.kts and pulsar.java-conventions.
+configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
+    extendsFrom(configurations["internalPlatform"])
+}
+
 // Generate Avro test classes from .avsc schema files
-val avroTools by configurations.creating
+val avroTools by configurations.creating {
+    // Align the avro-tools codegen classpath with the enforced version platform so its transitive
+    // dependencies (commons-*, jetty-util, ...) match the version catalog instead of avro-tools'
+    // own older transitives. Build-time only, never published.
+    extendsFrom(configurations["internalPlatform"])
+}
 dependencies {
     avroTools("org.apache.avro:avro-tools:${libs.versions.avro.get()}") {
         exclude(group = "org.eclipse.jetty", module = "jetty-server")

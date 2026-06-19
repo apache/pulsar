@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -104,6 +105,36 @@ public class AbstractBaseDispatcherTest {
             }
         } finally {
             entries.release();
+            batchSizes.recyle();
+        }
+    }
+
+    @Test
+    public void testFilterEntriesForConsumerKeepsNullAckSetAbsentForManyEntries() {
+        when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(false);
+
+        EntriesAndExpectedMetadata entries = createEntriesWithVaryingBatchSizes(MANY_ENTRIES_COUNT);
+
+        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.entries.size());
+        EntryBatchIndexesAcks indexesAcks = EntryBatchIndexesAcks.get(entries.entries.size());
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getDeletedBatchIndexesAsLongArray(any(Position.class))).thenReturn(null);
+        try {
+            int size = this.helper.filterEntriesForConsumer(entries.entries, batchSizes, sendMessageInfo,
+                    indexesAcks, cursor, false, null);
+
+            assertEquals(size, MANY_ENTRIES_COUNT);
+            assertEquals(sendMessageInfo.getTotalMessages(), entries.expectedMessages);
+            assertEquals(sendMessageInfo.getTotalBytes(), entries.expectedBytes);
+            for (int i = 0; i < MANY_ENTRIES_COUNT; i++) {
+                assertEquals(batchSizes.getBatchSize(i), batchSizeForEntry(i));
+                assertNull(indexesAcks.getAckSet(i));
+            }
+            assertEquals(indexesAcks.getTotalAckedIndexCount(), 0);
+        } finally {
+            entries.release();
+            indexesAcks.recycle();
             batchSizes.recyle();
         }
     }
