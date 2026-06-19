@@ -81,7 +81,10 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         this.pulsarClient = (PulsarClientImpl) client;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("broker-service-url-check"));
-        scheduledCheckTask = executor.scheduleAtFixedRate(() -> {
+        // Use fixed-delay (not fixed-rate) scheduling: a probe can block up to its timeout, and with a
+        // plain single-threaded scheduled executor fixed-rate runs would otherwise pile up back-to-back
+        // and monopolize the thread. Fixed-delay leaves a gap after each check completes.
+        scheduledCheckTask = executor.scheduleWithFixedDelay(() -> {
             try {
                 if (closed) {
                     return;
