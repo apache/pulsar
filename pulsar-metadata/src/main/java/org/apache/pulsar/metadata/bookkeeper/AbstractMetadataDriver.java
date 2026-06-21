@@ -32,6 +32,7 @@ import org.apache.bookkeeper.meta.LegacyHierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -106,34 +107,25 @@ public abstract class AbstractMetadataDriver implements Closeable {
             this.storeInstanceIsOwned = false;
         } else {
 
-            String metadataServiceUri = null;
-            MetadataStoreUrl metadataStoreUrl;
+            String url;
             try {
-                metadataServiceUri = conf.getMetadataServiceUri();
-                metadataStoreUrl = MetadataStoreUrl.parse(metadataServiceUri);
+                url = conf.getMetadataServiceUri()
+                        .replaceFirst(METADATA_STORE_SCHEME + ":", "")
+                        .replace(";", ",");
             } catch (Exception e) {
-                throw metadataStoreCreationException(metadataServiceUri, null, e);
+                throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
             }
             try {
-                this.store = MetadataStoreExtended.create(metadataStoreUrl.url(),
-                        MetadataStoreConfigQueryParams.createConfig(conf, metadataStoreUrl.configParams()));
+                this.store = MetadataStoreExtended.create(url,
+                        MetadataStoreConfig.builder()
+                                .sessionTimeoutMillis(conf.getZkTimeout())
+                                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                                .build());
                 this.storeInstanceIsOwned = true;
-            } catch (IllegalArgumentException | MetadataStoreException e) {
-                throw metadataStoreCreationException(metadataServiceUri, metadataStoreUrl.url(), e);
+            } catch (MetadataStoreException e) {
+                throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
             }
         }
-    }
-
-    private static MetadataException metadataStoreCreationException(
-            String metadataServiceUri, String metadataStoreUrl, Exception cause) {
-        String message = "Failed to create BookKeeper metadata store";
-        if (metadataServiceUri != null) {
-            message += " from metadataServiceUri '" + metadataServiceUri + "'";
-        }
-        if (metadataStoreUrl != null) {
-            message += " (metadata store URL '" + metadataStoreUrl + "')";
-        }
-        return new MetadataException(Code.METADATA_SERVICE_ERROR, message, cause);
     }
 
     public String getScheme() {
