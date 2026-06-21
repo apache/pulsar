@@ -27,6 +27,11 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class ByteUnitUtil {
 
+    private static final String VALID_FORMATS = "(4096, 100K, 10M, 16G, 2T)";
+    private static final long KIB = 1024L;
+    private static final long MIB = KIB * 1024;
+    private static final long GIB = MIB * 1024;
+    private static final long TIB = GIB * 1024;
     private static Set<Character> sizeUnit = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList('k', 'K', 'm', 'M', 'g', 'G', 't', 'T')));
 
@@ -43,28 +48,40 @@ public class ByteUnitUtil {
                     ? Long.parseLong(subStr)
                     : Long.parseLong(byteStr);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(String.format("Invalid size '%s'. Valid formats are: %s",
-                    byteStr, "(4096, 100K, 10M, 16G, 2T)"));
+            throw invalidSize(byteStr, e);
         }
         switch (last) {
             case 'k':
             case 'K':
-                return size * 1024;
+                return multiplyExact(byteStr, size, KIB);
 
             case 'm':
             case 'M':
-                return size * 1024 * 1024;
+                return multiplyExact(byteStr, size, MIB);
 
             case 'g':
             case 'G':
-                return size * 1024 * 1024 * 1024;
+                return multiplyExact(byteStr, size, GIB);
 
             case 't':
             case 'T':
-                return size * 1024 * 1024 * 1024 * 1024;
+                return multiplyExact(byteStr, size, TIB);
 
             default:
                 return size;
         }
+    }
+
+    private static long multiplyExact(String byteStr, long size, long multiplier) {
+        try {
+            return Math.multiplyExact(size, multiplier);
+        } catch (ArithmeticException e) {
+            throw invalidSize(byteStr, e);
+        }
+    }
+
+    private static IllegalArgumentException invalidSize(String byteStr, Exception cause) {
+        return new IllegalArgumentException(String.format("Invalid size '%s'. Valid formats are: %s",
+                byteStr, VALID_FORMATS), cause);
     }
 }

@@ -64,7 +64,8 @@ public class ByteConversionTest {
                 {""}, // Empty string
                 {"1Z"}, // Invalid size unit
                 {"1.5K"}, // Non-integer value
-                {"K"} // Missing size value
+                {"K"}, // Missing size value
+                {"9223372036854775807K"} // Long overflow
         };
     }
 
