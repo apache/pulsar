@@ -936,6 +936,61 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testPeekMessageTxnHeaderAccuracy() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_txn_header_accuracy");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        // Start transaction T1, send a message, keep it uncommitted
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn1).value("msg-uncommitted").send();
+
+        // Start transaction T2, send a message, commit it
+        Transaction txn2 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn2).value("msg-committed").send();
+        txn2.commit().get();
+
+        // Peek all messages with READ_UNCOMMITTED to get both messages regardless of txn state
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 10,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+
+        boolean foundUncommitted = false;
+        boolean foundCommitted = false;
+        for (Message<byte[]> peekMsg : peekMsgs) {
+            String value = new String(peekMsg.getValue());
+            if ("msg-uncommitted".equals(value)) {
+                foundUncommitted = true;
+                // T1 is ongoing, so X-Pulsar-txn-uncommitted should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-uncommitted"), "true");
+                // Blocked by itself (uncommitted), so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false");
+            } else if ("msg-committed".equals(value)) {
+                foundCommitted = true;
+                // T2 is committed, so X-Pulsar-txn-uncommitted should be false (not present in properties)
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T2 is committed, X-Pulsar-txn-uncommitted should be false");
+                // Blocked by T1 before it, so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false",
+                        "T2 is blocked by uncommitted T1 before it");
+            }
+        }
+        assertTrue(foundUncommitted, "Should have found the uncommitted message");
+        assertTrue(foundCommitted, "Should have found the committed message");
+
+        // Verify READ_COMMITTED filtering: both messages after an uncommitted txn should be filtered
+        List<Message<byte[]>> committedPeek = admin.topics().peekMessages(topic, "t-sub-2", 10,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+        assertEquals(committedPeek.size(), 0,
+                "READ_COMMITTED should filter all messages after an uncommitted transaction");
+    }
+
+    @Test
     public void testPeekMessageForSkipTxnMarker() throws Exception {
         initTransaction(1);
 

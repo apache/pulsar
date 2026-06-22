@@ -3344,10 +3344,16 @@ public class PersistentTopicsBase extends AdminResource {
             TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
             boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
             responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+            boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
+            responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
+            boolean isTxnConsumable = entry.getPosition()
+                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
+        } else {
+            boolean isTxnConsumable = entry.getPosition()
+                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         }
-        boolean isTxnUncommitted = (entry.getPosition())
-                .compareTo(persistentTopic.getMaxReadPosition()) > 0;
-        responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider
