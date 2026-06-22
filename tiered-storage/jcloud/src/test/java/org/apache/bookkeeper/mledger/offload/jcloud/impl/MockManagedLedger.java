@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -393,6 +394,12 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
 
+    }
+
+    @Override
+    public CompletableFuture<List<Entry>> asyncReadEntries(Position startPosition, int numberOfEntries,
+                                                           Position maxPosition) {
+        return CompletableFuture.completedFuture(List.of());
     }
 
     @Override

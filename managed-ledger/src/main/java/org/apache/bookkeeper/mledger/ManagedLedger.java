@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -763,6 +764,28 @@ public interface ManagedLedger {
     }
 
     void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Read entries from the managed ledger starting from the provided position.
+     *
+     * <p>The start position is inclusive when it points to an existing entry. If it points to a non-existing entry,
+     * the read starts from the next valid entry in ledger order. {@link PositionFactory#EARLIEST} starts from the first
+     * available entry, while {@link PositionFactory#LATEST} starts from the position after the current last confirmed
+     * entry. This method does not wait for future writes and will complete with fewer entries, or an empty list, when
+     * there are not enough currently readable entries.
+     *
+     * <p>The returned entries are raw ledger entries and are not filtered by any cursor acknowledgement state. Callers
+     * are responsible for releasing returned entries.
+     *
+     * @param maxPosition the maximum position to read (inclusive). The read will not return entries beyond this
+     *                    position. When {@code null}, defaults to no upper bound (equivalent to
+     *                    {@link PositionFactory#LATEST}).
+     */
+    CompletableFuture<List<Entry>> asyncReadEntries(Position startPosition, int numberOfEntries, Position maxPosition);
+
+    default CompletableFuture<List<Entry>> asyncReadEntries(Position startPosition, int numberOfEntries) {
+        return asyncReadEntries(startPosition, numberOfEntries, PositionFactory.LATEST);
+    }
 
     /**
      * Get all the managed ledgers.

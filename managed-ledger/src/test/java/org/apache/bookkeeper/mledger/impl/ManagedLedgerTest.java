@@ -77,6 +77,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -203,6 +204,38 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             return currentLedger.readUnconfirmedAsync(ledgerId, entryId);
         }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
         ml.currentLedger = spyLedgerHandle;
+    }
+
+    private static Throwable expectFutureFailure(CompletableFuture<?> future) throws Exception {
+        try {
+            future.get(5, TimeUnit.SECONDS);
+            fail("Expected future to fail");
+        } catch (ExecutionException e) {
+            return e.getCause();
+        }
+        return null;
+    }
+
+    private static void assertEntryPositionsAndRelease(List<Entry> entries, Position... expectedPositions) {
+        try {
+            assertEquals(entries.size(), expectedPositions.length);
+            for (int i = 0; i < expectedPositions.length; i++) {
+                assertEquals(entries.get(i).getPosition(), expectedPositions[i]);
+            }
+        } finally {
+            entries.forEach(Entry::release);
+        }
+    }
+
+    private static void assertEntryDataAndRelease(List<Entry> entries, String... expectedData) {
+        try {
+            assertEquals(entries.size(), expectedData.length);
+            for (int i = 0; i < expectedData.length; i++) {
+                assertEquals(new String(entries.get(i).getData(), Encoding), expectedData[i]);
+            }
+        } finally {
+            entries.forEach(Entry::release);
+        }
     }
 
     @Data
@@ -373,6 +406,282 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.close();
         factory.shutdown();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntries() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntries",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+
+        assertEquals(ledger.asyncReadEntries(PositionFactory.EARLIEST, 10).get(5, TimeUnit.SECONDS),
+                Collections.emptyList());
+        assertEquals(ledger.asyncReadEntries(PositionFactory.LATEST, 10).get(5, TimeUnit.SECONDS),
+                Collections.emptyList());
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        ledger.addEntry("entry-3".getBytes(Encoding));
+        Position p4 = ledger.addEntry("entry-4".getBytes(Encoding));
+
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(PositionFactory.EARLIEST, 3).get(5, TimeUnit.SECONDS),
+                p0, p1, p2);
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p1, 10).get(5, TimeUnit.SECONDS), p1, p2,
+                PositionFactory.create(p2.getLedgerId(), p2.getEntryId() + 1), p4);
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(PositionFactory.create(p1.getLedgerId(), p1.getEntryId() + 100), 10)
+                        .get(5, TimeUnit.SECONDS),
+                p2, PositionFactory.create(p2.getLedgerId(), p2.getEntryId() + 1), p4);
+
+        assertEquals(ledger.asyncReadEntries(p4.getNext(), 10).get(5, TimeUnit.SECONDS), Collections.emptyList());
+        assertEquals(ledger.asyncReadEntries(PositionFactory.LATEST, 10).get(5, TimeUnit.SECONDS),
+                Collections.emptyList());
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesRejectsInvalidArguments() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesRejectsInvalidArguments");
+
+        assertTrue(expectFutureFailure(ledger.asyncReadEntries(null, 1)) instanceof IllegalArgumentException);
+        assertTrue(expectFutureFailure(ledger.asyncReadEntries(PositionFactory.EARLIEST, 0))
+                instanceof IllegalArgumentException);
+        assertTrue(expectFutureFailure(ledger.asyncReadEntries(PositionFactory.EARLIEST, -1))
+                instanceof IllegalArgumentException);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesPositionBoundaryValidation() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesPositionBoundaryValidation",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        assertNotEquals(p1.getLedgerId(), p2.getLedgerId());
+
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(PositionFactory.create(p0.getLedgerId(), -1), 1).get(5, TimeUnit.SECONDS),
+                p0);
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(PositionFactory.create(-2, 0), 1)
+                .get(5, TimeUnit.SECONDS), p0);
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(PositionFactory.create(p0.getLedgerId(), Long.MAX_VALUE), 1)
+                        .get(5, TimeUnit.SECONDS),
+                p2);
+        assertEquals(ledger.asyncReadEntries(PositionFactory.create(Long.MAX_VALUE, 0), 1).get(5, TimeUnit.SECONDS),
+                Collections.emptyList());
+        assertEquals(ledger.asyncReadEntries(PositionFactory.create(p2.getLedgerId(), Long.MAX_VALUE), 1)
+                .get(5, TimeUnit.SECONDS), Collections.emptyList());
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesDoesNotWaitForFutureWrites() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesDoesNotWaitForFutureWrites");
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        CompletableFuture<List<Entry>> readAfterLast = ledger.asyncReadEntries(p0.getNext(), 10);
+        CompletableFuture<List<Entry>> readLatest = ledger.asyncReadEntries(PositionFactory.LATEST, 10);
+
+        assertEquals(readAfterLast.get(5, TimeUnit.SECONDS), Collections.emptyList());
+        assertEquals(readLatest.get(5, TimeUnit.SECONDS), Collections.emptyList());
+
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        assertEquals(readAfterLast.get(5, TimeUnit.SECONDS), Collections.emptyList());
+        assertEquals(readLatest.get(5, TimeUnit.SECONDS), Collections.emptyList());
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesExactCountBoundaries() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesExactCountBoundaries",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
+        Position p4 = ledger.addEntry("entry-4".getBytes(Encoding));
+
+        assertEquals(p0.getLedgerId(), p2.getLedgerId());
+        assertNotEquals(p2.getLedgerId(), p3.getLedgerId());
+
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p1, 1).get(5, TimeUnit.SECONDS), p1);
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p1, 2).get(5, TimeUnit.SECONDS), p1, p2);
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p1, 10).get(5, TimeUnit.SECONDS), p1, p2, p3, p4);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesSkipsEmptyLedgers() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testManagedLedgerAsyncReadEntriesSkipsEmptyLedgers",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        ledger.ledgerClosed(ledger.currentLedger, 0L);
+        Awaitility.await().untilAsserted(() -> assertEquals(ManagedLedgerImpl.STATE_UPDATER.get(ledger),
+                ManagedLedgerImpl.State.LedgerOpened));
+        LedgerHandle emptyLedger = ledger.currentLedger;
+        ledger.ledgerClosed(emptyLedger, -1L);
+        Awaitility.await().untilAsserted(() -> assertEquals(ManagedLedgerImpl.STATE_UPDATER.get(ledger),
+                ManagedLedgerImpl.State.LedgerOpened));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+
+        assertNotEquals(p0.getLedgerId(), p1.getLedgerId());
+        assertFalse(ledger.getLedgersInfo().containsKey(emptyLedger.getId()));
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(PositionFactory.create(emptyLedger.getId(), 0), 1).get(5, TimeUnit.SECONDS),
+                p1);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesStopsOnErrorAndReturnsPartialEntries() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesStopsOnErrorAndReturnsPartialEntries",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        assertNotEquals(p0.getLedgerId(), p1.getLedgerId());
+        assertNotEquals(p1.getLedgerId(), p2.getLedgerId());
+
+        bkc.deleteLedger(p1.getLedgerId());
+
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p0, 3).get(5, TimeUnit.SECONDS), p0);
+
+        assertTrue(expectFutureFailure(ledger.asyncReadEntries(p1, 3)) instanceof ManagedLedgerException);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesFailsWhenClosed() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesFailsWhenClosed");
+        Position position = ledger.addEntry("entry-0".getBytes(Encoding));
+
+        ledger.close();
+
+        assertTrue(expectFutureFailure(ledger.asyncReadEntries(position, 1))
+                instanceof ManagedLedgerException.ManagedLedgerFencedException);
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesIgnoresCursorAckState() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesIgnoresCursorAckState");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+
+        List<Entry> cursorEntries = cursor.readEntries(2);
+        cursor.markDelete(cursorEntries.get(cursorEntries.size() - 1).getPosition());
+        cursorEntries.forEach(Entry::release);
+
+        assertEntryDataAndRelease(ledger.asyncReadEntries(p0, 2).get(5, TimeUnit.SECONDS), "entry-0", "entry-1");
+        assertEntryPositionsAndRelease(ledger.asyncReadEntries(p1, 1).get(5, TimeUnit.SECONDS), p1);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesMaxPositionBeforeStartReturnsEmpty() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesMaxPositionBeforeStartReturnsEmpty");
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+
+        // maxPosition is p0, startPosition is p1 -- nothing to read
+        assertEquals(ledger.asyncReadEntries(p1, 10, p0).get(5, TimeUnit.SECONDS),
+                Collections.emptyList());
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesMaxPositionCapsSameLedger() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesMaxPositionCapsSameLedger",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
+
+        // Request 10 entries starting at p0 but capped at p1 -- should only get p0, p1
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(p0, 10, p1).get(5, TimeUnit.SECONDS),
+                p0, p1);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesMaxPositionInclusive() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesMaxPositionInclusive",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // maxPosition == p1 means p1 is the last readable entry
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(p0, 10, p1).get(5, TimeUnit.SECONDS),
+                p0, p1);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesMaxPositionCrossesLedger() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesMaxPositionCrossesLedger",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        // ledger roll
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
+
+        assertNotEquals(p1.getLedgerId(), p2.getLedgerId());
+
+        // maxPosition in the second ledger, should only read entries up to maxPosition
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(p0, 10, p2).get(5, TimeUnit.SECONDS),
+                p0, p1, p2);
+
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testManagedLedgerAsyncReadEntriesMaxPositionRespectsBothConstraints() throws Exception {
+        ManagedLedger ledger = factory.open("testManagedLedgerAsyncReadEntriesMaxPositionRespectsBothConstraints",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+
+        Position p0 = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
+        Position p4 = ledger.addEntry("entry-4".getBytes(Encoding));
+
+        // Count=2 is tighter than maxPosition, should get only 2 entries
+        assertEntryPositionsAndRelease(
+                ledger.asyncReadEntries(p0, 2, p4).get(5, TimeUnit.SECONDS),
+                p0, p1);
+
+        ledger.close();
     }
 
     @Test(timeOut = 20000)

@@ -372,6 +372,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private long lastEvictOffloadedLedgers;
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
+    private static final int MAX_ASYNC_READ_ENTRIES_COUNT = 100;
 
     // Semaphore to limit concurrent ledger deletion
     private Semaphore deleteLedgerSemaphore = null;
@@ -2344,6 +2345,56 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     }
 
+    @Override
+    public CompletableFuture<List<Entry>> asyncReadEntries(Position startPosition, int numberOfEntries,
+                                                           Position maxPosition) {
+        final State state = STATE_UPDATER.get(this);
+        if (state.isFenced() || state == State.Closed) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        if (maxPosition == null) {
+            maxPosition = PositionFactory.LATEST;
+        }
+        if (startPosition == null || numberOfEntries <= 0 || numberOfEntries > MAX_ASYNC_READ_ENTRIES_COUNT) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid parameters"));
+        }
+        startPosition = getStartPosition(startPosition);
+        if (startPosition == null) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        if (maxPosition.compareTo(startPosition) < 0) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
+        CompletableFuture<List<Entry>> promise = new CompletableFuture<>();
+        OpReadEntries.create(this, startPosition, numberOfEntries, maxPosition, promise).readEntries();
+        return promise;
+    }
+
+    private Position getStartPosition(Position startPosition) {
+        if (PositionFactory.EARLIEST.equals(startPosition)) {
+            if (ledgers.isEmpty()) {
+                return null;
+            }
+            Long firstLedger = ledgers.firstKey();
+            if (firstLedger == null) {
+                return null;
+            }
+            return PositionFactory.create(firstLedger, 0);
+        }
+        if (PositionFactory.LATEST.equals(startPosition)) {
+            Position lastPosition = getLastPosition();
+            return lastPosition == null ? null : lastPosition.getNext();
+        }
+        if (startPosition.compareTo(lastConfirmedEntry) > 0) {
+            return null;
+        }
+        if (isValidPosition(startPosition)) {
+            return startPosition;
+        }
+        return getNextValidPosition(startPosition);
+    }
+
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
 
         if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0) {
@@ -2462,6 +2513,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
+        }
+    }
+
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, ReadEntriesCallback callback,
+                                      Object ctx) {
+        IntSupplier expectedReadCount = () -> 0;
+        if (config.getReadEntryTimeoutSeconds() > 0) {
+            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
+            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
+            long createdTime = System.nanoTime();
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
+                    callback, readOpCount, createdTime, ctx);
+            lastReadCallback = readCallback;
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
+        } else {
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, callback, ctx);
         }
     }
 
