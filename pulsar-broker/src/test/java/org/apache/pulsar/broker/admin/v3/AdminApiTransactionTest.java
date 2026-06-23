@@ -946,12 +946,17 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         // Start transaction T1, send a message, keep it uncommitted
         Transaction txn1 = pulsarClient.newTransaction().build().get();
+        TxnID txnID1 = ((TransactionImpl) txn1).getTxnID();
         producer.newMessage(txn1).value("msg-uncommitted").send();
 
         // Start transaction T2, send a message, commit it
         Transaction txn2 = pulsarClient.newTransaction().build().get();
+        TxnID txnID2 = ((TransactionImpl) txn2).getTxnID();
         producer.newMessage(txn2).value("msg-committed").send();
         txn2.commit().get();
+
+        // Send a normal (non-transactional) message
+        producer.newMessage().value("msg-normal").send();
 
         // Peek all messages with READ_UNCOMMITTED to get both messages regardless of txn state
         List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 10,
@@ -959,35 +964,143 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         boolean foundUncommitted = false;
         boolean foundCommitted = false;
+        boolean foundNormal = false;
         for (Message<byte[]> peekMsg : peekMsgs) {
             String value = new String(peekMsg.getValue());
+            MessageMetadata metadata = ((MessageImpl<?>) peekMsg).getMessageBuilder();
             if ("msg-uncommitted".equals(value)) {
                 foundUncommitted = true;
                 // T1 is ongoing, so X-Pulsar-txn-uncommitted should be true
                 assertTrue(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"));
                 assertEquals(peekMsg.getProperty("X-Pulsar-txn-uncommitted"), "true");
+                // T1 is not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T1 is not aborted, X-Pulsar-txn-aborted should be false");
                 // Blocked by itself (uncommitted), so X-Pulsar-txn-consumable should be false
                 assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
                 assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false");
+                // TxnID checks
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID1.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID1.getLeastSigBits());
             } else if ("msg-committed".equals(value)) {
                 foundCommitted = true;
                 // T2 is committed, so X-Pulsar-txn-uncommitted should be false (not present in properties)
                 assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
                         "T2 is committed, X-Pulsar-txn-uncommitted should be false");
+                // T2 is not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T2 is not aborted, X-Pulsar-txn-aborted should be false");
                 // Blocked by T1 before it, so X-Pulsar-txn-consumable should be false
                 assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
                 assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false",
                         "T2 is blocked by uncommitted T1 before it");
+                // TxnID checks
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID2.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID2.getLeastSigBits());
+            } else if ("msg-normal".equals(value)) {
+                foundNormal = true;
+                // Normal message has no txnid, so X-Pulsar-txn-uncommitted should not be set
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "Normal message should not have X-Pulsar-txn-uncommitted");
+                // Normal message has no txnid, so X-Pulsar-txn-aborted should not be set
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "Normal message should not have X-Pulsar-txn-aborted");
+                // Blocked by T1, so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false",
+                        "Normal message is blocked by uncommitted T1");
+                // Normal message has no txnid
+                assertFalse(metadata.hasTxnidMostBits());
+                assertFalse(metadata.hasTxnidLeastBits());
             }
         }
         assertTrue(foundUncommitted, "Should have found the uncommitted message");
         assertTrue(foundCommitted, "Should have found the committed message");
+        assertTrue(foundNormal, "Should have found the normal message");
 
-        // Verify READ_COMMITTED filtering: both messages after an uncommitted txn should be filtered
+        // Verify READ_COMMITTED filtering: all messages after an uncommitted txn should be filtered
         List<Message<byte[]>> committedPeek = admin.topics().peekMessages(topic, "t-sub-2", 10,
                 false, TransactionIsolationLevel.READ_COMMITTED);
         assertEquals(committedPeek.size(), 0,
                 "READ_COMMITTED should filter all messages after an uncommitted transaction");
+
+        // Abort T1 and verify headers update correctly
+        txn1.abort().get();
+
+        List<Message<byte[]>> peekAfterAbort = admin.topics().peekMessages(topic, "t-sub-3", 10,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+
+        boolean foundAborted = false;
+        boolean foundCommittedAfterAbort = false;
+        boolean foundNormalAfterAbort = false;
+        for (Message<byte[]> peekMsg : peekAfterAbort) {
+            String value = new String(peekMsg.getValue());
+            MessageMetadata metadata = ((MessageImpl<?>) peekMsg).getMessageBuilder();
+            if ("msg-uncommitted".equals(value)) {
+                foundAborted = true;
+                // T1 is now aborted, so X-Pulsar-txn-aborted should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T1 is aborted, X-Pulsar-txn-aborted should be true");
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-aborted"), "true");
+                // T1 is no longer ongoing
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T1 is aborted, X-Pulsar-txn-uncommitted should be false");
+                // maxReadPosition advanced past T1, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "T1 is resolved, message should be consumable");
+                // TxnID unchanged
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID1.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID1.getLeastSigBits());
+            } else if ("msg-committed".equals(value)) {
+                foundCommittedAfterAbort = true;
+                // T2 is still committed, not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T2 is committed, X-Pulsar-txn-uncommitted should be false");
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T2 is not aborted, X-Pulsar-txn-aborted should be false");
+                // maxReadPosition advanced past T1, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "No open txn before T2, message should be consumable");
+                // TxnID unchanged
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID2.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID2.getLeastSigBits());
+            } else if ("msg-normal".equals(value)) {
+                foundNormalAfterAbort = true;
+                // Normal message has no txnid, so no txn headers
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "Normal message should not have X-Pulsar-txn-uncommitted");
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "Normal message should not have X-Pulsar-txn-aborted");
+                // No open txn before it, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "No open txn, normal message should be consumable");
+                // No txnid
+                assertFalse(metadata.hasTxnidMostBits());
+                assertFalse(metadata.hasTxnidLeastBits());
+            }
+        }
+        assertTrue(foundAborted, "Should have found the aborted message after abort");
+        assertTrue(foundCommittedAfterAbort, "Should have found the committed message after abort");
+        assertTrue(foundNormalAfterAbort, "Should have found the normal message after abort");
+
+        // READ_COMMITTED should show committed + normal message (aborted is filtered out)
+        List<Message<byte[]>> committedPeekAfterAbort = admin.topics().peekMessages(topic, "t-sub-4", 10,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+        assertEquals(committedPeekAfterAbort.size(), 2,
+                "READ_COMMITTED should show committed and normal messages after abort");
+        assertEquals(new String(committedPeekAfterAbort.get(0).getValue()), "msg-committed");
+        assertEquals(new String(committedPeekAfterAbort.get(1).getValue()), "msg-normal");
     }
 
     @Test
