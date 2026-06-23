@@ -2581,17 +2581,106 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
     }
 
+    @Test(timeOut = 30000, dataProvider = "useOpenRangeSet")
+    void hasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequences(boolean useOpenRangeSet) throws Exception {
+        // Use fixed generated sequences so failures are reproducible from the seed in the assertion message.
+        // This complements the explicit scenarios above by checking mixed add/delete/mark-delete/reset/reopen steps.
+        // The invariant is equivalence with the existing backlog count APIs; this test intentionally doesn't change
+        // the precise/imprecise semantics of hasBacklog(true) or hasBacklog(false).
+        for (long seed : new long[] {
+                0x26058L, 0x5EEDL, 0xBACC10CL, 0xC0FFEE42L,
+                0x1234ABCDL, 0x6A09E667L, 0xBB67AE85L, 0x3C6EF372L
+        }) {
+            assertHasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequence(useOpenRangeSet, seed);
+        }
+    }
+
+    private void assertHasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequence(boolean useOpenRangeSet,
+                                                                                     long seed) throws Exception {
+        String ledgerName = "has_backlog_generated_" + useOpenRangeSet + "_" + Long.toHexString(seed);
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet)
+                .setMaxEntriesPerLedger(3);
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        Random random = new Random(seed);
+        String seedContext = "seed=0x" + Long.toHexString(seed);
+
+        try {
+            assertHasBacklogMatchesBacklogCounts(cursor, seedContext + ", initial state");
+            for (int step = 0; step < 120; step++) {
+                int operationChoice = positions.isEmpty() ? 0 : random.nextInt(100);
+                String operation;
+                if (operationChoice < 40) {
+                    Position position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
+                    positions.add(position);
+                    operation = "add " + position;
+                } else if (operationChoice < 62) {
+                    Position position = randomReadablePosition(random, cursor, positions);
+                    if (position == null) {
+                        position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
+                        positions.add(position);
+                        operation = "add " + position;
+                    } else {
+                        cursor.delete(position);
+                        operation = "delete " + position;
+                    }
+                } else if (operationChoice < 84) {
+                    Position position = randomReadablePosition(random, cursor, positions);
+                    if (position == null) {
+                        position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
+                        positions.add(position);
+                        operation = "add " + position;
+                    } else {
+                        cursor.markDelete(position);
+                        operation = "markDelete " + position;
+                    }
+                } else if (operationChoice < 94) {
+                    Position position = positions.get(random.nextInt(positions.size()));
+                    cursor.resetCursor(position);
+                    operation = "reset " + position;
+                } else {
+                    ledger.close();
+                    ledger = factory.open(ledgerName, config);
+                    cursor = ledger.openCursor("c1");
+                    operation = "reopen";
+                }
+                assertHasBacklogMatchesBacklogCounts(cursor,
+                        seedContext + ", step=" + step + ", operation=" + operation);
+            }
+        } finally {
+            ledger.close();
+        }
+    }
+
+    private static Position randomReadablePosition(Random random, ManagedCursor cursor, List<Position> positions) {
+        List<Position> readablePositions = positions.stream()
+                .filter(position -> position.compareTo(cursor.getMarkDeletedPosition()) > 0)
+                .filter(position -> !cursor.isMessageDeleted(position))
+                .collect(Collectors.toList());
+        return readablePositions.isEmpty() ? null : readablePositions.get(random.nextInt(readablePositions.size()));
+    }
+
     private static void assertHasBacklogMatchesBacklogCounts(ManagedCursor cursor) {
+        assertHasBacklogMatchesBacklogCounts(cursor, "");
+    }
+
+    private static void assertHasBacklogMatchesBacklogCounts(ManagedCursor cursor, String context) {
         long preciseBacklog = cursor.getNumberOfEntriesInBacklog(true);
         boolean hasPreciseBacklog = preciseBacklog > 0;
         assertEquals(cursor.hasBacklog(), hasPreciseBacklog,
-                "hasBacklog() must match getNumberOfEntriesInBacklog(true) > 0");
+                contextMessage(context, "hasBacklog() must match getNumberOfEntriesInBacklog(true) > 0"));
         assertEquals(cursor.hasBacklog(true), hasPreciseBacklog,
-                "hasBacklog(true) must match getNumberOfEntriesInBacklog(true) > 0");
+                contextMessage(context, "hasBacklog(true) must match getNumberOfEntriesInBacklog(true) > 0"));
 
         long impreciseBacklog = cursor.getNumberOfEntriesInBacklog(false);
         assertEquals(cursor.hasBacklog(false), impreciseBacklog > 0,
-                "hasBacklog(false) must match getNumberOfEntriesInBacklog(false) > 0");
+                contextMessage(context, "hasBacklog(false) must match getNumberOfEntriesInBacklog(false) > 0"));
+    }
+
+    private static String contextMessage(String context, String message) {
+        return context.isEmpty() ? message : context + ": " + message;
     }
 
     private static void assertHasBacklogMatchesPreciseBacklogCount(ManagedCursor cursor) {

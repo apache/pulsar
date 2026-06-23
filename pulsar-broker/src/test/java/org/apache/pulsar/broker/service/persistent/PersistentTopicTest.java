@@ -233,6 +233,8 @@ public class PersistentTopicTest extends BrokerTestBase {
     @Test
     public void testHasBacklogTracksRealProduceConsumeAckOrders() throws Exception {
         int messageCount = 20;
+        // Exercise the broker-facing Subscription.hasBacklog path with real producers, consumers, batching,
+        // and deterministic acknowledgement orders instead of only validating the managed-cursor unit state.
         List<int[]> ackOrders = List.of(
                 IntStream.range(0, messageCount).toArray(),
                 IntStream.iterate(messageCount - 1, i -> i - 1).limit(messageCount).toArray(),
@@ -312,6 +314,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     @Test
     public void testHasBacklogTracksRealSubscriptionLifecycleOperations() throws Exception {
+        // Cover broker operations that move the cursor without normal consumer acknowledgements.
         final String topicName = "persistent://prop/ns-abc/hasBacklogLifecycle-" + UUID.randomUUID();
         final String subName = "sub";
 

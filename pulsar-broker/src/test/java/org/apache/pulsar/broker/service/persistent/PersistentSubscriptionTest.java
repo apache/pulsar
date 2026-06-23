@@ -314,5 +314,4 @@ public class PersistentSubscriptionTest {
             return CompletableFuture.completedFuture(true);
         }
     }
-
 }
