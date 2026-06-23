@@ -3328,10 +3328,10 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
             boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
             responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
-            boolean isTxnConsumable = entry.getPosition()
-                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
-            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         }
+        boolean isTxnConsumable = entry.getPosition()
+                .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+        responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         if (metadata.hasHighestSequenceId()) {
             responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
         }
