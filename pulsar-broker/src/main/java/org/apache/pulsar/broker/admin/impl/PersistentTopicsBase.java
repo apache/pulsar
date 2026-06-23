@@ -3322,6 +3322,16 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasTxnidMostBits()) {
             responseBuilder.header("X-Pulsar-txnid-most-bits", metadata.getTxnidMostBits());
         }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
+            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
+            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+            boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
+            responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
+            boolean isTxnConsumable = entry.getPosition()
+                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
+        }
         if (metadata.hasHighestSequenceId()) {
             responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
         }
@@ -3339,20 +3349,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasNullPartitionKey()) {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
-        }
-        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
-            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
-            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
-            boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
-            responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
-            boolean isTxnConsumable = entry.getPosition()
-                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
-            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
-        } else {
-            boolean isTxnConsumable = entry.getPosition()
-                    .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
-            responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         }
 
         // Decode if needed
