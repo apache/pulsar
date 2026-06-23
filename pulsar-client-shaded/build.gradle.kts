@@ -32,7 +32,12 @@ base {
 
 dependencies {
     // Bundled into the shaded jar (kept on the runtime classpath so shadowJar packs them):
-    implementation(project(":pulsar-client-original"))
+    implementation(project(":pulsar-client-original")) {
+        // fastutil is bundled via :pulsar-client-fastutil-minimized, which packs only the
+        // (unrelocated) fastutil classes actually used instead of the full ~25MB jar.
+        exclude(group = "it.unimi.dsi", module = "fastutil")
+    }
+    implementation(project(":pulsar-client-fastutil-minimized"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
 
     // Non-bundled dependencies. These are the ONLY entries in the dependency-reduced published

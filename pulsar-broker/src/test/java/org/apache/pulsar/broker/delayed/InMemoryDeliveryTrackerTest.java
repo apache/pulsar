@@ -272,7 +272,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     return;
                 }
                 try {
-                    this.delayedMessageMap.firstKey();
+                    this.delayedMessageMap.firstLongKey();
                 } catch (Exception e) {
                     e.printStackTrace();
                     exceptions[0] = e;

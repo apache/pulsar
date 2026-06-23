@@ -191,6 +191,10 @@ include("pulsar-broker-auth-oidc")
 include("pulsar-broker-auth-sasl")
 include("pulsar-client-auth-sasl")
 
+// Tier 9 — shaded utility modules (in core-modules)
+include("pulsar-client-fastutil-minimized")
+include("pulsar-broker-fastutil-minimized")
+
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
 include("pulsar-client-all")

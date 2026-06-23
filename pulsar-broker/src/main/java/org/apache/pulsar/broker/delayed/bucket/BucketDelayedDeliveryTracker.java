@@ -39,6 +39,7 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
@@ -114,6 +116,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private final BucketDelayedMessageIndexStats stats;
 
     private CompletableFuture<Void> pendingLoad = null;
+
+    private volatile CompletableFuture<Void> trimFuture;
 
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
@@ -409,8 +413,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
             lastMutableBucket.resetLastMutableBucketRange();
 
-            if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
-                asyncMergeBucketSnapshot();
+            if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets
+                    && (trimFuture == null || trimFuture.isDone())) {
+                trimFuture = asyncTrimImmutableBuckets()
+                        .thenCompose(ignore -> asyncMergeBucketSnapshot())
+                        .whenComplete((ignore, t) -> {
+                            if (t != null) {
+                                log.warn().exception(t).log("Failed to trim or merge bucket snapshots");
+                            }
+                        });
             }
         }
 
@@ -473,6 +484,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot() {
         List<ImmutableBucket> immutableBucketList = immutableBuckets.asMapOfRanges().values().stream().toList();
+        if (maxNumBuckets <= 0 || immutableBucketList.size() <= maxNumBuckets) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         List<ImmutableBucket> toBeMergeImmutableBuckets = selectMergedBuckets(immutableBucketList, MAX_MERGE_NUM);
 
         if (toBeMergeImmutableBuckets.isEmpty()) {
@@ -626,6 +641,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         long cutoffTime = getCutoffTime();
+        Long firstLiveLedgerId = firstActiveLedgerId();
 
         lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
 
@@ -634,12 +650,18 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
             long timestamp = sharedBucketPriorityQueue.peekN1();
+            long ledgerId = sharedBucketPriorityQueue.peekN2();
+            long entryId = sharedBucketPriorityQueue.peekN3();
+            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId) {
+                sharedBucketPriorityQueue.pop();
+                if (removeIndexBit(ledgerId, entryId)) {
+                    numberDelayedMessages.decrementAndGet();
+                }
+                continue;
+            }
             if (timestamp > cutoffTime) {
                 break;
             }
-
-            long ledgerId = sharedBucketPriorityQueue.peekN2();
-            long entryId = sharedBucketPriorityQueue.peekN3();
 
             SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
 
@@ -749,26 +771,49 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized CompletableFuture<Void> clear() {
-        CompletableFuture<Void> future = cleanImmutableBuckets();
-        sharedBucketPriorityQueue.clear();
-        lastMutableBucket.clear();
-        snapshotSegmentLastIndexMap.clear();
-        numberDelayedMessages.set(0);
-        return future;
+        // Wait for any in-flight trim+merge to settle, then clear.
+        // Reuse trimFuture to block new triggers until the clear chain completes.
+        CompletableFuture<Void> before = trimFuture != null && !trimFuture.isDone()
+                ? trimFuture : CompletableFuture.completedFuture(null);
+        trimFuture = before
+                .exceptionally(t -> {
+                    log.warn().exception(t).log("Trim/merge buckets failed, but still clear");
+                    return null;
+                })
+                .thenCompose(__ -> {
+                    synchronized (BucketDelayedDeliveryTracker.this) {
+                        CompletableFuture<Void> future = cleanImmutableBuckets();
+                        sharedBucketPriorityQueue.clear();
+                        lastMutableBucket.clear();
+                        snapshotSegmentLastIndexMap.clear();
+                        numberDelayedMessages.set(0);
+                        return future;
+                    }
+                });
+        return trimFuture;
     }
 
     @Override
-    public synchronized void close() {
-        super.close();
-        lastMutableBucket.close();
-        sharedBucketPriorityQueue.close();
-        try {
-            List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
+    public void close() {
+        // Block for AutoCloseable / synchronous callers; asynchronous callers should use closeAsync().
+        closeAsync().join();
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        List<CompletableFuture<Long>> completableFutures;
+        synchronized (this) {
+            super.close();
+            lastMutableBucket.close();
+            sharedBucketPriorityQueue.close();
+            completableFutures = immutableBuckets.asMapOfRanges().values().stream()
                     .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
-            FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.warn().exception(e).log("Failed wait to snapshot generate");
         }
+        return FutureUtil.waitForAll(completableFutures)
+                .exceptionally(e -> {
+                    log.warn().exception(e).log("Failed wait to snapshot generate");
+                    return null;
+                });
     }
 
     private CompletableFuture<Void> cleanImmutableBuckets() {
@@ -810,5 +855,58 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         });
         stats.recordBucketSnapshotSizeBytes(totalSnapshotLength.longValue());
         return stats.genTopicMetricMap();
+    }
+
+    /**
+     * Delete orphaned bucket snapshots whose ledger range lies entirely before the earliest
+     * surviving ledger. Buckets are deleted sequentially; the chain stops on first failure
+     * to avoid wasted work when storage is unavailable.
+     */
+    private synchronized CompletableFuture<Void> asyncTrimImmutableBuckets() {
+        Long firstLedgerId = firstActiveLedgerId();
+        if (null == firstLedgerId) {
+            return CompletableFuture.completedFuture(null);
+        }
+        ManagedLedger ledger = context.getCursor().getManagedLedger();
+
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBuckets =
+                new HashMap<>(immutableBuckets.subRangeMap(Range.lessThan(firstLedgerId)).asMapOfRanges());
+
+        if (toBeDeletedBuckets.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String ledgerName = ledger.getName();
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (Map.Entry<Range<Long>, ImmutableBucket> entry : toBeDeletedBuckets.entrySet()) {
+            chain = chain.thenCompose(__ ->
+                    deleteBucketSnapshot(ledgerName, entry.getKey(), entry.getValue()));
+        }
+        return chain;
+    }
+
+    private CompletableFuture<Void> deleteBucketSnapshot(String ledgerName,
+                                                          Range<Long> range, ImmutableBucket bucket) {
+        return bucket.asyncDeleteBucketSnapshot(stats)
+                .handle((__, t) -> {
+                    if (t != null) {
+                        log.warn().attr("LedgerName", ledgerName)
+                                .attr("BucketKey", bucket.bucketKey())
+                                .log("Failed to delete bucket snapshot");
+                        throw new CompletionException(t);
+                    }
+                    synchronized (this) {
+                        snapshotSegmentLastIndexMap.entrySet().removeIf(entry -> entry.getValue() == bucket);
+                        immutableBuckets.remove(range);
+                        numberDelayedMessages.addAndGet(-bucket.getNumberBucketDelayedMessages());
+                    }
+                    return null;
+                });
+    }
+
+    private Long firstActiveLedgerId() {
+        ManagedCursor cursor = context.getCursor();
+        Position mdp = cursor.getMarkDeletedPosition();
+        return mdp == null ? null : mdp.getLedgerId();
     }
 }

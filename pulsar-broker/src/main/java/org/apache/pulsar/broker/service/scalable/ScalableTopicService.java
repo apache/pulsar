@@ -146,12 +146,22 @@ public class ScalableTopicService {
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                 numInitialSegments, properties);
 
+        // Write the scalable metadata FIRST, then materialize the underlying segment topics.
+        // The metadata is the source of truth: its presence is what defines whether the topic
+        // "exists"; segment topics are derived state. Writing metadata first means a partial
+        // failure (a segment create throws, or the broker crashes mid-way) leaves no orphaned
+        // segment topics dangling without a parent — everything created is already referenced
+        // by valid metadata. An active segment whose backing topic is missing is
+        // (re)materialized on demand the first time a client connects to it — see the
+        // active-segment reconciliation in BrokerService.isAllowAutoTopicCreationAsync — so
+        // eager materialization here is a happy-path latency optimization, not a correctness
+        // requirement.
         return resources.createScalableTopicAsync(topic, metadata)
                 .thenCompose(__ -> {
-                    // Create underlying persistent topics for each initial segment
-                    List<CompletableFuture<Void>> segmentFutures = metadata.getSegments().values().stream()
-                            .map(segment -> createUnderlyingSegmentTopic(topic, segment))
-                            .toList();
+                    List<CompletableFuture<Void>> segmentFutures =
+                            metadata.getSegments().values().stream()
+                                    .map(segment -> createUnderlyingSegmentTopic(topic, segment))
+                                    .toList();
                     return FutureUtil.waitForAll(segmentFutures);
                 });
     }

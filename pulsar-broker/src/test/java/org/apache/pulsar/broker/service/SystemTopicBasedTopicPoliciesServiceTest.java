@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -131,6 +132,36 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         f.get();
         //Some system topics will be added to the listeners. Just check if it contains topicName.
         Assert.assertFalse(systemTopicBasedTopicPoliciesService.listeners.containsKey(topicName));
+    }
+
+    @Test
+    public void testListenerNotificationRunsOffSharedReaderThread() throws Exception {
+        // Regression test for #26037: topic-policy listener callbacks must not run on the single,
+        // process-wide shared "broker-client-shared-internal-executor" reader thread. A slow or blocking
+        // onUpdate there serializes — and can stall — topic-policy loading for every namespace. The
+        // notification must instead be dispatched to the per-topic ordered executor ("broker-topic-workers").
+
+        // Initialize the policy cache and start the change-events reader for the namespace.
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(10)).get();
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                .getPoliciesCacheInit(TOPIC1.getNamespaceObject()).isDone()));
+
+        // Register a listener that records the thread its onUpdate runs on.
+        CompletableFuture<String> onUpdateThreadName = new CompletableFuture<>();
+        TopicPolicyListener listener = data -> onUpdateThreadName.complete(Thread.currentThread().getName());
+        systemTopicBasedTopicPoliciesService.registerListenerAsync(TOPIC1, listener).get();
+
+        // A live policy update flows through readMorePoliciesAsync -> notifyListener -> listener.onUpdate.
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false, topicPolicies ->
+                topicPolicies.setMaxConsumerPerTopic(20)).get();
+
+        String threadName = onUpdateThreadName.get(30, TimeUnit.SECONDS);
+        assertFalse("listener.onUpdate must not run on the shared broker-client reader thread, but ran on: "
+                        + threadName,
+                threadName.contains("broker-client-shared-internal-executor"));
+        assertTrue("listener.onUpdate should run on the per-topic ordered executor, but ran on: " + threadName,
+                threadName.contains("broker-topic-workers"));
     }
 
     @Test
@@ -524,13 +555,28 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             assertTrue(logFound);
         });
 
-        // Since cleanPoliciesCacheInitMap() is executed, should add the failed reader into readerCache again.
-        // Then in SystemTopicBasedTopicPoliciesService, readerCache has a closed reader,
-        // and policyCacheInitMap do not contain a future.
-        // To simulate the situation: when getTopicPolicy() execute, it will do prepareInitPoliciesCacheAsync() and
-        // use a closed reader to read the __change_event topic. Then throw exception
-        spyReaderCaches.put(NamespaceName.get(NAMESPACE5), readerCompletableFuture);
+        // The reader.close() above drives readMorePoliciesAsync() into cleanPoliciesCacheInitMap(), which logs
+        // "Closing the topic policies reader for" and removes the namespace from policyCacheInitMap and readerCaches.
+        // Now exercise a follow-up prepareInitPoliciesCacheAsync() that reuses a closed reader and must fail in
+        // initPolicesCache(). Two timing hazards made this flaky (#25081), so both are pinned deterministically:
+        //  1) A real closed reader's hasMoreEventsAsync() (Reader.hasMessageAvailableAsync()) can answer from cached
+        //     state instead of failing with AlreadyClosedException, in which case initPolicesCache() reaches the end
+        //     of the topic and completes successfully and the expected exception never happens. Use a spy whose
+        //     hasMoreEventsAsync() always fails with AlreadyClosedException.
+        //  2) A background topic load can re-run prepareInitPoliciesCacheAsync() for the namespace and leave a
+        //     completed init future behind; the next call would then short-circuit through the existing-future
+        //     branch and never re-initialize. Drop any init future right before the call so it re-initializes, and
+        //     stub createSystemTopicClient() so every reader created for this namespace is the failing spy — then
+        //     whichever initialization wins the race fails in the same (asserted) way.
+        SystemTopicClient.Reader<PulsarEvent> closedReader = Mockito.spy(reader);
+        Mockito.doReturn(CompletableFuture.failedFuture(
+                        new PulsarClientException.AlreadyClosedException("Reader is already closed")))
+                .when(closedReader).hasMoreEventsAsync();
+        Mockito.doReturn(CompletableFuture.completedFuture(closedReader))
+                .when(spyService).createSystemTopicClient(NamespaceName.get(NAMESPACE5));
+        spyReaderCaches.put(NamespaceName.get(NAMESPACE5), CompletableFuture.completedFuture(closedReader));
         FieldUtils.writeDeclaredField(spyService, "readerCaches", spyReaderCaches, true);
+        spyService.policyCacheInitMap.remove(NamespaceName.get(NAMESPACE5));
 
         CompletableFuture<Boolean> prepareFuture = new CompletableFuture<>();
         try {

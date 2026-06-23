@@ -616,11 +616,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             this.delayedDeliveryTracker = Optional.empty();
         }
 
-        delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
+        CompletableFuture<Void> closeTrackerFuture = delayedDeliveryTracker
+                .map(DelayedDeliveryTracker::closeAsync)
+                .orElseGet(() -> CompletableFuture.completedFuture(null));
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectConsumers
-                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
+        return closeTrackerFuture.thenCompose(__ -> disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null));
     }
 
     @Override

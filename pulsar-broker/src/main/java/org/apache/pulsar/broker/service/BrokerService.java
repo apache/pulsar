@@ -68,6 +68,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -285,6 +286,7 @@ public class BrokerService implements Closeable {
             .register();
 
     private final SingleThreadNonConcurrentFixedRateScheduler inactivityMonitor;
+    @Getter
     private final SingleThreadNonConcurrentFixedRateScheduler messageExpiryMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler compactionMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler consumedLedgersMonitor;
@@ -2857,9 +2859,10 @@ public class BrokerService implements Closeable {
                             topicFuture.thenAccept(topic -> {
                                 log.debug().attr("name", name).log("Notifying topic that local policies have changed");
                                 topic.ifPresent(t -> {
-                                    if (t instanceof PersistentTopic) {
-                                        PersistentTopic topic1 = (PersistentTopic) t;
-                                        topic1.onLocalPoliciesUpdate();
+                                    if (t instanceof PersistentTopic persistentTopic) {
+                                        runOnTopicPoliciesNotifyThread(t, () -> {
+                                            persistentTopic.onLocalPoliciesUpdate();
+                                        });
                                     }
                                 });
                             });
@@ -2880,13 +2883,18 @@ public class BrokerService implements Closeable {
                             .log("Updating namespace with policies");
 
                     topics.forEach((name, topicFuture) -> {
-                        if (namespace.includes(TopicName.get(name))) {
+                        TopicName topicName = TopicName.get(name);
+                        if (namespace.includes(topicName)) {
                             // If the topic is already created, immediately apply the updated policies, otherwise
                             // once the topic is created it'll apply the policies update
                             topicFuture.thenAccept(topic -> {
                                 log.debug().attr("topic", name).log("Notifying topic that policies have changed");
 
-                                topic.ifPresent(t -> t.onPoliciesUpdate(policies));
+                                topic.ifPresent(t -> {
+                                    runOnTopicPoliciesNotifyThread(t, () -> {
+                                        t.onPoliciesUpdate(policies);
+                                    });
+                                });
                             });
                         }
                     });
@@ -2895,6 +2903,16 @@ public class BrokerService implements Closeable {
                     // replication-cluster and still own the bundle. That can cause data-loss for TODO: git-issue
                     unloadDeletedReplNamespace(policies, namespace);
                 }, pulsar.getExecutor());
+    }
+
+    private void runOnTopicPoliciesNotifyThread(Topic t, Runnable runnable) {
+        ExecutorService policiesNotifyThread;
+        if (t instanceof AbstractTopic abstractTopic) {
+            policiesNotifyThread = abstractTopic.getPoliciesNotifyThread();
+        } else {
+            policiesNotifyThread = getTopicPoliciesNotifyThread(TopicName.getPartitionedTopicName(t.getName()));
+        }
+        policiesNotifyThread.execute(runnable);
     }
 
     private void handleDynamicConfigurationUpdates() {
@@ -3793,6 +3811,24 @@ public class BrokerService implements Closeable {
     }
 
     /**
+     * Returns the single executor thread used to apply topic-policy updates for the given topic. All
+     * topic-policy notifications and policy application for a topic must run on this deterministically-chosen
+     * thread so that they are serialized and never run concurrently. Centralizing the topic-to-thread mapping
+     * here keeps it consistent between {@link AbstractTopic} and
+     * {@link SystemTopicBasedTopicPoliciesService} so the two cannot accidentally diverge.
+     */
+    public ExecutorService getTopicPoliciesNotifyThread(TopicName topicName) {
+        TopicName baseTopicName;
+        if (topicName.isPartitioned()) {
+            // for partitioned topics, we need to use the base topic name
+            baseTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        } else {
+            baseTopicName = topicName;
+        }
+        return topicOrderedExecutor.chooseThread(baseTopicName);
+    }
+
+    /**
      * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}.
      *
@@ -4002,13 +4038,35 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(false);
         }
 
-        // Segment topics (PIP-468 scalable topics) are explicitly created by the
-        // ScalableTopicController via the /admin/v2/segments endpoint. They must
-        // never be auto-created on connect — otherwise a producer/consumer racing
-        // a controller-driven delete (post-prune retention GC, force-delete) would
-        // silently re-create the topic with default schema and mask the deletion.
+        // Segment topics (PIP-468 scalable topics) are normally created explicitly by the
+        // ScalableTopicController, never blanket-auto-created on connect — a producer/consumer
+        // racing a controller-driven delete (post-prune retention GC, force-delete, or the
+        // sealed parent of a split/merge) must not silently resurrect a torn-down segment and
+        // mask the deletion. The one allowed exception is reconciliation: if the parent DAG
+        // still lists this segment as ACTIVE, its backing topic legitimately should exist, so
+        // a connect may (re)materialize it. This self-heals an active segment whose backing
+        // topic was never created or went missing (e.g. a createScalableTopic that wrote
+        // metadata then failed to materialize segments), without resurrecting sealed or pruned
+        // ones — those are marked sealed or absent from the layout, so the check below rejects
+        // them. (Narrow window: the controller terminates a split/merge parent's topic just
+        // before flipping its metadata to sealed, so a connect in that gap could briefly reopen
+        // it; the next layout update moves clients off it.)
         if (topicName.getDomain() == TopicDomain.segment) {
-            return CompletableFuture.completedFuture(false);
+            if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            ScalableTopicResources scalableResources =
+                    pulsar.getPulsarResources().getScalableTopicResources();
+            if (scalableResources == null) {
+                return CompletableFuture.completedFuture(false);
+            }
+            TopicName parent = SegmentTopicName.getParentTopicName(topicName);
+            long segmentId = SegmentTopicName.getSegmentId(topicName);
+            return scalableResources.getScalableTopicMetadataAsync(parent)
+                    .thenApply(optMd -> optMd
+                            .map(md -> md.getSegments().get(segmentId))
+                            .map(seg -> seg.isActive())
+                            .orElse(false));
         }
 
         // PIP-475: never auto-create a persistent:// topic that has been migrated to a

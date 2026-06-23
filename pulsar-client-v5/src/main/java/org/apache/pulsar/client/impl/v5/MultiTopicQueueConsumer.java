@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -160,7 +161,9 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
             return CompletableFuture.completedFuture(null);
         }
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
-        DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
+        // A namespace consumer only attaches to topics the watcher reports as existing; it must
+        // never auto-create one (so a deleted topic can't be resurrected by a reconnecting watch).
+        DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic, /* createIfMissing= */ false);
         // Per-topic message sink: tag each delivered message with the parent scalable
         // topic for ack routing + display, and forward into the shared mux. No pump
         // thread; per-segment v4 receive loops fire this sink directly.
@@ -252,6 +255,16 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         return state.consumer.closeAsync()
                 .thenRun(() -> log.info().attr("topic", topicName)
                         .log("Per-topic consumer detached"));
+    }
+
+    /**
+     * The scalable topics this namespace consumer currently has an attached per-topic consumer for.
+     * Lets tests assert that topics are attached/detached as the namespace's matching set changes
+     * (e.g. that a deleted topic's per-topic consumer is stopped).
+     */
+    @VisibleForTesting
+    Set<String> attachedTopicsForTesting() {
+        return new HashSet<>(perTopic.keySet());
     }
 
     // --- QueueConsumer ---

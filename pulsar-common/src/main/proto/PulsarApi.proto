@@ -888,6 +888,12 @@ message CommandScalableTopicLookup {
     // The broker resolves the input to the canonical topic://... identity and
     // returns it in CommandScalableTopicUpdate.resolved_topic_name.
     required string topic      = 2;
+    // What to do when the scalable topic is missing on lookup: if true, create it (subject to
+    // broker/namespace auto-creation policy); if false, fail not-found instead of creating it.
+    // Namespace (multi-topic) consumers set this false so a deleted topic is never resurrected by
+    // a reconnecting per-topic watch. Defaults to true to preserve the create-on-lookup behavior
+    // for explicit single-topic producers/consumers (and for older clients that don't set it).
+    optional bool create_if_missing = 3 [default = true];
 }
 
 // Broker -> Client: Used for BOTH initial response and subsequent pushed updates
