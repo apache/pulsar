@@ -315,8 +315,7 @@ public abstract class AbstractReplicator implements Replicator {
      */
     @Override
     public CompletableFuture<Void> disconnect() {
-        long backlog = getNumberOfEntriesInBacklog();
-        if (backlog > 0) {
+        if (hasBacklog()) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             log.debug("Replicator disconnect failed since topic has backlog");
@@ -324,8 +323,8 @@ public abstract class AbstractReplicator implements Replicator {
         }
         log.info()
                 .attr("readPosition", getReplicatorReadPosition())
-                .attr("backlog", backlog)
-                .log("Disconnect replicator at position with backlog");
+                .attr("hasBacklog", false)
+                .log("Disconnect replicator at position without backlog");
         return beforeDisconnect()
             .thenCompose(__ -> closeProducerAsync(true))
             .thenApply(__ -> {
