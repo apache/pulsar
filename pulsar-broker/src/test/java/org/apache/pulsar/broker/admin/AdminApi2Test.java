@@ -1450,6 +1450,24 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetInternalStatsWithProperties() throws Exception {
+        final String namespace = newUniqueName(defaultTenant + "/ns2");
+        final String topicName = "persistent://" + namespace + "/testGetInternalStatsWithProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+
+        Map<String, String> topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value1");
+        topicProperties.put("key2", "value2");
+        admin.topics().createNonPartitionedTopic(topicName, topicProperties);
+
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+        assertNotNull(stats.properties);
+        assertEquals(stats.properties.get("key1"), "value1");
+        assertEquals(stats.properties.get("key2"), "value2");
+        assertEquals(stats.properties.size(), 2);
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = newUniqueName(defaultTenant + "/ns2");
         final String topicName = "non-persistent://" + namespace + "/topic";

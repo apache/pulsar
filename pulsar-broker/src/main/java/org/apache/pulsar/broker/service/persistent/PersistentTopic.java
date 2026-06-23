@@ -3203,6 +3203,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 stats.lastConfirmedEntry = ledgerInternalStats.getLastConfirmedEntry();
                 stats.state = ledgerInternalStats.getState();
                 stats.ledgers = ledgerInternalStats.ledgers;
+                stats.properties = ledgerInternalStats.getProperties();
 
                 // Add ledger info for compacted topic ledger if exist.
                 LedgerInfo info = new LedgerInfo();
