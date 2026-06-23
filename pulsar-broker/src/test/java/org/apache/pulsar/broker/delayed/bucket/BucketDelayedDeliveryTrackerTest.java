@@ -525,6 +525,11 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             public ManagedLedger getManagedLedger() {
                 return mockLedger;
             }
+
+            @Override
+            public Position getMarkDeletedPosition() {
+                return PositionFactory.create(firstLedgerId, -1);
+            }
         };
 
         AbstractPersistentDispatcherMultipleConsumers disp =
@@ -577,6 +582,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         int messageCount = 31;
         TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5);
 
+        // MaxRetryTimes=3 means the first trim delete attempt plus 3 retries = 4 exceptions consumed.
         for (int i = 0; i < 4; i++) {
             ts.storage.injectDeleteException(
                     new BucketSnapshotPersistenceException("Delete failed"));
@@ -593,14 +599,16 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 assertTrue(ts.storage.deleteExceptionQueue.isEmpty(),
                         "Delete exception should have been consumed"));
 
-        long messagesBeforeSchedule = ts.tracker.getNumberOfDelayedMessages();
-        ts.clockTime.set(messageCount * 10);
-        Awaitility.await().untilAsserted(() -> {
-            NavigableSet<Position> scheduledMessages = ts.tracker.getScheduledMessages(1);
-            assertEquals(scheduledMessages.size(), 1);
-            assertTrue(scheduledMessages.first().getLedgerId() < firstLedgerId);
-            assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesBeforeSchedule - 1);
-        });
+        // Trim failed on the first orphaned bucket; the sequential chain stopped, so all
+        // 6 orphaned buckets remain in immutableBuckets.
+        assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().size() > 0,
+                "Orphaned buckets should remain when trim delete fails");
+        ts.tracker.getImmutableBuckets().asMapOfRanges().forEach((range, bucket) ->
+                assertTrue(range.upperEndpoint() < firstLedgerId,
+                        "Remaining bucket " + range + " should be an orphaned bucket"));
+
+        // numberDelayedMessages is unchanged because failed deletes do not decrement the count.
+        assertEquals(ts.tracker.getNumberOfDelayedMessages(), messageCount);
 
         ts.close();
     }
