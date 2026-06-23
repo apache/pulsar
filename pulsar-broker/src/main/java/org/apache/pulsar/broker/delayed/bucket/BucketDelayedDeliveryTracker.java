@@ -652,8 +652,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             long timestamp = sharedBucketPriorityQueue.peekN1();
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
-            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId && !containsMessage(ledgerId, entryId)) {
+            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId) {
                 sharedBucketPriorityQueue.pop();
+                if (removeIndexBit(ledgerId, entryId)) {
+                    numberDelayedMessages.decrementAndGet();
+                }
                 continue;
             }
             if (timestamp > cutoffTime) {
@@ -862,9 +865,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
         ManagedLedger ledger = context.getCursor().getManagedLedger();
 
-        Map<Range<Long>, ImmutableBucket> toBeDeletedBuckets = immutableBuckets.asMapOfRanges().entrySet().stream()
-                .filter(e -> e.getKey().upperEndpoint() < firstLedgerId)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBuckets =
+                new HashMap<>(immutableBuckets.subRangeMap(Range.lessThan(firstLedgerId)).asMapOfRanges());
 
         if (toBeDeletedBuckets.isEmpty()) {
             return CompletableFuture.completedFuture(null);
@@ -899,10 +901,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private Long firstActiveLedgerId() {
-        ManagedLedger ledger = context.getCursor().getManagedLedger();
-        if (ledger == null || ledger.getLedgersInfo().isEmpty()) {
-            return null;
-        }
-        return ledger.getLedgersInfo().firstKey();
+        ManagedCursor cursor = context.getCursor();
+        Position mdp = cursor.getMarkDeletedPosition();
+        return mdp == null ? null : mdp.getLedgerId();
     }
 }
