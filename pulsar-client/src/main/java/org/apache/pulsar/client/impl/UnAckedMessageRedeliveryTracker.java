@@ -75,8 +75,11 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     redeliveryTimePartitions.addLast(headPartition);
                     triggerRedelivery(consumerBase);
                 } finally {
-                    writeLock.unlock();
-                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    try {
+                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    } finally {
+                        writeLock.unlock();
+                    }
                 }
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
