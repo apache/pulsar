@@ -323,7 +323,6 @@ public abstract class AbstractReplicator implements Replicator {
         }
         log.info()
                 .attr("readPosition", getReplicatorReadPosition())
-                .attr("hasBacklog", false)
                 .log("Disconnect replicator at position without backlog");
         return beforeDisconnect()
             .thenCompose(__ -> closeProducerAsync(true))

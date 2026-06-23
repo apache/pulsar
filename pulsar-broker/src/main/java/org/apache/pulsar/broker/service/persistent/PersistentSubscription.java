@@ -1651,7 +1651,7 @@ public class PersistentSubscription extends AbstractSubscription {
             return false;
         }
         boolean hasBacklog = cursor.hasBacklog();
-        log.info().attr("hasBacklog", hasBacklog).log("Backlog");
+        log.info().attr("hasBacklog", hasBacklog).log("Checked subscription backlog for topic migration");
         return !hasBacklog;
     }
 
