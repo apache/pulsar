@@ -682,4 +682,49 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         ts.close();
     }
+
+    @Test
+    public void testGetScheduledMessagesWhenAllOrphaned() throws Exception {
+        // Reproduces IAE in nextDeliveryTime: when every delayed message lies below the
+        // mark-delete position, the filter in getScheduledMessages pops the in-memory
+        // messages without returning them. If the immutable bucket has additional messages
+        // still in storage (later snapshot segments), numberDelayedMessages stays > 0
+        // while both the mutable bucket and the shared priority queue are empty.
+        // The trailing updateTimer -> nextDeliveryTime must not throw.
+        long firstLedgerId = 50L;
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 50);
+
+        // Five delayed messages on the same orphaned ledger (ledgerId < firstLedgerId).
+        // They share a mutable bucket because seal requires a strictly greater ledgerId.
+        // Timestamps are 100ms apart so each lands in its own snapshot segment
+        // (timeStep=10ms); only the first segment is loaded into the shared queue at seal.
+        for (int i = 1; i <= 5; i++) {
+            ts.tracker.addMessage(1, i, i * 100);
+        }
+        // A new orphaned ledgerId triggers the seal, producing immutable bucket [1..1]
+        // with 5 messages across 5 segments; shared queue holds just the first segment.
+        ts.tracker.addMessage(2, 1, 600);
+
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging)));
+
+        // Advance clock past tickTime + max deliverAt so moveScheduledMessageToSharedQueue
+        // flushes the mutable trigger message into the shared queue as well.
+        ts.clockTime.set(600 + 100000);
+
+        // Both queues end up empty (filter pops the two in-memory messages), but
+        // numberDelayedMessages is still 4 (segments 2..5 remain in storage).
+        NavigableSet<Position> scheduledMessages = ts.tracker.getScheduledMessages(10);
+        assertTrue(scheduledMessages.isEmpty(),
+                "Orphaned messages should be filtered out, not returned");
+        assertTrue(ts.tracker.getNumberOfDelayedMessages() > 0,
+                "Remaining storage-only messages should keep the counter > 0");
+
+        // hasMessageAvailable calls nextDeliveryTime while numberDelayedMessages > 0;
+        // it must not throw IAE.
+        assertFalse(ts.tracker.hasMessageAvailable());
+
+        ts.close();
+    }
 }

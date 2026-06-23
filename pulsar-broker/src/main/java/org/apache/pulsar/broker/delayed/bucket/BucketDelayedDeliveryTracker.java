@@ -617,6 +617,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             return sharedBucketPriorityQueue.peekN1();
         } else if (sharedBucketPriorityQueue.isEmpty() && !lastMutableBucket.isEmpty()) {
             return lastMutableBucket.nextDeliveryTime();
+        } else if (lastMutableBucket.isEmpty() && sharedBucketPriorityQueue.isEmpty()) {
+            // numberDelayedMessages can be > 0 while both queues are empty (e.g. remaining
+            // messages live in not-yet-loaded snapshot segments). Returning Long.MAX_VALUE
+            // signals "no imminent delivery" without throwing on the empty queues.
+            return Long.MAX_VALUE;
         }
         long timestamp = lastMutableBucket.nextDeliveryTime();
         long bucketTimestamp = sharedBucketPriorityQueue.peekN1();
