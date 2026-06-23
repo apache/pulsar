@@ -108,6 +108,18 @@ public class FieldParserTest {
     }
 
     @Test
+    public void testEmptyValueClearsStringField() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("name", "");
+
+        MyConfig config = new MyConfig();
+        config.name = "configured";
+        FieldParser.update(properties, config);
+
+        assertNull(config.name);
+    }
+
+    @Test
     public void testNullStrValue() throws Exception {
         class TestMap {
             public List<String> list;

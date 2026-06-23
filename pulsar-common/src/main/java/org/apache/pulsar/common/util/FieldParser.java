@@ -228,7 +228,7 @@ public final class FieldParser {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
             }
-        } else if (Number.class.isAssignableFrom(field.getType()) || fieldType.getClass().equals(String.class)) {
+        } else if (Number.class.isAssignableFrom(field.getType()) || field.getType().equals(String.class)) {
             field.set(obj, null);
         }
     }
