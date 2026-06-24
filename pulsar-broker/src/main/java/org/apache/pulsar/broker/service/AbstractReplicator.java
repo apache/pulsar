@@ -320,8 +320,7 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
-    @Override
-    public CompletableFuture<Void> disconnect() {
+    protected CompletableFuture<Void> disconnect() {
         if (hasBacklog()) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
