@@ -59,10 +59,76 @@ FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine${ALPINE_VERSION} AS jvm
 
 RUN apk add --no-cache binutils
 
-# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
-# This still includes all JDK modules, though in the future we could compile a list of required modules
+# Use JLink to create a slimmer JDK runtime (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
+# Include only the modules needed at runtime (one per line below for easy maintenance). The list is
+# kept compatible across the JDK versions we build with (currently 21 and 25).
+#
+# Kept on purpose:
+#   - java.desktop + jdk.localedata: Jetty/Jersey/SnakeYAML call java.beans.Introspector (in
+#     java.desktop), and localedata is needed for non-English date/number formatting.
+#   - jdk.jcmd, jdk.jfr, jdk.management.agent: live ops/diagnostics on a running broker.
+#
+# Left out (never used by a running broker):
+#   - build/compile tools: java.compiler, jdk.compiler (also drops the ~10MB lib/ct.sym),
+#     jdk.javadoc, jdk.jdeps, jdk.jlink, jdk.jpackage, jdk.jartool
+#   - REPL/console: jdk.jshell, jdk.editpad, jdk.internal.ed, jdk.internal.le, jdk.jconsole
+#   - debug agents: jdk.jdwp.agent, jdk.jdi, jdk.hotspot.agent, jdk.jstatd
+#   - Graal/JVMCI compiler modules (jdk.internal.vm.* on JDK 21, jdk.graal.* on newer JDKs): unused by C2
+#   - java.se aggregator: excluded so it does not transitively pull the above back in
+#   - jdk.random: merged into java.base in newer JDKs (not a separate module on JDK 25)
+#
 # first try with Java 17/21 compatible jlink command and if it fails, fallback to Java 24+ compatible command
-RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress=2 --no-man-pages --no-header-files --strip-debug --output /opt/jvm || /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules ALL-MODULE-PATH --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
+RUN JDK_MODULES="\
+java.base,\
+java.datatransfer,\
+java.xml,\
+java.prefs,\
+java.desktop,\
+java.instrument,\
+java.logging,\
+java.management,\
+java.security.sasl,\
+java.naming,\
+java.rmi,\
+java.management.rmi,\
+java.net.http,\
+java.scripting,\
+java.security.jgss,\
+java.transaction.xa,\
+java.sql,\
+java.sql.rowset,\
+java.xml.crypto,\
+java.smartcardio,\
+jdk.accessibility,\
+jdk.internal.jvmstat,\
+jdk.attach,\
+jdk.charsets,\
+jdk.internal.opt,\
+jdk.zipfs,\
+jdk.crypto.ec,\
+jdk.crypto.cryptoki,\
+jdk.dynalink,\
+jdk.httpserver,\
+jdk.incubator.vector,\
+jdk.jcmd,\
+jdk.management,\
+jdk.management.agent,\
+jdk.jfr,\
+jdk.jsobject,\
+jdk.localedata,\
+jdk.management.jfr,\
+jdk.naming.dns,\
+jdk.naming.rmi,\
+jdk.net,\
+jdk.nio.mapmode,\
+jdk.sctp,\
+jdk.security.auth,\
+jdk.security.jgss,\
+jdk.unsupported,\
+jdk.unsupported.desktop,\
+jdk.xml.dom" && \
+    { /usr/lib/jvm/default-jvm/bin/jlink --add-modules "$JDK_MODULES" --compress=2 --no-man-pages --no-header-files --strip-debug --output /opt/jvm || \
+      /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules "$JDK_MODULES" --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm; }
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
