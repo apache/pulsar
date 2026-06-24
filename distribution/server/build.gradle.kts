@@ -134,7 +134,6 @@ dependencies {
     distLib(libs.dropwizardmetrics.jvm)
 
     // Other
-    distLib(libs.jline2)
     distLib(libs.snappy.java)
     distLib(libs.jackson.dataformat.yaml)
     distLib(libs.bcpkix.jdk18on)

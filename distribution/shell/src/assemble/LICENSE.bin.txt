@@ -310,8 +310,8 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * Picocli
-     - picocli-4.7.5.jar
-     - picocli-shell-jline3-4.7.5.jar
+     - picocli-4.7.7.jar
+     - picocli-shell-jline3-4.7.7.jar
  * Jackson
      - jackson-annotations-2.21.jar
      - jackson-core-2.21.3.jar
@@ -432,7 +432,7 @@ The Apache Software License, Version 2.0
  * JetBrains Annotations -- annotations-26.1.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt

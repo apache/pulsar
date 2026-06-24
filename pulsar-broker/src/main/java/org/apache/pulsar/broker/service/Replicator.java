@@ -25,15 +25,11 @@ import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
 public interface Replicator {
 
-    void startProducer();
-
     Topic getLocalTopic();
 
     ReplicatorStatsImpl computeStats();
 
     CompletableFuture<Void> terminate();
-
-    CompletableFuture<Void> disconnect();
 
     void updateRates();
 

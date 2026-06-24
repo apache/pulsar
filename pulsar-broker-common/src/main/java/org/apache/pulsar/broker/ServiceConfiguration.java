@@ -826,6 +826,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Time in seconds that a persistent geo-replication replicator may stay idle before the broker"
+                + " disconnects its replication producer. A replicator is eligible only when it has no backlog and"
+                + " has not read entries for replication processing for longer than this threshold. Disconnecting"
+                + " only releases the idle producer; the replicator and its cursor remain available, and the"
+                + " producer is recreated automatically when new messages need to be replicated. Set this value to"
+                + " 0 or a negative value to disable idle-replicator disconnection. The check runs with the"
+                + " inactive-topic monitor, whose interval is brokerDeleteInactiveTopicsFrequencySeconds, and only"
+                + " when brokerDeleteInactiveTopicsEnabled is true. The default is 86400 seconds (24 hours)."
+    )
+    private int brokerReplicationInactiveThresholdSeconds = 24 * 3600;
+
+    @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."

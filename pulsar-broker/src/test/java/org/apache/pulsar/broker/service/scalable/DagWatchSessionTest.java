@@ -85,7 +85,7 @@ public class DagWatchSessionTest {
         var store = mock(org.apache.pulsar.metadata.api.MetadataStore.class);
         when(resources.getStore()).thenReturn(store);
 
-        session = new DagWatchSession(SESSION_ID, TOPIC, cnx, resources, brokerService);
+        session = new DagWatchSession(SESSION_ID, TOPIC, cnx, resources, brokerService, true);
     }
 
     // --- identity / lifecycle ---
@@ -131,6 +131,34 @@ public class DagWatchSessionTest {
         }
     }
 
+    @Test
+    public void testStartDoesNotAutoCreateWhenCallerOptsOut() {
+        // A namespace consumer opens its per-topic watch with createIfMissing=false. A topic://
+        // lookup with no metadata must then fail not-found WITHOUT consulting auto-create policy or
+        // creating the topic — so a deleted topic can't be resurrected by a reconnecting watch, even
+        // when broker/namespace policy would otherwise allow auto-creation.
+        when(resources.getScalableTopicMetadataAsync(TOPIC, true))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        DagWatchSession s = new DagWatchSession(SESSION_ID, TOPIC, cnx, resources, brokerService, false);
+        CompletableFuture<ScalableTopicLayoutResponse> future = s.start();
+
+        assertTrue(future.isCompletedExceptionally());
+        try {
+            future.get();
+            fail("expected failure");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("interrupted");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException, "got: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("not found"), e.getCause().getMessage());
+        }
+        // The opt-out short-circuits before policy is consulted and nothing is created.
+        verify(brokerService, never()).isAllowAutoTopicCreationAsync(any(TopicName.class));
+        verify(brokerService, never()).getScalableTopicService();
+    }
+
     // --- synthetic layout for not-yet-migrated regular topics ---
 
     @Test
@@ -146,7 +174,7 @@ public class DagWatchSessionTest {
         when(brokerService.fetchPartitionedTopicMetadataAsync(regular))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
 
-        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService, true);
         ScalableTopicLayoutResponse response = s.start().get();
 
         assertEquals(response.epoch(), 0L);
@@ -174,7 +202,7 @@ public class DagWatchSessionTest {
         when(brokerService.fetchPartitionedTopicMetadataAsync(regular))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(4)));
 
-        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService, true);
         ScalableTopicLayoutResponse response = s.start().get();
 
         assertEquals(response.epoch(), 0L);
@@ -207,7 +235,7 @@ public class DagWatchSessionTest {
         // produce nonsensical -partition-K-partition-J underlying names.
         TopicName partition = TopicName.get("persistent://tenant/ns/my-partitioned-partition-3");
 
-        DagWatchSession s = new DagWatchSession(SESSION_ID, partition, cnx, resources, brokerService);
+        DagWatchSession s = new DagWatchSession(SESSION_ID, partition, cnx, resources, brokerService, true);
         CompletableFuture<ScalableTopicLayoutResponse> future = s.start();
 
         assertTrue(future.isCompletedExceptionally());
@@ -232,7 +260,7 @@ public class DagWatchSessionTest {
                         "persistent://tenant/ns/my-regular", 0L, 12345L)),
                 null, null, null, null);
 
-        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService);
+        DagWatchSession s = new DagWatchSession(SESSION_ID, regular, cnx, resources, brokerService, true);
         s.pushUpdate(response);
 
         ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);

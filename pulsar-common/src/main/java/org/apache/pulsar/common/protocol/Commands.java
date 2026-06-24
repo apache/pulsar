@@ -1727,10 +1727,15 @@ public class Commands {
     // --- Scalable topic commands ---
 
     public static ByteBuf newScalableTopicLookup(long sessionId, String topic) {
+        return newScalableTopicLookup(sessionId, topic, true);
+    }
+
+    public static ByteBuf newScalableTopicLookup(long sessionId, String topic, boolean createIfMissing) {
         BaseCommand cmd = localCmd(Type.SCALABLE_TOPIC_LOOKUP);
         cmd.setScalableTopicLookup()
                 .setSessionId(sessionId)
-                .setTopic(topic);
+                .setTopic(topic)
+                .setCreateIfMissing(createIfMissing);
         return serializeWithSize(cmd);
     }
 

@@ -75,18 +75,23 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
      *  real DAG (those require the {@code topic://} domain). */
     private final TopicName scalableTopicName;
     private final String resolvedTopicName;
+    /** When false, a {@code topic://} lookup of a non-existent scalable topic must not auto-create
+     *  it (set by namespace consumers so a deleted topic isn't resurrected on a per-topic reconnect). */
+    private final boolean createIfMissing;
     private volatile boolean closed = false;
 
     public DagWatchSession(long sessionId,
                            TopicName topicName,
                            ServerCnx cnx,
                            ScalableTopicResources resources,
-                           BrokerService brokerService) {
+                           BrokerService brokerService,
+                           boolean createIfMissing) {
         this.sessionId = sessionId;
         this.topicName = topicName;
         this.cnx = cnx;
         this.resources = resources;
         this.brokerService = brokerService;
+        this.createIfMissing = createIfMissing;
         this.metadataPath = resources.topicPath(topicName);
         this.scalableTopicName = topicName.toScalableTopic();
         this.resolvedTopicName = scalableTopicName.toString();
@@ -139,6 +144,12 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
                         return buildSyntheticResponse();
                     }
                     if (topicName.getDomain() == TopicDomain.topic) {
+                        if (!createIfMissing) {
+                            // Caller (e.g. a namespace consumer) opted out of auto-creation: fail
+                            // not-found rather than resurrect a topic that doesn't currently exist.
+                            return CompletableFuture.failedFuture(
+                                    new IllegalStateException("Scalable topic not found: " + topicName));
+                        }
                         return maybeAutoCreateAndBuildResponse();
                     }
                     return CompletableFuture.failedFuture(

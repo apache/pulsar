@@ -28,6 +28,8 @@ import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -77,6 +79,7 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(5);
         config.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
         config.setReplicationPolicyCheckDurationSeconds(1);
+        config.setBrokerReplicationInactiveThresholdSeconds(5);
     }
 
     @Test(dataProvider = "topicTypes")
@@ -144,6 +147,7 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
         // Wait for replicator started.
         Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
         waitReplicatorStarted(subTopic);
+        PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(subTopic, false).get().get();
         admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
         if (usingGlobalZK) {
@@ -159,6 +163,10 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
 
         // Trigger GC through close all clients.
         producer1.close();
+        // Manually skip the check "brokerReplicationInactiveThresholdSeconds".
+        GeoPersistentReplicator geoPersistentReplicator1 =
+                (GeoPersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+        geoPersistentReplicator1.disconnect();
         // Verify: the topic was removed on the source cluster.
         Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
             // sub topic.
