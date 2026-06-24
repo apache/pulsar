@@ -83,6 +83,9 @@ FROM busybox AS offloaders
 ARG PULSAR_OFFLOADER_TARBALL
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+# Exclude the filesystem (Hadoop) offloader: it pulls in hadoop-common and bloats the image by ~50MB.
+# It remains available in the apache-pulsar-offloaders distribution tarball for users who need it.
+RUN rm -f /offloaders/tiered-storage-file-system-*.nar
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
