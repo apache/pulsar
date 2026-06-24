@@ -18,7 +18,7 @@
 #
 
 ARG ALPINE_VERSION=3.23
-ARG IMAGE_JDK_MAJOR_VERSION=21
+ARG IMAGE_JDK_MAJOR_VERSION=25
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -60,8 +60,7 @@ FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine${ALPINE_VERSION} AS jvm
 RUN apk add --no-cache binutils
 
 # Use JLink to create a slimmer JDK runtime (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
-# Include only the modules needed at runtime (one per line below for easy maintenance). The list is
-# kept compatible across the JDK versions we build with (currently 21 and 25).
+# Include only the modules needed at runtime (one per line below for easy maintenance).
 #
 # Kept on purpose:
 #   - java.desktop + jdk.localedata: Jetty/Jersey/SnakeYAML call java.beans.Introspector (in
@@ -73,11 +72,10 @@ RUN apk add --no-cache binutils
 #     jdk.javadoc, jdk.jdeps, jdk.jlink, jdk.jpackage, jdk.jartool
 #   - REPL/console: jdk.jshell, jdk.editpad, jdk.internal.ed, jdk.internal.le, jdk.jconsole
 #   - debug agents: jdk.jdwp.agent, jdk.jdi, jdk.hotspot.agent, jdk.jstatd
-#   - Graal/JVMCI compiler modules (jdk.internal.vm.* on JDK 21, jdk.graal.* on newer JDKs): unused by C2
+#   - Graal/JVMCI compiler modules (jdk.graal.*): unused by the C2 JIT
 #   - java.se aggregator: excluded so it does not transitively pull the above back in
-#   - jdk.random: merged into java.base in newer JDKs (not a separate module on JDK 25)
+#   - jdk.random: part of java.base on JDK 25, not a separate module
 #
-# first try with Java 17/21 compatible jlink command and if it fails, fallback to Java 24+ compatible command
 RUN JDK_MODULES="\
 java.base,\
 java.datatransfer,\
@@ -127,8 +125,7 @@ jdk.security.jgss,\
 jdk.unsupported,\
 jdk.unsupported.desktop,\
 jdk.xml.dom" && \
-    { /usr/lib/jvm/default-jvm/bin/jlink --add-modules "$JDK_MODULES" --compress=2 --no-man-pages --no-header-files --strip-debug --output /opt/jvm || \
-      /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules "$JDK_MODULES" --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm; }
+    /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules "$JDK_MODULES" --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
