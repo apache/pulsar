@@ -709,9 +709,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 Assert.assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
                         .noneMatch(x -> x.merging)));
 
-        // Advance clock past tickTime + max deliverAt so moveScheduledMessageToSharedQueue
-        // flushes the mutable trigger message into the shared queue as well.
-        ts.clockTime.set(600 + 100000);
+        // In strict deliver-at mode getCutoffTime() is just clock.millis(), so advancing the
+        // clock past the trigger message's deliverAt (600) is enough for
+        // moveScheduledMessageToSharedQueue to flush the mutable bucket into the shared queue.
+        ts.clockTime.set(700);
 
         // Both queues end up empty (filter pops the two in-memory messages), but
         // numberDelayedMessages is still 4 (segments 2..5 remain in storage).
