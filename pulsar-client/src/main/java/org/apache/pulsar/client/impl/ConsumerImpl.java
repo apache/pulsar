@@ -217,15 +217,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected volatile boolean paused;
 
     protected Map<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentHashMap<>();
-    private int pendingChunkedMessageCount = 0;
+    @VisibleForTesting
+    int pendingChunkedMessageCount = 0;
+    // Serializes all chunked-message bookkeeping. The receive/assembly path (processMessageChunk and
+    // removeOldestPendingChunkedMessage, on the Netty IO thread) and the eviction/expiry path
+    // (removeExpireIncompleteChunkedMessages, on the internalPinnedExecutor) both mutate the same ChunkedMessageCtx,
+    // its buffer and pendingChunkedMessageCount; without this lock they can race (use-after-free / double-recycle).
+    private final Object chunkedMessageLock = new Object();
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
-    private final AtomicBoolean expireChunkMessageTaskScheduled = new AtomicBoolean(false);
+    @VisibleForTesting
+    final AtomicBoolean expireChunkMessageTaskScheduled = new AtomicBoolean(false);
     private final int maxPendingChunkedMessage;
     // if queue size is reasonable (most of the time equal to number of producers try to publish messages concurrently
     // on the topic) then it guards against broken chunked message which was not fully published
     private final boolean autoAckOldestChunkedMessageOnQueueFull;
     // it will be used to manage N outstanding chunked message buffers
-    private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
+    @VisibleForTesting
+    final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
@@ -1507,28 +1515,66 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
             if (isChunkedMessage) {
-                uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
+                ByteBuf compressedAssembledPayload;
+                MessageIdImpl[] chunkedMessageIds;
+                // Critical section: append the final chunk, then atomically remove + recycle the ctx, capturing the
+                // assembled (still-compressed) buffer and the chunk ids into locals. Keeping assembly and finalize in
+                // one locked region closes the assemble->finalize race with the expiry/eviction path. Once the ctx is
+                // out of chunkedMessagesMap and recycled, the captured buffer is reachable only through this thread, so
+                // decompression and message building are done below, OUTSIDE the lock, to avoid serializing other
+                // completions and expiry behind codec work (and discardCorruptedMessage on failure).
+                synchronized (chunkedMessageLock) {
+                    compressedAssembledPayload =
+                            processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
+                    if (compressedAssembledPayload == null) {
+                        return;
+                    }
+
+                    // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
+                    log.debug().attr("chunkid", msgMetadata.getChunkId())
+                            .attr("totalChunks", msgMetadata.getNumChunksFromMsg())
+                            .attr("msgid", msgId)
+                            .attr("sequenceid", msgMetadata.getSequenceId())
+                            .log("Chunked message completed chunkId, total-chunks, msgId sequenceId");
+
+                    // remove the ctx from the map and recycle it, capturing the chunk ids before recycle lets it be
+                    // reused. The returned buffer is this ctx's chunkedMsgBuffer; recycle only nulls the field, the
+                    // buffer object stays alive and is now owned solely by compressedAssembledPayload.
+                    ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
+                    chunkedMessageIds = chunkedMsgCtx.chunkedMessageIds;
+                    // Drop the completed uuid from the queue too, mirroring the map removal, so it doesn't linger as a
+                    // ghost entry.
+                    pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
+                    pendingChunkedMessageCount--;
+                    chunkedMsgCtx.recycle();
+                }
+
+                // Outside the lock: set the chunk message id, decompress the assembled payload, and (only on success)
+                // register it with the unack tracker.
+                if (chunkedMessageIds.length > 0) {
+                    msgId = new ChunkMessageIdImpl(chunkedMessageIds[0],
+                            chunkedMessageIds[chunkedMessageIds.length - 1]);
+                }
+                uncompressedPayload =
+                        uncompressPayloadIfNeeded(messageId, msgMetadata, compressedAssembledPayload, cnx, false);
+                compressedAssembledPayload.release();
                 if (uncompressedPayload == null) {
+                    // The ctx is already out of chunkedMessagesMap and the expiry queue, so the earlier chunks'
+                    // message ids can no longer be reached by the expiry sweep. Ack them here, mirroring
+                    // removeChunkMessage's autoAck semantics, so a decompression failure doesn't leave them as a
+                    // permanent ack hole. The last entry is skipped: it's the same (ledgerId, entryId) as the
+                    // `messageId` passed to uncompressPayloadIfNeeded above, which its failure path
+                    // (discardCorruptedMessage) already acked directly.
+                    for (int i = 0; i < chunkedMessageIds.length - 1; i++) {
+                        MessageIdImpl chunkedMessageId = chunkedMessageIds[i];
+                        if (chunkedMessageId != null) {
+                            doAcknowledge(chunkedMessageId, AckType.Individual, Collections.emptyMap(), null);
+                        }
+                    }
                     return;
                 }
-
-                // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
-                log.debug().attr("chunkid", msgMetadata.getChunkId())
-                        .attr("totalChunks", msgMetadata.getNumChunksFromMsg())
-                        .attr("msgid", msgId)
-                        .attr("sequenceid", msgMetadata.getSequenceId())
-                        .log("Chunked message completed chunkId, total-chunks, msgId sequenceId");
-
-                // remove buffer from the map, set the chunk message id
-                ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
-                if (chunkedMsgCtx.chunkedMessageIds.length > 0) {
-                    msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
-                            chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
-                }
-                // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
-                pendingChunkedMessageCount--;
-                chunkedMsgCtx.recycle();
+                // add chunked messageId to unack-message tracker
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMessageIds);
             }
 
             // If the topic is non-persistent, we should not ignore any messages.
@@ -1571,7 +1617,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     }
 
-    private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
+    @VisibleForTesting
+    ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
+            MessageIdData messageId, ClientCnx cnx) {
+        // Self-guard: this method does not rely on the caller already holding chunkedMessageLock. messageReceived does
+        // hold it (to keep the final-chunk assembly + finalize atomic), so that path re-enters this lock harmlessly.
+        synchronized (chunkedMessageLock) {
+            return doProcessMessageChunk(compressedPayload, msgMetadata, msgId, messageId, cnx);
+        }
+    }
+
+    private ByteBuf doProcessMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
         if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
             increaseAvailablePermits(cnx);
@@ -1630,6 +1686,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 chunkedMsgCtx.recycle();
                 chunkedMessagesMap.remove(msgMetadata.getUuid());
+                // Drop the stale queue entry; it is re-added at the tail below, keeping the queue ordered by
+                // receivedTime with exactly one entry per in-progress uuid. The replaced ctx was already counted,
+                // so this '--' balances the unconditional '++' below.
+                pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
+                pendingChunkedMessageCount--;
             }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
@@ -1640,6 +1701,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgMetadata.getTotalChunkMsgSize());
             chunkedMsgCtx = chunkedMessagesMap.computeIfAbsent(msgMetadata.getUuid(),
                     (key) -> ChunkedMessageCtx.get(totalChunks, chunkedMsgBuffer));
+            // Enqueue at the tail so the queue stays ordered oldest-first by receivedTime. For a redelivered first
+            // chunk the stale entry was removed above, so this keeps exactly one entry per in-progress uuid.
             pendingChunkedMessageUuidQueue.add(msgMetadata.getUuid());
         }
 
@@ -1686,6 +1749,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
                 }
                 chunkedMsgCtx.recycle();
+                // The ctx was counted and enqueued when its first chunk created it, so keep the rest of the
+                // bookkeeping in sync with the map removal: drop the queue entry (no ghost) and decrement the count
+                // (otherwise it drifts upward and prematurely triggers removeOldestPendingChunkedMessage).
+                pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
+                pendingChunkedMessageCount--;
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
@@ -1710,11 +1778,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return null;
         }
 
+        // Last chunk assembled. Release the incoming chunk and hand the assembled (still-compressed) buffer back to the
+        // caller. Decompression is intentionally left to the caller, outside chunkedMessageLock, so the codec work (and
+        // any discardCorruptedMessage on failure) does not serialize other chunked-message completions or expiry.
         compressedPayload.release();
-        compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
-        ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, cnx, false);
-        compressedPayload.release();
-        return uncompressedPayload;
+        return chunkedMsgCtx.chunkedMsgBuffer;
     }
 
     /**
@@ -3127,6 +3195,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void removeOldestPendingChunkedMessage() {
+        // Self-guard, same as processMessageChunk: today this only runs inside doProcessMessageChunk (already under the
+        // lock, so this re-enters), but locking here keeps the method safe for any direct caller.
+        synchronized (chunkedMessageLock) {
+            doRemoveOldestPendingChunkedMessage();
+        }
+    }
+
+    private void doRemoveOldestPendingChunkedMessage() {
         ChunkedMessageCtx chunkedMsgCtx = null;
         String firstPendingMsgUuid = null;
         while (chunkedMsgCtx == null && !pendingChunkedMessageUuidQueue.isEmpty()) {
@@ -3142,15 +3218,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (expireTimeOfIncompleteChunkedMessageMillis <= 0) {
             return;
         }
-        ChunkedMessageCtx chunkedMsgCtx = null;
+        synchronized (chunkedMessageLock) {
+            doRemoveExpireIncompleteChunkedMessages();
+        }
+    }
+
+    private void doRemoveExpireIncompleteChunkedMessages() {
         String messageUUID;
         while ((messageUUID = pendingChunkedMessageUuidQueue.peek()) != null) {
-            chunkedMsgCtx = StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
-            if (chunkedMsgCtx != null && System
-                    .currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
+            ChunkedMessageCtx chunkedMsgCtx =
+                    StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
+            if (chunkedMsgCtx == null) {
+                // Ghost head: the chunked message already completed/was removed from chunkedMessagesMap but its uuid
+                // lingers in the queue. Drop it and keep scanning (mirroring doRemoveOldestPendingChunkedMessage) so
+                // genuinely-expired incomplete chunks queued behind it are still cleaned.
+                pendingChunkedMessageUuidQueue.remove(messageUUID);
+                continue;
+            }
+            if (System.currentTimeMillis()
+                    > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
                 pendingChunkedMessageUuidQueue.remove(messageUUID);
                 removeChunkMessage(messageUUID, chunkedMsgCtx, true);
             } else {
+                // The queue is ordered oldest-first, so the first live not-yet-expired head means nothing behind it
+                // is expired either.
                 return;
             }
         }
