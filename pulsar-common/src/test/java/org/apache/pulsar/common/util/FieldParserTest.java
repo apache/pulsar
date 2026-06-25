@@ -108,7 +108,7 @@ public class FieldParserTest {
     }
 
     @Test
-    public void testEmptyValueClearsStringField() {
+    public void testEmptyValuePreservesStringFieldAsEmptyString() {
         Map<String, String> properties = new HashMap<>();
         properties.put("name", "");
 
@@ -116,7 +116,7 @@ public class FieldParserTest {
         config.name = "configured";
         FieldParser.update(properties, config);
 
-        assertNull(config.name);
+        assertEquals(config.name, "");
     }
 
     @Test

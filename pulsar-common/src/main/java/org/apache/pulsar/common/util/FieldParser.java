@@ -228,8 +228,10 @@ public final class FieldParser {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
             }
-        } else if (Number.class.isAssignableFrom(field.getType()) || field.getType().equals(String.class)) {
+        } else if (Number.class.isAssignableFrom(field.getType())) {
             field.set(obj, null);
+        } else if (String.class.equals(field.getType())) {
+            field.set(obj, "");
         }
     }
 
