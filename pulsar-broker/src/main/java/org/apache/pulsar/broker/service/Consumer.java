@@ -32,7 +32,6 @@ import it.unimi.dsi.fastutil.ints.IntIntPair;
 import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -389,7 +388,7 @@ public class Consumer {
                     long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     int remainingUnacked;
                     if (ackSet != null) {
-                        remainingUnacked = BitSet.valueOf(ackSet).cardinality();
+                        remainingUnacked = BitSetRecyclable.cardinality(ackSet);
                         unackedMessages -= (batchSize - remainingUnacked);
                     } else {
                         remainingUnacked = batchSize;
@@ -804,23 +803,15 @@ public class Consumer {
         }
         long[] cursorAckSet = getCursorAckSet(position);
         if (cursorAckSet == null) {
-            return batchSize - BitSet.valueOf(ackSets).cardinality();
+            return batchSize - BitSetRecyclable.cardinality(ackSets);
         }
-        BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-        int lastCardinality = cursorBitSet.cardinality();
-        BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
-        cursorBitSet.and(givenBitSet);
-        givenBitSet.recycle();
-        int currentCardinality = cursorBitSet.cardinality();
-        cursorBitSet.recycle();
+        int lastCardinality = BitSetRecyclable.cardinality(cursorAckSet);
+        int currentCardinality = BitSetRecyclable.andCardinality(cursorAckSet, ackSets);
         return lastCardinality - currentCardinality;
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
-        BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
-        long ackedCount = batchSize - bitset.cardinality();
-        bitset.recycle();
-        return ackedCount;
+        return batchSize - BitSetRecyclable.cardinality(ackSets);
     }
 
     private void checkAckValidationError(CommandAck ack, Position position) {

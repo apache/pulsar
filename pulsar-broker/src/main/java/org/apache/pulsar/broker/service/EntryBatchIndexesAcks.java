@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.Recycler;
-import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 @SuppressWarnings("unchecked")
 public class EntryBatchIndexesAcks {
@@ -42,7 +42,7 @@ public class EntryBatchIndexesAcks {
         for (int i = 0; i < size; i++) {
             Pair<Integer, long[]> pair = indexesAcks[i];
             if (pair != null) {
-                count += pair.getLeft() - BitSet.valueOf(pair.getRight()).cardinality();
+                count += pair.getLeft() - BitSetRecyclable.cardinality(pair.getRight());
             }
         }
         return count;

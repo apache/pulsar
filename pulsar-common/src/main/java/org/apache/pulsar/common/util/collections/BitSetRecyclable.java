@@ -872,8 +872,43 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int cardinality() {
         int sum = 0;
-        for (int i = 0; i < wordsInUse; i++)
+        for (int i = 0; i < wordsInUse; i++) {
             sum += Long.bitCount(words[i]);
+        }
+        return sum;
+    }
+
+    /**
+     * Returns the number of bits set to {@code true} in the given words.
+     *
+     * @param words a long array containing a little-endian representation
+     *        of a sequence of bits
+     * @return the number of bits set to {@code true}
+     */
+    public static int cardinality(long[] words) {
+        int sum = 0;
+        for (long word : words) {
+            sum += Long.bitCount(word);
+        }
+        return sum;
+    }
+
+    /**
+     * Returns the number of bits set to {@code true} after applying a
+     * logical <b>AND</b> to the given words.
+     *
+     * @param firstWords the first long array containing a little-endian representation
+     *        of a sequence of bits
+     * @param secondWords the second long array containing a little-endian representation
+     *        of a sequence of bits
+     * @return the number of bits set to {@code true} in {@code firstWords & secondWords}
+     */
+    public static int andCardinality(long[] firstWords, long[] secondWords) {
+        int sum = 0;
+        int wordsInUse = Math.min(firstWords.length, secondWords.length);
+        for (int i = 0; i < wordsInUse; i++) {
+            sum += Long.bitCount(firstWords[i] & secondWords[i]);
+        }
         return sum;
     }
 
