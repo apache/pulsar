@@ -119,6 +119,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -2429,6 +2430,66 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
         ensureNoBacklogByInflightTask(getReplicator(topicName));
+    }
+
+    @Test(timeOut = 90_000)
+    public void testReplicatorContinuesAfterRateLimiterHasNoPermits() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscriptionName = "sub";
+        final List<String> messages = Arrays.asList("msg-0", "msg-1", "msg-2");
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(2)
+                .build();
+        Producer<String> producer = null;
+        Consumer<String> consumer = null;
+        boolean topicCreated = false;
+        try {
+            admin1.namespaces().setReplicatorDispatchRate(replicatedNamespace, dispatchRate);
+            admin1.topics().createNonPartitionedTopic(topicName);
+            topicCreated = true;
+            waitReplicatorStarted(topicName);
+            consumer = client2.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            producer = client1.newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .create();
+
+            for (String message : messages) {
+                producer.send(message);
+            }
+
+            Set<String> received = new HashSet<>();
+            for (int i = 0; i < messages.size(); i++) {
+                Message<String> message = consumer.receive(30, TimeUnit.SECONDS);
+                assertNotNull(message);
+                received.add(message.getValue());
+                consumer.acknowledge(message);
+            }
+
+            assertEquals(received, new HashSet<>(messages));
+            waitForReplicationTaskFinish(topicName);
+            ensureNoBacklogByInflightTask(getReplicator(topicName));
+        } finally {
+            if (producer != null) {
+                producer.close();
+            }
+            if (consumer != null) {
+                consumer.close();
+            }
+            admin1.namespaces().setReplicatorDispatchRate(replicatedNamespace, null);
+            if (topicCreated) {
+                admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+                waitReplicatorStopped(topicName, false);
+                admin1.topics().delete(topicName, true);
+                admin2.topics().delete(topicName, true);
+            }
+        }
     }
 
     @DataProvider

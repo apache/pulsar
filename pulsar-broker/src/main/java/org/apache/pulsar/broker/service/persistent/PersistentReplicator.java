@@ -313,9 +313,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
         log.debug()
                 .attr("readingEntries", newInFlightTask.readingEntries)
-                .attr("bytesToRead", newInFlightTask.bytesToRead)
+                .attr("maxBytesToRead", newInFlightTask.maxBytesToRead)
                 .log("Scheduling read");
-        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, newInFlightTask.bytesToRead, this,
+        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, newInFlightTask.maxBytesToRead, this,
                 newInFlightTask/* Context object */, topic.getMaxReadPosition());
     }
 
@@ -822,7 +822,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected static class InFlightTask {
         Position readPos;
         int readingEntries;
-        long bytesToRead;
+        long maxBytesToRead;
         volatile List<Entry> entries;
         volatile int completedEntries;
         volatile boolean skipReadResultDueToCursorRewind;
@@ -839,10 +839,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
             }
         }
 
-        synchronized void recycle(Position readStart, int readingEntries, long bytesToRead) {
+        synchronized void recycle(Position readStart, int readingEntries, long maxBytesToRead) {
             this.readPos = readStart;
             this.readingEntries = readingEntries;
-            this.bytesToRead = bytesToRead;
+            this.maxBytesToRead = maxBytesToRead;
             this.entries = null;
             this.completedEntries = 0;
             this.skipReadResultDueToCursorRewind = false;
@@ -852,10 +852,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this(readPos, readingEntries, -1, replicatorId);
         }
 
-        public InFlightTask(Position readPos, int readingEntries, long bytesToRead, String replicatorId) {
+        public InFlightTask(Position readPos, int readingEntries, long maxBytesToRead, String replicatorId) {
             this.readPos = readPos;
             this.readingEntries = readingEntries;
-            this.bytesToRead = bytesToRead;
+            this.maxBytesToRead = maxBytesToRead;
             this.replicatorId = replicatorId;
         }
 
@@ -875,7 +875,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 + "{replicatorId=" + replicatorId
                 + ", readPos=" + readPos
                 + ", readingEntries=" + readingEntries
-                + ", bytesToRead=" + bytesToRead
+                + ", maxBytesToRead=" + maxBytesToRead
                 + ", readoutEntries=" + (entries == null ? "-1" : entries.size())
                 + ", completedEntries=" + completedEntries
                 + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewind
@@ -884,7 +884,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @VisibleForTesting
-    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries, long bytesToRead) {
+    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries, long maxBytesToRead) {
         synchronized (inFlightTasks) {
             // Reuse projects that has done.
             if (!inFlightTasks.isEmpty()) {
@@ -892,13 +892,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 if (first.isDone()) {
                     // Remove from the first index, and add to the latest index.
                     inFlightTasks.poll();
-                    first.recycle(readPos, readingEntries, bytesToRead);
+                    first.recycle(readPos, readingEntries, maxBytesToRead);
                     inFlightTasks.add(first);
                     return first;
                 }
             }
             // New project if nothing can be reused.
-            InFlightTask task = new InFlightTask(readPos, readingEntries, bytesToRead, replicatorId);
+            InFlightTask task = new InFlightTask(readPos, readingEntries, maxBytesToRead, replicatorId);
             inFlightTasks.add(task);
             return task;
         }

@@ -58,6 +58,7 @@ import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -173,14 +174,17 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         }
     }
 
-    @Test
-    public void testRateLimiterWithoutPermitsDoesNotCreateInFlightTask() throws Exception {
-        assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(0, -1);
-        assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(-1, 0);
+    @DataProvider
+    public Object[][] rateLimiterWithoutPermits() {
+        return new Object[][] {
+                {0, -1},
+                {-1, 0}
+        };
     }
 
-    private void assertRateLimiterWithoutPermitsDoesNotCreateInFlightTask(long availableMessages,
-                                                                          long availableBytes) throws Exception {
+    @Test(dataProvider = "rateLimiterWithoutPermits")
+    public void testRateLimiterWithoutPermitsDoesNotCreateInFlightTask(long availableMessages,
+                                                                       long availableBytes) throws Exception {
         PersistentReplicator replicator = getReplicator(topicName);
 
         LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
@@ -259,7 +263,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Assert.assertEquals(inFlightTasks.size(), 1, "Queue should have one task");
         Assert.assertEquals(task1.getReadPos(), position1, "Task should have the correct position");
         Assert.assertEquals(task1.getReadingEntries(), 10, "Task should have the correct reading entries count");
-        Assert.assertEquals(task1.getBytesToRead(), -1, "Task should have the correct byte read limit");
+        Assert.assertEquals(task1.getMaxBytesToRead(), -1, "Task should have the correct byte read limit");
         // Mark the task as done to test recycling
         task1.setEntries(Collections.emptyList());
 
@@ -272,7 +276,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Assert.assertEquals(inFlightTasks.size(), 1, "Queue should still have one task");
         Assert.assertEquals(task2.getReadPos(), position2, "Task should have the updated position");
         Assert.assertEquals(task2.getReadingEntries(), 20, "Task should have the updated reading entries count");
-        Assert.assertEquals(task2.getBytesToRead(), 1024, "Task should have the updated byte read limit");
+        Assert.assertEquals(task2.getMaxBytesToRead(), 1024, "Task should have the updated byte read limit");
 
         // Test Case 3: Create a new task when no tasks can be recycled
         task2.setEntries(null); // Make the task not done
@@ -284,7 +288,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Assert.assertEquals(inFlightTasks.size(), 2, "Queue should have two tasks");
         Assert.assertEquals(task3.getReadPos(), position3, "Task should have the correct position");
         Assert.assertEquals(task3.getReadingEntries(), 30, "Task should have the correct reading entries count");
-        Assert.assertEquals(task3.getBytesToRead(), 2048, "Task should have the correct byte read limit");
+        Assert.assertEquals(task3.getMaxBytesToRead(), 2048, "Task should have the correct byte read limit");
 
         // cleanup.
         log.info("Completed testCreateOrRecycleInFlightTaskIntoQueue");
