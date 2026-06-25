@@ -175,6 +175,13 @@ message MessageMetadata {
     // messages (e.g., `k1 => v1` and `k1 => null` in the example above).
     repeated int32 compacted_batch_indexes = 31;
     optional bytes schema_id = 32;
+
+    // PIP-486 scalable-topic entry-bucketing. The effective entry-bucket hash range covered by this
+    // entry: the smallest and largest entry-bucket hash (the low 16 bits of the key's Murmur3_32 hash)
+    // among the batched messages, both bounds inclusive. Set only by scalable-topic (segment://)
+    // producers; the broker routes the whole entry to the consumer owning that bucket on the segment.
+    optional uint32 entry_hash_min = 33;
+    optional uint32 entry_hash_max = 34;
 }
 
 message SingleMessageMetadata {

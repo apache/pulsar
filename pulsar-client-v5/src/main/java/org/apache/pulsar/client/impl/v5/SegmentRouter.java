@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * Routes messages to the correct segment based on key hashing.
  *
- * <p>Uses MurmurHash3 masked to a 16-bit hash space (0x0000-0xFFFF)
- * and finds the active segment whose hash range contains the hash.
+ * <p>Segment routing uses the <b>high 16 bits</b> of the key's {@code Murmur3_32} hash as a 16-bit
+ * hash space (0x0000-0xFFFF), and finds the active segment whose hash range contains it. The
+ * <b>low 16 bits</b> of the same hash are reserved for PIP-486 entry-bucketing
+ * ({@link #entryBucketHash}), so the two are independent.
  */
 final class SegmentRouter {
 
@@ -87,8 +91,7 @@ final class SegmentRouter {
      * ({@code signSafeMod(murmurHash3_32(key), N)}).
      */
     private static long routeModN(String key, List<ActiveSegment> activeSegments) {
-        int hash32 = org.apache.pulsar.common.util.Murmur3_32Hash.getInstance()
-                .makeHash(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        int hash32 = Murmur3_32Hash.getInstance().makeHash(key.getBytes(StandardCharsets.UTF_8));
         int n = activeSegments.size();
         int partition = signSafeMod(hash32, n);
         for (var segment : activeSegments) {
@@ -105,19 +108,33 @@ final class SegmentRouter {
         return mod < 0 ? mod + divisor : mod;
     }
 
-    /**
-     * Compute the 16-bit hash for a key using MurmurHash3.
-     */
-    static int hash(String key) {
-        return hash(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    /** The raw 32-bit {@code Murmur3_32} hash of the key — its two 16-bit halves drive the two
+     *  independent rings: high half → segment routing, low half → entry-bucketing (PIP-486). The
+     *  <i>raw</i> (unmasked) hash is required so the high half is full-range; {@code makeHash} clears
+     *  bit 31, which would confine the high half to [0, 0x7FFF]. */
+    static int murmur(byte[] keyBytes) {
+        return Murmur3_32Hash.makeRawHash(keyBytes);
     }
 
-    /**
-     * Compute the 16-bit hash for key bytes.
-     */
+    /** Compute the 16-bit segment-routing hash (high 16 bits of Murmur3) for a key. */
+    static int hash(String key) {
+        return hash(key.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Compute the 16-bit segment-routing hash (high 16 bits of Murmur3) for key bytes. */
     static int hash(byte[] keyBytes) {
-        int hash32 = org.apache.pulsar.common.util.Murmur3_32Hash.getInstance().makeHash(keyBytes);
-        return hash32 & HashRange.MAX_HASH;
+        return (murmur(keyBytes) >>> 16) & HashRange.MAX_HASH;
+    }
+
+    /** Compute the 16-bit entry-bucket hash (low 16 bits of Murmur3) for a key (PIP-486). Independent
+     *  of the segment-routing hash, so a segment's keys spread evenly across its entry buckets. */
+    static int entryBucketHash(String key) {
+        return entryBucketHash(key.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Compute the 16-bit entry-bucket hash (low 16 bits of Murmur3) for key bytes (PIP-486). */
+    static int entryBucketHash(byte[] keyBytes) {
+        return murmur(keyBytes) & HashRange.MAX_HASH;
     }
 
     /**
