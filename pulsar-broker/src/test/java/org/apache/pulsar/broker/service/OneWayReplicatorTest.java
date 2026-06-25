@@ -2445,11 +2445,17 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Producer<String> producer = null;
         Consumer<String> consumer = null;
         boolean topicCreated = false;
+        boolean dispatchRateConfigured = false;
         try {
-            admin1.namespaces().setReplicatorDispatchRate(replicatedNamespace, dispatchRate);
             admin1.topics().createNonPartitionedTopic(topicName);
             topicCreated = true;
-            waitReplicatorStarted(topicName);
+            admin1.topicPolicies().setReplicatorDispatchRate(topicName, dispatchRate);
+            dispatchRateConfigured = true;
+            GeoPersistentReplicator replicator = getReplicator(topicName);
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(replicator.getRateLimiter().isPresent());
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnMsg(), 1);
+            });
             consumer = client2.newConsumer(Schema.STRING)
                     .topic(topicName)
                     .subscriptionName(subscriptionName)
@@ -2474,7 +2480,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
             assertEquals(received, new HashSet<>(messages));
             waitForReplicationTaskFinish(topicName);
-            ensureNoBacklogByInflightTask(getReplicator(topicName));
+            ensureNoBacklogByInflightTask(replicator);
         } finally {
             if (producer != null) {
                 producer.close();
@@ -2482,7 +2488,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             if (consumer != null) {
                 consumer.close();
             }
-            admin1.namespaces().setReplicatorDispatchRate(replicatedNamespace, null);
+            if (dispatchRateConfigured) {
+                admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+            }
             if (topicCreated) {
                 admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
                 waitReplicatorStopped(topicName, false);

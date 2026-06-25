@@ -219,7 +219,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         this.cursor.setInactive();
     }
 
-    private record ReadLimits(int messages, long bytes) {
+    @VisibleForTesting
+    record ReadLimits(int messages, long bytes) {
         public boolean isReadable() {
             return messages > 0 && bytes > 0;
         }
@@ -301,9 +302,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (state.equals(Terminated) || state.equals(Terminating)) {
             return;
         }
-        InFlightTask newInFlightTask = maybeCreateInFlightReadTask();
+        InFlightTask newInFlightTask = null;
+        ReadLimits readLimits = null;
+        synchronized (inFlightTasks) {
+            readLimits = maybeGetReadLimitsForNextReadInLock();
+            if (readLimits != null) {
+                newInFlightTask = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), readLimits.messages);
+            }
+        }
         if (newInFlightTask == null) {
-            // no permits from rate limit
             log.debug("Not scheduling read due to pending read or no permits");
             if (!hasPendingRead()) {
                 topic.getBrokerService().executor().schedule(
@@ -313,9 +320,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
         log.debug()
                 .attr("readingEntries", newInFlightTask.readingEntries)
-                .attr("maxBytesToRead", newInFlightTask.maxBytesToRead)
                 .log("Scheduling read");
-        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, newInFlightTask.maxBytesToRead, this,
+        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, readLimits.bytes, this,
                 newInFlightTask/* Context object */, topic.getMaxReadPosition());
     }
 
@@ -822,7 +828,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected static class InFlightTask {
         Position readPos;
         int readingEntries;
-        long maxBytesToRead;
         volatile List<Entry> entries;
         volatile int completedEntries;
         volatile boolean skipReadResultDueToCursorRewind;
@@ -839,23 +844,17 @@ public abstract class PersistentReplicator extends AbstractReplicator
             }
         }
 
-        synchronized void recycle(Position readStart, int readingEntries, long maxBytesToRead) {
+        synchronized void recycle(Position readStart, int readingEntries) {
             this.readPos = readStart;
             this.readingEntries = readingEntries;
-            this.maxBytesToRead = maxBytesToRead;
             this.entries = null;
             this.completedEntries = 0;
             this.skipReadResultDueToCursorRewind = false;
         }
 
         public InFlightTask(Position readPos, int readingEntries, String replicatorId) {
-            this(readPos, readingEntries, -1, replicatorId);
-        }
-
-        public InFlightTask(Position readPos, int readingEntries, long maxBytesToRead, String replicatorId) {
             this.readPos = readPos;
             this.readingEntries = readingEntries;
-            this.maxBytesToRead = maxBytesToRead;
             this.replicatorId = replicatorId;
         }
 
@@ -875,7 +874,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 + "{replicatorId=" + replicatorId
                 + ", readPos=" + readPos
                 + ", readingEntries=" + readingEntries
-                + ", maxBytesToRead=" + maxBytesToRead
                 + ", readoutEntries=" + (entries == null ? "-1" : entries.size())
                 + ", completedEntries=" + completedEntries
                 + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewind
@@ -884,7 +882,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @VisibleForTesting
-    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries, long maxBytesToRead) {
+    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries) {
         synchronized (inFlightTasks) {
             // Reuse projects that has done.
             if (!inFlightTasks.isEmpty()) {
@@ -892,58 +890,60 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 if (first.isDone()) {
                     // Remove from the first index, and add to the latest index.
                     inFlightTasks.poll();
-                    first.recycle(readPos, readingEntries, maxBytesToRead);
+                    first.recycle(readPos, readingEntries);
                     inFlightTasks.add(first);
                     return first;
                 }
             }
             // New project if nothing can be reused.
-            InFlightTask task = new InFlightTask(readPos, readingEntries, maxBytesToRead, replicatorId);
+            InFlightTask task = new InFlightTask(readPos, readingEntries, replicatorId);
             inFlightTasks.add(task);
             return task;
         }
     }
 
     @VisibleForTesting
-    InFlightTask maybeCreateInFlightReadTask() {
+    ReadLimits maybeGetReadLimitsForNextRead() {
         synchronized (inFlightTasks) {
-            if (hasPendingRead()) {
-                log.info("Skip the reading because there is a pending read task");
-                return null;
-            }
-            if (waitForCursorRewindingRefCnf > 0) {
-                log.info("Skip the reading due to new detected schema");
-                return null;
-            }
-            if (state != Started) {
-                log.info("Skip the reading because producer has not started");
-                return null;
-            }
-            int permits = getPermitsIfNoPendingRead();
-            if (permits <= 0) {
-                return null;
-            }
-
-            if (!isWritable()) {
-                log.debug("Throttling replication traffic to a single message permit because producer is not writable");
-                // Minimize the read size if the producer is disconnected or the window is already full
-                permits = 1;
-            }
-
-            ReadLimits readLimits = getReadLimits(permits);
-
-            if (!readLimits.isReadable()) {
-                // no rate limiter permits from rate limit
-                log.debug()
-                        .attr("messages", readLimits.messages)
-                        .attr("bytes", readLimits.bytes)
-                        .log("Throttling replication traffic");
-                return null;
-            }
-
-            return createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), readLimits.messages,
-                    readLimits.bytes);
+            return maybeGetReadLimitsForNextReadInLock();
         }
+    }
+
+    private ReadLimits maybeGetReadLimitsForNextReadInLock() {
+        if (hasPendingRead()) {
+            log.info("Skip the reading because there is a pending read task");
+            return null;
+        }
+        if (waitForCursorRewindingRefCnf > 0) {
+            log.info("Skip the reading due to new detected schema");
+            return null;
+        }
+        if (state != Started) {
+            log.info("Skip the reading because producer has not started");
+            return null;
+        }
+        int permits = getPermitsIfNoPendingRead();
+        if (permits <= 0) {
+            return null;
+        }
+
+        if (!isWritable()) {
+            log.debug("Throttling replication traffic to a single message permit because producer is not writable");
+            // Minimize the read size if the producer is disconnected or the window is already full
+            permits = 1;
+        }
+
+        ReadLimits readLimits = getReadLimits(permits);
+
+        if (!readLimits.isReadable()) {
+            // no rate limiter permits from rate limit
+            log.debug()
+                    .attr("messages", readLimits.messages)
+                    .attr("bytes", readLimits.bytes)
+                    .log("Throttling replication traffic");
+            return null;
+        }
+        return readLimits;
     }
 
     protected int getPermitsIfNoPendingRead() {
