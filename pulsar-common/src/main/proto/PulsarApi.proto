@@ -872,10 +872,12 @@ message SegmentInfoProto {
     // from the scalable topic name and segment_id (segment://<topic>/<descriptor>).
     optional string legacy_topic_name = 11;
 
-    // PIP-486: number of entry-buckets this segment is divided into. Equal-width sub-ranges of the
-    // 16-bit entry-bucket hash ring; producers bucket their batches accordingly and the broker routes
-    // by bucket. Defaults to 1 (no intra-segment bucketing).
-    optional uint32 bucket_count = 12 [default = 1];
+    // PIP-486: entry-bucket split points — the ascending, inclusive start hashes of buckets 1..N-1
+    // within the 16-bit entry-bucket hash ring (bucket 0 implicitly starts at 0x0000). The segment is
+    // divided into entry_bucket_splits_count + 1 buckets; an empty list means a single bucket spanning
+    // the whole ring. Splits may be uneven (e.g. to balance buckets by traffic). Producers bucket their
+    // batches accordingly and the broker routes by bucket.
+    repeated uint32 entry_bucket_splits = 12;
 }
 
 message SegmentBrokerAddress {

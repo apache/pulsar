@@ -148,12 +148,16 @@ final class SegmentRouter {
      * {@code segmentTopicName} otherwise.
      */
     record ActiveSegment(long segmentId, HashRange hashRange, String segmentTopicName,
-                         String legacyTopicName, int bucketCount) {
+                         String legacyTopicName, List<Integer> entryBucketSplits) {
 
         ActiveSegment {
-            // PIP-486: a segment is divided into bucketCount entry-buckets (>= 1). Normalize so a
-            // missing/zero value (e.g. an older broker) behaves as a single bucket.
-            bucketCount = bucketCount > 0 ? bucketCount : 1;
+            // PIP-486: entry-bucket split points (empty = single bucket over the whole ring).
+            entryBucketSplits = entryBucketSplits != null ? List.copyOf(entryBucketSplits) : List.of();
+        }
+
+        /** Number of entry-buckets this segment is divided into ({@code entryBucketSplits.size()+1}). */
+        int bucketCount() {
+            return entryBucketSplits.size() + 1;
         }
 
         boolean isLegacy() {

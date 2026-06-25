@@ -31,12 +31,14 @@ import org.testng.annotations.Test;
 public class SegmentRouterTest {
 
     private static ActiveSegment seg(long id, int start, int end) {
-        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id, null, 1);
+        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id, null,
+                java.util.List.of());
     }
 
     /** Build a legacy segment (synthetic-layout entry wrapping an externally managed persistent:// topic). */
     private static ActiveSegment legacySeg(long id, int start, int end, String underlying) {
-        return new ActiveSegment(id, HashRange.of(start, end), "segment://t/n/x/" + id, underlying, 1);
+        return new ActiveSegment(id, HashRange.of(start, end), "segment://t/n/x/" + id, underlying,
+                java.util.List.of());
     }
 
     // --- route(key, ...) ---

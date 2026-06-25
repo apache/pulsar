@@ -319,7 +319,8 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                     HashRange.of((int) s.getHashStart(), (int) s.getHashEnd()),
                     s.getSegmentTopic(),
                     /*legacyTopicName*/ null,
-                    /*bucketCount, set by the controller assignment in a later PIP-486 PR*/ 1));
+                    /*entryBucketSplits, set by the controller assignment in a later PIP-486 PR*/
+                    List.of()));
         }
         return Collections.unmodifiableList(segments);
     }

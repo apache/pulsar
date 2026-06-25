@@ -466,7 +466,7 @@ public class DagWatchSessionTest {
                 createdAtMs,
                 sealedAtMs,
                 null,
-                1);
+                java.util.List.of());
     }
 
     private static java.util.List<Long> toList(long[] arr) {

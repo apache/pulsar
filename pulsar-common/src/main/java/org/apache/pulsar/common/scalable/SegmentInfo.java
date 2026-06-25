@@ -54,10 +54,11 @@ import java.util.List;
  * @param legacyTopicName    for legacy segments: the externally managed
  *                           {@code persistent://...} topic this segment wraps.
  *                           {@code null} for regular controller-managed segments.
- * @param bucketCount        number of entry-buckets this segment is divided into (PIP-486),
- *                           immutable for the segment's life. Defaults to 1 (no intra-segment
- *                           bucketing). A value of {@code <= 0} (e.g. from older persisted
- *                           metadata) is normalized to 1.
+ * @param entryBucketSplits  PIP-486 entry-bucket split points: the ascending, inclusive start hashes
+ *                           of buckets 1..N-1 within the 16-bit entry-bucket ring (bucket 0 implicitly
+ *                           starts at 0x0000). The segment has {@code entryBucketSplits.size() + 1}
+ *                           buckets; an empty list means a single bucket over the whole ring. Splits
+ *                           may be uneven. Immutable for the segment's life.
  */
 public record SegmentInfo(
         long segmentId,
@@ -70,26 +71,31 @@ public record SegmentInfo(
         long createdAtMs,
         long sealedAtMs,
         String legacyTopicName,
-        int bucketCount
+        List<Integer> entryBucketSplits
 ) {
     public SegmentInfo {
         parentIds = parentIds != null ? List.copyOf(parentIds) : List.of();
         childIds = childIds != null ? List.copyOf(childIds) : List.of();
-        bucketCount = bucketCount > 0 ? bucketCount : 1;
+        entryBucketSplits = entryBucketSplits != null ? List.copyOf(entryBucketSplits) : List.of();
+    }
+
+    /** Number of entry-buckets this segment is divided into ({@code entryBucketSplits.size() + 1}). */
+    public int bucketCount() {
+        return entryBucketSplits.size() + 1;
     }
 
     /** Create a new active segment with no parents (single entry-bucket). */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, null, 1);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, null, List.of());
     }
 
     /** Create a new active segment with the given parent IDs (single entry-bucket). */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      List<Long> parentIds, long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1, null, 1);
+                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1, null, List.of());
     }
 
     /**
@@ -101,35 +107,35 @@ public record SegmentInfo(
                                            String legacyTopicName,
                                            long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, legacyTopicName, 1);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, legacyTopicName, List.of());
     }
 
     /** Return a sealed copy of this segment with the given child IDs. */
     public SegmentInfo sealed(long sealedAtEpoch, long sealedAtMs, List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.SEALED,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName, bucketCount);
+                legacyTopicName, entryBucketSplits);
     }
 
     /** Return a copy with different parent IDs. */
     public SegmentInfo withParentIds(List<Long> parentIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName, bucketCount);
+                legacyTopicName, entryBucketSplits);
     }
 
     /** Return a copy with different child IDs. */
     public SegmentInfo withChildIds(List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName, bucketCount);
+                legacyTopicName, entryBucketSplits);
     }
 
-    /** Return a copy with a different entry-bucket count (PIP-486). */
-    public SegmentInfo withBucketCount(int bucketCount) {
+    /** Return a copy with different entry-bucket split points (PIP-486). */
+    public SegmentInfo withEntryBucketSplits(List<Integer> entryBucketSplits) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName, bucketCount);
+                legacyTopicName, entryBucketSplits);
     }
 
     /**

@@ -341,8 +341,10 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
             if (seg.legacyTopicName() != null) {
                 segProto.setLegacyTopicName(seg.legacyTopicName());
             }
-            // PIP-486: per-segment entry-bucket count (1 = no intra-segment bucketing).
-            segProto.setBucketCount(seg.bucketCount());
+            // PIP-486: per-segment entry-bucket split points (empty = single bucket).
+            for (int i = 0; i < seg.entryBucketSplits().size(); i++) {
+                segProto.addEntryBucketSplit(seg.entryBucketSplits().get(i));
+            }
         }
 
         // Add broker addresses for active segments
