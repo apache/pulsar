@@ -871,6 +871,11 @@ message SegmentInfoProto {
     // been migrated to a scalable topic. When absent, the segment URI is computed normally
     // from the scalable topic name and segment_id (segment://<topic>/<descriptor>).
     optional string legacy_topic_name = 11;
+
+    // PIP-486: number of entry-buckets this segment is divided into. Equal-width sub-ranges of the
+    // 16-bit entry-bucket hash ring; producers bucket their batches accordingly and the broker routes
+    // by bucket. Defaults to 1 (no intra-segment bucketing).
+    optional uint32 bucket_count = 12 [default = 1];
 }
 
 message SegmentBrokerAddress {

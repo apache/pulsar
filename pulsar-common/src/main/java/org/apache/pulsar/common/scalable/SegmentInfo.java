@@ -54,6 +54,10 @@ import java.util.List;
  * @param legacyTopicName    for legacy segments: the externally managed
  *                           {@code persistent://...} topic this segment wraps.
  *                           {@code null} for regular controller-managed segments.
+ * @param bucketCount        number of entry-buckets this segment is divided into (PIP-486),
+ *                           immutable for the segment's life. Defaults to 1 (no intra-segment
+ *                           bucketing). A value of {@code <= 0} (e.g. from older persisted
+ *                           metadata) is normalized to 1.
  */
 public record SegmentInfo(
         long segmentId,
@@ -65,25 +69,27 @@ public record SegmentInfo(
         long sealedAtEpoch,
         long createdAtMs,
         long sealedAtMs,
-        String legacyTopicName
+        String legacyTopicName,
+        int bucketCount
 ) {
     public SegmentInfo {
         parentIds = parentIds != null ? List.copyOf(parentIds) : List.of();
         childIds = childIds != null ? List.copyOf(childIds) : List.of();
+        bucketCount = bucketCount > 0 ? bucketCount : 1;
     }
 
-    /** Create a new active segment with no parents. */
+    /** Create a new active segment with no parents (single entry-bucket). */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, null);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, null, 1);
     }
 
-    /** Create a new active segment with the given parent IDs. */
+    /** Create a new active segment with the given parent IDs (single entry-bucket). */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
                                      List<Long> parentIds, long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1, null);
+                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1, null, 1);
     }
 
     /**
@@ -95,28 +101,35 @@ public record SegmentInfo(
                                            String legacyTopicName,
                                            long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, legacyTopicName);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1, legacyTopicName, 1);
     }
 
     /** Return a sealed copy of this segment with the given child IDs. */
     public SegmentInfo sealed(long sealedAtEpoch, long sealedAtMs, List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.SEALED,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName);
+                legacyTopicName, bucketCount);
     }
 
     /** Return a copy with different parent IDs. */
     public SegmentInfo withParentIds(List<Long> parentIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName);
+                legacyTopicName, bucketCount);
     }
 
     /** Return a copy with different child IDs. */
     public SegmentInfo withChildIds(List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, state,
                 parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
-                legacyTopicName);
+                legacyTopicName, bucketCount);
+    }
+
+    /** Return a copy with a different entry-bucket count (PIP-486). */
+    public SegmentInfo withBucketCount(int bucketCount) {
+        return new SegmentInfo(segmentId, hashRange, state,
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs,
+                legacyTopicName, bucketCount);
     }
 
     /**

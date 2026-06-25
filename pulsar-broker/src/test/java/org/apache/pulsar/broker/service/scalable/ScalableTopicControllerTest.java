@@ -539,19 +539,19 @@ public class ScalableTopicControllerTest {
                 org.apache.pulsar.common.scalable.SegmentState.SEALED,
                 java.util.List.of(), java.util.List.of(3L),
                 /*createdAtEpoch*/ 0, /*sealedAtEpoch*/ 1,
-                /*createdAtMs*/ t0, /*sealedAtMs*/ t1, null);
+                /*createdAtMs*/ t0, /*sealedAtMs*/ t1, null, /*bucketCount*/ 1);
         org.apache.pulsar.common.scalable.SegmentInfo seg1 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 1L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x4000, 0x7FFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
                 java.util.List.of(), java.util.List.of(),
-                0, -1, t1, -1, null);
+                0, -1, t1, -1, null, /*bucketCount*/ 1);
         org.apache.pulsar.common.scalable.SegmentInfo seg2 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 2L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x8000, 0xFFFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
                 java.util.List.of(), java.util.List.of(),
-                0, -1, t3, -1, null);
+                0, -1, t3, -1, null, /*bucketCount*/ 1);
 
         TopicName seekTopic = TopicName.get("topic://tenant/ns/seek-topic");
         ScalableTopicMetadata md = ScalableTopicMetadata.builder()

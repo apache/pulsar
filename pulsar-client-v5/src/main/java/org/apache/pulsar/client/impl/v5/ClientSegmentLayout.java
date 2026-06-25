@@ -83,7 +83,8 @@ final class ClientSegmentLayout {
             // managed persistent:// topic) carry that URI. Regular controller-managed
             // segments leave it null and attach to segTopicName instead.
             String legacy = seg.hasLegacyTopicName() ? seg.getLegacyTopicName() : null;
-            ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName, legacy);
+            ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName, legacy,
+                    seg.getBucketCount());
             if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.ACTIVE) {
                 activeSegments.add(ref);
             } else if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.SEALED) {
