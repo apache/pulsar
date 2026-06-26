@@ -141,7 +141,9 @@ class ImmutableBucket extends Bucket {
                         List<DelayedIndex> indexList = snapshotSegment.getIndexesList();
                         this.setCurrentSegmentEntryId(nextSegmentEntryId);
                         if (isRecover) {
-                            return this.asyncUpdateSnapshotLength().thenApply(__ -> indexList);
+                            return this.asyncUpdateSnapshotLength()
+                                    .thenAccept(this::setSnapshotLength)
+                                    .thenApply(__ -> indexList);
                         }
                         return CompletableFuture.completedFuture(indexList);
                     });
@@ -245,8 +247,6 @@ class ImmutableBucket extends Bucket {
                         .attr("bucketKey", bucketKey())
                         .exception(ex)
                         .log("Failed to get snapshot length");
-            } else {
-                setSnapshotLength(length);
             }
         });
     }
