@@ -2432,14 +2432,22 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         ensureNoBacklogByInflightTask(getReplicator(topicName));
     }
 
-    @Test(timeOut = 90_000)
-    public void testReplicatorContinuesAfterRateLimiterHasNoPermits() throws Exception {
+    @DataProvider
+    public Object[][] replicatorDispatchRateLimits() {
+        return new Object[][] {
+                {1, -1L},
+                {-1, 1L}
+        };
+    }
+
+    @Test(timeOut = 90_000, dataProvider = "replicatorDispatchRateLimits")
+    public void testReplicatorContinuesAfterRateLimiterHasNoPermits(int messageRate, long byteRate) throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
         final String subscriptionName = "sub";
         final List<String> messages = Arrays.asList("msg-0", "msg-1", "msg-2");
         DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(1)
-                .dispatchThrottlingRateInByte(-1)
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(byteRate)
                 .ratePeriodInSecond(2)
                 .build();
         Producer<String> producer = null;
@@ -2454,7 +2462,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             GeoPersistentReplicator replicator = getReplicator(topicName);
             Awaitility.await().untilAsserted(() -> {
                 assertTrue(replicator.getRateLimiter().isPresent());
-                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnMsg(), 1);
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnMsg(), messageRate);
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnByte(), byteRate);
             });
             consumer = client2.newConsumer(Schema.STRING)
                     .topic(topicName)
