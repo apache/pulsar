@@ -70,7 +70,7 @@ public class PulsarAdminException extends Exception {
     }
 
     /**
-     * This method is meant to be overriden by all subclasses.
+     * This method is meant to be overridden by all subclasses.
      * We cannot make it 'abstract' because it would be a breaking change in the public API.
      * @return a new PulsarAdminException
      */

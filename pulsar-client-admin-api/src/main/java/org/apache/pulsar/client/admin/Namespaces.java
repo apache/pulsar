@@ -1233,7 +1233,7 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      * @param enableDeduplication
-     *            wether to enable or disable deduplication feature
+     *            whether to enable or disable deduplication feature
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission

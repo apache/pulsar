@@ -723,7 +723,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                     rangeMap.put(list.getKey(), values);
                 }
-                // Guarantee compatability for the config "unackedRangesOpenCacheSetEnabled".
+                // Guarantee compatibility for the config "unackedRangesOpenCacheSetEnabled".
                 if (getConfig().isUnackedRangesOpenCacheSetEnabled()) {
                     individualDeletedMessages.build(rangeMap);
                 } else {

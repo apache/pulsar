@@ -4147,7 +4147,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Thread thread = new Thread(() -> {
             try {
-                // sleep 0.1 second to close consumer to ensure consumer.receive() is triggerd
+                // sleep 0.1 second to close consumer to ensure consumer.receive() is triggered
                 Thread.sleep(1000);
                 consumer.close();
             } catch (Exception e) {
