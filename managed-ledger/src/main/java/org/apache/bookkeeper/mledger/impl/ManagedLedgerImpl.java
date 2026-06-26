@@ -4354,17 +4354,38 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     Pair<Position, Long> getFirstPositionAndCounter() {
         Position pos;
+        Position firstPosition;
         long count;
         Pair<Position, Long> lastPositionAndCounter;
 
         do {
-            pos = getFirstPosition();
+            firstPosition = getFirstPosition();
             lastPositionAndCounter = getLastPositionAndCounter();
-            count = lastPositionAndCounter.getRight()
-                    - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.getLeft()));
-        } while (pos.compareTo(getFirstPosition()) != 0
+            if (isSyntheticFirstPosition(firstPosition)) {
+                pos = lastPositionAndCounter.getLeft();
+                count = lastPositionAndCounter.getRight();
+            } else {
+                pos = firstPosition;
+                count = lastPositionAndCounter.getRight()
+                        - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.getLeft()));
+            }
+        } while (firstPosition.compareTo(getFirstPosition()) != 0
                 || lastPositionAndCounter.getLeft().compareTo(getLastPosition()) != 0);
         return Pair.of(pos, count);
+    }
+
+    private boolean isSyntheticFirstPosition(Position position) {
+        Long firstLedgerId = ledgers.firstKey();
+        if (firstLedgerId == null || position == null) {
+            return false;
+        }
+
+        LedgerInfo firstLedger = ledgers.get(firstLedgerId);
+        return firstLedgerId > lastConfirmedEntry.getLedgerId()
+                && position.getLedgerId() == lastConfirmedEntry.getLedgerId()
+                && position.getEntryId() == -1
+                && firstLedger != null
+                && firstLedger.getEntries() == 0;
     }
 
     public void activateCursor(ManagedCursor cursor) {

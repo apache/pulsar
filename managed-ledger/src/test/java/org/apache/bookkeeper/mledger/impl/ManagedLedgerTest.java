@@ -2554,6 +2554,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testEarliestCursorAfterTrimmedLedgersUsesCurrentEntriesAddedCounter() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setRetentionTime(0, TimeUnit.MINUTES);
+        config.setMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("earliest_cursor_after_trimmed_ledgers", config);
+        ManagedCursor cursor = ml.openCursor("c1");
+        ml.addEntry("message1".getBytes(Encoding));
+        cursor.skipEntries(1, IndividualDeletedEntries.Exclude);
+        cursor.close();
+        ml.deleteCursor(cursor.getName());
+        ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
+
+        assertFalse(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.getLedgerId()),
+                "the ledger at lastConfirmedEntry has not been trimmed!");
+
+        Pair<Position, Long> earliestPositionAndCounter = ml.getFirstPositionAndCounter();
+        assertEquals(earliestPositionAndCounter.getLeft(), ml.getLastConfirmedEntry());
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), ml.getEntriesAddedCounter());
+
+        ManagedCursorImpl earliestCursor = (ManagedCursorImpl) ml.openCursor("earliest", InitialPosition.Earliest);
+        assertEquals(earliestCursor.getMessagesConsumedCounter(), ml.getEntriesAddedCounter());
+        assertEquals(earliestCursor.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(earliestCursor.getNumberOfEntriesInBacklog(true), 0);
+        assertEquals(earliestCursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
+        earliestCursor.close();
+        ml.close();
+    }
+
+    @Test
     public void testInfiniteRetention() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
