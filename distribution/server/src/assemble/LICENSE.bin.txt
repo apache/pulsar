@@ -249,17 +249,17 @@ The Apache Software License, Version 2.0
      - info.picocli-picocli-shell-jline3-4.7.7.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.21.jar
-     - com.fasterxml.jackson.core-jackson-core-2.21.3.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.21.3.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.21.3.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.21.3.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.21.3.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.21.3.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.21.3.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.22.jar
+     - com.fasterxml.jackson.core-jackson-core-2.22.0.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.22.0.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.22.0.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.22.0.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.22.0.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.22.0.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.22.0.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.4.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
