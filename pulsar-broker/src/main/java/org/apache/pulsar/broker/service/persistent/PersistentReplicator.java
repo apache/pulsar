@@ -219,8 +219,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         this.cursor.setInactive();
     }
 
-    @VisibleForTesting
-    record ReadLimits(int messages, long bytes) {
+    private record ReadLimits(int messages, long bytes) {
         public boolean isReadable() {
             return messages > 0 && bytes > 0;
         }
@@ -899,13 +898,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
             InFlightTask task = new InFlightTask(readPos, readingEntries, replicatorId);
             inFlightTasks.add(task);
             return task;
-        }
-    }
-
-    @VisibleForTesting
-    ReadLimits maybeGetReadLimitsForNextRead() {
-        synchronized (inFlightTasks) {
-            return maybeGetReadLimitsForNextReadInLock();
         }
     }
 
