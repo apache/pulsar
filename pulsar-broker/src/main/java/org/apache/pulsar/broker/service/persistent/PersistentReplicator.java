@@ -304,9 +304,34 @@ public abstract class PersistentReplicator extends AbstractReplicator
         InFlightTask newInFlightTask = null;
         ReadLimits readLimits = null;
         synchronized (inFlightTasks) {
-            readLimits = maybeGetReadLimitsForNextReadInLock();
-            if (readLimits != null) {
-                newInFlightTask = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), readLimits.messages);
+            if (hasPendingRead()) {
+                log.debug("Skip the reading because there is a pending read task");
+            } else if (waitForCursorRewindingRefCnf > 0) {
+                log.debug("Skip the reading due to new detected schema");
+            } else if (state != Started) {
+                log.debug("Skip the reading because producer has not started");
+            } else {
+                int permits = getPermitsIfNoPendingRead();
+                if (permits > 0) {
+                    if (!isWritable()) {
+                        log.debug("Throttling replication traffic to a single message permit because producer is not "
+                                + "writable");
+                        // Minimize the read size if the producer is disconnected or the window is already full.
+                        permits = 1;
+                    }
+
+                    readLimits = getReadLimits(permits);
+                    if (readLimits.isReadable()) {
+                        newInFlightTask = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(),
+                                readLimits.messages);
+                    } else {
+                        // no rate limiter permits from rate limit
+                        log.debug()
+                                .attr("messages", readLimits.messages)
+                                .attr("bytes", readLimits.bytes)
+                                .log("Throttling replication traffic");
+                    }
+                }
             }
         }
         if (newInFlightTask == null) {
@@ -899,43 +924,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
             inFlightTasks.add(task);
             return task;
         }
-    }
-
-    private ReadLimits maybeGetReadLimitsForNextReadInLock() {
-        if (hasPendingRead()) {
-            log.info("Skip the reading because there is a pending read task");
-            return null;
-        }
-        if (waitForCursorRewindingRefCnf > 0) {
-            log.info("Skip the reading due to new detected schema");
-            return null;
-        }
-        if (state != Started) {
-            log.info("Skip the reading because producer has not started");
-            return null;
-        }
-        int permits = getPermitsIfNoPendingRead();
-        if (permits <= 0) {
-            return null;
-        }
-
-        if (!isWritable()) {
-            log.debug("Throttling replication traffic to a single message permit because producer is not writable");
-            // Minimize the read size if the producer is disconnected or the window is already full
-            permits = 1;
-        }
-
-        ReadLimits readLimits = getReadLimits(permits);
-
-        if (!readLimits.isReadable()) {
-            // no rate limiter permits from rate limit
-            log.debug()
-                    .attr("messages", readLimits.messages)
-                    .attr("bytes", readLimits.bytes)
-                    .log("Throttling replication traffic");
-            return null;
-        }
-        return readLimits;
     }
 
     protected int getPermitsIfNoPendingRead() {

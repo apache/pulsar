@@ -18,43 +18,64 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractReplicator;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.OneWayReplicatorTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ProducerSendCallback;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ReasonOfWaitForCursorRewinding;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -196,6 +217,63 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             inFlightTasks.clear();
             inFlightTasks.addAll(originalTasks);
         }
+    }
+
+    @DataProvider
+    public Object[][] readSchedulingLimits() {
+        return new Object[][] {
+                {"message permits exhausted", 0, -1L, true, false, 0, 0L},
+                {"byte permits exhausted", -1, 0L, true, false, 0, 0L},
+                {"message permits limit read batch", 5, -1L, true, true, 5, 1024L},
+                {"byte permits limit read size", -1, 512L, true, true, 100, 512L},
+                {"non-writable producer limits read batch", 5, 512L, false, true, 1, 512L}
+        };
+    }
+
+    @Test(dataProvider = "readSchedulingLimits")
+    public void testReadMoreEntriesSchedulesCursorReadWithReadLimits(String scenario,
+                                                                     long availableMessages,
+                                                                     long availableBytes,
+                                                                     boolean writable,
+                                                                     boolean expectRead,
+                                                                     int expectedMessages,
+                                                                     long expectedBytes) throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture(writable);
+        PersistentReplicator replicator = fixture.replicator;
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.isDispatchRateLimitingEnabled()).thenReturn(true);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(availableMessages);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(availableBytes);
+        replicator.dispatchRateLimiter = Optional.of(rateLimiter);
+
+        replicator.readMoreEntries();
+
+        if (expectRead) {
+            assertEquals(replicator.inFlightTasks.size(), 1, scenario);
+            InFlightTask inFlightTask = replicator.inFlightTasks.peek();
+            verify(fixture.cursor).asyncReadEntriesOrWait(eq(expectedMessages), eq(expectedBytes),
+                    same(replicator), same(inFlightTask), any(Position.class));
+            assertEquals(inFlightTask.getReadingEntries(), expectedMessages, scenario);
+            verify(fixture.executor, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        } else {
+            verify(fixture.cursor, never()).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+            assertTrue(replicator.inFlightTasks.isEmpty(), scenario);
+            verify(fixture.executor).schedule(any(Runnable.class), eq((long) PersistentTopic.MESSAGE_RATE_BACKOFF_MS),
+                    eq(TimeUnit.MILLISECONDS));
+        }
+    }
+
+    @Test
+    public void testReadMoreEntriesSkipsReadWhenPendingReadExists() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture(true);
+        PersistentReplicator replicator = fixture.replicator;
+        replicator.inFlightTasks.add(new InFlightTask(PositionFactory.create(1, 1), 5, replicator.getReplicatorId()));
+
+        replicator.readMoreEntries();
+
+        verify(fixture.cursor, never()).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        verify(fixture.executor, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        assertEquals(replicator.inFlightTasks.size(), 1);
     }
 
     @Test
@@ -385,6 +463,97 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // Restore original tasks
             inFlightTasks.clear();
             inFlightTasks.addAll(originalTasks);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private TestReplicatorFixture newTestReplicatorFixture(boolean writable) throws Exception {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setClusterName("local");
+        configuration.setReplicationProducerQueueSize(1000);
+        configuration.setDispatcherMaxReadBatchSize(100);
+        configuration.setDispatcherMaxReadSizeBytes(1024);
+
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(configuration);
+        when(pulsar.getConfig()).thenReturn(configuration);
+        when(pulsar.getClient()).thenReturn(mock(PulsarClientImpl.class));
+        when(pulsar.getAdminClient()).thenReturn(mock(PulsarAdmin.class));
+
+        BrokerService brokerService = mock(BrokerService.class);
+        EventLoopGroup executor = mock(EventLoopGroup.class);
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.executor()).thenReturn(executor);
+
+        ProducerBuilder<byte[]> producerBuilder = mock(ProducerBuilder.class);
+        when(producerBuilder.topic(anyString())).thenReturn(producerBuilder);
+        when(producerBuilder.messageRoutingMode(any())).thenReturn(producerBuilder);
+        when(producerBuilder.enableBatching(anyBoolean())).thenReturn(producerBuilder);
+        when(producerBuilder.sendTimeout(anyInt(), any(TimeUnit.class))).thenReturn(producerBuilder);
+        when(producerBuilder.maxPendingMessages(anyInt())).thenReturn(producerBuilder);
+        when(producerBuilder.producerName(anyString())).thenReturn(producerBuilder);
+
+        PulsarClientImpl replicationClient = mock(PulsarClientImpl.class);
+        when(replicationClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.getName()).thenReturn("persistent://prop/ns/test-read-scheduling");
+        when(topic.getReplicatorPrefix()).thenReturn("pulsar.repl");
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        when(topic.getMaxReadPosition()).thenReturn(PositionFactory.create(1, 100));
+
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getName()).thenReturn("pulsar.repl.remote");
+        when(cursor.getReadPosition()).thenReturn(PositionFactory.create(1, 1));
+
+        TestPersistentReplicator replicator = new TestPersistentReplicator(topic, cursor, brokerService,
+                replicationClient, mock(PulsarAdmin.class), writable);
+        return new TestReplicatorFixture(replicator, cursor, executor);
+    }
+
+    private static class TestReplicatorFixture {
+        final TestPersistentReplicator replicator;
+        final ManagedCursor cursor;
+        final EventLoopGroup executor;
+
+        TestReplicatorFixture(TestPersistentReplicator replicator, ManagedCursor cursor, EventLoopGroup executor) {
+            this.replicator = replicator;
+            this.cursor = cursor;
+            this.executor = executor;
+        }
+    }
+
+    private static class TestPersistentReplicator extends PersistentReplicator {
+        private final boolean writable;
+
+        TestPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, BrokerService brokerService,
+                                 PulsarClientImpl replicationClient, PulsarAdmin replicationAdmin, boolean writable)
+                throws PulsarServerException {
+            super("local", topic, cursor, "remote", topic.getName(), brokerService, replicationClient,
+                    replicationAdmin);
+            this.writable = writable;
+            this.state = State.Started;
+        }
+
+        @Override
+        protected void startProducer() {
+            // No-op for scheduling behavior tests.
+        }
+
+        @Override
+        protected String getProducerName() {
+            return "test-replicator";
+        }
+
+        @Override
+        protected boolean isWritable() {
+            return writable;
+        }
+
+        @Override
+        protected boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask) {
+            return true;
         }
     }
 

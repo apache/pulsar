@@ -2479,15 +2479,17 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 producer.send(message);
             }
 
+            Set<String> expected = new HashSet<>(messages);
             Set<String> received = new HashSet<>();
-            for (int i = 0; i < messages.size(); i++) {
-                Message<String> message = consumer.receive(30, TimeUnit.SECONDS);
-                assertNotNull(message);
-                received.add(message.getValue());
-                consumer.acknowledge(message);
-            }
-
-            assertEquals(received, new HashSet<>(messages));
+            Consumer<String> subscribedConsumer = consumer;
+            Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                Message<String> message = subscribedConsumer.receive(1, TimeUnit.SECONDS);
+                if (message != null) {
+                    received.add(message.getValue());
+                    subscribedConsumer.acknowledge(message);
+                }
+                assertEquals(received, expected);
+            });
             waitForReplicationTaskFinish(topicName);
             ensureNoBacklogByInflightTask(replicator);
         } finally {
