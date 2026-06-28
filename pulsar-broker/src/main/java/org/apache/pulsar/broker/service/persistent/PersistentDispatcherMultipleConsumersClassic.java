@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -86,6 +87,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersistentDispatcherMultipleConsumers {
 
     private static final Logger LOG = Logger.get(PersistentDispatcherMultipleConsumersClassic.class);
+    private static final long DELAYED_DELIVERY_TRACKER_CREATE_LOG_INTERVAL_MILLIS = TimeUnit.SECONDS.toMillis(30);
     protected final Logger log;
 
     protected final PersistentTopic topic;
@@ -97,6 +99,9 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     protected final RedeliveryTracker redeliveryTracker;
 
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
+    private CompletableFuture<DelayedDeliveryTracker> delayedDeliveryTrackerCreateFuture = null;
+    private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new LinkedHashMap<>();
+    private long delayedDeliveryTrackerCreateStartTimeMillis = -1;
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
@@ -523,11 +528,19 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         IS_CLOSED_UPDATER.set(this, TRUE);
 
         Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
+        CompletableFuture<DelayedDeliveryTracker> createFuture;
         synchronized (this) {
             delayedDeliveryTracker = this.delayedDeliveryTracker;
             this.delayedDeliveryTracker = Optional.empty();
+            createFuture = this.delayedDeliveryTrackerCreateFuture;
+            this.delayedDeliveryTrackerCreateFuture = null;
+            delayedDeliveryTrackerCreateStartTimeMillis = -1;
+            messagesPendingDelayedDeliveryTracker.clear();
         }
 
+        if (createFuture != null) {
+            createFuture.complete(DelayedDeliveryTracker.DISABLE);
+        }
         delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
@@ -1146,12 +1159,15 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     @Override
-    public synchronized boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+    public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
         if (!topic.isDelayedDeliveryEnabled()) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
 
+        CompletableFuture<DelayedDeliveryTracker> createFuture = null;
+        boolean startCreate = false;
+        long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
         synchronized (this) {
             if (delayedDeliveryTracker.isEmpty()) {
                 if (!msgMetadata.hasDeliverAtTime()) {
@@ -1159,16 +1175,174 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                     return false;
                 }
 
-                // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional.of(
-                        topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                messagesPendingDelayedDeliveryTracker.put(PositionFactory.create(ledgerId, entryId), deliverAtTime);
+                if (delayedDeliveryTrackerCreateFuture == null) {
+                    startCreate = true;
+                    createFuture = new CompletableFuture<>();
+                    delayedDeliveryTrackerCreateFuture = createFuture;
+                    delayedDeliveryTrackerCreateStartTimeMillis = System.currentTimeMillis();
+                }
+            } else {
+                delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+                return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
             }
-
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-
-            long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
-            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
         }
+        if (startCreate) {
+            createDelayedDeliveryTracker(createFuture);
+        }
+        return true;
+    }
+
+    private void createDelayedDeliveryTracker(CompletableFuture<DelayedDeliveryTracker> createFuture) {
+        if (!isDelayedDeliveryTrackerCreateActive(createFuture)) {
+            createFuture.complete(DelayedDeliveryTracker.DISABLE);
+            return;
+        }
+        log.info()
+                .attr("topic", topic.getName())
+                .attr("subscription", getSubscriptionName())
+                .attr("dispatcher", getName())
+                .attr("pendingDelayedMessages", getDelayedDeliveryTrackerCreatePendingMessages())
+                .log("Start delayed delivery tracker creation");
+        scheduleDelayedDeliveryTrackerCreatePendingLog(createFuture);
+        if (!isDelayedDeliveryTrackerCreateActive(createFuture)) {
+            createFuture.complete(DelayedDeliveryTracker.DISABLE);
+            return;
+        }
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture;
+        try {
+            trackerFuture = topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTrackerAsync(this);
+        } catch (Throwable t) {
+            trackerFuture = FutureUtil.failedFuture(t);
+        }
+        trackerFuture.whenComplete((tracker, ex) -> delayedDeliveryTrackerCreated(createFuture, tracker, ex));
+    }
+
+    private void delayedDeliveryTrackerCreated(CompletableFuture<DelayedDeliveryTracker> createFuture,
+                                               DelayedDeliveryTracker tracker, Throwable ex) {
+        DelayedDeliveryTracker trackerToUse = tracker == null ? DelayedDeliveryTracker.DISABLE : tracker;
+        if (ex != null) {
+            trackerToUse = DelayedDeliveryTracker.DISABLE;
+        }
+
+        boolean shouldCloseTracker = false;
+        boolean shouldReadMore = false;
+        boolean installedTracker = false;
+        boolean dispatcherClosed = false;
+        boolean createFutureChanged = false;
+        int pendingDelayedMessages;
+        int replayDelayedMessages = 0;
+        long durationMillis;
+        synchronized (this) {
+            pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
+            durationMillis = getDelayedDeliveryTrackerCreateDurationMillis();
+            dispatcherClosed = isClosed();
+            createFutureChanged = delayedDeliveryTrackerCreateFuture != createFuture;
+            if (createFutureChanged || dispatcherClosed) {
+                shouldCloseTracker = trackerToUse != DelayedDeliveryTracker.DISABLE;
+            } else {
+                delayedDeliveryTrackerCreateFuture = null;
+                delayedDeliveryTrackerCreateStartTimeMillis = -1;
+                delayedDeliveryTracker = Optional.of(trackerToUse);
+                trackerToUse.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+                for (Map.Entry<Position, Long> entry : messagesPendingDelayedDeliveryTracker.entrySet()) {
+                    Position position = entry.getKey();
+                    if (!trackerToUse.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
+                        redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
+                        replayDelayedMessages++;
+                    }
+                }
+                messagesPendingDelayedDeliveryTracker.clear();
+                shouldReadMore = true;
+                installedTracker = true;
+            }
+        }
+        if (ex != null) {
+            log.warn()
+                    .attr("topic", topic.getName())
+                    .attr("subscription", getSubscriptionName())
+                    .attr("dispatcher", getName())
+                    .attr("durationMillis", durationMillis)
+                    .attr("pendingDelayedMessages", pendingDelayedMessages)
+                    .exception(FutureUtil.unwrapCompletionException(ex))
+                    .log("Failed to initialize delayed delivery tracker");
+        } else if (installedTracker) {
+            log.info()
+                    .attr("topic", topic.getName())
+                    .attr("subscription", getSubscriptionName())
+                    .attr("dispatcher", getName())
+                    .attr("durationMillis", durationMillis)
+                    .attr("pendingDelayedMessages", pendingDelayedMessages)
+                    .attr("replayDelayedMessages", replayDelayedMessages)
+                    .attr("trackerType", delayedDeliveryTrackerType(trackerToUse))
+                    .log("Delayed delivery tracker creation complete");
+        }
+        createFuture.complete(trackerToUse);
+        if (shouldCloseTracker) {
+            log.info()
+                    .attr("topic", topic.getName())
+                    .attr("subscription", getSubscriptionName())
+                    .attr("dispatcher", getName())
+                    .attr("durationMillis", durationMillis)
+                    .attr("pendingDelayedMessages", pendingDelayedMessages)
+                    .attr("dispatcherClosed", dispatcherClosed)
+                    .attr("createFutureChanged", createFutureChanged)
+                    .attr("trackerType", delayedDeliveryTrackerType(trackerToUse))
+                    .log("Close delayed delivery tracker after async creation is no longer needed");
+            trackerToUse.close();
+        }
+        if (shouldReadMore) {
+            readMoreEntriesAsync();
+        }
+    }
+
+    private synchronized boolean isDelayedDeliveryTrackerCreateActive(
+            CompletableFuture<DelayedDeliveryTracker> createFuture) {
+        return delayedDeliveryTrackerCreateFuture == createFuture && !isClosed();
+    }
+
+    private void scheduleDelayedDeliveryTrackerCreatePendingLog(
+            CompletableFuture<DelayedDeliveryTracker> createFuture) {
+        topic.getBrokerService().executor().schedule(() -> {
+            int pendingDelayedMessages;
+            long durationMillis;
+            synchronized (PersistentDispatcherMultipleConsumersClassic.this) {
+                if (delayedDeliveryTrackerCreateFuture != createFuture) {
+                    return;
+                }
+                pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
+                durationMillis = getDelayedDeliveryTrackerCreateDurationMillis();
+            }
+            log.warn()
+                    .attr("topic", topic.getName())
+                    .attr("subscription", getSubscriptionName())
+                    .attr("dispatcher", getName())
+                    .attr("durationMillis", durationMillis)
+                    .attr("pendingDelayedMessages", pendingDelayedMessages)
+                    .log("Delayed delivery tracker creation is still pending");
+        }, DELAYED_DELIVERY_TRACKER_CREATE_LOG_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    synchronized boolean isDelayedDeliveryTrackerCreatePending() {
+        return delayedDeliveryTrackerCreateFuture != null;
+    }
+
+    @VisibleForTesting
+    synchronized int getDelayedDeliveryTrackerCreatePendingMessages() {
+        return messagesPendingDelayedDeliveryTracker.size();
+    }
+
+    private long getDelayedDeliveryTrackerCreateDurationMillis() {
+        long startTimeMillis = delayedDeliveryTrackerCreateStartTimeMillis;
+        return startTimeMillis > 0 ? System.currentTimeMillis() - startTimeMillis : -1;
+    }
+
+    private String delayedDeliveryTrackerType(DelayedDeliveryTracker tracker) {
+        if (tracker == DelayedDeliveryTracker.DISABLE) {
+            return "DISABLE";
+        }
+        return tracker.getClass().getSimpleName();
     }
 
     protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
@@ -1208,12 +1382,14 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+        return delayedDeliveryTrackerCreateFuture != null
+                || delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
     }
 
     @Override
     public synchronized long getNumberOfDelayedMessages() {
-        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L)
+                + messagesPendingDelayedDeliveryTracker.size();
     }
 
     @Override
@@ -1222,6 +1398,9 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             return CompletableFuture.completedFuture(null);
         }
 
+        if (delayedDeliveryTrackerCreateFuture != null) {
+            return delayedDeliveryTrackerCreateFuture.thenCompose(__ -> clearDelayedMessages());
+        }
         if (delayedDeliveryTracker.isPresent()) {
             return this.delayedDeliveryTracker.get().clear();
         } else {
