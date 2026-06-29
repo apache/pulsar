@@ -223,9 +223,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         try {
             client.rangeScan(firstKey, lastKey, new io.oxia.client.api.RangeScanConsumer() {
                 @Override
-                public void onNext(io.oxia.client.api.GetResult result) {
+                public boolean onNext(io.oxia.client.api.GetResult result) {
                     consumer.onNext(new GetResult(result.value(),
                             convertStat(result.key(), result.version())));
+                    return true;
                 }
 
                 @Override

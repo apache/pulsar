@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
@@ -55,29 +55,29 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     public static final int DEFAULT_MAX_PENDING_MESSAGES = 0;
     public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 0;
 
-    @ApiModelProperty(
+    @Schema(
             name = "topicName",
-            required = true,
-            value = "Topic name"
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description = "Topic name"
     )
     private String topicName = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "producerName",
-            value = "Producer name"
+            description = "Producer name"
     )
     private String producerName = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "sendTimeoutMs",
-            value = "Message send timeout in ms.\n"
+            description = "Message send timeout in ms.\n"
                     + "If a message is not acknowledged by a server before the `sendTimeout` expires, an error occurs."
     )
     private long sendTimeoutMs = 30000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "blockIfQueueFull",
-            value = "If it is set to `true`, when the outgoing message queue is full, the `Send` and `SendAsync`"
+            description = "If it is set to `true`, when the outgoing message queue is full, the `Send` and `SendAsync`"
                     + " methods of producer block, rather than failing and throwing errors.\n"
                     + "If it is set to `false`, when the outgoing message queue is full, the `Send` and `SendAsync`"
                     + " methods of producer fail and `ProducerQueueIsFullError` exceptions occur.\n"
@@ -86,9 +86,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     )
     private boolean blockIfQueueFull = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxPendingMessages",
-            value = "The maximum size of a queue holding pending messages.\n"
+            description = "The maximum size of a queue holding pending messages.\n"
                     + "\n"
                     + "For example, a message waiting to receive an acknowledgment from a [broker]"
                     + "(https://pulsar.apache.org/docs/reference-terminology#broker).\n"
@@ -100,18 +100,18 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @Getter
     private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxPendingMessagesAcrossPartitions",
-            value = "The maximum number of pending messages across partitions.\n"
+            description = "The maximum number of pending messages across partitions.\n"
                     + "\n"
                     + "Use the setting to lower the max pending messages for each partition ({@link "
                     + "#setMaxPendingMessages(int)}) if the total number exceeds the configured value."
     )
     private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
-    @ApiModelProperty(
+    @Schema(
             name = "messageRoutingMode",
-            value = "Message routing logic for producers on [partitioned topics]"
+            description = "Message routing logic for producers on [partitioned topics]"
                     + "(https://pulsar.apache.org/docs/concepts-architecture-overview#partitioned-topics).\n"
                     + "Apply the logic only when setting no key on messages.\n"
                     + "Available options are as follows:\n"
@@ -121,22 +121,22 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     )
     private MessageRoutingMode messageRoutingMode = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "hashingScheme",
-            value = "Hashing function determining the partition where you publish a particular message (partitioned "
-                    + "topics only).\n"
+            description = "Hashing function determining the partition where you publish a particular message "
+                    + "(partitioned topics only).\n"
                     + "Available options are as follows:\n"
                     + "* `pulsar.JavastringHash`: the equivalent of `string.hashCode()` in Java\n"
                     + "* `pulsar.Murmur3_32Hash`: applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash)"
                     + " hashing function\n"
                     + "* `pulsar.BoostHash`: applies the hashing function from C++'s"
-                    + "[Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library"
+                    + " [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library"
     )
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
-    @ApiModelProperty(
+    @Schema(
             name = "cryptoFailureAction",
-            value = "Producer should take action when encryption fails.\n"
+            description = "Producer should take action when encryption fails.\n"
                     + "* **FAIL**: if encryption fails, unencrypted messages fail to send.\n"
                     + "* **SEND**: if encryption fails, unencrypted messages are sent."
     )
@@ -145,31 +145,31 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private MessageRouter customMessageRouter = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "batchingMaxPublishDelayMicros",
-            value = "Batching time period of sending messages."
+            description = "Batching time period of sending messages."
     )
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
     private int batchingPartitionSwitchFrequencyByPublishDelay = 10;
 
-    @ApiModelProperty(
+    @Schema(
             name = "batchingMaxMessages",
-            value = "The maximum number of messages permitted in a batch."
+            description = "The maximum number of messages permitted in a batch."
     )
     private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
     private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
 
-    @ApiModelProperty(
+    @Schema(
             name = "batchingEnabled",
-            value = "Enable batching of messages."
+            description = "Enable batching of messages."
     )
     private boolean batchingEnabled = true; // enabled by default
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
 
-    @ApiModelProperty(
+    @Schema(
             name = "chunkingEnabled",
-            value = "Enable chunking of messages."
+            description = "Enable chunking of messages."
     )
     private boolean chunkingEnabled = false;
     private int chunkMaxMessageSize = -1;
@@ -182,9 +182,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private Set<String> encryptionKeys = new TreeSet<>();
 
-    @ApiModelProperty(
+    @Schema(
             name = "compressionType",
-            value = "Message data compression type used by a producer.\n"
+            description = "Message data compression type used by a producer.\n"
                     + "Available options:\n"
                     + "* [LZ4](https://github.com/lz4/lz4)\n"
                     + "* [ZLIB](https://zlib.net/)\n"
@@ -214,10 +214,10 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean isReplProducer;
 
-    @ApiModelProperty(
+    @Schema(
             name = "initialSubscriptionName",
-            value = "Use this configuration to automatically create an initial subscription when creating a topic."
-                    + " If this field is not set, the initial subscription is not created."
+            description = "Use this configuration to automatically create an initial subscription when "
+                    + "creating a topic. If this field is not set, the initial subscription is not created."
     )
     private String initialSubscriptionName = null;
 

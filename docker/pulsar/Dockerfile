@@ -18,7 +18,7 @@
 #
 
 ARG ALPINE_VERSION=3.23
-ARG IMAGE_JDK_MAJOR_VERSION=21
+ARG IMAGE_JDK_MAJOR_VERSION=25
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -59,11 +59,73 @@ FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine${ALPINE_VERSION} AS jvm
 
 RUN apk add --no-cache binutils
 
-# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
-# This still includes all JDK modules, though in the future we could compile a list of required modules
-# first try with Java 17/21 compatible jlink command and if it fails, fallback to Java 24+ compatible command
-RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress=2 --no-man-pages --no-header-files --strip-debug --output /opt/jvm || /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules ALL-MODULE-PATH --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
-RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
+# Use JLink to create a slimmer JDK runtime (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
+# Include only the modules needed at runtime (one per line below for easy maintenance).
+#
+# Kept on purpose:
+#   - java.desktop + jdk.localedata: Jetty/Jersey/SnakeYAML call java.beans.Introspector (in
+#     java.desktop), and localedata is needed for non-English date/number formatting.
+#   - jdk.jcmd, jdk.jfr, jdk.management.agent: live ops/diagnostics on a running broker.
+#   - jdk.jdwp.agent: lets you attach a remote debugger (-agentlib:jdwp) inside the container.
+#
+# Left out (verified unused by Pulsar's shipped jars via a jdeps/bytecode scan):
+#   - build/compile tools: java.compiler, jdk.compiler (also drops the ~10MB lib/ct.sym),
+#     jdk.javadoc, jdk.jdeps, jdk.jlink, jdk.jpackage, jdk.jartool
+#   - REPL/console: jdk.jshell, jdk.editpad, jdk.internal.ed, jdk.internal.le, jdk.jconsole
+#   - debugger client + serviceability: jdk.jdi, jdk.hotspot.agent, jdk.jstatd
+#   - GUI/applet/legacy: java.smartcardio, jdk.jsobject, jdk.accessibility, jdk.sctp, jdk.dynalink
+#   - Graal/JVMCI compiler modules (jdk.graal.*): unused by the C2 JIT
+#   - java.se aggregator: excluded so it does not transitively pull the above back in
+#   - jdk.random: part of java.base on JDK 25, not a separate module
+#
+RUN JDK_MODULES="\
+java.base,\
+java.datatransfer,\
+java.xml,\
+java.prefs,\
+java.desktop,\
+java.instrument,\
+java.logging,\
+java.management,\
+java.security.sasl,\
+java.naming,\
+java.rmi,\
+java.management.rmi,\
+java.net.http,\
+java.scripting,\
+java.security.jgss,\
+java.transaction.xa,\
+java.sql,\
+java.sql.rowset,\
+java.xml.crypto,\
+jdk.internal.jvmstat,\
+jdk.attach,\
+jdk.charsets,\
+jdk.internal.opt,\
+jdk.zipfs,\
+jdk.crypto.ec,\
+jdk.crypto.cryptoki,\
+jdk.httpserver,\
+jdk.incubator.vector,\
+jdk.jcmd,\
+jdk.management,\
+jdk.management.agent,\
+jdk.jfr,\
+jdk.jdwp.agent,\
+jdk.localedata,\
+jdk.management.jfr,\
+jdk.naming.dns,\
+jdk.naming.rmi,\
+jdk.net,\
+jdk.nio.mapmode,\
+jdk.security.auth,\
+jdk.security.jgss,\
+jdk.unsupported,\
+jdk.unsupported.desktop,\
+jdk.xml.dom" && \
+    /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules "$JDK_MODULES" --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
+# Corretto bundles async-profiler as a native lib (not a JDK module), so jlink does not copy it; restore it
+RUN if [ -f /usr/lib/jvm/default-jvm/lib/libasyncProfiler.so ]; then cp /usr/lib/jvm/default-jvm/lib/libasyncProfiler.so /opt/jvm/lib/; fi
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
 ## Create one stage to include snappy-java native lib
@@ -83,6 +145,9 @@ FROM busybox AS offloaders
 ARG PULSAR_OFFLOADER_TARBALL
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+# Exclude the filesystem (Hadoop) offloader: it pulls in hadoop-common and bloats the image by ~50MB.
+# It remains available in the apache-pulsar-offloaders distribution tarball for users who need it.
+RUN rm -f /offloaders/tiered-storage-file-system-*.nar
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
@@ -118,7 +183,7 @@ ARG PULSAR_CLIENT_PYTHON_VERSION
 RUN pip3 install --break-system-packages --no-cache-dir \
     --only-binary \
     grpcio==1.78.0 \
-    protobuf==6.33.5 \
+    protobuf==6.33.6 \
     pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION} \
     kazoo
 

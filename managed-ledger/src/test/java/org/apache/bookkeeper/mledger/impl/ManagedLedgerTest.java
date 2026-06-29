@@ -103,9 +103,11 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.common.util.BoundedScheduledExecutorService;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -822,7 +824,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }, null);
             log.info("after add, ledger state: " + ledger.getState());
             return invocationOnMock.callRealMethod();
-        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any(), any());
         doAnswer(invocationOnMock -> {
             Object o = invocationOnMock.callRealMethod();
             log.info("createComplete finished, state: " + ledger.getState());
@@ -3333,15 +3335,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
 
         BookKeeper bk = mock(BookKeeper.class);
-        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+        CreateBuilder createBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
+        doReturn(new CompletableFuture<WriteHandle>()).when(createBuilder).execute();
+        doReturn(createBuilder).when(bk).newCreateLedgerOp();
         AtomicInteger response = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Object> ctxHolder = new AtomicReference<>();
-        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {
+        ledger.asyncCreateLedger(bk, config, BookKeeper.DigestType.CRC32C, (rc, lh, ctx) -> {
             response.set(rc);
             latch.countDown();
             ctxHolder.set(ctx);
-        }, Collections.emptyMap());
+        }, Collections.emptyMap(), ledger.getLogger());
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);

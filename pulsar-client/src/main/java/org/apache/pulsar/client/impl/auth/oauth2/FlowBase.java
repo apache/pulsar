@@ -101,11 +101,9 @@ abstract class FlowBase implements Flow {
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+        confBuilder.setConnectTimeout(getParameterDuration(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
                         DEFAULT_CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
+        confBuilder.setReadTimeout(getParameterDuration(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         boolean hasCertFile = StringUtils.isNotBlank(certFile);
         boolean hasKeyFile = StringUtils.isNotBlank(keyFile);
@@ -126,7 +124,7 @@ abstract class FlowBase implements Flow {
                 sslFactory = new org.apache.pulsar.common.util.DefaultPulsarSslFactory();
                 sslFactory.initialize(sslConfiguration);
                 sslFactory.createInternalSslContext();
-                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, null);
+                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, null, true);
                 confBuilder.setSslEngineFactory(sslEngineFactory);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid TLS client certificate configuration", e);
@@ -172,10 +170,6 @@ abstract class FlowBase implements Flow {
         } catch (Exception e) {
             log.error().exception(e).log("Failed to refresh SSL context");
         }
-    }
-
-    private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
-        return (int) getParameterDuration(name, value, defaultValue).toMillis();
     }
 
     private long getParameterDurationToSeconds(String name, Duration value, Duration defaultValue) {

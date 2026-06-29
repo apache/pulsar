@@ -67,14 +67,23 @@ jobs:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
           cache-read-only: true
 
+      - name: Configure Gradle for CodeQL
+        run: |
+          cat >> gradle.properties <<'EOF'
+          
+          org.gradle.configuration-cache=false
+          org.gradle.configureondemand=false
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          org.gradle.daemon=false
+          EOF
+
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-
-      - name: Build Java code
-        run: ./gradlew assemble
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

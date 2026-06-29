@@ -146,5 +146,5 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   which is plain text and cheaper to parse than the rendered HTML.
 
 Before finishing a build change, confirm the affected task and `./gradlew help` run clean with
-`--configuration-cache`, and that `assemble` and `rat spotlessCheck checkstyleMain checkstyleTest` pass
-(plus `checkBinaryLicense` if a dependency changed).
+`--configuration-cache`, and that `assemble` and `quickCheck` (license headers + checkstyle across
+all modules) pass (plus `checkBinaryLicense` if a dependency changed).

@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -217,6 +218,40 @@ public class TxnMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() ->
                 assertThat(received).isNotEmpty().last().asString().isEqualTo(s.getPath()));
+    }
+
+    @Test
+    public void deleteAllSegmentState_removesAbortedRecordsAndWatermark() throws Exception {
+        @Cleanup MetadataStore store = newMemoryStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+
+        txn.putAbortedTxn(segment, "t1", 1L, 5L).get();
+        txn.putAbortedTxn(segment, "t2", 2L, 7L).get();
+        txn.casSegmentWatermark(segment, new SegmentWatermark(3, 0), Optional.empty()).get();
+
+        txn.deleteAllSegmentState(segment).get();
+
+        List<String> remaining = new ArrayList<>();
+        txn.scanAbortedTxns(segment,
+                TxnPaths.abortedByPositionSegmentLowerBound(segment),
+                TxnPaths.abortedByPositionSegmentUpperBound(segment),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        remaining.add(r.getStat().getPath());
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).get();
+        assertThat(remaining).isEmpty();
+        assertThat(txn.getSegmentWatermark(segment).get()).isEmpty();
     }
 
     // ---- helpers -----------------------------------------------------------

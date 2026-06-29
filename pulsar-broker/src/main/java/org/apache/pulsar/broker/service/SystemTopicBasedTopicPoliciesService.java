@@ -24,6 +24,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.metrics.LongCounter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -34,7 +35,10 @@ import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -78,10 +82,14 @@ import org.jspecify.annotations.Nullable;
 @CustomLog
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
+    public static final String TOPIC_POLICIES_CACHE_INIT_TIMEOUT_METRIC_NAME =
+            "pulsar.broker.topic.policies.cache.init.timeout.count";
+
     private final PulsarService pulsarService;
     private final HashSet<String> localCluster;
     private final String clusterName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final LongCounter policyCacheInitTimeoutCounter;
 
     private final ConcurrentInitializer<NamespaceEventsSystemTopicFactory>
             namespaceEventsSystemTopicFactoryLazyInitializer = new LazyInitializer<>() {
@@ -125,6 +133,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
         this.localCluster = Sets.newHashSet(clusterName);
+        this.policyCacheInitTimeoutCounter = pulsarService.getOpenTelemetry().getMeter()
+                .counterBuilder(TOPIC_POLICIES_CACHE_INIT_TIMEOUT_METRIC_NAME)
+                .setDescription("The number of times initializing a namespace's topic policies cache timed out "
+                        + "because the __change_events system-topic reader was stuck. Each occurrence closes the "
+                        + "stuck reader and clears the cached state so topic loading can be retried.")
+                .setUnit("{timeout}")
+                .build();
         this.writerCaches = Caffeine.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .removalListener((namespaceName, writer, cause) -> {
@@ -482,16 +497,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicPoliciesService.unwrapEventKey(msg.getKey())
                     .getPartitionedTopicName());
-            List<TopicPolicyListener> listeners = this.listeners.get(topicName);
-            if (listeners != null) {
-                for (TopicPolicyListener listener : listeners) {
-                    try {
-                        listener.onUpdate(null);
-                    } catch (Throwable error) {
-                        log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                    }
-                }
-            }
+            notifyListenersForTopic(topicName, null);
             return;
         }
 
@@ -501,17 +507,60 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
         TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
                 event.getNamespace(), event.getTopic());
-        List<TopicPolicyListener> listeners = this.listeners.get(topicName);
-        if (listeners != null) {
-            TopicPolicies policies = event.getPolicies();
-            for (TopicPolicyListener listener : listeners) {
-                try {
-                    listener.onUpdate(policies);
-                } catch (Throwable error) {
-                    log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                }
+        notifyListenersForTopic(topicName, event.getPolicies());
+    }
+
+    /**
+     * Notifies the topic-policy listeners registered for {@code topicName} of a policy update.
+     *
+     * <p>The {@link TopicPolicyListener#onUpdate} calls are dispatched to the per-topic ordered executor
+     * rather than run inline. The reader callbacks that drive notifications (the {@link #initPolicesCache}
+     * replay loop and {@link #readMorePoliciesAsync}) run on the single, process-wide shared
+     * {@code broker-client-shared-internal-executor} thread. A listener (e.g.
+     * {@code PersistentTopic.onUpdate} -> {@code applyUpdatedTopicPolicies}) can perform non-trivial and
+     * even blocking work, so running it inline serializes and can stall topic-policy loading for every
+     * namespace (issue #26037). Keying {@code executeOrdered} by {@code topicName} preserves per-topic
+     * notification ordering.
+     */
+    private void notifyListenersForTopic(TopicName topicName, @Nullable TopicPolicies policies) {
+        // The per-topic value is a CopyOnWriteArrayList, so iterating it later on the executor thread stays
+        // safe even if a listener is registered/unregistered between dispatch and execution.
+        List<TopicPolicyListener> topicListeners = listeners.get(topicName);
+        if (topicListeners == null || topicListeners.isEmpty()) {
+            return;
+        }
+        pulsarService.getBrokerService().getTopicPoliciesNotifyThread(topicName).execute(() -> {
+            internalNotifyTopicListeners(topicName, policies, topicListeners);
+        });
+    }
+
+    // this method should only be called from the topic ordered executor thread
+    // use notifyListenersForTopic/notifyListenersForTopicAsync instead
+    private static void internalNotifyTopicListeners(TopicName topicName, @Nullable TopicPolicies policies,
+                                  List<TopicPolicyListener> topicListeners) {
+        for (TopicPolicyListener listener : topicListeners) {
+            try {
+                listener.onUpdate(policies);
+            } catch (Throwable error) {
+                log.error().attr("topic", topicName).attr("listener", listener).exception(error)
+                        .log("Error in notifying listener on topic policy update.");
             }
         }
+    }
+
+    private CompletableFuture<Void> notifyListenersForTopicAsync(TopicName topicName,
+                                                                 @Nullable TopicPolicies policies) {
+        // The per-topic value is a CopyOnWriteArrayList, so iterating it later on the executor thread stays
+        // safe even if a listener is registered/unregistered between dispatch and execution.
+        List<TopicPolicyListener> topicListeners = listeners.get(topicName);
+        if (topicListeners == null || topicListeners.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        ExecutorService pinnedTopicOrderedExecutor =
+                pulsarService.getBrokerService().getTopicPoliciesNotifyThread(topicName);
+        return CompletableFuture.runAsync(() -> {
+            internalNotifyTopicListeners(topicName, policies, topicListeners);
+        }, pinnedTopicOrderedExecutor);
     }
 
     @Override
@@ -599,6 +648,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     CompletableFuture<Void> existingFuture =
                             policyCacheInitMap.putIfAbsent(namespace, initNamespacePolicyFuture);
                     if (existingFuture == null) {
+                        // Topic loading waits on this future, so a system-topic reader that gets stuck (e.g. after
+                        // __change_events is unloaded and the reconnected reader stops making progress) would pin the
+                        // policy cache for the whole namespace until the broker restarts (issue #25294). Bound the
+                        // initialization so it fails fast and cleans up, letting topic loading retry with a fresh
+                        // reader.
+                        scheduleInitPolicesCacheTimeout(namespace, initNamespacePolicyFuture);
                         final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                                 newReader(namespace);
                         readerCompletableFuture
@@ -613,16 +668,21 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     return null;
                                 }).exceptionally(ex -> {
                                     try {
+                                        // Identity-guarded cleanup: a concurrent timeout cleanup or a namespace unload
+                                        // may already have dropped this future and let a retry install a fresh
+                                        // future/reader, so clean up by namespace key here would clobber that newer
+                                        // attempt. Tear down state only while this future still owns the namespace.
                                         if (readerCompletableFuture.isCompletedExceptionally()) {
                                             log.error()
                                                     .attr("namespace", namespace)
                                                     .exception(ex)
                                                     .log("Failed to create reader on __change_events topic");
                                             initNamespacePolicyFuture.completeExceptionally(ex);
-                                            cleanPoliciesCacheInitMap(namespace, true);
+                                            cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture, true);
                                         } else {
                                             initNamespacePolicyFuture.completeExceptionally(ex);
-                                            cleanPoliciesCacheInitMap(namespace, isAlreadyClosedException(ex));
+                                            cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture,
+                                                    isAlreadyClosedException(ex));
                                         }
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
@@ -705,6 +765,91 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
     }
 
+    /**
+     * Bound the topic-policies cache initialization for {@code namespace} so a stuck {@code __change_events} reader
+     * cannot pin the cache (and therefore topic loading) for the whole namespace indefinitely (issue #25294). If the
+     * timeout wins the race to complete {@code initNamespacePolicyFuture}, the cached state is cleared and the stuck
+     * reader is closed so a subsequent load retries from scratch rather than waiting until the broker restarts.
+     */
+    private void scheduleInitPolicesCacheTimeout(@NonNull NamespaceName namespace,
+                                                 @NonNull CompletableFuture<Void> initNamespacePolicyFuture) {
+        long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
+        if (timeoutSeconds <= 0) {
+            return;
+        }
+        final ScheduledFuture<?> timeoutTask = pulsarService.getExecutor().schedule(() -> {
+            TimeoutException timeoutException = new TimeoutException(String.format(
+                    "Timed out after %d seconds initializing the topic policies cache for namespace %s; the "
+                            + "__change_events reader did not reach the end of the topic", timeoutSeconds, namespace));
+            if (initNamespacePolicyFuture.completeExceptionally(timeoutException)) {
+                policyCacheInitTimeoutCounter.add(1);
+                log.error()
+                        .attr("namespace", namespace)
+                        .attr("timeoutSeconds", timeoutSeconds)
+                        .log("Timed out initializing the topic policies cache; closing the stuck __change_events "
+                                + "reader so the namespace can be loaded again");
+                try {
+                    cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture, true);
+                } catch (Throwable cleanupEx) {
+                    log.error()
+                            .attr("namespace", namespace)
+                            .exception(cleanupEx)
+                            .log("Failed to clean up the topic policies cache after init timeout");
+                }
+            }
+        }, timeoutSeconds, TimeUnit.SECONDS);
+        // Cancel the timeout once initialization finishes (successfully or not) so we don't leak scheduled tasks.
+        initNamespacePolicyFuture.whenComplete((__, ex) -> timeoutTask.cancel(false));
+    }
+
+    /**
+     * Identity-guarded cleanup for an initialization that failed (it timed out, the {@code __change_events} reader
+     * could not be created, or reading the topic threw). Unlike {@link #cleanPoliciesCacheInitMap}, which
+     * removes/closes by namespace key unconditionally, this only tears down state that still belongs to
+     * {@code initFuture}. By the time the failure is observed, a concurrent retry — or a namespace-bundle unload that
+     * left the init future orphaned — may already own the namespace with a fresh future and reader; removing by key
+     * would drop that newer future and close its reader, pinning the namespace again. Guarding on identity ensures a
+     * late failure never clobbers a newer initialization.
+     *
+     * @param closeReader when {@code true}, also clears the cached policies and closes the reader that belongs to this
+     *                    initialization; when {@code false}, only the init future is dropped, leaving the reader cached
+     *                    for the retry to reuse (mirrors the transient read-error path of
+     *                    {@link #cleanPoliciesCacheInitMap}).
+     */
+    @VisibleForTesting
+    void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace,
+                                      @NonNull CompletableFuture<Void> initFuture, boolean closeReader) {
+        // Capture the reader before dropping the init future so we only close the reader that belongs to this
+        // initialization, never one a concurrent retry creates immediately afterwards.
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture =
+                closeReader ? readerCaches.get(namespace) : null;
+        if (!policyCacheInitMap.remove(namespace, initFuture)) {
+            // Superseded by a retry or an unload; that owner is responsible for its own reader/state.
+            return;
+        }
+        // Complete the dropped future (a no-op if the caller already completed it) outside any map remapping function,
+        // so awaiting topic loads fail fast and retry instead of hanging until the broker restarts (issue #25294).
+        failPendingPolicyCacheInit(namespace, initFuture);
+        if (!closeReader) {
+            return;
+        }
+        policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+        globalPoliciesCache.entrySet()
+                .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+        TopicPolicyMessageHandlerTracker tracker = topicPolicyMessageHandlerTrackers.remove(namespace);
+        if (tracker != null) {
+            tracker.close();
+        }
+        if (readerFuture != null && readerCaches.remove(namespace, readerFuture)
+                && !readerFuture.isCompletedExceptionally()) {
+            readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                    .exceptionally(ex -> {
+                        log.warn().attr("namespace", namespace).exception(ex).log("Close change_event reader fail.");
+                        return null;
+                    });
+        }
+    }
+
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
         if (closed.get()) {
             future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
@@ -745,19 +890,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         .log("Reach the end of the system topic.");
 
                 // replay policy message
-                policiesCache.forEach(((topicName, topicPolicies) -> {
-                    if (listeners.get(topicName) != null) {
-                        for (TopicPolicyListener listener : listeners.get(topicName)) {
-                            try {
-                                listener.onUpdate(topicPolicies);
-                            } catch (Throwable error) {
-                                log.error().attr("topic", topicName).exception(error).log("call listener error.");
-                            }
-                        }
-                    }
-                }));
-
-                future.complete(null);
+                List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
+                for (Map.Entry<TopicName, TopicPolicies> entry : policiesCache.entrySet()) {
+                    TopicName topicName = entry.getKey();
+                    TopicPolicies policies = entry.getValue();
+                    notifyFutures.add(notifyListenersForTopicAsync(topicName, policies));
+                }
+                FutureUtil.completeAfter(future, FutureUtil.waitForAll(notifyFutures));
             }
         });
     }
@@ -765,7 +904,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     void cleanPoliciesCacheInitMap(@NonNull NamespaceName namespace, boolean closeReader) {
         if (!closeReader) {
-            policyCacheInitMap.remove(namespace);
+            failPendingPolicyCacheInit(namespace, policyCacheInitMap.remove(namespace));
             return;
         }
 
@@ -776,12 +915,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
 
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
+        MutableObject<CompletableFuture<Void>> removedInitFuture = new MutableObject<>();
         policyCacheInitMap.compute(namespace, (k, v) -> {
+            removedInitFuture.setValue(v);
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             globalPoliciesCache.entrySet()
                     .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             return null;
         });
+        // Complete the removed init future outside the compute() remapping function: completing it can run the
+        // awaiting topic-load callbacks synchronously, and doing that while holding the ConcurrentHashMap bin lock
+        // risks a recursive map update / deadlock (see #24977).
+        failPendingPolicyCacheInit(namespace, removedInitFuture.getValue());
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture
                     .thenCompose(SystemTopicClient.Reader::closeAsync)
@@ -789,6 +934,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.warn().attr("namespace", namespace).exception(ex).log("Close change_event reader fail.");
                         return null;
                     });
+        }
+    }
+
+    /**
+     * Complete an init future that is being dropped from {@link #policyCacheInitMap} but never completed, so the
+     * topic loads awaiting it fail fast and retry instead of hanging until the broker restarts (issue #25294).
+     * No-op if the future was already completed by its own initialization chain.
+     */
+    private void failPendingPolicyCacheInit(@NonNull NamespaceName namespace,
+                                            @Nullable CompletableFuture<Void> initFuture) {
+        if (initFuture != null && !initFuture.isDone()) {
+            initFuture.completeExceptionally(new BrokerServiceException(
+                    "Topic policies cache initialization for namespace " + namespace
+                            + " was aborted because the cached state was cleared"));
         }
     }
 
@@ -1059,6 +1218,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
             });
             readerCaches.clear();
+            // Release any topic loads still waiting on an in-progress policy cache initialization so they fail
+            // fast instead of hanging until the awaited future is completed indirectly (issue #25294).
+            policyCacheInitMap.forEach(this::failPendingPolicyCacheInit);
+            policyCacheInitMap.clear();
         }
     }
 

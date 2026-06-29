@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -67,6 +68,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -189,11 +191,17 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected final Clock clock;
 
     protected Set<String> additionalSystemCursorNames = new TreeSet<>();
+    private final ExecutorService topicPoliciesNotifyThread;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.log = LOG.with().attr("topic", topic).build();
         this.namespace = TopicName.get(topic).getNamespaceObject();
+        // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
+        // the topic-to-thread mapping so it stays consistent with SystemTopicBasedTopicPoliciesService. In unit
+        // tests that construct topics with a mock BrokerService this returns null (the thread is unused there).
+        this.topicPoliciesNotifyThread =
+                brokerService.getTopicPoliciesNotifyThread(TopicName.getPartitionedTopicName(topic));
         this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
@@ -557,14 +565,18 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 && maxProducers <= USER_CREATED_PRODUCER_COUNTER_UPDATER.get(this);
     }
 
+    protected TopicPolicyListener getTopicPolicyListener() {
+        return this;
+    }
+
     protected void registerTopicPolicyListener() {
         brokerService.getPulsar().getTopicPoliciesService()
-                .registerListenerAsync(TopicName.getPartitionedTopicName(topic), this);
+                .registerListenerAsync(TopicName.getPartitionedTopicName(topic), getTopicPolicyListener());
     }
 
     protected void unregisterTopicPolicyListener() {
         brokerService.getPulsar().getTopicPoliciesService()
-                .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
+                .unregisterListener(TopicName.getPartitionedTopicName(topic), getTopicPolicyListener());
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {
@@ -665,6 +677,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return null;
     }
 
+    protected boolean hasProducersActive() {
+        return !producers.isEmpty();
+    }
+
+    protected boolean hasActiveReplicators() {
+        for (Replicator replicator : getReplicators().values()) {
+            if (replicator.isConnected()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected boolean hasLocalProducers() {
         if (producers.isEmpty()) {
             return false;
@@ -675,6 +700,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             }
         }
         return false;
+    }
+
+    public void disconnectReplicatorsIfNoTrafficAndBacklog() {
+        for (Replicator replicator : getReplicators().values()) {
+            if (replicator instanceof PersistentReplicator persistentReplicator) {
+                persistentReplicator.disconnectIfNoTrafficAndBacklog();
+            }
+        }
+        for (Replicator replicator : getShadowReplicators().values()) {
+            if (replicator instanceof PersistentReplicator persistentReplicator) {
+                persistentReplicator.disconnectIfNoTrafficAndBacklog();
+            }
+        }
     }
 
     @Override
@@ -1365,8 +1403,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             subscribeRateInBroker(brokerService.pulsar().getConfiguration()));
     }
 
-    public Optional<ClusterUrl> getMigratedClusterUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar(), topic);
+    public CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync() {
+        return getMigratedClusterUrlAsync(brokerService.getPulsar(), topic);
     }
 
     public static CompletableFuture<Boolean> isClusterMigrationEnabled(PulsarService pulsar,
@@ -1404,16 +1442,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return pulsar.getPulsarResources().getLocalPolicies()
                 .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenApply(policies -> policies.isPresent() && policies.get().migrated);
-    }
-
-    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {
-        try {
-            return getMigratedClusterUrlAsync(pulsar, topic)
-                    .get(pulsar.getPulsarResources().getClusterResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            LOG.warn().exception(e).log("Failed to get migration cluster URL");
-        }
-        return Optional.empty();
     }
 
     public boolean isSystemCursor(String sub) {
@@ -1477,5 +1505,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         } else {
             return Collections.emptyMap();
         }
+    }
+
+    protected ExecutorService getPoliciesNotifyThread() {
+        return topicPoliciesNotifyThread;
     }
 }

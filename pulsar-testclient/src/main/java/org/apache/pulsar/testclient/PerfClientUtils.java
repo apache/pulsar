@@ -292,6 +292,32 @@ public class PerfClientUtils {
     }
 
     /**
+     * Open a transaction on the V5 client, retrying briefly while the transaction-coordinator handler
+     * finishes its asynchronous connect. The first {@code newTransaction()} right after the client is
+     * built can race that connect and fail with {@code MetaStoreHandlerNotReadyException}; the perf
+     * tools open their initial transaction before building producers/consumers, so they hit this
+     * window (whereas a tool that builds participants first gives the handler time to connect).
+     *
+     * @param client the V5 client to open the transaction on
+     * @return a new transaction once the coordinator is ready
+     */
+    public static org.apache.pulsar.client.api.v5.Transaction newTransactionWithRetry(
+            org.apache.pulsar.client.api.v5.PulsarClient client)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException, InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(30);
+        while (true) {
+            try {
+                return client.newTransaction();
+            } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+                if (System.currentTimeMillis() > deadline || hasInterruptedException(e)) {
+                    throw e;
+                }
+                Thread.sleep(200);
+            }
+        }
+    }
+
+    /**
      * Check if the throwable or any of its causes is an InterruptedException.
      *
      * @param throwable the throwable to check

@@ -195,6 +195,8 @@ There is also a guide for [setting up the tooling for building Pulsar](https://p
 ./gradlew assemble                                                       # compile and assemble
 ./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest" # run a single test
 bin/pulsar standalone                                                    # run a standalone service
+./gradlew quickCheck                                                     # license headers + checkstyle, no compile
+./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
 
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR
@@ -212,13 +214,13 @@ Here are some general instructions for building custom docker images:
 
 * Java 21 is the recommended JDK version since `branch-4.0`.
 
-The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
+The following command builds the docker image `apachepulsar/pulsar:latest`:
 
 ```bash
-./gradlew docker-all
+./gradlew docker
 ```
 
-After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.
+After the image is built, it can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker image with the current version and git revision and pushes it to `localhost:32000/apachepulsar`.
 
 ```bash
 image_repo_and_project=localhost:32000/apachepulsar
@@ -226,8 +228,6 @@ pulsar_version=$(src/get-pulsar-version.sh)
 gitrev=$(git rev-parse HEAD | colrm 10)
 tag="${pulsar_version}-${gitrev}"
 echo "Using tag $tag"
-docker tag apachepulsar/pulsar-all:latest ${image_repo_and_project}/pulsar-all:$tag
-docker push ${image_repo_and_project}/pulsar-all:$tag
 docker tag apachepulsar/pulsar:latest ${image_repo_and_project}/pulsar:$tag
 docker push ${image_repo_and_project}/pulsar:$tag
 ```

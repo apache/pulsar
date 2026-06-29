@@ -693,6 +693,10 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         assertEquals(controller.sealedSegmentCount(), sealedBefore + 1);
 
+        // Give the doomed segment a load record, as the owning broker's reporter would.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new org.apache.pulsar.common.scalable.SegmentLoadStats(1, 1, 1, 1)).get();
+
         // Tick at the seal time — retention not yet elapsed; nothing pruned.
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
@@ -705,6 +709,9 @@ public class ScalableTopicControllerTest {
                 "tick past retention must prune the sealed segment");
         // Backing topic delete was issued via the segment-aware admin call.
         verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+        // The pruned segment's load record is deleted along with it.
+        assertFalse(resources.getSegmentLoadAsync(topicName, 0).get().isPresent(),
+                "prune must delete the segment's load record");
     }
 
     /**

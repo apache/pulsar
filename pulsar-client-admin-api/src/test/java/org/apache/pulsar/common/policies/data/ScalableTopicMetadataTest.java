@@ -79,13 +79,16 @@ public class ScalableTopicMetadataTest {
         segments.put(0L, activeSegment(0L, 0, 0xFFFF, 0L));
 
         Map<String, String> props = Map.of("retention", "7d");
+        AutoScalePolicyOverride autoScalePolicy =
+                AutoScalePolicyOverride.builder().enabled(false).build();
 
-        ScalableTopicMetadata md = new ScalableTopicMetadata(3L, 1L, segments, props);
+        ScalableTopicMetadata md = new ScalableTopicMetadata(3L, 1L, segments, props, autoScalePolicy);
 
         assertEquals(md.getEpoch(), 3L);
         assertEquals(md.getNextSegmentId(), 1L);
         assertEquals(md.getSegments(), segments);
         assertEquals(md.getProperties(), props);
+        assertEquals(md.getAutoScalePolicy(), autoScalePolicy);
     }
 
     @Test

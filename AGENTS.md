@@ -56,6 +56,12 @@ A few rules matter specifically when an AI tool makes the change, on top of the 
   these outward-facing actions — see *Licensing and provenance* above.
 - **A clean local run is weak evidence for concurrency/data race fixes** (timing- and
   platform-dependent). See [`CODING.md`](CODING.md#reproducing-concurrency--memory-visibility-bugs).
+- **Follow Java style guidance.** For Java conventions, including imports over fully qualified class
+  names, follow [`CODING.md`](CODING.md#style).
+- **Check before claiming conformance.** Run `./gradlew quickCheck` for a fast source-only pass
+  (license headers + checkstyle, no compilation) or `./gradlew sanityCheck` to also
+  compile every module's main and test sources; neither builds shadow jars. See
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#building).
 
 ## Critical rules
 

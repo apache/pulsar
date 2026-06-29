@@ -35,6 +35,7 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -332,6 +333,16 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 return false;
             }
         }
+    }
+
+    @VisibleForTesting
+    Cache<Long, AuthenticationState> getAuthStates() {
+        return authStates;
+    }
+
+    @VisibleForTesting
+    void setAuthStates(Cache<Long, AuthenticationState> authStates) {
+        this.authStates = authStates;
     }
 
     private String sanitizeHeaderValue(String value) {

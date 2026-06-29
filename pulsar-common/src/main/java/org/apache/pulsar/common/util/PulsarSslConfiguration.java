@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.util.Set;
 import lombok.Builder;
@@ -36,122 +36,122 @@ public class PulsarSslConfiguration implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsCiphers",
-            value = "TLS ciphers to be used",
-            required = true
+            description = "TLS ciphers to be used",
+            requiredMode = Schema.RequiredMode.REQUIRED
     )
     private Set<String> tlsCiphers;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsProtocols",
-            value = "TLS protocols to be used",
-            required = true
+            description = "TLS protocols to be used",
+            requiredMode = Schema.RequiredMode.REQUIRED
     )
     private Set<String> tlsProtocols;
 
-    @ApiModelProperty(
+    @Schema(
             name = "allowInsecureConnection",
-            value = "Insecure Connections are allowed",
-            required = true
+            description = "Insecure Connections are allowed",
+            requiredMode = Schema.RequiredMode.REQUIRED
     )
     private boolean allowInsecureConnection;
 
-    @ApiModelProperty(
+    @Schema(
             name = "requireTrustedClientCertOnConnect",
-            value = "Require trusted client certificate on connect",
-            required = true
+            description = "Require trusted client certificate on connect",
+            requiredMode = Schema.RequiredMode.REQUIRED
     )
     private boolean requireTrustedClientCertOnConnect;
 
-    @ApiModelProperty(
+    @Schema(
             name = "authData",
-            value = "Authentication Data Provider utilized by the Client for identification"
+            description = "Authentication Data Provider utilized by the Client for identification"
     )
     private AuthenticationDataProvider authData;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsCustomParams",
-            value = "Custom Parameters required by Pulsar SSL factory plugins"
+            description = "Custom Parameters required by Pulsar SSL factory plugins"
     )
     private String tlsCustomParams;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsProvider",
-            value = "TLS Provider to be used"
+            description = "TLS Provider to be used"
     )
     private String tlsProvider;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStoreType",
-            value = "TLS Trust Store Type to be used"
+            description = "TLS Trust Store Type to be used"
     )
     private String tlsTrustStoreType;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStorePath",
-            value = "TLS Trust Store Path"
+            description = "TLS Trust Store Path"
     )
     private String tlsTrustStorePath;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStorePassword",
-            value = "TLS Trust Store Password"
+            description = "TLS Trust Store Password"
     )
     private String tlsTrustStorePassword;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustCertsFilePath",
-            value = " TLS Trust certificates file path"
+            description = "TLS Trust certificates file path"
     )
     private String tlsTrustCertsFilePath;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsCertificateFilePath",
-            value = "Path for the TLS Certificate file"
+            description = "Path for the TLS Certificate file"
     )
     private String tlsCertificateFilePath;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyFilePath",
-            value = "Path for TLS Private key file"
+            description = "Path for TLS Private key file"
     )
     private String tlsKeyFilePath;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStoreType",
-            value = "TLS Key Store Type to be used"
+            description = "TLS Key Store Type to be used"
     )
     private String tlsKeyStoreType;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStorePath",
-            value = "TLS Key Store Path"
+            description = "TLS Key Store Path"
     )
     private String tlsKeyStorePath;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStorePassword",
-            value = "TLS Key Store Password"
+            description = "TLS Key Store Password"
     )
     private String tlsKeyStorePassword;
 
-    @ApiModelProperty(
+    @Schema(
             name = "isTlsEnabledWithKeystore",
-            value = "TLS configuration enabled with key store configs"
+            description = "TLS configuration enabled with key store configs"
     )
     private boolean tlsEnabledWithKeystore;
 
-    @ApiModelProperty(
+    @Schema(
             name = "isServerMode",
-            value = "Is the SSL Configuration for a Server or Client",
-            required = true
+            description = "Is the SSL Configuration for a Server or Client",
+            requiredMode = Schema.RequiredMode.REQUIRED
     )
     private boolean serverMode;
 
-    @ApiModelProperty(
+    @Schema(
             name = "isHttps",
-            value = "Is the SSL Configuration for a Http client or Server"
+            description = "Is the SSL Configuration for a Http client or Server"
     )
     private boolean isHttps;
 

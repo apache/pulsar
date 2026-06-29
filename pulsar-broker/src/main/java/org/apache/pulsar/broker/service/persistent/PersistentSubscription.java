@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -471,6 +472,23 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("position", position)
                     .log("Cumulative ack on");
             AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            if (dispatcher instanceof AbstractDispatcherSingleActiveConsumer singleConsumerDispatcher) {
+                // For compacted consumer, we should ignore the position that does not exist in the managed ledger,
+                // otherwise, the `asyncMarkDelete` call could jump the read position to the active ledger, which will
+                // skip all entries present in the compacted ledger but not present in the managed ledger.
+                final var consumer = singleConsumerDispatcher.getActiveConsumer();
+                final var ml = cursor.getManagedLedger();
+                if (consumer != null
+                        && consumer.readCompacted()
+                        && !cursor.isDurable()
+                        && ml.getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
+                    if (ml.getFirstPosition() == null || position.getLedgerId() > ml.getFirstPosition().getLedgerId()) {
+                        log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
+                                + ml.getLedgersInfo().keySet());
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }
+            }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
                     callback, callback);
 
@@ -493,7 +511,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (topic.getManagedLedger().isTerminated() && !cursor.hasBacklog(false)) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
@@ -1077,6 +1095,11 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public boolean hasBacklog(boolean getPreciseBacklog) {
+        return cursor.hasBacklog(getPreciseBacklog);
+    }
+
+    @Override
     public synchronized Dispatcher getDispatcher() {
         return this.dispatcher;
     }
@@ -1613,7 +1636,7 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     void topicTerminated() {
-        if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (!cursor.hasBacklog(false)) {
             // notify the consumers if there are consumers connected to this topic.
             if (null != dispatcher) {
                 // Immediately notify the consumer that there are no more available messages
@@ -1624,8 +1647,12 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public boolean isSubscriptionMigrated() {
-        log.info().attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(true)).log("Backlog");
-        return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
+        if (!topic.isMigrated()) {
+            return false;
+        }
+        boolean hasBacklog = cursor.hasBacklog();
+        log.info().attr("hasBacklog", hasBacklog).log("Checked subscription backlog for topic migration");
+        return !hasBacklog;
     }
 
     @Override

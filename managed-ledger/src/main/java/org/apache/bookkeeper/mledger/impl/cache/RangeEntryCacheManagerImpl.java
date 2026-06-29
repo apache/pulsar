@@ -142,9 +142,9 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             while (evictionCompletionFuture == null) {
                 evictionCompletionFuture = evictionInProgress.get();
                 if (evictionCompletionFuture == null) {
-                    evictionCompletionFuture = evictionInProgress.updateAndGet(
-                            currentValue -> currentValue == null ? new CompletableFuture<>() : null);
-                    if (evictionCompletionFuture != null) {
+                    CompletableFuture<Void> newEvictionFuture = new CompletableFuture<>();
+                    if (evictionInProgress.compareAndSet(null, newEvictionFuture)) {
+                        evictionCompletionFuture = newEvictionFuture;
                         triggerEvictionToMakeSpace(evictionCompletionFuture);
                     }
                 }
