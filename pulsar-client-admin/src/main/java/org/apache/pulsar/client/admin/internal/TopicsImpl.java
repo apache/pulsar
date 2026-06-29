@@ -912,6 +912,21 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                              boolean showServerMarker,
+                                              TransactionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, 1, numMessages, showServerMarker, transactionIsolationLevel);
+    }
+
+    @Override
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
+        return peekMessagesAsync(topic, subName, 1, numMessages, showServerMarker, transactionIsolationLevel);
+    }
+
+    @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages,
                                               boolean showServerMarker,
                                               TransactionIsolationLevel transactionIsolationLevel)
