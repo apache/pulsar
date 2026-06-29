@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.impl.EntryBucketBatcherBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
@@ -582,6 +583,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             if (producerConf.getProducerName() != null
                     && !producerConf.getProducerName().isEmpty()) {
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
+            }
+            // PIP-486 entry-bucketing. End-to-end encryption disables batching (an encrypted batch
+            // can't be reshaped if re-routed across a divergent layout); otherwise, when batching is
+            // enabled, route this segment's batches by entry-bucket so the broker can dispatch a whole
+            // entry to one consumer. A segment's bucketing is immutable for its life.
+            if (segConf.isEncryptionEnabled()) {
+                segConf.setBatchingEnabled(false);
+            } else if (segConf.isBatchingEnabled()) {
+                segConf.setBatcherBuilder(new EntryBucketBatcherBuilder(segment.entryBucketSplits()));
             }
             return v4Client.createSegmentProducerAsync(segConf, v4Schema);
         });
