@@ -65,6 +65,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -76,6 +77,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -100,6 +102,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -858,6 +861,49 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(),
                 TimeUnit.MINUTES.toMillis(1));
+    }
+
+    @Test
+    public void testTopicPolicyListenerForwardsLiveUpdatesAfterInitialLoadFailure() throws Exception {
+        class RecordingPersistentTopic extends PersistentTopic {
+            final List<TopicPolicies> receivedUpdates = new ArrayList<>();
+
+            RecordingPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+                super(topic, ledger, brokerService);
+            }
+
+            @Override
+            public void onUpdate(TopicPolicies policies) {
+                receivedUpdates.add(policies);
+            }
+        }
+
+        final String topic = "persistent://prop/ns-abc/testTopicPolicyInitFailure-" + UUID.randomUUID();
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+
+        TopicPoliciesService policiesService = mock(TopicPoliciesService.class);
+        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+        doReturn(CompletableFuture.completedFuture(true)).when(policiesService)
+                .registerListenerAsync(any(TopicName.class), any(TopicPolicyListener.class));
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("initial topic policy load failed")))
+                .when(policiesService).getTopicPoliciesAsync(any(TopicName.class),
+                        any(TopicPoliciesService.GetType.class));
+
+        RecordingPersistentTopic persistentTopic =
+                new RecordingPersistentTopic(topic, ledger, pulsar.getBrokerService());
+        persistentTopic.initTopicPolicy().handle((ignored, ex) -> null).get(3, TimeUnit.SECONDS);
+
+        ArgumentCaptor<TopicPolicyListener> listenerCaptor = ArgumentCaptor.forClass(TopicPolicyListener.class);
+        verify(policiesService).registerListenerAsync(any(TopicName.class), listenerCaptor.capture());
+
+        TopicPolicies livePolicies = new TopicPolicies();
+        livePolicies.setIsGlobal(false);
+        livePolicies.setMaxConsumerPerTopic(10);
+        listenerCaptor.getValue().onUpdate(livePolicies);
+
+        assertEquals(persistentTopic.receivedUpdates, Collections.singletonList(livePolicies));
     }
 
     @Test

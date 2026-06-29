@@ -4903,12 +4903,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     CompletableFuture<Optional<TopicPolicies>> localPoliciesFuture =
                             topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
                                     TopicPoliciesService.GetType.LOCAL_ONLY);
-                    return globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
-                        // finally update the topic policies with the latest value or loaded value
-                        return CompletableFuture.runAsync(() ->
-                                topicPolicyListener.completeInitialization(global.orElse(null), local.orElse(null)),
-                                getPoliciesNotifyThread());
-                    }).thenCompose(Function.identity());
+                    CompletableFuture<Void> initialPoliciesFuture =
+                            globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
+                                // finally update the topic policies with the latest value or loaded value
+                                return CompletableFuture.runAsync(() ->
+                                        topicPolicyListener.completeInitialization(global.orElse(null),
+                                                local.orElse(null)),
+                                        getPoliciesNotifyThread());
+                            }).thenCompose(Function.identity());
+                    return initialPoliciesFuture.exceptionallyCompose(ex ->
+                            // The topic load path logs and continues when initial policy loading fails. Make sure the
+                            // already-registered wrapper is not left buffering future live updates forever.
+                            CompletableFuture.runAsync(
+                                    () -> topicPolicyListener.completeInitialization(null, null),
+                                    getPoliciesNotifyThread())
+                                    .thenCompose(__ -> FutureUtil.failedFuture(
+                                            FutureUtil.unwrapCompletionException(ex))));
                 });
     }
 
