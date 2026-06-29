@@ -584,17 +584,23 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     && !producerConf.getProducerName().isEmpty()) {
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
             }
-            // PIP-486 entry-bucketing. End-to-end encryption disables batching (an encrypted batch
-            // can't be reshaped if re-routed across a divergent layout); otherwise, when batching is
-            // enabled, route this segment's batches by entry-bucket so the broker can dispatch a whole
-            // entry to one consumer. A segment's bucketing is immutable for its life.
-            if (segConf.isEncryptionEnabled()) {
-                segConf.setBatchingEnabled(false);
-            } else if (segConf.isBatchingEnabled()) {
-                segConf.setBatcherBuilder(new EntryBucketBatcherBuilder(segment.entryBucketSplits()));
-            }
+            applyEntryBucketing(segConf, segment);
             return v4Client.createSegmentProducerAsync(segConf, v4Schema);
         });
+    }
+
+    /**
+     * PIP-486: configure a per-segment producer's batching for entry-bucketing. End-to-end encryption
+     * disables batching (an encrypted batch can't be reshaped if re-routed across a divergent layout);
+     * otherwise, when batching is enabled, route the segment's batches by entry-bucket so the broker can
+     * dispatch a whole entry to one consumer. A segment's bucketing is immutable for its life.
+     */
+    static void applyEntryBucketing(ProducerConfigurationData segConf, ActiveSegment segment) {
+        if (segConf.isEncryptionEnabled()) {
+            segConf.setBatchingEnabled(false);
+        } else if (segConf.isBatchingEnabled()) {
+            segConf.setBatcherBuilder(new EntryBucketBatcherBuilder(segment.entryBucketSplits()));
+        }
     }
 
     /**

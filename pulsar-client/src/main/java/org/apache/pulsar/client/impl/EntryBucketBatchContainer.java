@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.common.scalable.ScalableTopicHashing;
 
 /**
  * PIP-486 entry-bucket batch container for scalable topics.
@@ -81,7 +81,7 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
         } else {
             return 0;
         }
-        return Murmur3_32Hash.makeRawHash(keyBytes) & 0xFFFF;
+        return ScalableTopicHashing.entryBucketHash(ScalableTopicHashing.murmur(keyBytes));
     }
 
     /** The bucket a hash falls in: the number of split points {@code <=} it (splits are ascending). */
