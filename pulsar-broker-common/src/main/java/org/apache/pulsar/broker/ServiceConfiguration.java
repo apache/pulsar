@@ -1431,6 +1431,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "PIP-486 total entry-bucket budget per scalable topic. The buckets are distributed across "
+                    + "the topic's segments (each segment gets floor(budget / segmentCount), at least 1), so "
+                    + "the budget is the topic's standing intra-segment key-shared fan-out headroom. A "
+                    + "single-segment topic starts with all of them; as the topic splits into more segments "
+                    + "each segment settles toward 1 bucket (full batching)."
+    )
+    private int scalableTopicEntryBucketBudget = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."

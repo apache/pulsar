@@ -56,7 +56,7 @@ public class SubscriptionCoordinatorTest {
     @BeforeMethod
     public void setup() {
         topicName = TopicName.get("topic://tenant/ns/my-topic");
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         initialLayout = SegmentLayout.fromMetadata(metadata);
         resources = mock(ScalableTopicResources.class);
         // All persistence ops succeed

@@ -441,7 +441,7 @@ public class DagWatchSessionTest {
     public void testOnMetadataChangedAfterCloseIsNoop() {
         session.close();
         // Build a minimal metadata object; close should short-circuit before any work runs.
-        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         session.onMetadataChanged(md);
 
         verify(ctx, never()).writeAndFlush(any());
