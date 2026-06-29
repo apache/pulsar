@@ -108,33 +108,38 @@ final class SegmentRouter {
         return mod < 0 ? mod + divisor : mod;
     }
 
-    /** The raw 32-bit {@code Murmur3_32} hash of the key — its two 16-bit halves drive the two
-     *  independent rings: high half → segment routing, low half → entry-bucketing (PIP-486). The
-     *  <i>raw</i> (unmasked) hash is required so the high half is full-range; {@code makeHash} clears
-     *  bit 31, which would confine the high half to [0, 0x7FFF]. */
+    /**
+     * The raw 32-bit {@code Murmur3_32} hash of a key. Its two 16-bit halves drive the two independent
+     * rings — high half → segment routing ({@link #segmentHash}), low half → entry-bucketing
+     * ({@link #entryBucketHash}, PIP-486). Compute this <b>once</b> per key and split it, rather than
+     * hashing the key twice.
+     *
+     * <p>The <i>raw</i> (unmasked) hash is required so the high half is full-range: {@code makeHash}
+     * clears bit 31, which would confine the high half to {@code [0, 0x7FFF]}.
+     */
     static int murmur(byte[] keyBytes) {
         return Murmur3_32Hash.makeRawHash(keyBytes);
     }
 
-    /** Compute the 16-bit segment-routing hash (high 16 bits of Murmur3) for a key. */
+    /** The 16-bit segment-routing hash (high 16 bits) from a precomputed {@link #murmur(byte[])}. */
+    static int segmentHash(int murmur) {
+        return (murmur >>> 16) & HashRange.MAX_HASH;
+    }
+
+    /** The 16-bit entry-bucket hash (low 16 bits) from a precomputed {@link #murmur(byte[])} (PIP-486).
+     *  Independent of the segment-routing hash, so a segment's keys spread evenly across its buckets. */
+    static int entryBucketHash(int murmur) {
+        return murmur & HashRange.MAX_HASH;
+    }
+
+    /** Convenience: the segment-routing hash for a key. Equivalent to {@code segmentHash(murmur(key))}. */
     static int hash(String key) {
         return hash(key.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Compute the 16-bit segment-routing hash (high 16 bits of Murmur3) for key bytes. */
+    /** Convenience: the segment-routing hash for key bytes. Equivalent to {@code segmentHash(murmur(b))}. */
     static int hash(byte[] keyBytes) {
-        return (murmur(keyBytes) >>> 16) & HashRange.MAX_HASH;
-    }
-
-    /** Compute the 16-bit entry-bucket hash (low 16 bits of Murmur3) for a key (PIP-486). Independent
-     *  of the segment-routing hash, so a segment's keys spread evenly across its entry buckets. */
-    static int entryBucketHash(String key) {
-        return entryBucketHash(key.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /** Compute the 16-bit entry-bucket hash (low 16 bits of Murmur3) for key bytes (PIP-486). */
-    static int entryBucketHash(byte[] keyBytes) {
-        return murmur(keyBytes) & HashRange.MAX_HASH;
+        return segmentHash(murmur(keyBytes));
     }
 
     /**
