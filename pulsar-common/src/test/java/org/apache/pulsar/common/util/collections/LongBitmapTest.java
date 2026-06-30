@@ -419,10 +419,12 @@ public class LongBitmapTest {
         bitmap.add(1);
         bitmap.add(2);
 
-        assertEquals(bitmap.drainTo(0, v -> {}), 0);
+        assertEquals(bitmap.drainTo(0, v -> {
+        }), 0);
         assertEquals(bitmap.cardinality(), 2);
 
-        assertEquals(bitmap.drainTo(-1, v -> {}), 0);
+        assertEquals(bitmap.drainTo(-1, v -> {
+        }), 0);
         assertEquals(bitmap.cardinality(), 2);
     }
 
@@ -456,7 +458,8 @@ public class LongBitmapTest {
         // but cumulative trim counter should cross the threshold after several batches.
         int totalDrained = 0;
         while (!bitmap.isEmpty()) {
-            totalDrained += bitmap.drainTo(100, v -> {});
+            totalDrained += bitmap.drainTo(100, v -> {
+            });
         }
         assertEquals(totalDrained, 50000);
         assertTrue(bitmap.isEmpty());
@@ -479,12 +482,22 @@ public class LongBitmapTest {
                 b.add(j + 50);  // overlap
             }
             executor.submit(() -> {
-                try { a.or(b); } catch (Exception e) { errors.incrementAndGet(); }
-                finally { latch.countDown(); }
+                try {
+                    a.or(b);
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
             });
             executor.submit(() -> {
-                try { b.or(a); } catch (Exception e) { errors.incrementAndGet(); }
-                finally { latch.countDown(); }
+                try {
+                    b.or(a);
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
             });
         }
 
@@ -508,7 +521,10 @@ public class LongBitmapTest {
         // during action execution — concurrent operations should remain responsive.
         long start = System.nanoTime();
         long drained = bitmap.drainTo(100, v -> {
-            try { Thread.sleep(1); } catch (InterruptedException e) { }
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+            }
         });
         long elapsed = System.nanoTime() - start;
         assertEquals(drained, 100);
@@ -601,7 +617,10 @@ public class LongBitmapTest {
         executor.submit(() -> {
             try {
                 bitmap.drainTo(50, v -> {
-                    try { Thread.sleep(1); } catch (InterruptedException e) { }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                    }
                 });
             } catch (Exception e) {
                 errors.incrementAndGet();
