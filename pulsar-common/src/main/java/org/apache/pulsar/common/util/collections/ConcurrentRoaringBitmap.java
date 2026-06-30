@@ -31,6 +31,20 @@ import org.roaringbitmap.buffer.MutableRoaringBitmap;
  * {@link LongBitmap} implementation backed by {@link MutableRoaringBitmap} and guarded
  * by a {@link StampedLock}.
  *
+ * <p><b>Thread-safety basis.</b> RoaringBitmap is not thread-safe by default
+ * (see <a href="https://github.com/apache/pulsar/issues/25991">pulsar#25991</a>). This
+ * wrapper relies on the documented contract that {@link MutableRoaringBitmap}'s read
+ * methods — the {@code ImmutableBitmapDataProvider} surface inherited from
+ * {@code ImmutableRoaringBitmap} — do not mutate internal state, while methods added by
+ * {@code BitmapDataProvider} and other {@code MutableRoaringBitmap} mutators
+ * ({@code andNot}, {@code or}, {@code checkedRemove}, {@code runOptimize}, {@code clone},
+ * ...) do. Read methods run under the read lock; mutators under the write lock.
+ * {@code clone()} is used under the read lock in {@link #forEachLong} and {@link #serialize};
+ * its source has been audited to be read-only on the live bitmap. <b>Before upgrading
+ * the RoaringBitmap dependency or changing the lock split</b>, re-audit these methods
+ * and run the concurrency regression tests ({@code testConcurrentForEachLongAndMutate},
+ * {@code testOrDoesNotMutateInput}).
+ *
  * <p><b>Critical sections.</b> Single-value reads take the read lock; mutations take the
  * write lock. Bulk mutations that touch two bitmaps ({@link #or}) acquire this bitmap's
  * write lock and the other's read lock in {@code identityHashCode} order, so concurrent

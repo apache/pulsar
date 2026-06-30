@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,8 +35,8 @@ import org.testng.annotations.Test;
 
 /**
  * Unit tests for {@link LongBitmap}. Covers point/range operations, uint32 boundary
- * behavior, serialization round-trip, drain-to atomicity, and the deadlock-avoidance
- * contract of {@link LongBitmap#or}.
+ * behavior, serialization round-trip, drain-to atomicity, and concurrency contracts
+ * (or lock ordering, snapshot safety under mutation, or-input immutability).
  */
 public class LongBitmapTest {
 
@@ -224,6 +223,65 @@ public class LongBitmapTest {
         assertTrue(latch.await(30, TimeUnit.SECONDS));
         executor.shutdown();
         assertEquals(errors.get(), 0);
+    }
+
+    @Test
+    public void testConcurrentForEachLongAndMutate() throws Exception {
+        // forEachLong takes a clone() snapshot under read lock; concurrent mutations on the
+        // live bitmap must never corrupt the snapshot. Regression guard for pulsar#25991.
+        LongBitmap bitmap = LongBitmaps.create();
+        for (int i = 0; i < 10000; i++) {
+            bitmap.add(i);
+        }
+
+        int numReaders = 5;
+        int numWriters = 5;
+        ExecutorService executor = Executors.newFixedThreadPool(numReaders + numWriters);
+        CountDownLatch latch = new CountDownLatch(numReaders + numWriters);
+        AtomicInteger errors = new AtomicInteger(0);
+
+        for (int i = 0; i < numReaders; i++) {
+            executor.submit(() -> {
+                try {
+                    for (int j = 0; j < 100; j++) {
+                        long[] last = {-1};
+                        bitmap.forEachLong(v -> {
+                            // Snapshot values must arrive in ascending order.
+                            if (v <= last[0]) {
+                                errors.incrementAndGet();
+                            }
+                            last[0] = v;
+                        });
+                    }
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        for (int i = 0; i < numWriters; i++) {
+            int id = i;
+            executor.submit(() -> {
+                try {
+                    for (int j = 0; j < 1000; j++) {
+                        long v = 10000 + id * 1000 + (j % 1000);
+                        bitmap.add(v);
+                        bitmap.remove(v);
+                    }
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        assertTrue(latch.await(30, TimeUnit.SECONDS));
+        executor.shutdown();
+        assertEquals(errors.get(), 0);
+        assertEquals(bitmap.cardinality(), 10000);
     }
 
     @Test
@@ -463,6 +521,28 @@ public class LongBitmapTest {
         }
         assertEquals(totalDrained, 50000);
         assertTrue(bitmap.isEmpty());
+    }
+
+    @Test
+    public void testOrDoesNotMutateInput() {
+        // A.or(B) must treat B as read-only — required for our lock split
+        // (this=writeLock, other=readLock).
+        LongBitmap a = LongBitmaps.create();
+        LongBitmap b = LongBitmaps.create();
+        for (int i = 0; i < 1000; i++) {
+            a.add(i * 2);
+            b.add(i * 2 + 1);
+        }
+        long bCardinalityBefore = b.cardinality();
+
+        a.or(b);
+
+        assertEquals(b.cardinality(), bCardinalityBefore);
+        for (int i = 0; i < 1000; i++) {
+            assertTrue(b.contains(i * 2 + 1), "b lost value after a.or(b)");
+            assertFalse(b.contains(i * 2), "b gained value after a.or(b)");
+        }
+        assertEquals(a.cardinality(), 2000);
     }
 
     @Test
