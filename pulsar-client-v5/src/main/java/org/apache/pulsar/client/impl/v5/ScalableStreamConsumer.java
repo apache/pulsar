@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -42,6 +44,7 @@ import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 
 /**
@@ -77,6 +80,9 @@ final class ScalableStreamConsumer<T>
      */
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
             segmentConsumers = new ConcurrentHashMap<>();
+    // PIP-486: the entry-bucket ranges each segment consumer was last subscribed with, so a change in
+    // ownership (a consumer joined/left) re-subscribes the segment with the new ranges.
+    private final ConcurrentHashMap<Long, List<HashRange>> segmentBucketRanges = new ConcurrentHashMap<>();
 
     /**
      * Tracks the latest message ID delivered from each segment. Updated atomically
@@ -351,6 +357,7 @@ final class ScalableStreamConsumer<T>
                         .log("Closing consumer for segment removed from assignment");
                 entry.getValue().thenAccept(c -> c.closeAsync());
                 segmentConsumers.remove(entry.getKey());
+                segmentBucketRanges.remove(entry.getKey());
                 latestDelivered.remove(entry.getKey());
             }
         }
@@ -358,6 +365,17 @@ final class ScalableStreamConsumer<T>
         // Subscribe to newly-assigned segments.
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var seg : assigned) {
+            // PIP-486: if the controller changed which entry-buckets we own on a segment we are
+            // already subscribed to (a consumer joined or left), re-subscribe with the new ranges so
+            // the broker's exclusive bucket selector sees a consistent, non-overlapping assignment.
+            var existing = segmentConsumers.get(seg.segmentId());
+            if (existing != null
+                    && !seg.ownedBucketRanges().equals(segmentBucketRanges.get(seg.segmentId()))) {
+                log.info().attr("segmentId", seg.segmentId())
+                        .log("Re-subscribing segment for changed entry-bucket ownership");
+                existing.thenAccept(c -> c.closeAsync());
+                segmentConsumers.remove(seg.segmentId());
+            }
             futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(),
                     id -> createSegmentConsumerAsync(seg)));
         }
@@ -377,7 +395,23 @@ final class ScalableStreamConsumer<T>
         // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
-        segConf.setSubscriptionType(SubscriptionType.Exclusive);
+        List<HashRange> ownedBucketRanges = segment.ownedBucketRanges();
+        if (ownedBucketRanges.isEmpty()) {
+            // Single-bucket segment: this consumer owns the whole segment exclusively (pre-PIP-486).
+            segConf.setSubscriptionType(SubscriptionType.Exclusive);
+        } else {
+            // PIP-486: this consumer owns a subset of the segment's entry-buckets. Subscribe Key_Shared
+            // STICKY declaring exactly those bucket hash-ranges, so the broker dispatches each entry to
+            // the consumer owning its bucket; other owners of the same segment share the subscription
+            // with disjoint ranges.
+            List<Range> ranges = new ArrayList<>(ownedBucketRanges.size());
+            for (HashRange r : ownedBucketRanges) {
+                ranges.add(Range.of(r.start(), r.end()));
+            }
+            segConf.setSubscriptionType(SubscriptionType.Key_Shared);
+            segConf.setKeySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges));
+        }
+        segmentBucketRanges.put(segment.segmentId(), ownedBucketRanges);
         // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
         // migration pre-check inspects, so mark just those connections as V5-managed —
         // connections to real segment:// topics are never examined.
