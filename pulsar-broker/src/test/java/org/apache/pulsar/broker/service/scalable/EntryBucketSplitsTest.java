@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.testng.annotations.Test;
 
 /**
@@ -124,5 +125,21 @@ public class EntryBucketSplitsTest {
         SegmentLayout merged = SegmentLayout.fromMetadata(md).mergeSegments(0, 1, 0L);
         long mergedId = merged.getAllSegments().get(0L).childIds().get(0);
         assertEquals(merged.getAllSegments().get(mergedId).bucketCount(), 2);
+    }
+
+    // --- ranges: split points -> per-bucket hash ranges ---
+
+    @Test
+    public void testRangesSingleBucketSpansWholeRing() {
+        assertEquals(EntryBucketSplits.ranges(List.of()), List.of(HashRange.of(0, 0xFFFF)));
+    }
+
+    @Test
+    public void testRangesFromSplits() {
+        assertEquals(EntryBucketSplits.ranges(List.of(0x8000)),
+                List.of(HashRange.of(0, 0x7FFF), HashRange.of(0x8000, 0xFFFF)));
+        assertEquals(EntryBucketSplits.ranges(List.of(0x4000, 0x8000, 0xC000)),
+                List.of(HashRange.of(0, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
+                        HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
     }
 }
