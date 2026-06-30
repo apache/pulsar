@@ -64,8 +64,8 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.LongBitmap;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
-import org.roaringbitmap.RoaringBitmap;
 
 @ThreadSafe
 public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
@@ -562,7 +562,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                             buckets.get(buckets.size() - 1).endLedgerId);
 
                             // Merge bit map to new bucket
-                            Map<Long, RoaringBitmap> delayedIndexBitMap =
+                            Map<Long, LongBitmap> delayedIndexBitMap =
                                     new HashMap<>(buckets.get(0).getDelayedIndexBitMap());
                             for (int i = 1; i < buckets.size(); i++) {
                                 buckets.get(i).delayedIndexBitMap.forEach((ledgerId, bitMapB) -> {
@@ -577,8 +577,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 });
                             }
 
-                            // optimize bm
-                            delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
                             immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
 
                             afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);

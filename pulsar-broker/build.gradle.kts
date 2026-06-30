@@ -86,7 +86,6 @@ dependencies {
     api(libs.java.semver)
     api(libs.avro)
     api(libs.hppc)
-    api(libs.roaringbitmap)
     implementation(libs.oshi.core)
     implementation(libs.jakarta.xml.bind.api)
     implementation(libs.angus.activation)
