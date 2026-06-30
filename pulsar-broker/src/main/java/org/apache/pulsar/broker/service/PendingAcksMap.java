@@ -25,6 +25,7 @@ import it.unimi.dsi.fastutil.longs.Long2LongSortedMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.LongLongBiConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -43,12 +44,7 @@ import java.util.function.Supplier;
  * running.
  */
 public class PendingAcksMap {
-    static final int PENDING_ACK_NOT_FOUND = -1;
-    private static final long STICKY_KEY_HASH_MASK = 0xFFFF_FFFFL;
-    // The remaining unacked count is a non-negative message count. Reserve a packed negative count as the
-    // Long2LongSortedMap default return value so lookups can distinguish missing entries with a single get.
-    private static final long PACKED_PENDING_ACK_NOT_FOUND =
-            packPendingAckValue(PENDING_ACK_NOT_FOUND, 0);
+    static final int PENDING_ACK_NOT_FOUND = PendingAckValues.NOT_FOUND;
 
     /**
      * Callback interface for handling the addition of pending acknowledgments.
@@ -108,6 +104,11 @@ public class PendingAcksMap {
     }
 
     private final Consumer consumer;
+
+    /**
+     * Pending acknowledgments grouped by ledger id. The outer map key is ledgerId and each inner map key is entryId.
+     * The inner map value is packed by {@link PendingAckValues} with the remaining unacked count and sticky key hash.
+     */
     private final Long2ObjectSortedMap<Long2LongSortedMap> pendingAcks;
     private final Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier;
     private final Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier;
@@ -141,7 +142,6 @@ public class PendingAcksMap {
      * @return true if the pending ack was added, and it's allowed to send a message, false otherwise
      */
     public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash) {
-        long packedValue = packPendingAckValue(remainingUnacked, stickyKeyHash);
         try {
             writeLock.lock();
             // prevent adding sticky hash to pending acks if the PendingAcksMap has already been closed
@@ -158,8 +158,9 @@ public class PendingAcksMap {
             }
             Long2LongSortedMap ledgerPendingAcks =
                     pendingAcks.computeIfAbsent(ledgerId, k -> newLedgerPendingAcks());
+            long packedValue = PendingAckValues.pack(remainingUnacked, stickyKeyHash);
             long previous = ledgerPendingAcks.put(entryId, packedValue);
-            if (previous == PACKED_PENDING_ACK_NOT_FOUND) {
+            if (PendingAckValues.isNotFound(previous)) {
                 size++;
             }
             return true;
@@ -193,18 +194,12 @@ public class PendingAcksMap {
 
     // iterate all pending acks and process them
     private void processPendingAcks(PendingAcksConsumer processor) {
-        // this code uses for loops intentionally, don't refactor to use forEach
-        // iterate the outer map
         for (Long2ObjectMap.Entry<Long2LongSortedMap> entry : pendingAcks.long2ObjectEntrySet()) {
             long ledgerId = entry.getLongKey();
-            Long2LongSortedMap ledgerPendingAcks = entry.getValue();
-            // iterate the inner map
-            for (Long2LongMap.Entry e : ledgerPendingAcks.long2LongEntrySet()) {
-                long entryId = e.getLongKey();
-                long packedValue = e.getLongValue();
-                processor.accept(ledgerId, entryId, unpackRemainingUnacked(packedValue),
-                        unpackStickyKeyHash(packedValue));
-            }
+            LongLongBiConsumer pendingAckProcessor = (entryId, packedValue) ->
+                    processor.accept(ledgerId, entryId, PendingAckValues.remainingUnacked(packedValue),
+                            PendingAckValues.stickyKeyHash(packedValue));
+            entry.getValue().forEach(pendingAckProcessor);
         }
     }
 
@@ -294,7 +289,7 @@ public class PendingAcksMap {
                 return null;
             }
             long packedValue = ledgerMap.get(entryId);
-            return packedValue == PACKED_PENDING_ACK_NOT_FOUND ? null : unpackPendingAckValue(packedValue);
+            return PendingAckValues.isNotFound(packedValue) ? null : PendingAckValues.toPair(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -313,8 +308,8 @@ public class PendingAcksMap {
                 return PENDING_ACK_NOT_FOUND;
             }
             long packedValue = ledgerMap.get(entryId);
-            return packedValue == PACKED_PENDING_ACK_NOT_FOUND
-                    ? PENDING_ACK_NOT_FOUND : unpackRemainingUnacked(packedValue);
+            return PendingAckValues.isNotFound(packedValue)
+                    ? PENDING_ACK_NOT_FOUND : PendingAckValues.remainingUnacked(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -333,7 +328,10 @@ public class PendingAcksMap {
         try {
             writeLock.lock();
             Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            long expectedValue = packPendingAckValue(batchSize, stickyKeyHash);
+            if (batchSize < 0) {
+                return false;
+            }
+            long expectedValue = PendingAckValues.pack(batchSize, stickyKeyHash);
             if (ledgerMap == null || ledgerMap.get(entryId) != expectedValue) {
                 return false;
             }
@@ -366,14 +364,14 @@ public class PendingAcksMap {
                 return false;
             }
             long packedValue = ledgerMap.get(entryId);
-            if (packedValue == PACKED_PENDING_ACK_NOT_FOUND) {
+            if (PendingAckValues.isNotFound(packedValue)) {
                 return false;
             }
-            int newRemaining = unpackRemainingUnacked(packedValue) - ackedDelta;
+            int newRemaining = PendingAckValues.remainingUnacked(packedValue) - ackedDelta;
             if (newRemaining < 0) {
                 return false;
             }
-            ledgerMap.put(entryId, packPendingAckValue(newRemaining, unpackStickyKeyHash(packedValue)));
+            ledgerMap.put(entryId, PendingAckValues.pack(newRemaining, PendingAckValues.stickyKeyHash(packedValue)));
             return true;
         } finally {
             writeLock.unlock();
@@ -395,11 +393,11 @@ public class PendingAcksMap {
                 return false;
             }
             long removedEntry = ledgerMap.remove(entryId);
-            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+            if (PendingAckValues.isNotFound(removedEntry)) {
                 return false;
             }
             size--;
-            handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
+            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
             }
@@ -429,15 +427,15 @@ public class PendingAcksMap {
                 return null;
             }
             long removedEntry = ledgerMap.remove(entryId);
-            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+            if (PendingAckValues.isNotFound(removedEntry)) {
                 return null;
             }
             size--;
-            handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
+            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
             }
-            return unpackPendingAckValue(removedEntry);
+            return PendingAckValues.toPair(removedEntry);
         } finally {
             writeLock.unlock();
         }
@@ -456,15 +454,15 @@ public class PendingAcksMap {
                 return PENDING_ACK_NOT_FOUND;
             }
             long removedEntry = ledgerMap.remove(entryId);
-            if (removedEntry == PACKED_PENDING_ACK_NOT_FOUND) {
+            if (PendingAckValues.isNotFound(removedEntry)) {
                 return PENDING_ACK_NOT_FOUND;
             }
             size--;
-            handleRemovePendingAck(ledgerId, entryId, unpackStickyKeyHash(removedEntry));
+            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
             }
-            return unpackRemainingUnacked(removedEntry);
+            return PendingAckValues.remainingUnacked(removedEntry);
         } finally {
             writeLock.unlock();
         }
@@ -533,8 +531,8 @@ public class PendingAcksMap {
                         return;
                     }
                     long packedValue = pendingAckEntry.getLongValue();
-                    int batchSize = unpackRemainingUnacked(packedValue);
-                    int stickyKeyHash = unpackStickyKeyHash(packedValue);
+                    int batchSize = PendingAckValues.remainingUnacked(packedValue);
+                    int stickyKeyHash = PendingAckValues.stickyKeyHash(packedValue);
                     if (pendingAcksRemoveHandler != null) {
                         if (!batchStarted) {
                             pendingAcksRemoveHandler.startBatch();
@@ -571,26 +569,10 @@ public class PendingAcksMap {
         }
     }
 
-    private static long packPendingAckValue(int remainingUnacked, int stickyKeyHash) {
-        return ((long) remainingUnacked << Integer.SIZE) | (stickyKeyHash & STICKY_KEY_HASH_MASK);
-    }
-
     private static Long2LongSortedMap newLedgerPendingAcks() {
         Long2LongRBTreeMap ledgerPendingAcks = new Long2LongRBTreeMap();
-        ledgerPendingAcks.defaultReturnValue(PACKED_PENDING_ACK_NOT_FOUND);
+        ledgerPendingAcks.defaultReturnValue(PendingAckValues.PACKED_NOT_FOUND);
         return ledgerPendingAcks;
-    }
-
-    private static IntIntPair unpackPendingAckValue(long packedValue) {
-        return IntIntPair.of(unpackRemainingUnacked(packedValue), unpackStickyKeyHash(packedValue));
-    }
-
-    private static int unpackRemainingUnacked(long packedValue) {
-        return (int) (packedValue >> Integer.SIZE);
-    }
-
-    private static int unpackStickyKeyHash(long packedValue) {
-        return (int) packedValue;
     }
 
     private void handleRemovePendingAck(long ledgerId, long entryId, int stickyKeyHash) {
