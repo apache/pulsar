@@ -21,14 +21,19 @@ package org.apache.pulsar.common.util.collections;
 import java.util.function.LongConsumer;
 
 /**
- * Thread-safe bitmap over the unsigned 32-bit range {@code [0, 2^32 - 1]}.
+ * Thread-safe bitmap abstraction for tracking long values.
  *
- * <p>Provides point/range add/remove/contains, bulk union ({@link #or}), atomic
- * drain ({@link #drainTo}), iteration ({@link #forEachLong}), and serialization
- * ({@link #serialize}/{@link #serializedSize}). All methods are thread-safe.
+ * <p>The current implementation supports values in the unsigned 32-bit range
+ * {@code [0, 2^32 - 1]}. Methods that modify the bitmap reject values outside this
+ * range with {@link IllegalArgumentException}. Query methods return {@code false}
+ * or {@code -1} for out-of-range values where applicable.
  *
- * <p>Used by Pulsar's delayed-delivery tracker, consumer-name-index allocator,
- * and draining-hash tracker.
+ * <p>Supports point and range operations, bulk union, atomic draining, iteration,
+ * and serialization. All operations are thread-safe.
+ *
+ * <p>This abstraction is used for high-throughput broker metadata tracking,
+ * including delayed-delivery tracking, consumer-name allocation, and
+ * draining-hash tracking.
  *
  * <p>Example:
  * <pre>{@code
@@ -42,77 +47,124 @@ import java.util.function.LongConsumer;
  */
 public interface LongBitmap {
 
-    /** Adds a value. */
+    /**
+     * Adds a value.
+     *
+     * @param value value to add, must be in {@code [0, 2^32 - 1]}
+     * @throws IllegalArgumentException if value is outside the supported range
+     */
     void add(long value);
 
-    /** Adds all values in {@code [from, to)}. No-op if {@code to <= from}. */
+    /**
+     * Adds a value if it is not already present.
+     *
+     * <p>This operation is atomic. Unlike {@code if (!contains(value)) add(value)},
+     * the check and add are performed as a single operation.
+     *
+     * @param value value to add, must be in {@code [0, 2^32 - 1]}
+     * @return {@code true} if the value was added, {@code false} if it already existed
+     * @throws IllegalArgumentException if value is outside the supported range
+     */
+    boolean checkedAdd(long value);
+
+    /**
+     * Adds all values in the half-open range {@code [from, to)}.
+     *
+     * <p>No-op if {@code to <= from}.
+     *
+     * @param from inclusive lower bound
+     * @param to exclusive upper bound
+     * @throws IllegalArgumentException if the range exceeds the supported value range
+     */
     void add(long from, long to);
 
-    /** Removes a value. No-op if absent. */
+    /**
+     * Removes a value. No-op if absent.
+     *
+     * @param value value to remove
+     * @throws IllegalArgumentException if value is outside the supported range
+     */
     void remove(long value);
 
-    /** Removes all values in {@code [from, to)}. No-op if {@code to <= from}. */
+    /**
+     * Removes all values in the half-open range {@code [from, to)}.
+     *
+     * <p>No-op if {@code to <= from}.
+     *
+     * @param from inclusive lower bound
+     * @param to exclusive upper bound
+     * @throws IllegalArgumentException if the range exceeds the supported value range
+     */
     void remove(long from, long to);
 
-    /** Returns true if {@code value} is present. Out-of-range values return false. */
+    /**
+     * Returns whether the bitmap contains the given value.
+     *
+     * @param value value to check
+     * @return {@code true} if present, otherwise {@code false}
+     */
     boolean contains(long value);
 
     /**
-     * Returns true iff every value in {@code [from, to)} is present.
-     * Returns false if the range is empty, reversed, or out of bounds.
+     * Returns whether all values in {@code [from, to)} are present.
+     *
+     * @param from inclusive lower bound
+     * @param to exclusive upper bound
+     * @return {@code true} if all values in the range are present
      */
     boolean contains(long from, long to);
 
-    /** Number of values currently set. */
+    /** Returns the number of values currently stored. */
     long cardinality();
 
-    /** True if no values are set. O(1). */
+    /** Returns {@code true} if no values are stored. */
     boolean isEmpty();
 
     /**
-     * Smallest absent value {@code >= from}, or {@code -1} if every value in
-     * {@code [from, MAX_UINT32]} is present. {@code from} outside {@code [0, MAX_UINT32]}
-     * returns {@code -1}.
+     * Returns the smallest absent value greater than or equal to {@code from}.
+     *
+     * @param from inclusive lower bound
+     * @return next absent value, or {@code -1} if none exists
      */
     long nextAbsentValue(long from);
 
     /**
-     * In-place union: adds every value in {@code other} to this bitmap. Container-level
-     * bulk operation (O(containers), not O(values)). Locks are acquired in
-     * identityHashCode order so concurrent {@code A.or(B)} and {@code B.or(A)} don't
-     * deadlock. {@code a.or(a)} is a no-op.
+     * Adds all values from {@code other} into this bitmap.
+     *
+     * @param other bitmap to merge
      */
     void or(LongBitmap other);
 
     /**
-     * Iterates values in ascending order. The action runs without holding any lock,
-     * so a slow action does not block concurrent operations and may safely mutate
-     * this bitmap (the iteration sees a point-in-time snapshot, not a live view).
+     * Iterates values in ascending order.
+     *
+     * <p>The iteration observes a stable view of the bitmap. Implementations may
+     * choose the mechanism used to provide this guarantee.
+     *
+     * @param action callback invoked for each value
      */
     void forEachLong(LongConsumer action);
 
     /**
-     * Atomically removes up to {@code limit} values in ascending order and invokes
-     * {@code action} for each. The action runs without holding any lock, so a slow
-     * action does not block concurrent operations. Returns the number of values
-     * drained (may be less than {@code limit} if the bitmap is smaller).
+     * Atomically removes up to {@code limit} values and invokes {@code action}
+     * for each removed value.
      *
-     * <p>Select and remove happen in a single critical section, so a value added
-     * concurrently after {@code drainTo} begins is never lost.
+     * <p>Selection and removal are performed atomically. The callback is invoked
+     * after removal has completed.
+     *
+     * @param limit maximum number of values to drain
+     * @param action callback invoked for each removed value
+     * @return number of values drained
      */
     long drainTo(long limit, LongConsumer action);
 
     /**
-     * Upper bound on {@link #serialize()} length, without running {@code runOptimize()}.
-     * Safe for buffer allocation: {@code runOptimize} only shrinks, so
-     * {@code serializedSize() >= serialize().length} always holds.
+     * Returns an upper bound of the serialized size.
      */
     long serializedSize();
 
     /**
-     * Optimizes the layout and returns the serialized form as a freshly-allocated
-     * byte array. Clones the bitmap under a brief read lock, then optimizes and
-     * serializes with no lock held, so concurrent mutations don't affect the output.
+     * Serializes the bitmap into a newly allocated byte array.
      */
     byte[] serialize();
 }

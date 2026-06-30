@@ -88,6 +88,17 @@ class ConcurrentRoaringBitmap implements LongBitmap {
     }
 
     @Override
+    public boolean checkedAdd(long value) {
+        validateRange(value);
+        long stamp = lock.writeLock();
+        try {
+            return bitmap.checkedAdd((int) value);
+        } finally {
+            lock.unlockWrite(stamp);
+        }
+    }
+
+    @Override
     public void add(long from, long to) {
         if (to <= from) {
             return;

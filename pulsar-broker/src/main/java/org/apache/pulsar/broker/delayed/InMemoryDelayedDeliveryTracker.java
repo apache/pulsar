@@ -144,12 +144,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
         LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
             .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
-        // LongBitmap does not store duplicates, so track if it a new element
-        // so we can keep delayedMessagesCount in sync
-        boolean isNew = !bitmap.contains(entryId);
-
-        if (isNew) {
-            bitmap.add(entryId);
+        if (bitmap.checkedAdd(entryId)) {
             delayedMessagesCount.incrementAndGet();
         }
 

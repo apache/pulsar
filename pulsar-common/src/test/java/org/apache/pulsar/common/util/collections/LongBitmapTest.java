@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,6 +93,87 @@ public class LongBitmapTest {
             assertTrue(deserialized.contains(i));
         }
         assertFalse(deserialized.contains(5));
+    }
+
+    @Test
+    public void testDeserializeFromVariousByteBufTypes() {
+        LongBitmap bitmap = LongBitmaps.create();
+        for (int i = 0; i < 2000; i += 7) {
+            bitmap.add(i);
+        }
+        byte[] bytes = bitmap.serialize();
+
+        ByteBuf heap = Unpooled.wrappedBuffer(bytes);
+        try {
+            LongBitmap r = LongBitmaps.deserialize(heap);
+            assertEquals(r.cardinality(), bitmap.cardinality());
+            assertEquals(heap.readerIndex(), bytes.length);
+        } finally {
+            heap.release();
+        }
+
+        ByteBuf direct = Unpooled.directBuffer(bytes.length);
+        try {
+            direct.writeBytes(bytes);
+            LongBitmap r = LongBitmaps.deserialize(direct);
+            assertEquals(r.cardinality(), bitmap.cardinality());
+            assertEquals(direct.readerIndex(), bytes.length);
+        } finally {
+            direct.release();
+        }
+
+        ByteBuf singleComp = Unpooled.wrappedBuffer(new ByteBuf[]{Unpooled.wrappedBuffer(bytes)});
+        try {
+            LongBitmap r = LongBitmaps.deserialize(singleComp);
+            assertEquals(r.cardinality(), bitmap.cardinality());
+            assertEquals(singleComp.readerIndex(), bytes.length);
+        } finally {
+            singleComp.release();
+        }
+
+        int split = bytes.length / 2;
+        ByteBuf part1 = Unpooled.wrappedBuffer(bytes, 0, split);
+        ByteBuf part2 = Unpooled.wrappedBuffer(bytes, split, bytes.length - split);
+        ByteBuf composite = Unpooled.wrappedBuffer(part1, part2);
+        try {
+            LongBitmap r = LongBitmaps.deserialize(composite);
+            assertEquals(r.cardinality(), bitmap.cardinality());
+            assertEquals(composite.readerIndex(), bytes.length);
+        } finally {
+            composite.release();
+        }
+    }
+
+    @Test
+    public void testAddIsIdempotent() {
+        LongBitmap bitmap = LongBitmaps.create();
+        bitmap.add(42);
+        assertEquals(bitmap.cardinality(), 1);
+        assertTrue(bitmap.contains(42));
+
+        bitmap.add(42);
+        bitmap.add(42);
+        assertEquals(bitmap.cardinality(), 1);
+        assertTrue(bitmap.contains(42));
+    }
+
+    @Test
+    public void testCheckedAdd() {
+        LongBitmap bitmap = LongBitmaps.create();
+
+        assertTrue(bitmap.checkedAdd(42));
+        assertTrue(bitmap.contains(42));
+        assertEquals(bitmap.cardinality(), 1);
+
+        assertFalse(bitmap.checkedAdd(42));
+        assertEquals(bitmap.cardinality(), 1);
+
+        assertTrue(bitmap.checkedAdd(100));
+        assertEquals(bitmap.cardinality(), 2);
+
+        assertThrows(IllegalArgumentException.class, () -> bitmap.checkedAdd(-1));
+        assertThrows(IllegalArgumentException.class, () -> bitmap.checkedAdd(0x100000000L));
+        assertEquals(bitmap.cardinality(), 2);
     }
 
     @Test

@@ -30,7 +30,7 @@ public final class LongBitmaps {
     }
 
     /**
-     * Creates a new empty LongBitmap.
+     * Creates a new empty thread-safe LongBitmap.
      *
      * @return a new LongBitmap instance
      */
@@ -40,10 +40,20 @@ public final class LongBitmaps {
 
     /**
      * Deserializes a LongBitmap from a ByteBuf.
-     * Advances the readerIndex by the number of bytes consumed.
      *
-     * @param buf the input buffer containing serialized bitmap
+     * <p>Advances the buffer's {@code readerIndex} by the number of bytes consumed. The
+     * buffer may be heap-backed, direct, or a {@link io.netty.buffer.CompositeByteBuf} —
+     * the implementation reads via {@link ByteBuf#nioBuffer(int, int)} without copying
+     * when possible.
+     *
+     * <p>The serialized format is the standard 32-bit RoaringBitmap portable format, so
+     * buffers produced by {@link LongBitmap#serialize()} round-trip exactly. Buffers in
+     * other formats (e.g. {@code Roaring64Bitmap}) are rejected.
+     *
+     * @param buf the input buffer positioned at the start of the serialized bitmap
      * @return the deserialized LongBitmap
+     * @throws RuntimeException if the buffer is malformed, truncated, or in an
+     *         unrecognized format (wraps the underlying {@link java.io.IOException})
      */
     public static LongBitmap deserialize(ByteBuf buf) {
         return ConcurrentRoaringBitmap.deserialize(buf);
