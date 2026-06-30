@@ -60,7 +60,7 @@ dependencies {
     compileOnly(project(":managed-ledger"))
     compileOnly(libs.bookkeeper.server)
     compileOnly(libs.netty.buffer)
-    implementation(libs.hadoop.common) {
+    api(libs.hadoop.common) {
         exclude(group = "log4j", module = "log4j")
         exclude(group = "org.slf4j")
         exclude(group = "dnsjava", module = "dnsjava")

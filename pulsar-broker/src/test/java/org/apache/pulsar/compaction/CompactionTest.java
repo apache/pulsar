@@ -2545,6 +2545,43 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         deleteTopicFuture.get(15, TimeUnit.SECONDS);
     }
 
+    @Test(timeOut = 60 * 1000)
+    public void testForcedDeleteCompletesWhileCompactionStuck() throws Exception {
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/forced-delete-stuck-compaction");
+        admin.topics().createNonPartitionedTopic(topicName);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
+            for (int i = 0; i < 10; i++) {
+                producer.newMessage().key("key" + (i % 2)).value("value-" + i).send();
+            }
+        }
+
+        // Block the compaction at the phase-two seek so its future never completes on its own. This reproduces an
+        // in-flight compaction whose reader does not fail promptly when the topic is fenced (e.g. because a
+        // reconnect keeps retrying a retriable lookup-stage error): the compaction future stays pending (issue
+        // #24148).
+        CompletableFuture<Void> blockedSeek = new CompletableFuture<>();
+        CountDownLatch reachedSeek = new CountDownLatch(1);
+        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = (reader, id) -> {
+            reachedSeek.countDown();
+            return blockedSeek;
+        };
+        try {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+            persistentTopic.triggerCompaction();
+            assertTrue(reachedSeek.await(30, TimeUnit.SECONDS));
+            assertEquals(persistentTopic.compactionStatus().status, LongRunningProcessStatus.Status.RUNNING);
+
+            // The compaction future is stuck, but a forced deletion must complete promptly instead of waiting for
+            // the in-flight compaction to finish (issue #24148).
+            persistentTopic.deleteForcefully().get(15, TimeUnit.SECONDS);
+        } finally {
+            AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
+            // Unblock the stuck compaction so it can unwind and release its reader.
+            blockedSeek.complete(null);
+        }
+    }
+
     @Test
     public void testForcedDeleteSucceedsAfterFailedCompaction() throws Exception {
         String topicName = newUniqueName("persistent://my-tenant/my-ns/delete-after-failed-compaction");

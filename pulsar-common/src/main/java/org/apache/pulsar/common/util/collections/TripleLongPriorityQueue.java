@@ -24,6 +24,25 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Provides a priority-queue implementation specialized on items composed by 3 longs.
  *
  * <p>This class is not thread safe and the items are stored in direct memory.
+ *
+ * <h3>Algorithm</h3>
+ *
+ * <p>This is a <b>binary min-heap</b> stored in a flat array, where each heap node occupies
+ * 3 consecutive longs (the tuple). The children of the node at index {@code i} are at
+ * {@code 2i + 1} and {@code 2i + 2}; the parent of node {@code i} is at {@code (i - 1) / 2}.
+ *
+ * <p>Both {@code siftUp} (on insert) and {@code siftDown} (on remove) use the
+ * <b>hole-based</b> (also called "bottom-up" or "Floyd's") optimization: instead of swapping
+ * the displaced element with its parent/child at each level, the displaced values are held in
+ * local variables (registers) and written only once at the final position. This reduces the
+ * number of array writes per sift layer from 6 (swap: 3 reads + 3 writes on each side) to 3
+ * (one directional write), and avoids re-reading the displaced element from the array on every
+ * comparison.
+ *
+ * <p>Comparison is lexicographic on (n1, n2, n3), using {@code Long.compare} at each level.
+ *
+ * @see <a href="https://en.wikipedia.org/wiki/Heapsort#Bottom-up_heapsort">Bottom-up heapsort
+ *      (Wikipedia)</a>
  */
 public class TripleLongPriorityQueue implements AutoCloseable {
     private static final int DEFAULT_INITIAL_CAPACITY = 16;
@@ -94,8 +113,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
             array.increaseCapacity();
         }
 
-        put(tuplesCount, n1, n2, n3);
-        siftUp(tuplesCount);
+        siftUp(tuplesCount, n1, n2, n3);
         ++tuplesCount;
     }
 
@@ -134,9 +152,17 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      */
     public void pop() {
         checkArgument(tuplesCount != 0);
-        swap(0, tuplesCount - 1);
-        tuplesCount--;
-        siftDown(0);
+
+        if (--tuplesCount == 0) {
+            return;
+        }
+
+        long lastBase = tuplesCount * ITEMS_COUNT;
+        long n1 = array.readLong(lastBase);
+        long n2 = array.readLong(lastBase + 1);
+        long n3 = array.readLong(lastBase + 2);
+
+        siftDown(0, n1, n2, n3);
         shrinkCapacity();
     }
 
@@ -188,81 +214,99 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         }
     }
 
-    private void siftUp(long tupleIdx) {
+    private void siftUp(long tupleIdx, long n1, long n2, long n3) {
+        long idx = tupleIdx * ITEMS_COUNT;
+
         while (tupleIdx > 0) {
-            long parentIdx = (tupleIdx - 1) / 2;
-            if (compare(tupleIdx, parentIdx) >= 0) {
+            long parentIdx = (tupleIdx - 1) >>> 1;
+            long parentBase = parentIdx * ITEMS_COUNT;
+
+            long p0 = array.readLong(parentBase);
+            long p1 = array.readLong(parentBase + 1);
+            long p2 = array.readLong(parentBase + 2);
+
+            if (compareTuple(n1, n2, n3, p0, p1, p2) >= 0) {
                 break;
             }
 
-            swap(tupleIdx, parentIdx);
+            array.writeLong(idx, p0);
+            array.writeLong(idx + 1, p1);
+            array.writeLong(idx + 2, p2);
+
             tupleIdx = parentIdx;
+            idx = parentBase;
         }
-    }
 
-    private void siftDown(long tupleIdx) {
-        long half = tuplesCount / 2;
-        while (tupleIdx < half) {
-            long left = 2 * tupleIdx + 1;
-            long right = 2 * tupleIdx + 2;
-
-            long swapIdx = tupleIdx;
-
-            if (compare(tupleIdx, left) > 0) {
-                swapIdx = left;
-            }
-
-            if (right < tuplesCount && compare(swapIdx, right) > 0) {
-                swapIdx = right;
-            }
-
-            if (swapIdx == tupleIdx) {
-                return;
-            }
-
-            swap(tupleIdx, swapIdx);
-            tupleIdx = swapIdx;
-        }
-    }
-
-    private void put(long tupleIdx, long n1, long n2, long n3) {
-        long idx = tupleIdx * ITEMS_COUNT;
         array.writeLong(idx, n1);
         array.writeLong(idx + 1, n2);
         array.writeLong(idx + 2, n3);
     }
 
-    private int compare(long tupleIdx1, long tupleIdx2) {
-        long idx1 = tupleIdx1 * ITEMS_COUNT;
-        long idx2 = tupleIdx2 * ITEMS_COUNT;
+    private void siftDown(long tupleIdx, long val0, long val1, long val2) {
+        long half = tuplesCount >>> 1;
 
-        int c1 = Long.compare(array.readLong(idx1), array.readLong(idx2));
-        if (c1 != 0) {
-            return c1;
+        long idx = tupleIdx * ITEMS_COUNT;
+
+        while (tupleIdx < half) {
+            long left = (tupleIdx << 1) + 1;
+            long right = left + 1;
+
+            long child = left;
+            long childBase = left * ITEMS_COUNT;
+
+            long child0 = array.readLong(childBase);
+            long child1 = array.readLong(childBase + 1);
+            long child2 = array.readLong(childBase + 2);
+
+            if (right < tuplesCount) {
+                long rightBase = right * ITEMS_COUNT;
+
+                long right0 = array.readLong(rightBase);
+                long right1 = array.readLong(rightBase + 1);
+                long right2 = array.readLong(rightBase + 2);
+
+                if (compareTuple(right0, right1, right2, child0, child1, child2) < 0) {
+
+                    child = right;
+                    childBase = rightBase;
+
+                    child0 = right0;
+                    child1 = right1;
+                    child2 = right2;
+                }
+            }
+
+            if (compareTuple(val0, val1, val2, child0, child1, child2) <= 0) {
+                break;
+            }
+
+            array.writeLong(idx, child0);
+            array.writeLong(idx + 1, child1);
+            array.writeLong(idx + 2, child2);
+
+            tupleIdx = child;
+            idx = childBase;
         }
 
-        int c2 = Long.compare(array.readLong(idx1 + 1), array.readLong(idx2 + 1));
-        if (c2 != 0) {
-            return c2;
-        }
-
-        return Long.compare(array.readLong(idx1 + 2), array.readLong(idx2 + 2));
+        array.writeLong(idx, val0);
+        array.writeLong(idx + 1, val1);
+        array.writeLong(idx + 2, val2);
     }
 
-    private void swap(long tupleIdx1, long tupleIdx2) {
-        long idx1 = tupleIdx1 * ITEMS_COUNT;
-        long idx2 = tupleIdx2 * ITEMS_COUNT;
+    private static int compareTuple(
+            long a0, long a1, long a2,
+            long b0, long b1, long b2) {
 
-        long tmp1 = array.readLong(idx1);
-        long tmp2 = array.readLong(idx1 + 1);
-        long tmp3 = array.readLong(idx1 + 2);
+        int c = Long.compare(a0, b0);
+        if (c != 0) {
+            return c;
+        }
 
-        array.writeLong(idx1, array.readLong(idx2));
-        array.writeLong(idx1 + 1, array.readLong(idx2 + 1));
-        array.writeLong(idx1 + 2, array.readLong(idx2 + 2));
+        c = Long.compare(a1, b1);
+        if (c != 0) {
+            return c;
+        }
 
-        array.writeLong(idx2, tmp1);
-        array.writeLong(idx2 + 1, tmp2);
-        array.writeLong(idx2 + 2, tmp3);
+        return Long.compare(a2, b2);
     }
 }

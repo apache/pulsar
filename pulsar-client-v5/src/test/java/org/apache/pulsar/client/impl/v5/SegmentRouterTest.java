@@ -21,22 +21,26 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.annotations.Test;
 
 public class SegmentRouterTest {
 
     private static ActiveSegment seg(long id, int start, int end) {
-        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id, null);
+        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id, null,
+                List.of());
     }
 
     /** Build a legacy segment (synthetic-layout entry wrapping an externally managed persistent:// topic). */
     private static ActiveSegment legacySeg(long id, int start, int end, String underlying) {
-        return new ActiveSegment(id, HashRange.of(start, end), "segment://t/n/x/" + id, underlying);
+        return new ActiveSegment(id, HashRange.of(start, end), "segment://t/n/x/" + id, underlying,
+                List.of());
     }
 
     // --- route(key, ...) ---
@@ -147,8 +151,7 @@ public class SegmentRouterTest {
         // mod-N over segment_id. Verify a handful of keys land on the expected
         // partition computed exactly as v4 would.
         for (String key : new String[]{"a", "customer-1", "customer-2", "order-99", ""}) {
-            int hash32 = org.apache.pulsar.common.util.Murmur3_32Hash.getInstance()
-                    .makeHash(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            int hash32 = Murmur3_32Hash.getInstance().makeHash(key.getBytes(StandardCharsets.UTF_8));
             int mod = hash32 % n;
             int expected = mod < 0 ? mod + n : mod;
             assertEquals(router.route(key, segments), expected,
@@ -206,8 +209,26 @@ public class SegmentRouterTest {
     public void testHashStringAndBytesAgree() {
         String key = "some-key";
         int fromString = SegmentRouter.hash(key);
-        int fromBytes = SegmentRouter.hash(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        int fromBytes = SegmentRouter.hash(key.getBytes(StandardCharsets.UTF_8));
         assertEquals(fromString, fromBytes);
+    }
+
+    @Test
+    public void testMurmurDecouplesIntoSegmentAndBucketHash() {
+        // One Murmur3 hash splits into two independent 16-bit halves: high → segment, low → bucket.
+        for (String key : new String[]{"a", "order-42", "customer-99", ""}) {
+            int m = SegmentRouter.murmur(key.getBytes(StandardCharsets.UTF_8));
+            int seg = SegmentRouter.segmentHash(m);
+            int bucket = SegmentRouter.entryBucketHash(m);
+            // Both halves are 16-bit.
+            assertTrue(seg >= 0 && seg <= 0xFFFF, "segmentHash out of 16-bit range: " + seg);
+            assertTrue(bucket >= 0 && bucket <= 0xFFFF, "entryBucketHash out of 16-bit range: " + bucket);
+            // They are exactly the high and low halves of the same hash.
+            assertEquals(seg, (m >>> 16) & 0xFFFF);
+            assertEquals(bucket, m & 0xFFFF);
+            // The hash(key) convenience agrees with the decoupled segment hash.
+            assertEquals(SegmentRouter.hash(key), seg);
+        }
     }
 
     // --- helpers ---

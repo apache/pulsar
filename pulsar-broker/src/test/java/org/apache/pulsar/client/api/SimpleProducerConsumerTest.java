@@ -111,6 +111,7 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -5454,6 +5455,65 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // cleanup
         admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testTopicPartitionCannotBeCreatedAfterTopicDeleted() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        // Inject an delay: delay to handle channel inactive event, to let the producer delay to reconnect.
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .connectionsPerBroker(1);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        PulsarClientImpl pulsarClient = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) -> {
+
+            return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+                @Override
+                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    // Delay receiving the event, let producer will not reconnect immediately.
+                    log.info("channel inactive");
+                    countDownLatch.await();
+                    super.channelInactive(ctx);
+                }
+            };
+        });
+
+        // Producer connected.
+        Producer producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        PersistentTopic persistentTopic1 = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic + "-partition-0", false)
+                .get(5, TimeUnit.SECONDS).get();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic1.getProducers().values().size(), 1);
+        });
+
+        // Make a network issue which leads to the connection breaks.
+        org.apache.pulsar.broker.service.Producer serviceProducer = persistentTopic1.getProducers().values()
+                .iterator().next();
+        ServerCnx servercnx = (ServerCnx) serviceProducer.getCnx();
+        servercnx.ctx().close();
+        // After the connection is break, and before the producer reconnects, the partitioned topic can be deleted
+        // without "--force".
+        admin.topics().deletePartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(persistentTopic1.isClosingOrDeleting());
+        });
+
+        // Verify: the partition can not be loaded up once the partitioned topic was deleted.
+        countDownLatch.countDown();
+        Thread.sleep(10_000);
+        assertFalse(producer.isConnected());
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic + "-partition-0"));
+
+        // cleanup.
+        producer.close();
+        pulsarClient.close();
     }
 
     /**

@@ -148,17 +148,17 @@ dependencies {
     api(project(":pulsar-client-api"))
     api(project(":pulsar-client-admin-api"))
 
-    implementation(libs.jackson.databind)
+    api(libs.jackson.databind)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jackson.datatype.jdk8)
     implementation(libs.jackson.dataformat.yaml)
-    implementation(libs.guava)
-    implementation(libs.simpleclient.caffeine)
-    implementation(libs.jspecify)
-    implementation(libs.netty.handler)
-    implementation(libs.netty.buffer)
-    implementation(libs.netty.resolver.dns)
+    api(libs.guava)
+    api(libs.simpleclient.caffeine)
+    api(libs.jspecify)
+    api(libs.netty.handler)
+    api(libs.netty.buffer)
+    api(libs.netty.resolver.dns)
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
     implementation(libs.netty.transport.native.unix.common)
@@ -170,7 +170,7 @@ dependencies {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
     }
-    implementation(libs.aircompressor)
+    api(libs.aircompressor)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
         exclude(group = "commons-configuration", module = "commons-configuration2")
@@ -181,21 +181,27 @@ dependencies {
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-aarch_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-x86_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-aarch_64") })
+    implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("windows-x86_64") })
     implementation(libs.netty.transport.classes.io.uring)
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-aarch_64") })
-    implementation(libs.netty.codec.haproxy)
+    api(libs.netty.codec.haproxy)
     implementation(libs.commons.lang3)
-    implementation(libs.jakarta.ws.rs.api)
+    api(libs.jakarta.ws.rs.api)
     implementation(libs.commons.io)
     implementation(libs.re2j)
     implementation(libs.completable.futures)
-    implementation(libs.gson)
+    api(libs.gson)
 
     compileOnly(libs.swagger.annotations)
     compileOnly(libs.spotbugs.annotations)
 
-    testImplementation(libs.bc.fips)
+    // Non-FIPS BouncyCastle provider for tests that exercise SecurityUtility (which loads
+    // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
+    // the provider used in production. FIPS is covered separately by the bcfips-include-test
+    // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
+    // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.
+    testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.lz4.java)
     testImplementation(libs.zstd.jni)
     testImplementation(libs.snappy.java)

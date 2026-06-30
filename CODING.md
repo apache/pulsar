@@ -13,6 +13,10 @@ for the agent-specific guardrails on top of it.
 - No `@author` tags in Javadoc.
 - Every `TODO` must reference a GitHub issue, e.g. `// TODO: https://github.com/apache/pulsar/issues/XXXX`.
 - Checkstyle config: `buildtools/src/main/resources/pulsar/checkstyle.xml`. Lombok is enabled.
+  Spotless enforces license headers only (no code formatting); checkstyle covers style/whitespace.
+  Both run on sources only (no compilation): `./gradlew quickCheck` runs the license-header and
+  checkstyle checks across all modules, and `./gradlew sanityCheck` also compiles main + test — see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#building).
 - Prefer imports over fully qualified class names in code. Use a fully qualified class name only when
   needed to disambiguate a name collision that imports cannot resolve.
 

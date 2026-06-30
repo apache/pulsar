@@ -40,9 +40,14 @@ bypasses the check); `zip` is also needed. Use the bundled wrapper `./gradlew` (
 ./gradlew assemble
 ./gradlew :pulsar-broker:assemble
 
-# Lint / verify (license headers, formatting, checkstyle) — run before pushing
-./gradlew rat spotlessCheck checkstyleMain checkstyleTest
-./gradlew spotlessApply            # auto-fix license headers/formatting
+# Source-code conformance across all modules — license headers (rat + spotlessCheck) and checkstyle
+# (checkstyleMain + checkstyleTest). Fast: compiles nothing, never builds shadow jars.
+./gradlew quickCheck
+./gradlew spotlessApply            # auto-fix license headers
+
+# Pre-PR gate — quickCheck plus compiling main + test sources of every module. Modules that depend
+# on shaded artifacts on their compile classpath are skipped for compilation so no shadow jar is built.
+./gradlew sanityCheck
 
 # Verify bundled-dependency LICENSE/NOTICE coverage (after changing a runtime dependency)
 ./gradlew checkBinaryLicense

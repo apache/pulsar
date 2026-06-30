@@ -195,6 +195,8 @@ There is also a guide for [setting up the tooling for building Pulsar](https://p
 ./gradlew assemble                                                       # compile and assemble
 ./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest" # run a single test
 bin/pulsar standalone                                                    # run a standalone service
+./gradlew quickCheck                                                     # license headers + checkstyle, no compile
+./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
 
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR
