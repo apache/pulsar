@@ -37,6 +37,7 @@ import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.Backoff;
@@ -579,15 +580,32 @@ public class SubscriptionCoordinator {
 
         int consumerIndex = 0;
         for (SegmentInfo segment : sortedSegments) {
-            ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
             TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
                     segment.segmentId());
-            assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                    segment.segmentId(),
-                    segment.hashRange(),
-                    segmentTopic.toString()
-            ));
-            consumerIndex++;
+            if (segment.bucketCount() == 1) {
+                // Single bucket: the whole segment goes to one consumer (Shared) — unchanged from
+                // pre-PIP-486. Empty bucketRanges signals the client to subscribe Shared.
+                ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
+                assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
+                        segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                consumerIndex++;
+            } else {
+                // PIP-486: distribute the segment's N entry-buckets round-robin across consumers so the
+                // segment can be shared by up to N consumers; each owner subscribes Key_Shared STICKY
+                // declaring exactly the bucket ranges it owns. Continuing the global consumerIndex keeps
+                // the load spread across consumers and segments.
+                Map<ConsumerSession, List<HashRange>> bucketsByConsumer = new LinkedHashMap<>();
+                for (HashRange bucket : EntryBucketSplits.ranges(segment.entryBucketSplits())) {
+                    ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
+                    bucketsByConsumer.computeIfAbsent(consumer, c -> new ArrayList<>()).add(bucket);
+                    consumerIndex++;
+                }
+                for (var entry : bucketsByConsumer.entrySet()) {
+                    assignmentLists.get(entry.getKey()).add(new ConsumerAssignment.AssignedSegment(
+                            segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
+                            entry.getValue()));
+                }
+            }
         }
 
         Map<ConsumerSession, ConsumerAssignment> result = new LinkedHashMap<>();

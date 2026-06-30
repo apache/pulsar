@@ -314,13 +314,20 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         List<ActiveSegment> segments = new ArrayList<>(assignment.getSegmentsCount());
         for (int i = 0; i < assignment.getSegmentsCount(); i++) {
             ScalableAssignedSegment s = assignment.getSegmentAt(i);
+            // PIP-486: the entry-bucket hash ranges this consumer owns within the segment (empty =
+            // the whole segment). Drives Shared vs Key_Shared STICKY when subscribing to the segment.
+            List<HashRange> ownedBucketRanges = new ArrayList<>(s.getBucketRangesCount());
+            for (int j = 0; j < s.getBucketRangesCount(); j++) {
+                var range = s.getBucketRangeAt(j);
+                ownedBucketRanges.add(HashRange.of(range.getStart(), range.getEnd()));
+            }
             segments.add(new ActiveSegment(
                     s.getSegmentId(),
                     HashRange.of((int) s.getHashStart(), (int) s.getHashEnd()),
                     s.getSegmentTopic(),
                     /*legacyTopicName*/ null,
-                    /*entryBucketSplits, set by the controller assignment in a later PIP-486 PR*/
-                    List.of()));
+                    /*entryBucketSplits, producer-only*/ List.of(),
+                    ownedBucketRanges));
         }
         return Collections.unmodifiableList(segments);
     }

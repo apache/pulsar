@@ -49,6 +49,25 @@ final class EntryBucketSplits {
         return Math.max(1, budget / segmentCount);
     }
 
+    /**
+     * The per-bucket hash ranges (inclusive, over the 16-bit entry-bucket ring) defined by
+     * {@code splits}. Empty splits yield a single range spanning the whole ring. The i-th range is
+     * the i-th entry-bucket, so the result has {@code splits.size() + 1} elements.
+     */
+    static List<HashRange> ranges(List<Integer> splits) {
+        if (splits.isEmpty()) {
+            return List.of(HashRange.of(0, HashRange.MAX_HASH));
+        }
+        List<HashRange> ranges = new ArrayList<>(splits.size() + 1);
+        int start = 0;
+        for (int split : splits) {
+            ranges.add(HashRange.of(start, split - 1));
+            start = split;
+        }
+        ranges.add(HashRange.of(start, HashRange.MAX_HASH));
+        return ranges;
+    }
+
     /** Equal-width split points for {@code bucketCount} buckets; empty when {@code bucketCount <= 1}. */
     static List<Integer> equalWidth(int bucketCount) {
         if (bucketCount <= 1) {

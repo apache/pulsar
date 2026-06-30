@@ -33,6 +33,8 @@ import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.util.Backoff;
 
@@ -426,7 +429,21 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
-        segConf.setSubscriptionType(SubscriptionType.Shared);
+        List<HashRange> ownedBucketRanges = segment.ownedBucketRanges();
+        if (ownedBucketRanges.isEmpty()) {
+            // Single bucket / whole segment: Shared, as before PIP-486.
+            segConf.setSubscriptionType(SubscriptionType.Shared);
+        } else {
+            // PIP-486: this consumer owns a subset of the segment's entry-buckets. Subscribe Key_Shared
+            // STICKY declaring exactly those bucket hash-ranges, so the broker dispatches each entry to
+            // the consumer that owns its bucket.
+            List<Range> ranges = new ArrayList<>(ownedBucketRanges.size());
+            for (HashRange r : ownedBucketRanges) {
+                ranges.add(Range.of(r.start(), r.end()));
+            }
+            segConf.setSubscriptionType(SubscriptionType.Key_Shared);
+            segConf.setKeySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges));
+        }
         // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
         // migration pre-check inspects, so mark just those connections as V5-managed —
         // connections to real segment:// topics are never examined.

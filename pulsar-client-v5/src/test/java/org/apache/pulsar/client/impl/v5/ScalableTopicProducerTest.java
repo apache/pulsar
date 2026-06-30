@@ -39,7 +39,7 @@ public class ScalableTopicProducerTest {
 
     private static ActiveSegment segment() {
         return new ActiveSegment(0L, HashRange.of(0x0000, 0xFFFF), "segment://t/n/x/0", null,
-                List.of(0x8000));
+                List.of(0x8000), List.of());
     }
 
     @Test

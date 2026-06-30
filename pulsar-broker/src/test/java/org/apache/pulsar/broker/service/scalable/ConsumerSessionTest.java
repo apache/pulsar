@@ -80,7 +80,7 @@ public class ConsumerSessionTest {
             int end = start + 0x3FFF;
             segments.add(new ConsumerAssignment.AssignedSegment(
                     id, HashRange.of(start, end),
-                    "persistent://tenant/ns/my-scalable-seg-" + id));
+                    "persistent://tenant/ns/my-scalable-seg-" + id, List.of()));
         }
         return new ConsumerAssignment(epoch, segments);
     }
