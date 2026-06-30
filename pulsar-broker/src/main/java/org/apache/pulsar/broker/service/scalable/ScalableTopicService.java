@@ -145,7 +145,7 @@ public class ScalableTopicService {
 
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                 numInitialSegments,
-                brokerService.pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
                 properties);
 
         // Write the scalable metadata FIRST, then materialize the underlying segment topics.
