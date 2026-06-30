@@ -514,7 +514,7 @@ public class LongBitmapTest {
 
         // Drain 100 at a time — well under TRIM_AFTER_REMOVES (10000) per call,
         // but cumulative trim counter should cross the threshold after several batches.
-        int totalDrained = 0;
+        long totalDrained = 0;
         while (!bitmap.isEmpty()) {
             totalDrained += bitmap.drainTo(100, v -> {
             });
