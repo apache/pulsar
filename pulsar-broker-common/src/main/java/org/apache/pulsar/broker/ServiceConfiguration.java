@@ -1431,11 +1431,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = "PIP-486 total entry-bucket budget per scalable topic. The buckets are distributed across "
-                    + "the topic's segments (each segment gets floor(budget / segmentCount), at least 1), so "
-                    + "the budget is the topic's standing intra-segment key-shared fan-out headroom. A "
-                    + "single-segment topic starts with all of them; as the topic splits into more segments "
-                    + "each segment settles toward 1 bucket (full batching)."
+            doc = "Total entry-bucket budget per scalable topic. Entry-buckets are the unit of key-shared "
+                    + "consumption parallelism within a segment, so this budget is how many consumers can "
+                    + "share a single segment's keys. It is distributed across the topic's segments (each "
+                    + "gets floor(budget / segmentCount), at least 1): a single-segment topic starts with "
+                    + "the whole budget, and as the topic splits into more segments each segment settles "
+                    + "toward 1 bucket (full batching)."
     )
     private int scalableTopicEntryBucketBudget = 4;
 
