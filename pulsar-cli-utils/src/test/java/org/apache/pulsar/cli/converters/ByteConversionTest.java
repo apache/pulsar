@@ -41,6 +41,7 @@ public class ByteConversionTest {
                 {"100g", 107374182400L},
                 {"100T", 109951162777600L},
                 {"100t", 109951162777600L},
+                {Long.MAX_VALUE / 1024 + "K", (Long.MAX_VALUE / 1024) * 1024},
         };
     }
 
