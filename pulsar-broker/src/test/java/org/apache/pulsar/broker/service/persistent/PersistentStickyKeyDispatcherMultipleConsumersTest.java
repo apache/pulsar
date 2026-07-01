@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.PendingAcksMap;
@@ -845,6 +846,48 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
             assertTrue(readMoreEntriesCalled.get() >= 1);
         });
+    }
+
+    @Test
+    public void testGetStickyKeyHashRoutesByEntryBucketWhenStamped() {
+        // PIP-486: when an entry carries a stamped entry-bucket hash range, the whole entry routes by its
+        // bucket hash (entry_hash_min), not by the message key.
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(persistentDispatcher.getStickyKeyHash(EntryAndMetadata.create(entry, stamped)),
+                    0x1234);
+
+            // entry_hash_min == 0 collides with the reserved "hash not set" sentinel, so it is nudged to 1
+            // (still inside bucket 0).
+            MessageMetadata zero = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0).setEntryHashMax(0);
+            assertEquals(persistentDispatcher.getStickyKeyHash(EntryAndMetadata.create(entry, zero)), 1);
+        } finally {
+            entry.release();
+        }
+    }
+
+    @Test
+    public void testGetStickyKeyHashFallsBackToKeyHashWhenUnstamped() {
+        // No entry_hash_min stamped -> fall back to the message's sticky-key hash, matching a raw entry
+        // carrying the same key.
+        EntryImpl raw = createEntry(1, 1, "msg", 1, "some-key");
+        EntryImpl wrapped = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata unstamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1).setPartitionKey("some-key");
+            int viaRaw = persistentDispatcher.getStickyKeyHash(raw);
+            int viaUnstamped =
+                    persistentDispatcher.getStickyKeyHash(EntryAndMetadata.create(wrapped, unstamped));
+            assertEquals(viaUnstamped, viaRaw);
+        } finally {
+            raw.release();
+            wrapped.release();
+        }
     }
 
     private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId) {
