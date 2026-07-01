@@ -34,12 +34,12 @@ import org.testng.annotations.Test;
  * PIP-486 end-to-end: a single stream consumer on an entry-bucketed segment.
  *
  * <p>A one-segment scalable topic with the default entry-bucket budget (4) gives that segment
- * {@code N = 4} entry-buckets. A lone stream consumer is therefore assigned all four buckets and
- * subscribes {@code Key_Shared} STICKY over the whole ring (rather than {@code Exclusive}), so the
- * broker routes each entry by its producer-stamped entry-bucket range. This exercises the full
- * produce → per-bucket batch + stamp → dispatch-by-bucket → consume path for the single-owner case
- * (the multi-consumer bucket handoff is a separate change). The observable contract is unchanged:
- * per-key order is preserved and no message is dropped or duplicated.
+ * {@code N = 4} entry-buckets, so the producer batches per-bucket and stamps each entry's
+ * {@code entry_hash} range. A lone stream consumer owns the whole segment and subscribes
+ * {@code Exclusive} (single-active dispatch — the controller only fans a segment out into per-bucket
+ * {@code Key_Shared} ownership on scale-up). This verifies the producer-side per-bucket batching and
+ * stamping do not disturb ordinary single-active delivery: per-key order is preserved and no message
+ * is dropped or duplicated.
  */
 public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
 
