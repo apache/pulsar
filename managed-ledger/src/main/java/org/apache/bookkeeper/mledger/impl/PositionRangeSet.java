@@ -292,10 +292,28 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
         internalRange.forEach((id, ranges) -> {
             RoaringBitSet bitSet = new RoaringBitSet();
-            bitSet.or(BitSet.valueOf(ranges));
+            fromLongArray(bitSet, ranges);
             rangeBitSetMap.put(id, bitSet);
         });
         invalidateCaches();
+    }
+
+    /**
+     * Populates a RoaringBitSet from a long[] array in the format produced by BitSet.toLongArray().
+     * This avoids creating a temporary ordinary java.util.BitSet via BitSet.valueOf().
+     */
+    private static void fromLongArray(RoaringBitSet bitSet, long[] words) {
+        for (int wordIndex = 0; wordIndex < words.length; wordIndex++) {
+            long word = words[wordIndex];
+            if (word != 0) {
+                int bitIndex = wordIndex * Long.SIZE;
+                for (int i = 0; i < Long.SIZE; i++) {
+                    if ((word & (1L << i)) != 0) {
+                        bitSet.set(bitIndex + i);
+                    }
+                }
+            }
+        }
     }
 
     @Override

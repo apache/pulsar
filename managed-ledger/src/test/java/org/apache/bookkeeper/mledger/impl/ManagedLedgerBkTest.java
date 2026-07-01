@@ -720,7 +720,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                 .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1)
                 .setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1).setMetadataAckQuorumSize(1)
                 .setMaxUnackedRangesToPersistInMetadataStore(1)
-                .setUnackedRangesOpenCacheSetEnabled(true).setPersistIndividualAckAsLongArray(enable);
+                .setPersistIndividualAckAsLongArray(enable);
 
         ManagedLedger ledger1 = factory.open(mlName, config);
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger1.openCursor(cursorName);
