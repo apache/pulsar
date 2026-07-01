@@ -120,6 +120,9 @@ public interface LongBitmap {
     /** Returns {@code true} if no values are stored. */
     boolean isEmpty();
 
+    /** Removes all values from the bitmap. */
+    void clear();
+
     /**
      * Returns the smallest absent value greater than or equal to {@code from}.
      *

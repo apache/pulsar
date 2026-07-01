@@ -75,12 +75,6 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(StandardCharsets.UTF_8);
-    /**
-     * @deprecated since 5.0.0 — retained as a no-op for config-file backward compatibility.
-     * See {@link #isUnackedRangesOpenCacheSetEnabled()}.
-     */
-    @Deprecated
-    private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
@@ -304,28 +298,6 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(StandardCharsets.UTF_8);
-        return this;
-    }
-
-    /**
-     * Deprecated since 5.0.0 — kept accepted as a no-op for config-file backward compatibility.
-     *
-     * <p>Historically selected between {@code OpenLongPairRangeSet} (bitmap-backed, this setting's
-     * {@code true} default) and {@code LongPairRangeSet.DefaultRangeSet}. Since 5.0.0 the cursor
-     * always uses {@code PositionRangeSet} (bitmap-backed, equivalent to the former {@code true}
-     * path), so this switch has no effect. Setting it to {@code false} is ignored.
-     */
-    @Deprecated
-    public boolean isUnackedRangesOpenCacheSetEnabled() {
-        return unackedRangesOpenCacheSetEnabled;
-    }
-
-    /**
-     * @deprecated since 5.0.0 — no-op. See {@link #isUnackedRangesOpenCacheSetEnabled()}.
-     */
-    @Deprecated
-    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
-        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
         return this;
     }
 

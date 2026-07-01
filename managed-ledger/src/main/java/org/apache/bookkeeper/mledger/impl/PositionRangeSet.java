@@ -35,6 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.roaringbitmap.RoaringBitSet;
 
@@ -86,7 +88,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     private final LongPairConsumer<Position> consumer;
     private final boolean enableMultiEntry;
 
-    private RoaringBitSet dirtyLedgers = new RoaringBitSet();
+    private LongBitmap dirtyLedgers = LongBitmaps.create();
 
     private int cachedSize = 0;
     private String cachedToString = "[]";
@@ -156,7 +158,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     public void removeAtMost(long key, long value) {
         if (enableMultiEntry && key >= 0) {
             long end = Math.min(key + 1L, (long) Integer.MAX_VALUE + 1);
-            dirtyLedgers.clear(0, (int) end);
+            dirtyLedgers.remove(0, end);
         }
         remove(Range.atMost(PositionFactory.create(key, value)));
     }
@@ -276,12 +278,9 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         Map<Long, long[]> internalBitSetMap = new HashMap<>();
         AtomicInteger rangeCount = new AtomicInteger();
         rangeBitSetMap.forEach((id, bmap) -> {
-            int currentCount = rangeCount.get();
-            int bitmapRanges = bmap.cardinality();
-            if (currentCount + bitmapRanges > maxRanges) {
+            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
                 return;
             }
-            rangeCount.addAndGet(bitmapRanges);
             internalBitSetMap.put(id, bmap.toLongArray());
         });
         return internalBitSetMap;
@@ -472,15 +471,15 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     /** Whether {@code ledgerId} has been modified since the last {@link #resetDirtyKeys()}. */
     boolean isDirtyLedgers(long ledgerId) {
-        return ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE && dirtyLedgers.get((int) ledgerId);
+        return ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE && dirtyLedgers.contains(ledgerId);
     }
 
     private void markDirty(long lowerKey, long upperKey) {
         // Original semantics: dirtyLedgers.addOpenClosed(k1, 0, k2, 0), which in LongPair ordering
-        // is (k1, k2] on ledger ids. BitSet.set(from, to) is half-open [from, to), so shift both
+        // is (k1, k2] on ledger ids. LongBitmap.add(from, to) is half-open [from, to), so shift both
         // bounds. Same-ledger or inverted range is a no-op.
         //
-        // Note: Ledger IDs are 64-bit longs, but persistence format uses 32-bit int ranges.
+        // Note: Ledger IDs are 64-bit longs, but LongBitmap supports unsigned 32-bit range [0, 2^32-1].
         // In practice, BookKeeper ledger IDs rarely exceed Integer.MAX_VALUE. If upperKey exceeds
         // this limit, we skip tracking to avoid overflow. This is acceptable because:
         // 1. The dirty tracker is an optimization hint for selective persistence
@@ -496,7 +495,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
                     .log("Skipping dirty tracking for ledger ID at/exceeding Integer.MAX_VALUE");
             return;
         }
-        dirtyLedgers.set((int) (lowerKey + 1), (int) (upperKey + 1));
+        dirtyLedgers.add(lowerKey + 1, upperKey + 1);
     }
 
     private boolean isValid(long key, long value) {

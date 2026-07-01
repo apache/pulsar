@@ -2767,8 +2767,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
-                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
-                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
 
     @FieldContext(
@@ -2791,16 +2790,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If number of unack message range is higher than this limit then broker will persist"
                     + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 200000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Deprecated since 5.0.0 — no-op, retained for config-file backward compatibility.\n\n"
-                    + "Historically selected between a bitmap-backed range set (true, default) and a "
-                    + "DefaultRangeSet (false) for tracking acknowledged messages after the mark-delete "
-                    + "position. Since 5.0.0 the cursor always uses the bitmap-backed PositionRangeSet "
-                    + "(equivalent to the former 'true' path), so this setting has no effect. Setting it "
-                    + "to false is silently ignored.")
-    @Deprecated
-    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,

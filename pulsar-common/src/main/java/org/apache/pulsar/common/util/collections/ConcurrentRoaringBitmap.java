@@ -194,6 +194,17 @@ class ConcurrentRoaringBitmap implements LongBitmap {
     }
 
     @Override
+    public void clear() {
+        long stamp = lock.writeLock();
+        try {
+            bitmap.clear();
+            removesSinceTrim = 0;
+        } finally {
+            lock.unlockWrite(stamp);
+        }
+    }
+
+    @Override
     public long nextAbsentValue(long from) {
         if (from < 0 || from > MAX_UINT32) {
             return -1;
