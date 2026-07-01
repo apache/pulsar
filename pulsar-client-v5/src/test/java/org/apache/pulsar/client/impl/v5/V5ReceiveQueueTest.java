@@ -51,7 +51,14 @@ public class V5ReceiveQueueTest {
     public void setup() {
         executor = Executors.newSingleThreadExecutor();
         timer = new HashedWheelTimer();
-        queue = new V5ReceiveQueue<>(executor, timer);
+        queue = new V5ReceiveQueue<>(executor, timer, 1000);
+    }
+
+    /** Wait for the single-threaded executor to drain queued tasks (offer/receive run there). */
+    private void flush() throws Exception {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        executor.execute(() -> f.complete(null));
+        f.get(5, TimeUnit.SECONDS);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -166,6 +173,46 @@ public class V5ReceiveQueueTest {
         List<Message<Integer>> batch = queue.receiveMultiAsync(5, Duration.ofMillis(150))
                 .get(5, TimeUnit.SECONDS);
         assertTrue(batch.isEmpty());
+    }
+
+    @Test
+    public void offerBelowWatermarkCompletesImmediately() throws Exception {
+        // receiverQueueSize=4 -> pause at 4, resume at 2.
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(executor, timer, 4);
+        for (int i = 1; i <= 3; i++) {
+            // Completes right away while there is room in the buffer.
+            q.offer(msg(i)).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void offerAtHighWatermarkPausesUntilDrain() throws Exception {
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(executor, timer, 4);
+        for (int i = 1; i <= 3; i++) {
+            q.offer(msg(i)).get(5, TimeUnit.SECONDS);
+        }
+        // The 4th message hits the high watermark and parks the producer.
+        CompletableFuture<Void> paused = q.offer(msg(4));
+        flush();
+        assertTrue(!paused.isDone());
+
+        // Draining below the low watermark (2) resumes it.
+        q.receiveAsync().get(5, TimeUnit.SECONDS); // buffer 4 -> 3, still above low
+        assertTrue(!paused.isDone());
+        q.receiveAsync().get(5, TimeUnit.SECONDS); // buffer 3 -> 2, resume
+        paused.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void closeReleasesPausedProducers() throws Exception {
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(executor, timer, 2);
+        q.offer(msg(1)).get(5, TimeUnit.SECONDS);          // buffer 1, below watermark
+        CompletableFuture<Void> paused = q.offer(msg(2));  // buffer 2, parked
+        flush();
+        assertTrue(!paused.isDone());
+        // close() must release parked producers so their receive loops observe the close.
+        q.close();
+        paused.get(5, TimeUnit.SECONDS);
     }
 
     private static Message<Integer> msg(int id) {

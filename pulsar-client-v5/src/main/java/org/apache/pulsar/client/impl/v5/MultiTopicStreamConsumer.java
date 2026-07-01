@@ -107,7 +107,8 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.watcher = watcher;
         this.mux = new V5ReceiveQueue<>(
-                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
         this.log = LOG.with()
                 .attr("namespace", namespace)
                 .attr("subscription", subscriptionName)
@@ -166,8 +167,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         // single-topic positionVector (computed by ScalableStreamConsumer). Update
         // our cross-topic latestDelivered map, snapshot the full cross-topic vector,
         // and forward to the shared mux. No pump thread.
-        java.util.function.Consumer<MessageV5<T>> sink = msg ->
-                onPerTopicMessage(topicName, msg);
+        MessageSink<T> sink = msg -> onPerTopicMessage(topicName, msg);
 
         return session.start()
                 .thenCompose(initialAssignment -> ScalableStreamConsumer.createAsyncImpl(
@@ -421,9 +421,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      * the only contention is the synchronized snapshot block which guards
      * against torn cross-topic views during concurrent deliveries.
      */
-    private void onPerTopicMessage(String parentTopic, MessageV5<T> msg) {
+    private CompletableFuture<Void> onPerTopicMessage(String parentTopic, MessageV5<T> msg) {
         if (closed) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         MessageIdV5 origId = (MessageIdV5) msg.id();
 
@@ -448,7 +448,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         MessageIdV5 newId = new MessageIdV5(
                 origId.v4MessageId(), origId.segmentId(),
                 origId.positionVector(), parentTopic, snapshot);
-        mux.offer(new MessageV5<>(msg.v4Message(), newId, parentTopic));
+        return mux.offer(new MessageV5<>(msg.v4Message(), newId, parentTopic));
     }
 
     // --- Per-topic state ---

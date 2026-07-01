@@ -44,39 +44,74 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
  * <p>This replaces the previous {@code LinkedTransferQueue} + {@code supplyAsync(take())}
  * approach: {@link #receiveAsync()} parks no thread, is cancelable, and honours timeouts
  * via the client timer instead of blocking a {@code ForkJoinPool.commonPool()} worker.
+ *
+ * <p>Backpressure: {@link #offer} returns a future that completes only when the buffer has
+ * room. Producers gate re-arming on it, so the buffer is bounded by {@code receiverQueueSize}
+ * — modelled on v4 {@code MultiTopicsConsumerImpl}'s pause/resume of sub-consumers.
  */
 final class V5ReceiveQueue<T> {
 
     private final ExecutorService executor;
     private final Timer timer;
+    /** Producers pause once the buffer reaches this size, and resume once it drains to half. */
+    private final int highWatermark;
+    private final int lowWatermark;
 
-    // Both touched only on `executor`, so plain (non-concurrent) collections are safe.
+    // All three touched only on `executor`, so plain (non-concurrent) collections are safe.
     private final ArrayDeque<Message<T>> buffer = new ArrayDeque<>();
     private final ArrayDeque<CompletableFuture<Message<T>>> pendingReceives = new ArrayDeque<>();
+    // Capacity futures handed back to producers that were paused because the buffer was full.
+    private final ArrayDeque<CompletableFuture<Void>> capacityWaiters = new ArrayDeque<>();
     private boolean closed = false;
 
-    V5ReceiveQueue(ExecutorService executor, Timer timer) {
+    V5ReceiveQueue(ExecutorService executor, Timer timer, int receiverQueueSize) {
         this.executor = executor;
         this.timer = timer;
+        this.highWatermark = Math.max(1, receiverQueueSize);
+        this.lowWatermark = highWatermark / 2;
     }
 
     /**
      * Deposit a freshly-arrived message. Called from the per-segment receive loops (which
      * run on a v4 client executor). Hands the message straight to a waiting receive future
      * if there is one, otherwise buffers it.
+     *
+     * @return a future that completes when the sink is ready for the next message — right
+     *     away unless the buffer is full, in which case it defers until the consumer drains
+     *     it below the low watermark (backpressure).
      */
-    void offer(Message<T> msg) {
+    CompletableFuture<Void> offer(Message<T> msg) {
+        CompletableFuture<Void> capacity = new CompletableFuture<>();
         executor.execute(() -> {
             if (closed) {
+                capacity.complete(null);
                 return;
             }
             CompletableFuture<Message<T>> waiter = pollWaiter();
             if (waiter != null) {
+                // Handed straight to a waiting receiver; the buffer didn't grow.
                 waiter.complete(msg);
+                capacity.complete(null);
             } else {
                 buffer.add(msg);
+                if (buffer.size() >= highWatermark) {
+                    capacityWaiters.add(capacity);
+                } else {
+                    capacity.complete(null);
+                }
             }
         });
+        return capacity;
+    }
+
+    /** Resume paused producers once the buffer has drained to the low watermark. */
+    private void maybeResumeProducers() {
+        if (buffer.size() <= lowWatermark) {
+            CompletableFuture<Void> capacity;
+            while ((capacity = capacityWaiters.poll()) != null) {
+                capacity.complete(null);
+            }
+        }
     }
 
     /** Receive a message, completing as soon as one is available. Never blocks a thread. */
@@ -90,6 +125,7 @@ final class V5ReceiveQueue<T> {
             Message<T> msg = buffer.poll();
             if (msg != null) {
                 result.complete(msg);
+                maybeResumeProducers();
             } else {
                 pendingReceives.add(result);
             }
@@ -111,6 +147,7 @@ final class V5ReceiveQueue<T> {
             Message<T> msg = buffer.poll();
             if (msg != null) {
                 result.complete(msg);
+                maybeResumeProducers();
                 return;
             }
             long millis = timeout.toMillis();
@@ -174,6 +211,7 @@ final class V5ReceiveQueue<T> {
             while (batch.size() < max && (m = buffer.poll()) != null) {
                 batch.add(m);
             }
+            maybeResumeProducers();
             done.complete(null);
         });
         return done;
@@ -223,6 +261,11 @@ final class V5ReceiveQueue<T> {
                 if (!waiter.isDone()) {
                     waiter.completeExceptionally(alreadyClosed());
                 }
+            }
+            // Release any paused producers so their receive loops re-arm and observe the close.
+            CompletableFuture<Void> capacity;
+            while ((capacity = capacityWaiters.poll()) != null) {
+                capacity.complete(null);
             }
             buffer.clear();
         });

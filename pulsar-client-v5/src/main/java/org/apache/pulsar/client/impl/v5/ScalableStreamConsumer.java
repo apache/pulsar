@@ -97,7 +97,7 @@ final class ScalableStreamConsumer<T>
      * the multi-topic wrapper overrides this to forward into its shared multiplexed
      * queue, applying its own multi-topic position-vector capture in the process.
      */
-    private final java.util.function.Consumer<MessageV5<T>> messageSink;
+    private final MessageSink<T> messageSink;
 
     private volatile boolean closed = false;
     private final AsyncStreamConsumerV5<T> asyncView;
@@ -107,7 +107,7 @@ final class ScalableStreamConsumer<T>
                                    ConsumerConfigurationData<T> consumerConf,
                                    ScalableConsumerClient session,
                                    String topicName,
-                                   java.util.function.Consumer<MessageV5<T>> messageSink) {
+                                   MessageSink<T> messageSink) {
         this.client = client;
         this.v5Schema = v5Schema;
         this.v4Schema = SchemaAdapter.toV4(v5Schema);
@@ -116,7 +116,8 @@ final class ScalableStreamConsumer<T>
         this.topicName = topicName;
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.receiveQueue = new V5ReceiveQueue<>(
-                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
         this.messageSink = messageSink != null ? messageSink : receiveQueue::offer;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncStreamConsumerV5<>(this);
@@ -151,7 +152,7 @@ final class ScalableStreamConsumer<T>
             ScalableConsumerClient session,
             String topicName,
             List<ActiveSegment> initialAssignment,
-            java.util.function.Consumer<MessageV5<T>> messageSink) {
+            MessageSink<T> messageSink) {
         ScalableStreamConsumer<T> consumer = new ScalableStreamConsumer<>(
                 client, v5Schema, consumerConf, session, topicName, messageSink);
         return consumer.subscribeAssigned(initialAssignment)
@@ -410,11 +411,13 @@ final class ScalableStreamConsumer<T>
 
             // Create the V5 message with the position vector embedded in the ID
             var msgId = new MessageIdV5(v4Msg.getMessageId(), segmentId, positionVector);
-            messageSink.accept(new MessageV5<>(v4Msg, msgId));
-
-            if (!closed) {
-                startReceiveLoop(v4Consumer, segmentId);
-            }
+            // Re-arm only once the sink has room, so a slow consumer pauses this segment's
+            // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
+            messageSink.accept(new MessageV5<>(v4Msg, msgId)).thenRun(() -> {
+                if (!closed) {
+                    startReceiveLoop(v4Consumer, segmentId);
+                }
+            });
         }).exceptionally(ex -> {
             Throwable cause = ex instanceof java.util.concurrent.CompletionException ce
                     && ce.getCause() != null ? ce.getCause() : ex;
