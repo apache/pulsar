@@ -148,8 +148,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
             .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
 
+        long oldSize = bitmap.serializedSize();
         if (bitmap.checkedAdd(entryId)) {
-            long oldSize = bitmap.serializedSize();
             long newSize = bitmap.serializedSize();
             memoryUsage.addAndGet(newSize - oldSize);
             delayedMessagesCount.incrementAndGet();
@@ -223,6 +223,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 break;
             }
 
+            LongSet ledgerIdToDelete = new LongOpenHashSet();
             Long2ObjectSortedMap<LongBitmap> ledgerMap = delayedMessageMap.get(timestamp);
             for (Long2ObjectMap.Entry<LongBitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();

@@ -931,10 +931,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private void removeBucket(Range<Long> range) {
-        ImmutableBucket removed = immutableBuckets.asMapOfRanges().remove(range);
-        if (removed != null) {
+        // Calculate removed snapshot length before removal
+        long removedLength = immutableBuckets.subRangeMap(range).asMapOfRanges().values().stream()
+                .mapToLong(ImmutableBucket::getSnapshotLength)
+                .sum();
+
+        if (removedLength > 0) {
+            immutableBuckets.remove(range);
             bucketsCount.set(immutableBuckets.asMapOfRanges().size());
-            totalSnapshotLengthBytes.addAndGet(-removed.getSnapshotLength());
+            totalSnapshotLengthBytes.addAndGet(-removedLength);
         }
     }
 
