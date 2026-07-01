@@ -637,8 +637,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // PIP-486: when a scalable-topic producer stamps an entry's effective entry-bucket hash
             // range, route the whole entry by its bucket (no per-key hashing) so a batch holding one
             // bucket's keys goes to that bucket's owner. The entry-bucket hash shares the 16-bit
-            // key-hash space, so it feeds the selector directly. Falls back to the message's sticky-key
-            // hash when the entry is unstamped (a single message's key hash lands in its own bucket).
+            // key-hash space, so it feeds the selector directly. Only producers of a multi-bucket
+            // (N > 1) segment stamp this; everything else falls back to the message's sticky-key hash.
             var metadata = entryAndMetadata.getMetadata();
             if (metadata != null && metadata.hasEntryHashMin()) {
                 int bucketHash = metadata.getEntryHashMin();

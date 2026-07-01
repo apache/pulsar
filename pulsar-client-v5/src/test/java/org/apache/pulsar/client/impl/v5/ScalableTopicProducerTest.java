@@ -42,12 +42,28 @@ public class ScalableTopicProducerTest {
                 List.of(0x8000), List.of());
     }
 
+    /** A single-bucket segment (N = 1, e.g. a legacy/synthetic layout for a regular topic). */
+    private static ActiveSegment singleBucketSegment() {
+        return new ActiveSegment(0L, HashRange.of(0x0000, 0xFFFF), "segment://t/n/x/0", null,
+                List.of(), List.of());
+    }
+
     @Test
     public void testBatchingEnabledUsesEntryBucketBatcher() {
         ProducerConfigurationData conf = new ProducerConfigurationData();
         ScalableTopicProducer.applyEntryBucketing(conf, segment());
         assertTrue(conf.isBatchingEnabled());
         assertTrue(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
+    }
+
+    @Test
+    public void testSingleBucketSegmentKeepsDefaultBatcher() {
+        // N = 1: nothing to route by, so the default batcher is kept and entry_hash is not stamped
+        // (stamping a single-bucket segment would hijack a plain Key_Shared subscription on the broker).
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        ScalableTopicProducer.applyEntryBucketing(conf, singleBucketSegment());
+        assertTrue(conf.isBatchingEnabled());
+        assertFalse(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
     }
 
     @Test

@@ -592,13 +592,20 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /**
      * PIP-486: configure a per-segment producer's batching for entry-bucketing. End-to-end encryption
      * disables batching (an encrypted batch can't be reshaped if re-routed across a divergent layout);
-     * otherwise, when batching is enabled, route the segment's batches by entry-bucket so the broker can
-     * dispatch a whole entry to one consumer. A segment's bucketing is immutable for its life.
+     * otherwise, when batching is enabled <em>and the segment has more than one entry-bucket</em>, route
+     * the segment's batches by entry-bucket so the broker can dispatch a whole entry to one consumer.
+     * A segment's bucketing is immutable for its life.
+     *
+     * <p>Single-bucket segments (N = 1, including the legacy/synthetic layouts that wrap a regular
+     * {@code persistent://} topic) are left on the default batcher and do <b>not</b> stamp
+     * {@code entry_hash}: with one bucket there is nothing to distinguish, and stamping would (for
+     * keyless messages, whose bucket hash is 0) write {@code entry_hash_min = 0} and hijack a plain
+     * {@code Key_Shared} subscription's dispatch on the broker.
      */
     static void applyEntryBucketing(ProducerConfigurationData segConf, ActiveSegment segment) {
         if (segConf.isEncryptionEnabled()) {
             segConf.setBatchingEnabled(false);
-        } else if (segConf.isBatchingEnabled()) {
+        } else if (segConf.isBatchingEnabled() && !segment.entryBucketSplits().isEmpty()) {
             segConf.setBatcherBuilder(new EntryBucketBatcherBuilder(segment.entryBucketSplits()));
         }
     }
