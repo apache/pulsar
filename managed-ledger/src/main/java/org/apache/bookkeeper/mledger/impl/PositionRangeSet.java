@@ -22,16 +22,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -84,7 +83,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     private static final long LATEST_KEY = Long.MAX_VALUE;
     private static final long LATEST_VALUE = Long.MAX_VALUE;
 
-    private final NavigableMap<Long, RoaringBitSet> rangeBitSetMap = new TreeMap<>();
+    /**
+     * Maps ledger ID (key) to a bitmap of deleted entry IDs (value) within that ledger.
+     * Bit {@code n} in the bitmap represents entry {@code n} in the ledger.
+     * Uses fastutil's primitive long map to avoid Long boxing overhead.
+     */
+    private final Long2ObjectSortedMap<RoaringBitSet> rangeBitSetMap = new Long2ObjectRBTreeMap<>();
     private final LongPairConsumer<Position> consumer;
     private final boolean enableMultiEntry;
 
@@ -188,12 +192,14 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Map.Entry<Long, RoaringBitSet> firstSet = rangeBitSetMap.firstEntry();
-        Map.Entry<Long, RoaringBitSet> lastSet = rangeBitSetMap.lastEntry();
-        int first = firstSet.getValue().nextSetBit(0);
-        int last = lastSetBit(lastSet.getValue());
-        return Range.openClosed(consumer.apply(firstSet.getKey(), first - 1),
-                consumer.apply(lastSet.getKey(), last));
+        long firstKey = rangeBitSetMap.firstLongKey();
+        long lastKey = rangeBitSetMap.lastLongKey();
+        RoaringBitSet firstSet = rangeBitSetMap.get(firstKey);
+        RoaringBitSet lastSet = rangeBitSetMap.get(lastKey);
+        int first = firstSet.nextSetBit(0);
+        int last = lastSetBit(lastSet);
+        return Range.openClosed(consumer.apply(firstKey, first - 1),
+                consumer.apply(lastKey, last));
     }
 
     @Override
@@ -254,11 +260,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Map.Entry<Long, RoaringBitSet> firstSet = rangeBitSetMap.firstEntry();
-        int lower = firstSet.getValue().nextSetBit(0);
-        int upper = Math.max(lower, firstSet.getValue().nextClearBit(lower) - 1);
-        return Range.openClosed(consumer.apply(firstSet.getKey(), lower - 1),
-                consumer.apply(firstSet.getKey(), upper));
+        long firstKey = rangeBitSetMap.firstLongKey();
+        RoaringBitSet firstSet = rangeBitSetMap.get(firstKey);
+        int lower = firstSet.nextSetBit(0);
+        int upper = Math.max(lower, firstSet.nextClearBit(lower) - 1);
+        return Range.openClosed(consumer.apply(firstKey, lower - 1),
+                consumer.apply(firstKey, upper));
     }
 
     @Override
@@ -266,19 +273,20 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Map.Entry<Long, RoaringBitSet> lastSet = rangeBitSetMap.lastEntry();
-        int upper = lastSetBit(lastSet.getValue());
-        int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
-        return Range.openClosed(consumer.apply(lastSet.getKey(), lower),
-                consumer.apply(lastSet.getKey(), upper));
+        long lastKey = rangeBitSetMap.lastLongKey();
+        RoaringBitSet lastSet = rangeBitSetMap.get(lastKey);
+        int upper = lastSetBit(lastSet);
+        int lower = Math.min(lastSet.previousClearBit(upper), upper);
+        return Range.openClosed(consumer.apply(lastKey, lower),
+                consumer.apply(lastKey, upper));
     }
 
     @Override
     public Map<Long, long[]> toRanges(int maxRanges) {
         Map<Long, long[]> internalBitSetMap = new HashMap<>();
-        AtomicInteger rangeCount = new AtomicInteger();
+        MutableInt rangeCount = new MutableInt();
         rangeBitSetMap.forEach((id, bmap) -> {
-            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
+            if (rangeCount.addAndGet(bmap.cardinality()) > maxRanges) {
                 return;
             }
             internalBitSetMap.put(id, bmap.toLongArray());
@@ -318,7 +326,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
-        NavigableMap<Long, RoaringBitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        Long2ObjectSortedMap<RoaringBitSet> subMap = rangeBitSetMap.subMap(lowerKey, upperKey + 1);
         MutableInt v = new MutableInt(0);
         subMap.forEach((key, bitSet) -> {
             if (key == lowerKey || key == upperKey) {
@@ -440,13 +448,13 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         boolean sameLedger = lowerLedgerId == upperLedgerId;
 
         if (lowerIsEarliest) {
-            rangeBitSetMap.headMap(upperLedgerId, false).clear();
+            rangeBitSetMap.headMap(upperLedgerId).clear();
         }
         if (upperIsLatest) {
-            rangeBitSetMap.tailMap(lowerLedgerId, false).clear();
+            rangeBitSetMap.tailMap(lowerLedgerId + 1).clear();
         }
         if (!sameLedger && !lowerIsEarliest && !upperIsLatest) {
-            rangeBitSetMap.subMap(lowerLedgerId, false, upperLedgerId, false).clear();
+            rangeBitSetMap.subMap(lowerLedgerId + 1, upperLedgerId).clear();
         }
 
         RoaringBitSet lowerSet = lowerIsEarliest ? null : rangeBitSetMap.get(lowerLedgerId);
