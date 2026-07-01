@@ -92,7 +92,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     private final LongPairConsumer<Position> consumer;
     private final boolean enableMultiEntry;
 
-    private LongBitmap dirtyLedgers = LongBitmaps.create();
+    private final LongBitmap dirtyLedgers = LongBitmaps.create();
 
     private int cachedSize = 0;
     private String cachedToString = "[]";
@@ -238,19 +238,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
             int last = lastSetBit(set);
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
-                long nextOpenMarkLong = set.nextClearBit(currentClosedMark);
-                if (nextOpenMarkLong > Integer.MAX_VALUE) {
-                    if (!processor.processRawRange(key, currentClosedMark - 1, key, last)) {
-                        completed.set(true);
-                    }
-                    break;
-                }
-                int nextOpenMark = (int) nextOpenMarkLong;
-                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMark - 1)) {
+                int nextOpenMarkLong = set.nextClearBit(currentClosedMark);
+                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMarkLong - 1)) {
                     completed.set(true);
                     break;
                 }
-                currentClosedMark = set.nextSetBit(nextOpenMark);
+                currentClosedMark = set.nextSetBit(nextOpenMarkLong);
             }
         });
     }
@@ -301,7 +294,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         internalRange.forEach((id, ranges) -> {
             RoaringBitSet bitSet = new RoaringBitSet();
             fromLongArray(bitSet, ranges);
-            rangeBitSetMap.put(id, bitSet);
+            rangeBitSetMap.put((long)id, bitSet);
         });
         invalidateCaches();
     }
@@ -366,13 +359,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof PositionRangeSet)) {
+        if (!(obj instanceof PositionRangeSet other)) {
             return false;
         }
         if (this == obj) {
             return true;
         }
-        PositionRangeSet other = (PositionRangeSet) obj;
         return this.rangeBitSetMap.equals(other.rangeBitSetMap);
     }
 
