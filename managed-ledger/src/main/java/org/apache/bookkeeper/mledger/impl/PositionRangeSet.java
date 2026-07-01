@@ -279,7 +279,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         Map<Long, long[]> internalBitSetMap = new HashMap<>();
         MutableInt rangeCount = new MutableInt();
         rangeBitSetMap.forEach((id, bmap) -> {
-            if (rangeCount.addAndGet(bmap.cardinality()) > maxRanges) {
+            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
                 return;
             }
             internalBitSetMap.put(id, bmap.toLongArray());
