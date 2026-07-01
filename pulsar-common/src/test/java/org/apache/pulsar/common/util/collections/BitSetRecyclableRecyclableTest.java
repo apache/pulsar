@@ -65,20 +65,4 @@ public class BitSetRecyclableRecyclableTest {
         long[] array1 = bitSet.toLongArray();
         Assert.assertTrue(BitSetRecyclable.create().resetWords(array1).isEmpty());
     }
-
-    @Test
-    public void testCardinalityOfWords() {
-        Assert.assertEquals(BitSetRecyclable.cardinality(new long[0]), 0);
-        Assert.assertEquals(BitSetRecyclable.cardinality(new long[] {0L, 0L}), 0);
-        Assert.assertEquals(BitSetRecyclable.cardinality(new long[] {0b1011L, 0L, Long.MIN_VALUE}), 4);
-    }
-
-    @Test
-    public void testAndCardinalityOfWords() {
-        Assert.assertEquals(BitSetRecyclable.andCardinality(new long[0], new long[] {Long.MAX_VALUE}), 0);
-        Assert.assertEquals(BitSetRecyclable.andCardinality(new long[] {0b1111L}, new long[] {0b1010L}), 2);
-        Assert.assertEquals(BitSetRecyclable.andCardinality(
-                new long[] {Long.MAX_VALUE, 0b1010L, Long.MAX_VALUE},
-                new long[] {0L, 0b1110L}), 2);
-    }
 }

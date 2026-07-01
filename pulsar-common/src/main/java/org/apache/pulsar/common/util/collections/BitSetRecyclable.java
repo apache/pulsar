@@ -879,40 +879,6 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     }
 
     /**
-     * Returns the number of bits set to {@code true} in the given words.
-     *
-     * @param words a long array containing a little-endian representation
-     *        of a sequence of bits
-     * @return the number of bits set to {@code true}
-     */
-    public static int cardinality(long[] words) {
-        int sum = 0;
-        for (long word : words) {
-            sum += Long.bitCount(word);
-        }
-        return sum;
-    }
-
-    /**
-     * Returns the number of bits set to {@code true} after applying a
-     * logical <b>AND</b> to the given words.
-     *
-     * @param firstWords the first long array containing a little-endian representation
-     *        of a sequence of bits
-     * @param secondWords the second long array containing a little-endian representation
-     *        of a sequence of bits
-     * @return the number of bits set to {@code true} in {@code firstWords & secondWords}
-     */
-    public static int andCardinality(long[] firstWords, long[] secondWords) {
-        int sum = 0;
-        int wordsInUse = Math.min(firstWords.length, secondWords.length);
-        for (int i = 0; i < wordsInUse; i++) {
-            sum += Long.bitCount(firstWords[i] & secondWords[i]);
-        }
-        return sum;
-    }
-
-    /**
      * Performs a logical <b>AND</b> of this target bit set with the
      * argument bit set. This bit set is modified so that each bit in it
      * has the value {@code true} if and only if it both initially

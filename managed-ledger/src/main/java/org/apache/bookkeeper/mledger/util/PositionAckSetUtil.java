@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.util;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.AckSetState;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
+import org.apache.pulsar.common.util.AckSetUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 public class PositionAckSetUtil {
@@ -30,16 +31,15 @@ public class PositionAckSetUtil {
         if (currentAckSet == null || otherAckSet == null) {
             return false;
         }
-
-        BitSetRecyclable currentBitSet = BitSetRecyclable.valueOf(currentAckSet);
-        BitSetRecyclable otherBitSet = BitSetRecyclable.valueOf(otherAckSet);
-        currentBitSet.flip(0, currentBitSet.size());
-        otherBitSet.flip(0, otherBitSet.size());
-        currentBitSet.and(otherBitSet);
-        boolean isAckSetRepeated = !currentBitSet.isEmpty();
-        currentBitSet.recycle();
-        otherBitSet.recycle();
-        return isAckSetRepeated;
+        // A bit of 0 means "acked". Overlap exists when any position is acked in both sets,
+        // i.e. ~(a | b) != 0 for some word pair.
+        int len = Math.min(currentAckSet.length, otherAckSet.length);
+        for (int i = 0; i < len; i++) {
+            if (~(currentAckSet[i] | otherAckSet[i]) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     //This method is do `and` operation for position's ack set
@@ -54,17 +54,11 @@ public class PositionAckSetUtil {
 
     //This method is do `and` operation for ack set
     public static long[] andAckSet(long[] firstAckSet, long[] secondAckSet) {
-        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(firstAckSet);
-        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(secondAckSet);
-        thisAckSet.and(otherAckSet);
-        long[] ackSet = thisAckSet.toLongArray();
-        thisAckSet.recycle();
-        otherAckSet.recycle();
-        return ackSet;
+        return AckSetUtil.intersect(firstAckSet, secondAckSet);
     }
 
     public static boolean isAckSetEmpty(long[] ackSet) {
-        return BitSetRecyclable.cardinality(ackSet) == 0;
+        return AckSetUtil.cardinality(ackSet) == 0;
     }
 
     //This method is compare two position which position is bigger than another one.
