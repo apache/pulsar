@@ -2793,10 +2793,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 200000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
-                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
-                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
-                    + "ranges excluding the acknowledged messages.")
+            doc = "Deprecated since 5.0.0 — no-op, retained for config-file backward compatibility.\n\n"
+                    + "Historically selected between a bitmap-backed range set (true, default) and a "
+                    + "DefaultRangeSet (false) for tracking acknowledged messages after the mark-delete "
+                    + "position. Since 5.0.0 the cursor always uses the bitmap-backed PositionRangeSet "
+                    + "(equivalent to the former 'true' path), so this setting has no effect. Setting it "
+                    + "to false is silently ignored.")
+    @Deprecated
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
