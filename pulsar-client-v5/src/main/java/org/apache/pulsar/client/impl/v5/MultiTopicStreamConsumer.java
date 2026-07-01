@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.util.Timeout;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -176,7 +177,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                         sc.closeAsync();
                         return;
                     }
-                    PerTopic<T> state = new PerTopic<>(topicName, sc);
+                    PerTopic<T> state = new PerTopic<>(sc);
                     PerTopic<T> existing = perTopic.putIfAbsent(topicName, state);
                     if (existing != null) {
                         sc.closeAsync();
@@ -200,11 +201,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         long delayMs = nextBackoff(topicName);
         log.info().attr("topic", topicName).attr("delayMs", delayMs)
                 .log("Retrying per-topic stream subscribe");
-        client.v4Client().timer().newTimeout(timeout -> openTopic(topicName, /* retry= */ true),
-                delayMs, TimeUnit.MILLISECONDS);
+        Timeout timeout = client.v4Client().timer().newTimeout(t -> {
+            retryTimeouts.remove(topicName);
+            openTopic(topicName, /* retry= */ true);
+        }, delayMs, TimeUnit.MILLISECONDS);
+        retryTimeouts.put(topicName, timeout);
     }
 
     private final ConcurrentHashMap<String, AtomicLong> retryDelays = new ConcurrentHashMap<>();
+    /** Pending backoff-retry timers, so {@link #closeTopic} can cancel a retry for a topic that
+     * dropped out of the match set before the timer fires (otherwise it would resurrect the topic). */
+    private final ConcurrentHashMap<String, Timeout> retryTimeouts = new ConcurrentHashMap<>();
 
     private long nextBackoff(String topicName) {
         AtomicLong al = retryDelays.computeIfAbsent(topicName, t -> new AtomicLong(100));
@@ -245,6 +252,12 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
+        // Cancel any pending backoff retry so a topic that just left the match set can't be
+        // re-subscribed when a stale timer fires.
+        Timeout retry = retryTimeouts.remove(topicName);
+        if (retry != null) {
+            retry.cancel();
+        }
         PerTopic<T> state = perTopic.remove(topicName);
         if (state == null) {
             return CompletableFuture.completedFuture(null);
@@ -385,6 +398,10 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         closed = true;
         watcher.close();
+        // Cancel pending retries for topics that never finished subscribing (they're not in
+        // perTopic, so the closeTopic loop below wouldn't reach them).
+        retryTimeouts.values().forEach(Timeout::cancel);
+        retryTimeouts.clear();
         List<CompletableFuture<Void>> closes = new ArrayList<>();
         for (var topic : new HashSet<>(perTopic.keySet())) {
             closes.add(closeTopic(topic));
@@ -474,11 +491,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      * shutdown.
      */
     private static final class PerTopic<T> {
-        private final String parentTopic;
         private final ScalableStreamConsumer<T> consumer;
 
-        PerTopic(String parentTopic, ScalableStreamConsumer<T> consumer) {
-            this.parentTopic = parentTopic;
+        PerTopic(ScalableStreamConsumer<T> consumer) {
             this.consumer = consumer;
         }
     }

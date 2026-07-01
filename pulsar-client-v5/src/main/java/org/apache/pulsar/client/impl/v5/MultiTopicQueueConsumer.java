@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.util.Timeout;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -53,12 +54,12 @@ import org.apache.pulsar.common.naming.TopicName;
  * <p>Internals:
  * <ul>
  *   <li>One {@link ScalableQueueConsumer} per matched topic.</li>
- *   <li>A pump thread per topic forwards from the per-topic queue into the shared
- *       multiplexed queue, tagging each message with the parent topic so the
- *       subsequent ack can be routed back.</li>
+ *   <li>Each per-topic consumer forwards directly into the shared multiplexed queue
+ *       via an injected message sink — no pump thread — tagging each message with the
+ *       parent topic so the subsequent ack can be routed back.</li>
  *   <li>The watcher's {@code Snapshot} replaces the active set; {@code Diff}
- *       applies removals (flushing acks first) before additions to handle a
- *       rapid remove-then-add of the same topic name.</li>
+ *       applies removals before additions to handle a rapid remove-then-add of the
+ *       same topic name.</li>
  *   <li>Per-topic add failures retry forever with exponential backoff (100 ms
  *       initial, 30 min cap).</li>
  * </ul>
@@ -177,7 +178,7 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
                         qc.closeAsync();
                         return;
                     }
-                    PerTopicState<T> state = new PerTopicState<>(topicName, qc);
+                    PerTopicState<T> state = new PerTopicState<>(qc);
                     PerTopicState<T> existing = perTopic.putIfAbsent(topicName, state);
                     if (existing != null) {
                         // Concurrent open; drop the dup.
@@ -202,11 +203,17 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         long delayMs = nextBackoff(topicName);
         log.info().attr("topic", topicName).attr("delayMs", delayMs)
                 .log("Retrying per-topic subscribe after backoff");
-        client.v4Client().timer().newTimeout(timeout -> openTopic(topicName, /* retry= */ true),
-                delayMs, TimeUnit.MILLISECONDS);
+        Timeout timeout = client.v4Client().timer().newTimeout(t -> {
+            retryTimeouts.remove(topicName);
+            openTopic(topicName, /* retry= */ true);
+        }, delayMs, TimeUnit.MILLISECONDS);
+        retryTimeouts.put(topicName, timeout);
     }
 
     private final ConcurrentHashMap<String, AtomicLong> retryDelays = new ConcurrentHashMap<>();
+    /** Pending backoff-retry timers, so {@link #closeTopic} can cancel a retry for a topic that
+     * dropped out of the match set before the timer fires (otherwise it would resurrect the topic). */
+    private final ConcurrentHashMap<String, Timeout> retryTimeouts = new ConcurrentHashMap<>();
 
     /** Returns the next exponential-backoff delay (ms) for a topic and updates the state. */
     private long nextBackoff(String topicName) {
@@ -245,6 +252,12 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
+        // Cancel any pending backoff retry so a topic that just left the match set can't be
+        // re-subscribed when a stale timer fires.
+        Timeout retry = retryTimeouts.remove(topicName);
+        if (retry != null) {
+            retry.cancel();
+        }
         PerTopicState<T> state = perTopic.remove(topicName);
         if (state == null) {
             return CompletableFuture.completedFuture(null);
@@ -362,6 +375,10 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         }
         closed = true;
         watcher.close();
+        // Cancel pending retries for topics that never finished subscribing (they're not in
+        // perTopic, so the closeTopic loop below wouldn't reach them).
+        retryTimeouts.values().forEach(Timeout::cancel);
+        retryTimeouts.clear();
         List<CompletableFuture<Void>> closes = new ArrayList<>();
         for (var topic : new HashSet<>(perTopic.keySet())) {
             closes.add(closeTopic(topic));
@@ -415,11 +432,9 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
      * underlying consumer for ack routing and clean shutdown.
      */
     private static final class PerTopicState<T> {
-        private final String parentTopic;
         private final ScalableQueueConsumer<T> consumer;
 
-        PerTopicState(String parentTopic, ScalableQueueConsumer<T> consumer) {
-            this.parentTopic = parentTopic;
+        PerTopicState(ScalableQueueConsumer<T> consumer) {
             this.consumer = consumer;
         }
     }
