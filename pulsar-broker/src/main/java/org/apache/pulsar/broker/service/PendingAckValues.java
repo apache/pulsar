@@ -36,7 +36,7 @@ final class PendingAckValues {
     /**
      * Packed value reserved for missing entries in primitive maps.
      */
-    static final long PACKED_NOT_FOUND = packUnchecked(NOT_FOUND, 0);
+    static final long PACKED_NOT_FOUND = (long) NOT_FOUND << Integer.SIZE;
 
     private static final long STICKY_KEY_HASH_MASK = 0xFFFF_FFFFL;
 
@@ -52,7 +52,7 @@ final class PendingAckValues {
         if (remainingUnacked < 0) {
             throw new IllegalArgumentException("remainingUnacked must be non-negative");
         }
-        return packUnchecked(remainingUnacked, stickyKeyHash);
+        return ((long) remainingUnacked << Integer.SIZE) | (stickyKeyHash & STICKY_KEY_HASH_MASK);
     }
 
     /**
@@ -83,7 +83,4 @@ final class PendingAckValues {
         return (int) packedValue;
     }
 
-    private static long packUnchecked(int remainingUnacked, int stickyKeyHash) {
-        return ((long) remainingUnacked << Integer.SIZE) | (stickyKeyHash & STICKY_KEY_HASH_MASK);
-    }
 }
