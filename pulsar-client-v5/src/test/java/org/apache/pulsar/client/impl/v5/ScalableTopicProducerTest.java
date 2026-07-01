@@ -57,13 +57,13 @@ public class ScalableTopicProducerTest {
     }
 
     @Test
-    public void testSingleBucketSegmentKeepsDefaultBatcher() {
-        // N = 1: nothing to route by, so the default batcher is kept and entry_hash is not stamped
-        // (stamping a single-bucket segment would hijack a plain Key_Shared subscription on the broker).
+    public void testSingleBucketSegmentAlsoUsesEntryBucketBatcher() {
+        // N = 1 still uses the entry-bucket batcher so it stamps the effective hash range — standalone
+        // metadata (e.g. for geo-replication re-routing), even though there is only one bucket.
         ProducerConfigurationData conf = new ProducerConfigurationData();
         ScalableTopicProducer.applyEntryBucketing(conf, singleBucketSegment());
         assertTrue(conf.isBatchingEnabled());
-        assertFalse(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
+        assertTrue(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
     }
 
     @Test

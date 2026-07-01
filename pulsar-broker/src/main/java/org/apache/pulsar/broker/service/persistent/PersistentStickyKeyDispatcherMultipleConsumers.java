@@ -634,17 +634,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected int getStickyKeyHash(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
-            // PIP-486: when a scalable-topic producer stamps an entry's effective entry-bucket hash
-            // range, route the whole entry by its bucket (no per-key hashing) so a batch holding one
-            // bucket's keys goes to that bucket's owner. The entry-bucket hash shares the 16-bit
-            // key-hash space, so it feeds the selector directly. Only producers of a multi-bucket
-            // (N > 1) segment stamp this; everything else falls back to the message's sticky-key hash.
-            var metadata = entryAndMetadata.getMetadata();
-            if (metadata != null && metadata.hasEntryHashMin()) {
-                int bucketHash = metadata.getEntryHashMin();
-                // 0 is reserved as "hash not set"; nudge it to 1, which is still inside bucket 0.
-                return bucketHash == STICKY_KEY_HASH_NOT_SET ? 1 : bucketHash;
-            }
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
         }
