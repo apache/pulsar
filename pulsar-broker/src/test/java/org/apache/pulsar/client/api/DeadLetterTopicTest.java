@@ -1689,7 +1689,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
 
-    // See https://github.com/apache/pulsar/issues/26125
     @Test
     public void testAckedBatchMessageNotSentToDeadLetterTopicOnFinalRedeliveryRound() throws Exception {
         final String topic = newTopicName();
