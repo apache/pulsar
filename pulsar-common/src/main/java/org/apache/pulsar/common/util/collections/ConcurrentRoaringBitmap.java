@@ -235,6 +235,10 @@ class ConcurrentRoaringBitmap implements LongBitmap {
         if (from < 0) {
             return -1;
         }
+        // Clamp to MAX_UINT32 instead of returning -1 for out-of-range input.
+        // This allows safe usage in PositionRangeSet.lastRange() where
+        // previousAbsentValue(lastPresentValue()) is called and lastPresentValue
+        // may be MAX_UINT32. Clamping avoids the need for Math.min() guards at call sites.
         if (from > MAX_UINT32) {
             from = MAX_UINT32;
         }
@@ -264,14 +268,15 @@ class ConcurrentRoaringBitmap implements LongBitmap {
         if (value <= 0) {
             return 0;
         }
-        if (value > MAX_UINT32) {
-            value = MAX_UINT32;
+        // Clamp to UINT32_SIZE instead of MAX_UINT32 to allow rank(UINT32_SIZE) to return
+        // the total cardinality. This is needed in PositionRangeSet.cardinality() where
+        // rank(upperValue + 1) is called and upperValue may be MAX_UINT32. The clamping
+        // ensures rank(0x100000000L) counts all values in the uint32 range.
+        if (value > UINT32_SIZE) {
+            value = UINT32_SIZE;
         }
         long stamp = lock.readLock();
         try {
-            if (value == 0) {
-                return 0;
-            }
             return bitmap.rank((int) (value - 1));
         } finally {
             lock.unlockRead(stamp);

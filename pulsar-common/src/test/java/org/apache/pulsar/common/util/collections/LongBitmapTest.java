@@ -850,6 +850,9 @@ public class LongBitmapTest {
 
         bitmap.add(Integer.MAX_VALUE);
         assertEquals(bitmap.lastPresentValue(), 0xFFFFFFFFL);
+
+        bitmap.clear();
+        assertEquals(bitmap.lastPresentValue(), -1);
     }
 
     @Test
@@ -864,6 +867,9 @@ public class LongBitmapTest {
         assertEquals(bitmap.nextPresentValue(0xFFFFFFFEL), 0xFFFFFFFFL);
 
         assertEquals(bitmap.nextAbsentValue(0xFFFFFFFFL), -1);
+
+        assertEquals(bitmap.nextPresentValue(0xFFFFFFFFL), 0xFFFFFFFFL);
+        assertEquals(bitmap.nextPresentValue(0xFFFFFFFFL + 1L), -1);
     }
 
     @Test
@@ -883,6 +889,11 @@ public class LongBitmapTest {
         assertEquals(bitmap.rank(50), 4);
         assertEquals(bitmap.rank(51), 5);
         assertEquals(bitmap.rank(100), 5);
+
+        bitmap.add(0xFFFFFFFFL);
+
+        assertEquals(bitmap.rank(0xFFFFFFFFL), 5);
+        assertEquals(bitmap.rank(0x100000000L), 6);
     }
 
     @Test
@@ -901,5 +912,22 @@ public class LongBitmapTest {
         assertEquals(bitmap.previousAbsentValue(6), 6);
         assertEquals(bitmap.previousAbsentValue(5), 4);
         assertEquals(bitmap.previousAbsentValue(2), 2);
+
+        bitmap.clear();
+        bitmap.add(0xFFFFFFFFL);
+
+        assertEquals(bitmap.previousAbsentValue(0xFFFFFFFFL), 0xFFFFFFFEL);
+        assertEquals(bitmap.previousAbsentValue(0x100000000L), 0xFFFFFFFEL);
+    }
+
+    @Test
+    public void testNextPresentValueAtMaxUint32() {
+        LongBitmap bitmap = LongBitmaps.create();
+
+        bitmap.add(0xFFFFFFFFL);
+
+        assertEquals(bitmap.nextPresentValue(0), 0xFFFFFFFFL);
+        assertEquals(bitmap.nextPresentValue(0xFFFFFFFFL), 0xFFFFFFFFL);
+        assertEquals(bitmap.nextPresentValue(0x100000000L), -1);
     }
 }
