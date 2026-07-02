@@ -25,7 +25,6 @@ import io.github.merlimat.slog.Logger;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,20 +36,14 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongBitmap;
 import org.apache.pulsar.common.util.collections.LongBitmaps;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
-import org.roaringbitmap.RoaringBitSet;
 
 /**
  * Tracks deleted-message positions as ranges of {@link Position}s.
  *
  * <p>The implementation stores positions in a two-level structure:
  * the ledger id is used as the map key, and the corresponding entry ids are stored in a
- * {@link RoaringBitSet}. Bit {@code n} in the bitmap of ledger {@code L} represents the position
+ * {@link LongBitmap}. Bit {@code n} in the bitmap of ledger {@code L} represents the position
  * {@code (L, n)}.
- *
- * <p>This implementation replaces the previous {@code RangeSetWrapper<Position>} backed by
- * {@code OpenLongPairRangeSet}. Keeping the storage layout ledger-oriented avoids the overhead of
- * creating and comparing {@link Position} range objects while preserving the same
- * {@link LongPairRangeSet} semantics.
  *
  * <h2>Thread Safety</h2>
  *
@@ -63,12 +56,9 @@ import org.roaringbitmap.RoaringBitSet;
  *
  * <h2>Persistence Compatibility</h2>
  *
- * <p>The persisted representation remains compatible with the existing format:
- * {@link #toRanges(int)} and {@link #build(Map)} use the {@link BitSet#toLongArray()} /
- * {@link BitSet#valueOf(long[])} contract.
- *
- * <p>The internal {@link RoaringBitSet} representation is an implementation detail and is not used
- * for serialization, avoiding any wire-format change.
+ * <p>The persisted representation remains compatible with the existing format using
+ * {@link LongBitmap#serializeToLongArray()} and {@link LongBitmap#deserializeFromLongArray(long[])},
+ * which are compatible with the BitSet long[] format.
  *
  * <p>Entry ids are stored as bitmap indexes and therefore use {@code int} values. This is safe
  * because {@code managedLedgerMaxEntriesPerLedger} is an {@code int}, so valid entry ids are within
@@ -84,11 +74,10 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     private static final long LATEST_VALUE = Long.MAX_VALUE;
 
     /**
-     * Maps ledger ID (key) to a bitmap of deleted entry IDs (value) within that ledger.
+     * Maps ledger ID to a bitmap of deleted entry IDs within that ledger.
      * Bit {@code n} in the bitmap represents entry {@code n} in the ledger.
-     * Uses fastutil's primitive long map to avoid Long boxing overhead.
      */
-    private final Long2ObjectSortedMap<RoaringBitSet> rangeBitSetMap = new Long2ObjectRBTreeMap<>();
+    private final Long2ObjectSortedMap<LongBitmap> rangeBitmapMap = new Long2ObjectRBTreeMap<>();
     private final LongPairConsumer<Position> consumer;
     private final boolean enableMultiEntry;
 
@@ -104,8 +93,8 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         this.enableMultiEntry = enableMultiEntry;
     }
 
-    private static int lastSetBit(RoaringBitSet bitSet) {
-        return bitSet.isEmpty() ? -1 : bitSet.previousSetBit(bitSet.length() - 1);
+    private static long lastPresentValue(LongBitmap bitmap) {
+        return bitmap.lastPresentValue();
     }
 
     @Override
@@ -119,42 +108,45 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
             // otherwise we'd invent acknowledgements that never happened (e.g. (2:10..4:10] must not
             // touch 2:10 if ledger 2 was empty).
             if (isValid(lowerKey, lowerValue)) {
-                RoaringBitSet rangeBitSet = rangeBitSetMap.get(lowerKey);
-                if (rangeBitSet != null && (lastSetBit(rangeBitSet) > lowerValueOpen)) {
-                    int lastValue = lastSetBit(rangeBitSet);
-                    rangeBitSet.set((int) lowerValue, (int) Math.max(lastValue, lowerValue) + 1);
+                LongBitmap rangeBitmap = rangeBitmapMap.get(lowerKey);
+                if (rangeBitmap != null) {
+                    long lastValue = rangeBitmap.lastPresentValue();
+                    if (lastValue > lowerValueOpen) {
+                        rangeBitmap.add(lowerValue, Math.max(lastValue, lowerValue) + 1);
+                    }
                 }
             }
             if (isValid(upperKey, upperValue)) {
-                RoaringBitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(upperKey, k -> new RoaringBitSet());
-                rangeBitSet.set(0, (int) upperValue + 1);
+                LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(upperKey, k -> LongBitmaps.create());
+                rangeBitmap.add(0, upperValue + 1);
             }
         } else {
-            RoaringBitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(lowerKey, k -> new RoaringBitSet());
-            rangeBitSet.set((int) lowerValue, (int) upperValue + 1);
+            LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(lowerKey, k -> LongBitmaps.create());
+            rangeBitmap.add(lowerValue, upperValue + 1);
         }
         invalidateCaches();
     }
 
     @Override
     public boolean contains(long key, long value) {
-        RoaringBitSet rangeBitSet = rangeBitSetMap.get(key);
-        if (rangeBitSet != null) {
-            return rangeBitSet.get(getSafeEntry(value));
+        LongBitmap rangeBitmap = rangeBitmapMap.get(key);
+        if (rangeBitmap != null) {
+            return rangeBitmap.contains(getSafeEntry(value));
         }
         return false;
     }
 
     @Override
     public Range<Position> rangeContaining(long key, long value) {
-        RoaringBitSet rangeBitSet = rangeBitSetMap.get(key);
-        if (rangeBitSet == null || !rangeBitSet.get(getSafeEntry(value))) {
+        LongBitmap rangeBitmap = rangeBitmapMap.get(key);
+        if (rangeBitmap == null || !rangeBitmap.contains(getSafeEntry(value))) {
             return null;
         }
-        int entry = getSafeEntry(value);
-        int lowerValue = rangeBitSet.previousClearBit(entry) + 1;
+        long entry = getSafeEntry(value);
+        long lowerValue = rangeBitmap.previousAbsentValue(entry) + 1;
         Position lower = consumer.apply(key, lowerValue);
-        Position upper = consumer.apply(key, Math.max(rangeBitSet.nextClearBit(entry) - 1, lowerValue));
+        long nextClear = rangeBitmap.nextAbsentValue(entry);
+        Position upper = consumer.apply(key, Math.max(nextClear - 1, lowerValue));
         return Range.closed(lower, upper);
     }
 
@@ -169,11 +161,11 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public boolean isEmpty() {
-        if (rangeBitSetMap.isEmpty()) {
+        if (rangeBitmapMap.isEmpty()) {
             return true;
         }
-        for (RoaringBitSet bitSet : rangeBitSetMap.values()) {
-            if (!bitSet.isEmpty()) {
+        for (LongBitmap bitmap : rangeBitmapMap.values()) {
+            if (!bitmap.isEmpty()) {
                 return false;
             }
         }
@@ -182,22 +174,22 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public void clear() {
-        rangeBitSetMap.clear();
+        rangeBitmapMap.clear();
         resetDirtyKeys();
         invalidateCaches();
     }
 
     @Override
     public Range<Position> span() {
-        if (rangeBitSetMap.isEmpty()) {
+        if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long firstKey = rangeBitSetMap.firstLongKey();
-        long lastKey = rangeBitSetMap.lastLongKey();
-        RoaringBitSet firstSet = rangeBitSetMap.get(firstKey);
-        RoaringBitSet lastSet = rangeBitSetMap.get(lastKey);
-        int first = firstSet.nextSetBit(0);
-        int last = lastSetBit(lastSet);
+        long firstKey = rangeBitmapMap.firstLongKey();
+        long lastKey = rangeBitmapMap.lastLongKey();
+        LongBitmap firstBitmap = rangeBitmapMap.get(firstKey);
+        LongBitmap lastBitmap = rangeBitmapMap.get(lastKey);
+        long first = firstBitmap.nextPresentValue(0);
+        long last = lastBitmap.lastPresentValue();
         return Range.openClosed(consumer.apply(firstKey, first - 1),
                 consumer.apply(lastKey, last));
     }
@@ -230,46 +222,49 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     @Override
     public void forEachRawRange(RawRangeProcessor processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, set) -> {
-            if (completed.get() || set.isEmpty()) {
+        rangeBitmapMap.forEach((key, bitmap) -> {
+            if (completed.get() || bitmap.isEmpty()) {
                 return;
             }
-            int first = set.nextSetBit(0);
-            int last = lastSetBit(set);
-            int currentClosedMark = first;
+            long first = bitmap.nextPresentValue(0);
+            long last = bitmap.lastPresentValue();
+            long currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
-                int nextOpenMarkLong = set.nextClearBit(currentClosedMark);
-                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMarkLong - 1)) {
+                long nextOpenMark = bitmap.nextAbsentValue(currentClosedMark);
+                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
-                currentClosedMark = set.nextSetBit(nextOpenMarkLong);
+                if (nextOpenMark > Integer.MAX_VALUE) {
+                    break;
+                }
+                currentClosedMark = bitmap.nextPresentValue(nextOpenMark);
             }
         });
     }
 
     @Override
     public Range<Position> firstRange() {
-        if (rangeBitSetMap.isEmpty()) {
+        if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long firstKey = rangeBitSetMap.firstLongKey();
-        RoaringBitSet firstSet = rangeBitSetMap.get(firstKey);
-        int lower = firstSet.nextSetBit(0);
-        int upper = Math.max(lower, firstSet.nextClearBit(lower) - 1);
+        long firstKey = rangeBitmapMap.firstLongKey();
+        LongBitmap firstBitmap = rangeBitmapMap.get(firstKey);
+        long lower = firstBitmap.nextPresentValue(0);
+        long upper = Math.max(lower, firstBitmap.nextAbsentValue(lower) - 1);
         return Range.openClosed(consumer.apply(firstKey, lower - 1),
                 consumer.apply(firstKey, upper));
     }
 
     @Override
     public Range<Position> lastRange() {
-        if (rangeBitSetMap.isEmpty()) {
+        if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long lastKey = rangeBitSetMap.lastLongKey();
-        RoaringBitSet lastSet = rangeBitSetMap.get(lastKey);
-        int upper = lastSetBit(lastSet);
-        int lower = Math.min(lastSet.previousClearBit(upper), upper);
+        long lastKey = rangeBitmapMap.lastLongKey();
+        LongBitmap lastBitmap = rangeBitmapMap.get(lastKey);
+        long upper = lastBitmap.lastPresentValue();
+        long lower = Math.min(lastBitmap.previousAbsentValue(upper), upper);
         return Range.openClosed(consumer.apply(lastKey, lower),
                 consumer.apply(lastKey, upper));
     }
@@ -278,61 +273,42 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     public Map<Long, long[]> toRanges(int maxRanges) {
         Map<Long, long[]> internalBitSetMap = new HashMap<>();
         MutableInt rangeCount = new MutableInt();
-        rangeBitSetMap.forEach((id, bmap) -> {
-            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
+        rangeBitmapMap.forEach((id, bitmap) -> {
+            if (rangeCount.addAndGet((int) bitmap.cardinality()) > maxRanges) {
                 return;
             }
-            internalBitSetMap.put(id, bmap.toLongArray());
+            internalBitSetMap.put(id, bitmap.serializeToLongArray());
         });
         return internalBitSetMap;
     }
 
     @Override
     public void build(Map<Long, long[]> internalRange) {
-        rangeBitSetMap.clear();
+        rangeBitmapMap.clear();
+        resetDirtyKeys();
 
         internalRange.forEach((id, ranges) -> {
-            RoaringBitSet bitSet = new RoaringBitSet();
-            fromLongArray(bitSet, ranges);
-            rangeBitSetMap.put((long)id, bitSet);
+            rangeBitmapMap.put(id.longValue(), LongBitmaps.deserializeFromLongArray(ranges));
         });
         invalidateCaches();
     }
 
-    /**
-     * Populates a RoaringBitSet from a long[] array in the format produced by BitSet.toLongArray().
-     * This avoids creating a temporary ordinary java.util.BitSet via BitSet.valueOf().
-     */
-    private static void fromLongArray(RoaringBitSet bitSet, long[] words) {
-        for (int wordIndex = 0; wordIndex < words.length; wordIndex++) {
-            long word = words[wordIndex];
-            if (word != 0) {
-                int bitIndex = wordIndex * Long.SIZE;
-                for (int i = 0; i < Long.SIZE; i++) {
-                    if ((word & (1L << i)) != 0) {
-                        bitSet.set(bitIndex + i);
-                    }
-                }
-            }
-        }
-    }
-
     @Override
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
-        Long2ObjectSortedMap<RoaringBitSet> subMap = rangeBitSetMap.subMap(lowerKey, upperKey + 1);
+        Long2ObjectSortedMap<LongBitmap> subMap = rangeBitmapMap.subMap(lowerKey, upperKey + 1);
         MutableInt v = new MutableInt(0);
-        subMap.forEach((key, bitSet) -> {
-            if (key == lowerKey || key == upperKey) {
-                RoaringBitSet temp = (RoaringBitSet) bitSet.clone();
-                if (key == lowerKey) {
-                    temp.clear(0, (int) Math.max(0, lowerValue));
-                }
-                if (key == upperKey) {
-                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
-                }
-                v.add(temp.cardinality());
+        subMap.forEach((key, bitmap) -> {
+            if (key == lowerKey && key == upperKey) {
+                long count = bitmap.rank(upperValue + 1) - bitmap.rank(lowerValue);
+                v.add(Math.toIntExact(count));
+            } else if (key == lowerKey) {
+                long count = bitmap.cardinality() - bitmap.rank(lowerValue);
+                v.add(Math.toIntExact(count));
+            } else if (key == upperKey) {
+                long count = bitmap.rank(upperValue + 1);
+                v.add(Math.toIntExact(count));
             } else {
-                v.add(bitSet.cardinality());
+                v.add(Math.toIntExact(bitmap.cardinality()));
             }
         });
         return v.intValue();
@@ -354,7 +330,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(rangeBitSetMap);
+        return Objects.hashCode(rangeBitmapMap);
     }
 
     @Override
@@ -365,7 +341,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (this == obj) {
             return true;
         }
-        return this.rangeBitSetMap.equals(other.rangeBitSetMap);
+        return this.rangeBitmapMap.equals(other.rangeBitmapMap);
     }
 
     @Override
@@ -389,12 +365,6 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         return cachedToString;
     }
 
-    /**
-     * Adds a Guava {@link Range} of {@link Position} endpoints. Test-only.
-     *
-     * <p>Pre-creates the lower-key bitmap and seeds one bit so that {@link #addOpenClosed}'s
-     * "skip when lower bitmap is empty" branch does not drop the lower endpoint.
-     */
     @VisibleForTesting
     void add(Range<Position> range) {
         Position lowerEndpoint = range.hasLowerBound() ? range.lowerEndpoint()
@@ -409,16 +379,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
                 ? getSafeEntry(upperEndpoint)
                 : getSafeEntry(upperEndpoint) + 1;
 
-        rangeBitSetMap.computeIfAbsent(lowerEndpoint.getLedgerId(), k -> new RoaringBitSet())
-                .set((int) lowerValueOpen + 1);
+        rangeBitmapMap.computeIfAbsent(lowerEndpoint.getLedgerId(), k -> LongBitmaps.create())
+                .add(lowerValueOpen + 1);
         addOpenClosed(lowerEndpoint.getLedgerId(), lowerValueOpen,
                 upperEndpoint.getLedgerId(), upperValueClosed);
     }
 
-    /**
-     * Removes a Guava {@link Range} of {@link Position} endpoints. Test-only; does not touch the
-     * dirty-ledger tracker.
-     */
     @VisibleForTesting
     void remove(Range<Position> range) {
         Position lowerEndpoint = range.hasLowerBound() ? range.lowerEndpoint()
@@ -440,54 +406,44 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         boolean sameLedger = lowerLedgerId == upperLedgerId;
 
         if (lowerIsEarliest) {
-            rangeBitSetMap.headMap(upperLedgerId).clear();
+            rangeBitmapMap.headMap(upperLedgerId).clear();
         }
         if (upperIsLatest) {
-            rangeBitSetMap.tailMap(lowerLedgerId + 1).clear();
+            rangeBitmapMap.tailMap(lowerLedgerId + 1).clear();
         }
         if (!sameLedger && !lowerIsEarliest && !upperIsLatest) {
-            rangeBitSetMap.subMap(lowerLedgerId + 1, upperLedgerId).clear();
+            rangeBitmapMap.subMap(lowerLedgerId + 1, upperLedgerId).clear();
         }
 
-        RoaringBitSet lowerSet = lowerIsEarliest ? null : rangeBitSetMap.get(lowerLedgerId);
-        RoaringBitSet upperSet = upperIsLatest ? null
-                : (sameLedger ? lowerSet : rangeBitSetMap.get(upperLedgerId));
+        LongBitmap lowerSet = lowerIsEarliest ? null : rangeBitmapMap.get(lowerLedgerId);
+        LongBitmap upperSet = upperIsLatest ? null
+                : (sameLedger ? lowerSet : rangeBitmapMap.get(upperLedgerId));
 
         if (sameLedger && lowerSet != null) {
-            lowerSet.clear((int) lower, (int) upper + 1);
+            lowerSet.remove(lower, upper + 1);
         } else {
             if (lowerSet != null) {
-                // Preserves a long-standing behavior of the previous OpenLongPairRangeSet.remove:
-                // BitSet.clear(lower, previousSetBit(length)) is half-open, so the highest set bit
-                // itself survives. Existing cursor recovery and RangeSetWrapperTest rely on this;
-                // do not "fix" the apparent off-by-one without a separate PIP.
-                lowerSet.clear((int) lower, lastSetBit(lowerSet));
+                lowerSet.remove(lower, lastPresentValue(lowerSet));
             }
             if (upperSet != null) {
-                // upper+1 must not overflow to Integer.MIN_VALUE; entry ids never approach
-                // Integer.MAX_VALUE in practice (managedLedgerMaxEntriesPerLedger is int and far
-                // smaller), but the same latent overflow exists in the original
-                // OpenLongPairRangeSet.remove — kept for behavioral parity until a separate fix.
-                upperSet.clear(0, (int) upper + 1);
+                upperSet.remove(0, upper + 1);
             }
         }
 
         if (lowerSet != null && lowerSet.isEmpty()) {
-            rangeBitSetMap.remove(lowerLedgerId);
+            rangeBitmapMap.remove(lowerLedgerId);
         }
         if (!sameLedger && upperSet != null && upperSet.isEmpty()) {
-            rangeBitSetMap.remove(upperLedgerId);
+            rangeBitmapMap.remove(upperLedgerId);
         }
 
         invalidateCaches();
     }
 
-    /** Resets the dirty-ledger tracker; called after persistence has flushed all dirty segments. */
     void resetDirtyKeys() {
         dirtyLedgers.clear();
     }
 
-    /** Whether {@code ledgerId} has been modified since the last {@link #resetDirtyKeys()}. */
     boolean isDirtyLedgers(long ledgerId) {
         return ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE && dirtyLedgers.contains(ledgerId);
     }

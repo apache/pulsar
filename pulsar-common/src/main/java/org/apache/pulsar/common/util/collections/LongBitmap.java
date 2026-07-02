@@ -132,6 +132,41 @@ public interface LongBitmap {
     long nextAbsentValue(long from);
 
     /**
+     * Returns the smallest present value greater than or equal to {@code from}.
+     *
+     * @param from inclusive lower bound
+     * @return next present value, or {@code -1} if none exists
+     */
+    long nextPresentValue(long from);
+
+    /**
+     * Returns the largest absent value less than or equal to {@code from}.
+     *
+     * @param from inclusive upper bound
+     * @return previous absent value, or {@code -1} if none exists
+     */
+    long previousAbsentValue(long from);
+
+    /**
+     * Returns the last (highest) present value, or {@code -1} if empty.
+     *
+     * @return last present value, or {@code -1} if bitmap is empty
+     */
+    long lastPresentValue();
+
+    /**
+     * Returns the number of present values strictly less than {@code value}.
+     * This is the rank of the value in the sorted sequence of present values.
+     *
+     * <p>Useful for computing range cardinality:
+     * {@code cardinality(from, to) = rank(to) - rank(from)}.
+     *
+     * @param value upper bound (exclusive)
+     * @return count of present values less than {@code value}
+     */
+    long rank(long value);
+
+    /**
      * Adds all values from {@code other} into this bitmap.
      *
      * @param other bitmap to merge
@@ -170,4 +205,19 @@ public interface LongBitmap {
      * Serializes the bitmap into a newly allocated byte array.
      */
     byte[] serialize();
+
+    /**
+     * Serializes the bitmap to long[] format compatible with {@link java.util.BitSet#toLongArray()}.
+     * This format can be restored using {@link #deserializeFromLongArray(long[])}.
+     *
+     * @return long array representing the bitmap
+     */
+    long[] serializeToLongArray();
+
+    /**
+     * Deserializes a bitmap from long[] format compatible with {@link java.util.BitSet#valueOf(long[])}.
+     *
+     * @param data long array in BitSet format
+     */
+    void deserializeFromLongArray(long[] data);
 }
