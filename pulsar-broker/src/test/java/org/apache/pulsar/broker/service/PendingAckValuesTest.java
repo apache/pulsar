@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
 import org.testng.annotations.Test;
 
 public class PendingAckValuesTest {
@@ -42,10 +41,6 @@ public class PendingAckValuesTest {
             assertFalse(PendingAckValues.isNotFound(packedValue));
             assertEquals(PendingAckValues.remainingUnacked(packedValue), value[0]);
             assertEquals(PendingAckValues.stickyKeyHash(packedValue), value[1]);
-
-            IntIntPair pair = PendingAckValues.toPair(packedValue);
-            assertEquals(pair.leftInt(), value[0]);
-            assertEquals(pair.rightInt(), value[1]);
         }
     }
 

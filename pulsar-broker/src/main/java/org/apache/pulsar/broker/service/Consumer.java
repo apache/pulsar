@@ -28,7 +28,6 @@ import io.github.merlimat.slog.Logger;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
 import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -1205,25 +1204,6 @@ public class Consumer {
             return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
         }
         return PENDING_ACK_NOT_FOUND;
-    }
-
-    /**
-     * Atomically remove the pending ack entry and return its stored values.
-     *
-     * <p>No-op if {@code pendingAcks} is not initialized.
-     *
-     * @return the removed {@link IntIntPair#leftInt() remainingUnacked} and
-     *         {@link IntIntPair#rightInt() stickyKeyHash}, or {@code null} if not found
-     * @deprecated use {@link #removePendingAckAndGetRemainingUnacked(long, long)} when only the remaining unacked
-     * count is needed. This method materializes an {@link IntIntPair}.
-     */
-    @Deprecated
-    @SuppressWarnings("deprecation")
-    public IntIntPair removePendingAckAndGet(long ledgerId, long entryId) {
-        if (pendingAcks != null) {
-            return pendingAcks.removeAndGet(ledgerId, entryId);
-        }
-        return null;
     }
 
     /**

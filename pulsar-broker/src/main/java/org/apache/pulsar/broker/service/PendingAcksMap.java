@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
-import it.unimi.dsi.fastutil.ints.IntIntPair;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2LongSortedMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
-import it.unimi.dsi.fastutil.longs.LongLongBiConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -192,14 +190,15 @@ public class PendingAcksMap {
         }
     }
 
-    // iterate all pending acks and process them
+    // this code uses for loops intentionally, don't refactor to use forEach
     private void processPendingAcks(PendingAcksConsumer processor) {
         for (Long2ObjectMap.Entry<Long2LongSortedMap> entry : pendingAcks.long2ObjectEntrySet()) {
             long ledgerId = entry.getLongKey();
-            LongLongBiConsumer pendingAckProcessor = (entryId, packedValue) ->
-                    processor.accept(ledgerId, entryId, PendingAckValues.remainingUnacked(packedValue),
-                            PendingAckValues.stickyKeyHash(packedValue));
-            entry.getValue().forEach(pendingAckProcessor);
+            for (Long2LongMap.Entry pendingAckEntry : entry.getValue().long2LongEntrySet()) {
+                long packedValue = pendingAckEntry.getLongValue();
+                processor.accept(ledgerId, pendingAckEntry.getLongKey(),
+                        PendingAckValues.remainingUnacked(packedValue), PendingAckValues.stickyKeyHash(packedValue));
+            }
         }
     }
 
@@ -266,30 +265,6 @@ public class PendingAcksMap {
                 return false;
             }
             return ledgerMap.containsKey(entryId);
-        } finally {
-            readLock.unlock();
-        }
-    }
-
-    /**
-     * Get the pending ack for the given ledger ID and entry ID.
-     *
-     * @param ledgerId the ledger ID
-     * @param entryId the entry ID
-     * @return the pending ack, or null if not found
-     * @deprecated use {@link #getRemainingUnacked(long, long)} when only the remaining unacked count is needed.
-     * This method materializes an {@link IntIntPair}.
-     */
-    @Deprecated
-    public IntIntPair get(long ledgerId, long entryId) {
-        try {
-            readLock.lock();
-            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null) {
-                return null;
-            }
-            long packedValue = ledgerMap.get(entryId);
-            return PendingAckValues.isNotFound(packedValue) ? null : PendingAckValues.toPair(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -402,40 +377,6 @@ public class PendingAcksMap {
                 pendingAcks.remove(ledgerId);
             }
             return true;
-        } finally {
-            writeLock.unlock();
-        }
-    }
-
-    /**
-     * Atomically remove and return the pending ack for the given ledger ID and entry ID.
-     * Unlike {@link #remove(long, long)}, this method returns the removed entry so the caller
-     * can access the batch size and sticky key hash without a separate get operation.
-     *
-     * @param ledgerId the ledger ID
-     * @param entryId the entry ID
-     * @return the removed entry as an IntIntPair (batchSize, stickyKeyHash), or null if not found
-     * @deprecated use {@link #removeAndGetRemainingUnacked(long, long)} when only the remaining unacked count
-     * is needed. This method materializes an {@link IntIntPair}.
-     */
-    @Deprecated
-    public IntIntPair removeAndGet(long ledgerId, long entryId) {
-        try {
-            writeLock.lock();
-            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
-            if (ledgerMap == null) {
-                return null;
-            }
-            long removedEntry = ledgerMap.remove(entryId);
-            if (PendingAckValues.isNotFound(removedEntry)) {
-                return null;
-            }
-            size--;
-            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
-            if (ledgerMap.isEmpty()) {
-                pendingAcks.remove(ledgerId);
-            }
-            return PendingAckValues.toPair(removedEntry);
         } finally {
             writeLock.unlock();
         }

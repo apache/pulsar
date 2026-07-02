@@ -30,12 +30,10 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.util.ArrayList;
 import java.util.List;
 import org.testng.annotations.Test;
 
-@SuppressWarnings("deprecation")
 public class PendingAcksMapTest {
     @Test
     public void addPendingAckIfAllowed_AddsAckWhenAllowed() {
@@ -297,39 +295,37 @@ public class PendingAcksMapTest {
     }
 
     @Test
-    public void removeAndGet_RemovesAndReturnsEntry() {
+    public void removeAndGetRemainingUnacked_RemovesAndReturnsEntry() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
         pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 5, 123);
 
-        IntIntPair result = pendingAcksMap.removeAndGet(1L, 1L);
+        int result = pendingAcksMap.removeAndGetRemainingUnacked(1L, 1L);
 
-        assertTrue(result != null);
-        assertEquals(result.leftInt(), 5);
-        assertEquals(result.rightInt(), 123);
+        assertEquals(result, 5);
         assertFalse(pendingAcksMap.contains(1L, 1L));
         assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
-    public void removeAndGet_ReturnsNullWhenNotFound() {
+    public void removeAndGetRemainingUnacked_ReturnsNotFoundWhenNotFound() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
 
-        IntIntPair result = pendingAcksMap.removeAndGet(1L, 1L);
+        int result = pendingAcksMap.removeAndGetRemainingUnacked(1L, 1L);
 
-        assertTrue(result == null);
+        assertEquals(result, PendingAcksMap.PENDING_ACK_NOT_FOUND);
         assertEquals(pendingAcksMap.size(), 0);
     }
 
     @Test
-    public void removeAndGet_InvokesRemoveHandler() {
+    public void removeAndGetRemainingUnacked_InvokesRemoveHandler() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap.PendingAcksRemoveHandler removeHandler = mock(PendingAcksMap.PendingAcksRemoveHandler.class);
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> removeHandler);
         pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 5, 123);
 
-        pendingAcksMap.removeAndGet(1L, 1L);
+        pendingAcksMap.removeAndGetRemainingUnacked(1L, 1L);
 
         verify(removeHandler).handleRemoving(consumer, 1L, 1L, 123, false);
     }
@@ -387,12 +383,12 @@ public class PendingAcksMapTest {
                 }));
         assertEquals(forEachValues.size(), values.length);
         for (int i = 0; i < values.length; i++) {
-            assertPendingAck(pendingAcksMap.get(10L + i, 100L + i), values[i][0], values[i][1]);
+            assertEquals(pendingAcksMap.getRemainingUnacked(10L + i, 100L + i), values[i][0]);
             assertEquals(forEachValues.get(i), new int[] {10 + i, 100 + i, values[i][0], values[i][1]});
         }
 
         for (int i = 0; i < values.length; i++) {
-            assertPendingAck(pendingAcksMap.removeAndGet(10L + i, 100L + i), values[i][0], values[i][1]);
+            assertEquals(pendingAcksMap.removeAndGetRemainingUnacked(10L + i, 100L + i), values[i][0]);
         }
         assertEquals(pendingAcksMap.size(), 0);
     }
@@ -405,7 +401,7 @@ public class PendingAcksMapTest {
 
         assertTrue(pendingAcksMap.updateRemainingUnacked(1L, 1L, 4));
 
-        assertPendingAck(pendingAcksMap.get(1L, 1L), 6, Integer.MIN_VALUE);
+        assertOnlyPendingAck(pendingAcksMap, 1L, 1L, 6, Integer.MIN_VALUE);
     }
 
     @Test
@@ -417,7 +413,7 @@ public class PendingAcksMapTest {
         assertTrue(pendingAcksMap.updateRemainingUnacked(1L, 1L, 1));
 
         assertEquals(pendingAcksMap.getRemainingUnacked(1L, 1L), 0);
-        assertPendingAck(pendingAcksMap.get(1L, 1L), 0, -1);
+        assertOnlyPendingAck(pendingAcksMap, 1L, 1L, 0, -1);
         assertEquals(pendingAcksMap.size(), 1);
     }
 
@@ -429,7 +425,7 @@ public class PendingAcksMapTest {
 
         assertFalse(pendingAcksMap.updateRemainingUnacked(1L, 1L, 2));
 
-        assertPendingAck(pendingAcksMap.get(1L, 1L), 1, 123);
+        assertOnlyPendingAck(pendingAcksMap, 1L, 1L, 1, 123);
     }
 
     @Test
@@ -463,9 +459,14 @@ public class PendingAcksMapTest {
         assertFalse(pendingAcksMap.contains(1L, 1L));
     }
 
-    private static void assertPendingAck(IntIntPair pendingAck, int remainingUnacked, int stickyKeyHash) {
-        assertTrue(pendingAck != null);
-        assertEquals(pendingAck.leftInt(), remainingUnacked);
-        assertEquals(pendingAck.rightInt(), stickyKeyHash);
+    private static void assertOnlyPendingAck(PendingAcksMap pendingAcksMap, long ledgerId, long entryId,
+                                             int remainingUnacked, int stickyKeyHash) {
+        List<long[]> pendingAcks = new ArrayList<>();
+        pendingAcksMap.forEach((actualLedgerId, actualEntryId, actualRemainingUnacked, actualStickyKeyHash) ->
+                pendingAcks.add(new long[] {
+                        actualLedgerId, actualEntryId, actualRemainingUnacked, actualStickyKeyHash
+                }));
+        assertEquals(pendingAcks.size(), 1);
+        assertEquals(pendingAcks.get(0), new long[] {ledgerId, entryId, remainingUnacked, stickyKeyHash});
     }
 }

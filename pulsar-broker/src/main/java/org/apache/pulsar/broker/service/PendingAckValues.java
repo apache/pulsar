@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-
 /**
  * Utility methods for storing pending ack values in primitive maps.
  *
@@ -60,13 +58,6 @@ final class PendingAckValues {
      */
     static boolean isNotFound(long packedValue) {
         return packedValue == PACKED_NOT_FOUND;
-    }
-
-    /**
-     * Returns the unpacked remaining unacked count and sticky key hash as an {@link IntIntPair}.
-     */
-    static IntIntPair toPair(long packedValue) {
-        return IntIntPair.of(remainingUnacked(packedValue), stickyKeyHash(packedValue));
     }
 
     /**

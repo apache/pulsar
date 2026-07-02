@@ -68,12 +68,6 @@ public class PendingAcksMapPackingBenchmark {
     }
 
     @Benchmark
-    public IntIntPair getPairHit(MapState state, CursorState cursor) {
-        int index = cursor.next(state.entries);
-        return state.store.get(state.ledgerIds[index], state.entryIds[index]);
-    }
-
-    @Benchmark
     public int getRemainingUnackedHit(MapState state, CursorState cursor) {
         int index = cursor.next(state.entries);
         return state.store.getRemainingUnacked(state.ledgerIds[index], state.entryIds[index]);
@@ -201,8 +195,6 @@ public class PendingAcksMapPackingBenchmark {
 
         boolean contains(long ledgerId, long entryId);
 
-        IntIntPair get(long ledgerId, long entryId);
-
         int getRemainingUnacked(long ledgerId, long entryId);
 
         boolean remove(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash);
@@ -270,17 +262,6 @@ public class PendingAcksMapPackingBenchmark {
                 readLock.lock();
                 Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
                 return ledgerMap != null && ledgerMap.containsKey(entryId);
-            } finally {
-                readLock.unlock();
-            }
-        }
-
-        @Override
-        public IntIntPair get(long ledgerId, long entryId) {
-            try {
-                readLock.lock();
-                Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
-                return ledgerMap == null ? null : ledgerMap.get(entryId);
             } finally {
                 readLock.unlock();
             }
@@ -493,11 +474,6 @@ public class PendingAcksMapPackingBenchmark {
         @Override
         public boolean contains(long ledgerId, long entryId) {
             return pendingAcks.contains(ledgerId, entryId);
-        }
-
-        @Override
-        public IntIntPair get(long ledgerId, long entryId) {
-            return pendingAcks.get(ledgerId, entryId);
         }
 
         @Override
