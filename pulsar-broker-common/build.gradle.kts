@@ -26,21 +26,27 @@ dependencies {
     api(project(":pulsar-metadata"))
     implementation(libs.slog)
     implementation(libs.guava)
-    implementation(libs.commons.lang3)
-    implementation(libs.bookkeeper.server)
-    implementation(libs.opentelemetry.api)
-    implementation(libs.simpleclient)
+    api(libs.commons.lang3)
+    api(libs.netty.common)
+    api(libs.bookkeeper.server)
+    api(libs.opentelemetry.api)
+    api(libs.simpleclient)
     implementation(libs.caffeine)
-    implementation(libs.javax.servlet.api)
-    implementation(libs.jakarta.ws.rs.api)
+    api(libs.jakarta.servlet.api)
+    api(libs.jakarta.ws.rs.api)
     implementation(libs.jjwt.impl)
     implementation(libs.jjwt.jackson)
-    implementation(libs.jetty.server)
+    api(libs.jetty.server)
     implementation(libs.jetty.compression.server)
     implementation(libs.jetty.compression.gzip)
-    implementation(libs.jetty.ee8.servlet)
+    implementation(libs.jetty.ee10.servlet)
 
-    testImplementation(libs.bc.fips)
+    // Non-FIPS BouncyCastle provider for tests that exercise SecurityUtility (which loads
+    // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
+    // the provider used in production. FIPS is covered separately by the bcfips-include-test
+    // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
+    // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.
+    testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.awaitility)
     testImplementation(libs.restassured)
     testImplementation(libs.jersey.server)

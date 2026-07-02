@@ -222,16 +222,18 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testBookkeeperMetadataStore() throws Exception {
+        String bookkeeperMetadataServiceUri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
         String confFile = "metadataStoreUrl=zk1:2181\n"
                 + "configurationMetadataStoreUrl=zk2:2182\n"
-                + "bookkeeperMetadataServiceUri=xx:other-system\n";
+                + "bookkeeperMetadataServiceUri=" + bookkeeperMetadataServiceUri + "\n";
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk2:2182");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "xx:other-system");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), bookkeeperMetadataServiceUri);
         assertTrue(conf.isConfigurationStoreSeparated());
         assertTrue(conf.isBookkeeperMetadataStoreSeparated());
     }

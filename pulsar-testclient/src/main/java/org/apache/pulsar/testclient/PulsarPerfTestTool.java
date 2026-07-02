@@ -50,8 +50,6 @@ public class PulsarPerfTestTool {
         commandMap.put("transaction", PerformanceTransaction.class);
         commandMap.put("read", PerformanceReader.class);
         commandMap.put("monitor-brokers", BrokerMonitor.class);
-        commandMap.put("simulation-client", LoadSimulationClient.class);
-        commandMap.put("simulation-controller", LoadSimulationController.class);
         commandMap.put("websocket-producer", PerformanceClient.class);
         commandMap.put("managed-ledger", ManagedLedgerWriter.class);
         commandMap.put("gen-doc", CmdGenerateDocumentation.class);

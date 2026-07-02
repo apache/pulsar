@@ -18,43 +18,42 @@
 #
 [versions]
 # Docker
-docker-jdk = "21"
-pulsar-client-python = "3.10.0"
+docker-jdk = "25"
+pulsar-client-python = "3.13.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.17.3"
+bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
-netty = "4.1.133.Final"
-netty-iouring = "0.0.26.Final"
-jetty = "12.1.9"
-jersey = "2.42"
-jackson = "2.21.3"
-jackson-annotations = "2.21"
-protobuf = "3.25.5"
-grpc = "1.75.0"
-slf4j = "2.0.17"
-slog = "0.9.7"
-log4j2 = "2.25.4"
+netty = "4.2.15.Final"
+jetty = "12.1.10"
+jersey = "3.1.10"
+jackson = "2.22.0"
+jackson-annotations = "2.22"
+protobuf = "4.35.0"
+grpc = "1.79.0"
+slf4j = "2.0.18"
+slog = "0.9.9"
+log4j2 = "2.26.0"
 lombok = "1.18.42"
 # OpenTelemetry
 opentelemetry = "1.62.0"
-opentelemetry-alpha = "1.61.0-alpha"
-opentelemetry-instrumentation = "2.27.0"
-opentelemetry-instrumentation-alpha = "2.27.0-alpha"
-opentelemetry-semconv = "1.41.0"
+opentelemetry-alpha = "1.62.0-alpha"
+opentelemetry-instrumentation = "2.28.1"
+opentelemetry-instrumentation-alpha = "2.28.1-alpha"
+opentelemetry-semconv = "1.41.1"
 # Apache Commons
 commons-lang3 = "3.20.0"
-commons-io = "2.21.0"
-commons-codec = "1.20.0"
+commons-io = "2.22.0"
+commons-codec = "1.22.0"
 commons-compress = "1.28.0"
 commons-collections4 = "4.5.0"
 commons-cli = "1.11.0"
-commons-text = "1.14.0"
+commons-text = "1.15.0"
 commons-math3 = "3.6.1"
-commons-logging = "1.3.5"
+commons-logging = "1.3.6"
 commons-beanutils = "1.11.0"
-commons-configuration2 = "2.12.0"
+commons-configuration2 = "2.15.1"
 # BouncyCastle
 bouncycastle = "1.84"
 bouncycastle-bcpkix-fips = "2.0.11"
@@ -63,26 +62,25 @@ bouncycastle-bc-fips = "2.0.1"
 # Serialization
 avro = "1.12.0"
 gson = "2.13.2"
-snakeyaml = "2.0"
+snakeyaml = "2.6"
 # Vert.x
-vertx = "4.5.27"
+vertx = "4.5.28"
 # Networking / HTTP
-asynchttpclient = "2.14.5"
+asynchttpclient = "3.0.10"
 conscrypt = "2.5.2"
-okhttp3 = "5.3.1"
-okio = "3.16.3"
+okhttp3 = "5.3.2"
+okio = "3.17.0"
 netty-tcnative = "2.0.77.Final"
-httpcomponents-httpclient = "4.5.13"
-httpcomponents-httpcore = "4.4.15"
-# Google libraries (transitive deps, versions managed to match Maven)
-google-auth = "1.24.1"
-google-http-client = "1.41.0"
-j2objc-annotations = "1.3"
-opencensus = "0.28.0"
-opentelemetry-gcp-resources = "1.48.0-alpha"
+httpcomponents-httpclient = "4.5.14"
+httpcomponents-httpcore = "4.4.16"
+# Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
+reactive-streams = "1.0.4"
+# Google libraries (transitive deps)
+opentelemetry-gcp-resources = "1.57.0-alpha"
 # Data structures / Utils
-guava = "33.4.8-jre"
+guava = "33.6.0-jre"
 caffeine = "3.2.4"
+fastutil = "8.5.18"
 jctools = "4.0.6"
 roaringbitmap = "1.6.9"
 hppc = "0.9.1"
@@ -94,27 +92,25 @@ prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
 dropwizardmetrics = "4.1.12.1"
 hdrHistogram = "2.1.9"
-perfmark = "0.26.0"
+perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
-athenz = "1.10.62"
+athenz = "1.12.42"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
 auth0-java-jwt = "4.5.2"
 auth0-jwks-rsa = "0.23.1"
 # CLI
-picocli = "4.7.5"
-jline3 = "3.21.0"
-jline2 = "2.14.6"
+picocli = "4.7.7"
+jline3 = "4.2.1"
 javassist = "3.25.0-GA"
-rocksdb = "7.9.2"
-kotlin-stdlib = "1.8.20"
+rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
-jetbrains-annotations = "13.0"
 # Misc
 curator = "5.7.1"
 reflections = "0.10.2"
-swagger = "1.6.2"
+# OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
+swagger = "2.2.50"
 typetools = "0.5.0"
 jna = "5.18.1"
 java-semver = "0.9.0"
@@ -122,7 +118,6 @@ oshi = "6.4.0"
 netty-reactive-streams = "2.0.6"
 cron-utils = "9.1.6"
 failsafe = "3.3.2"
-sketches = "0.8.3"
 disruptor = "3.4.3"
 ant = "1.10.12"
 guice = "5.1.0"
@@ -130,16 +125,24 @@ snappy = "1.1.10.8"
 ipaddress = "5.5.0"
 zt-zip = "1.17"
 # Jakarta
-jakarta-ws-rs = "2.1.6"
-jakarta-annotation = "1.3.5"
-jakarta-activation = "1.2.2"
-jakarta-xml-bind = "2.3.3"
-jakarta-validation = "2.0.2"
+jakarta-ws-rs = "3.1.0"
+jakarta-annotation = "2.1.1"
+jakarta-activation = "2.1.3"
+# Jakarta Activation 2.x reference implementation (the com.sun.activation:jakarta.activation impl was not
+# republished past 2.0.x; Eclipse Angus is the EE10 impl of jakarta.activation-api 2.1.x)
+angus-activation = "2.0.2"
+jakarta-xml-bind = "4.0.2"
+jakarta-validation = "3.0.2"
+# javax-servlet (Servlet 3.1, ee8) is retained alongside jakarta-servlet (Servlet 6.0, ee10)
+# so that the AdditionalServlet plugin SPI keeps supporting legacy javax.servlet handlers (PIP-472)
 javax-servlet = "3.1.0"
+jakarta-servlet = "6.0.0"
 # Oxia / etcd
-oxia = "0.7.4"
+oxia = "0.8.0"
+oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
+graalvm-buildtools = "1.1.1"
 errorprone = "2.45.0"
 spotbugs = "4.9.6"
 checkerframework = "3.33.0"
@@ -160,16 +163,19 @@ json = "20231013"
 consolecaptor = "1.0.3"
 restassured = "5.4.0"
 skyscreamer = "1.5.0"
+# misc
 zstd-jni = "1.5.7-3"
-lz4java = "1.10.3"
+lz4java = "1.11.0"
 spring = "6.2.12"
-kubernetesclient = "23.0.0"
+kubernetesclient = "26.0.0"
 aws-sdk = "1.12.788"
 hadoop3 = "3.5.0"
 jclouds = "2.6.0"
 thrift = "0.23.0"
+datasketches-memory = "4.1.0"
+datasketches-java = "7.0.1"
 # Shading
-shadow = "9.4.1"
+shadow = "9.4.2"
 
 [libraries]
 # SLF4J
@@ -197,7 +203,7 @@ jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-dat
 jackson-datatype-jdk8 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jdk8", version.ref = "jackson" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
 jackson-module-jsonSchema = { module = "com.fasterxml.jackson.module:jackson-module-jsonSchema", version.ref = "jackson" }
-jackson-jaxrs-json-provider = { module = "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider", version.ref = "jackson" }
+jackson-jakarta-rs-json-provider = { module = "com.fasterxml.jackson.jakarta.rs:jackson-jakarta-rs-json-provider", version.ref = "jackson" }
 # Netty
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 netty-common = { module = "io.netty:netty-common", version.ref = "netty" }
@@ -214,15 +220,14 @@ netty-resolver-dns-native-macos = { module = "io.netty:netty-resolver-dns-native
 netty-transport-native-epoll = { module = "io.netty:netty-transport-native-epoll", version.ref = "netty" }
 netty-transport-native-unix-common = { module = "io.netty:netty-transport-native-unix-common", version.ref = "netty" }
 netty-tcnative-boringssl-static = { module = "io.netty:netty-tcnative-boringssl-static", version.ref = "netty-tcnative" }
-netty-incubator-transport-classes-io_uring = { module = "io.netty.incubator:netty-incubator-transport-classes-io_uring", version.ref = "netty-iouring" }
-netty-incubator-transport-native-io-uring = { module = "io.netty.incubator:netty-incubator-transport-native-io_uring", version.ref = "netty-iouring" }
+netty-transport-classes-io_uring = { module = "io.netty:netty-transport-classes-io_uring", version.ref = "netty" }
+netty-transport-native-io-uring = { module = "io.netty:netty-transport-native-io_uring", version.ref = "netty" }
 netty-reactive-streams = { module = "com.typesafe.netty:netty-reactive-streams", version.ref = "netty-reactive-streams" }
 # Protobuf / gRPC
 protobuf-bom = { module = "com.google.protobuf:protobuf-bom", version.ref = "protobuf" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", version.ref = "protobuf" }
 grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
-grpc-all = { module = "io.grpc:grpc-all", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 # Guava
@@ -247,6 +252,7 @@ bookkeeper-stream-storage-service-api = { module = "org.apache.bookkeeper:stream
 bookkeeper-stream-storage-service-impl = { module = "org.apache.bookkeeper:stream-storage-service-impl", version.ref = "bookkeeper" }
 bookkeeper-tools-framework = { module = "org.apache.bookkeeper:bookkeeper-tools-framework", version.ref = "bookkeeper" }
 bookkeeper-http-vertx-server = { module = "org.apache.bookkeeper.http:vertx-http-server", version.ref = "bookkeeper" }
+bookkeeper-prometheus-metrics-provider = { module = "org.apache.bookkeeper.stats:prometheus-metrics-provider", version.ref = "bookkeeper" }
 distributedlog-core = { module = "org.apache.distributedlog:distributedlog-core", version.ref = "bookkeeper" }
 # thrift is a transitive dependency of distributedlog-core
 thrift = { module = "org.apache.thrift:libthrift", version.ref = "thrift" }
@@ -265,12 +271,18 @@ jetty-alpn-conscrypt-server = { module = "org.eclipse.jetty:jetty-alpn-conscrypt
 jetty-compression-server = { module = "org.eclipse.jetty.compression:jetty-compression-server", version.ref = "jetty" }
 jetty-compression-gzip = { module = "org.eclipse.jetty.compression:jetty-compression-gzip", version.ref = "jetty" }
 jetty-client = { module = "org.eclipse.jetty:jetty-client", version.ref = "jetty" }
+# jetty-ee8-* is retained for the AdditionalServlet legacy javax.servlet environment (PIP-472)
 jetty-ee8-servlet = { module = "org.eclipse.jetty.ee8:jetty-ee8-servlet", version.ref = "jetty" }
 jetty-ee8-servlets = { module = "org.eclipse.jetty.ee8:jetty-ee8-servlets", version.ref = "jetty" }
 jetty-ee8-proxy = { module = "org.eclipse.jetty.ee8:jetty-ee8-proxy", version.ref = "jetty" }
 jetty-websocket-jetty-api = { module = "org.eclipse.jetty.websocket:jetty-websocket-jetty-api", version.ref = "jetty" }
 jetty-websocket-jetty-client = { module = "org.eclipse.jetty.websocket:jetty-websocket-jetty-client", version.ref = "jetty" }
 jetty-ee8-websocket-jetty-server = { module = "org.eclipse.jetty.ee8.websocket:jetty-ee8-websocket-jetty-server", version.ref = "jetty" }
+# jetty-ee10-* is used by Pulsar's own broker/proxy/websocket Jetty wiring (jakarta.servlet, PIP-472)
+jetty-ee10-servlet = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlet", version.ref = "jetty" }
+jetty-ee10-servlets = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlets", version.ref = "jetty" }
+jetty-ee10-proxy = { module = "org.eclipse.jetty.ee10:jetty-ee10-proxy", version.ref = "jetty" }
+jetty-ee10-websocket-jetty-server = { module = "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jetty-server", version.ref = "jetty" }
 # Jersey
 jersey-server = { module = "org.glassfish.jersey.core:jersey-server", version.ref = "jersey" }
 jersey-container-servlet-core = { module = "org.glassfish.jersey.containers:jersey-container-servlet-core", version.ref = "jersey" }
@@ -318,6 +330,7 @@ rocksdbjni = { module = "org.rocksdb:rocksdbjni", version.ref = "rocksdb" }
 error-prone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 # Data structures
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+fastutil = { module = "it.unimi.dsi:fastutil", version.ref = "fastutil" }
 jctools-core = { module = "org.jctools:jctools-core", version.ref = "jctools" }
 jctools-core-jdk11 = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
 roaringbitmap = { module = "org.roaringbitmap:RoaringBitmap", version.ref = "roaringbitmap" }
@@ -327,12 +340,11 @@ aircompressor = { module = "io.airlift:aircompressor", version.ref = "aircompres
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 re2j = { module = "com.google.re2j:re2j", version.ref = "re2j" }
 completable-futures = { module = "com.spotify:completable-futures", version.ref = "completable-futures" }
-swagger-annotations = { module = "io.swagger:swagger-annotations", version.ref = "swagger" }
-swagger-core = { module = "io.swagger:swagger-core", version.ref = "swagger" }
+swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
+swagger-jaxrs2 = { module = "io.swagger.core.v3:swagger-jaxrs2-jakarta", version.ref = "swagger" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-shell-jline3 = { module = "info.picocli:picocli-shell-jline3", version.ref = "picocli" }
 jline = { module = "org.jline:jline", version.ref = "jline3" }
-jline2 = { module = "jline:jline", version.ref = "jline2" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 typetools = { module = "net.jodah:typetools", version.ref = "typetools" }
@@ -343,17 +355,10 @@ okhttp3-logging-interceptor = { module = "com.squareup.okhttp3:logging-intercept
 okio-bom = { module = "com.squareup.okio:okio-bom", version.ref = "okio" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 # Transitive dep version pins (enforced by pulsar-dependencies platform)
-google-auth-library-credentials = { module = "com.google.auth:google-auth-library-credentials", version.ref = "google-auth" }
-google-auth-library-oauth2-http = { module = "com.google.auth:google-auth-library-oauth2-http", version.ref = "google-auth" }
-google-http-client = { module = "com.google.http-client:google-http-client", version.ref = "google-http-client" }
-google-http-client-gson = { module = "com.google.http-client:google-http-client-gson", version.ref = "google-http-client" }
-j2objc-annotations = { module = "com.google.j2objc:j2objc-annotations", version.ref = "j2objc-annotations" }
-opencensus-api = { module = "io.opencensus:opencensus-api", version.ref = "opencensus" }
-opencensus-contrib-http-util = { module = "io.opencensus:opencensus-contrib-http-util", version.ref = "opencensus" }
 httpcomponents-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpcomponents-httpclient" }
+reactive-streams = { module = "org.reactivestreams:reactive-streams", version.ref = "reactive-streams" }
 httpcomponents-httpcore = { module = "org.apache.httpcomponents:httpcore", version.ref = "httpcomponents-httpcore" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation" }
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin-stdlib" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 ant = { module = "org.apache.ant:ant", version.ref = "ant" }
 guice = { module = "com.google.inject:guice", version.ref = "guice" }
@@ -364,7 +369,6 @@ vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 avro = { module = "org.apache.avro:avro", version.ref = "avro" }
 avro-protobuf = { module = "org.apache.avro:avro-protobuf", version.ref = "avro" }
 joda-time = "joda-time:joda-time:2.10.10"
-sketches-core = { module = "com.yahoo.datasketches:sketches-core", version.ref = "sketches" }
 java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "java-semver" }
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
@@ -384,14 +388,23 @@ auth0-jwks-rsa = { module = "com.auth0:jwks-rsa", version.ref = "auth0-jwks-rsa"
 # Jakarta
 jakarta-ws-rs-api = { module = "jakarta.ws.rs:jakarta.ws.rs-api", version.ref = "jakarta-ws-rs" }
 jakarta-activation-api = { module = "jakarta.activation:jakarta.activation-api", version.ref = "jakarta-activation" }
-jakarta-activation = { module = "com.sun.activation:jakarta.activation", version.ref = "jakarta-activation" }
+angus-activation = { module = "org.eclipse.angus:angus-activation", version.ref = "angus-activation" }
 jakarta-xml-bind-api = { module = "jakarta.xml.bind:jakarta.xml.bind-api", version.ref = "jakarta-xml-bind" }
 javax-servlet-api = { module = "javax.servlet:javax.servlet-api", version.ref = "javax-servlet" }
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta-servlet" }
+# javax.xml.bind:jaxb-api is required at runtime by third-party libraries that still reference the
+# legacy javax.xml.bind API (jclouds and Hadoop in the tiered-storage offloaders); Pulsar's own code
+# uses jakarta.xml.bind (PIP-472)
+jaxb-api = "javax.xml.bind:jaxb-api:2.3.1"
+# javax.ws.rs:javax.ws.rs-api is required at runtime only by Hadoop's MiniDFSCluster web UI in
+# tiered-storage tests; Pulsar's own code uses jakarta.ws.rs (PIP-472)
+javax-ws-rs-api = "javax.ws.rs:javax.ws.rs-api:2.1.1"
+jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation" }
 zt-zip = { module = "org.zeroturnaround:zt-zip", version.ref = "zt-zip" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 # Oxia / etcd
 oxia-client = { module = "io.github.oxia-db:oxia-client", version.ref = "oxia" }
-oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia" }
+oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia-testcontainers" }
 # Static analysis
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
@@ -446,16 +459,18 @@ commons-logging = { module = "commons-logging:commons-logging", version.ref = "c
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
 commons-configuration2 = { module = "org.apache.commons:commons-configuration2", version.ref = "commons-configuration2" }
 bookkeeper-stats-api = { module = "org.apache.bookkeeper.stats:bookkeeper-stats-api", version.ref = "bookkeeper" }
-datasketches-memory = "org.apache.datasketches:datasketches-memory:2.2.0"
-datasketches-java = "org.apache.datasketches:datasketches-java:6.1.1"
+datasketches-memory = { module = "org.apache.datasketches:datasketches-memory", version.ref = "datasketches-memory" }
+datasketches-java = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches-java" }
 
 [plugins]
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-buildtools" }
 nar = "io.github.merlimat.nar:0.1.3"
-protobuf = "com.google.protobuf:0.9.6"
+protobuf = "com.google.protobuf:0.10.0"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.8.1"
 spotless = "com.diffplug.spotless:8.4.0"
+swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
 version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.0"
 versions = "com.github.ben-manes.versions:0.53.0"
 crlf = "com.github.vlsi.crlf:3.0.1"

@@ -42,6 +42,8 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
+import jakarta.ws.rs.NotAcceptableException;
+import jakarta.ws.rs.core.Response.Status;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -65,13 +67,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.ws.rs.NotAcceptableException;
-import javax.ws.rs.core.Response.Status;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -1447,6 +1449,42 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 throw e;
             });
         }
+    }
+
+    @Test
+    public void testGetInternalStatsWithProperties() throws Exception {
+        final var namespace = newUniqueName(defaultTenant + "/ns2");
+        final var topicName = "persistent://" + namespace + "/testGetInternalStatsWithProperties";
+        admin.namespaces().createNamespace(namespace);
+
+        final var topicProperties = Map.of("key1", "value1", "key2", "value2");
+        admin.topics().createNonPartitionedTopic(topicName, topicProperties);
+
+        var stats = admin.topics().getInternalStats(topicName);
+        assertEquals(stats.properties, topicProperties);
+
+        var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get()
+                .orElseThrow();
+        final var future = new CompletableFuture<Map<String, String>>();
+        persistentTopic.getManagedLedger().asyncSetProperty("new-key", "new-value",
+                new AsyncCallbacks.UpdatePropertiesCallback() {
+                    @Override
+                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        future.complete(properties);
+                    }
+
+                    @Override
+                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        assertEquals(future.get(), Map.of("key1", "value1", "key2", "value2", "new-key", "new-value"));
+
+        admin.namespaces().unload(namespace);
+        persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, true).get()
+                .orElseThrow();
+        stats = admin.topics().getInternalStats(topicName);
+        assertEquals(stats.properties, Map.of("key1", "value1", "key2", "value2", "new-key", "new-value"));
     }
 
     @Test

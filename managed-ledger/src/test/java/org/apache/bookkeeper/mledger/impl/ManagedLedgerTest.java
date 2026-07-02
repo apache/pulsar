@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -76,6 +77,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -102,9 +104,11 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.common.util.BoundedScheduledExecutorService;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -185,19 +189,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.currentLedger = spyLedgerHandle;
     }
 
-    public static void makeReadEntryProbFail(ManagedLedgerImpl ml, Supplier<ManagedLedgerException> errorOrNot)
-            throws Exception {
+    public static void makeReadEntryProbFail(ManagedLedgerImpl ml, Supplier<ManagedLedgerException> errorOrNot,
+                                             Executor errorSupplierExecutor) throws Exception {
         ml.entryCache.clear();
         LedgerHandle currentLedger = ml.currentLedger;
         final LedgerHandle spyLedgerHandle = spy(currentLedger);
         doAnswer(invocation -> {
-            long ledgerId = (long) invocation.getArguments()[0];
-            long entryId = (long) invocation.getArguments()[1];
-            ManagedLedgerException mightError = errorOrNot.get();
-            if (mightError != null) {
-                return CompletableFuture.failedFuture(mightError);
-            }
-            return currentLedger.readUnconfirmedAsync(ledgerId, entryId);
+            long ledgerId = invocation.getArgument(0);
+            long entryId = invocation.getArgument(1);
+            // Evaluate errorOrNot on errorSupplierExecutor. Pass a single-threaded executor when errorOrNot may
+            // block (e.g. it waits on a CountDownLatch) so it doesn't block the calling read thread; pass
+            // MoreExecutors.directExecutor() to evaluate it inline on the calling thread.
+            return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
+                    .thenCompose(mightError -> mightError != null
+                            ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
+                            : currentLedger.readUnconfirmedAsync(ledgerId, entryId));
         }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
         ml.currentLedger = spyLedgerHandle;
     }
@@ -821,7 +827,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }, null);
             log.info("after add, ledger state: " + ledger.getState());
             return invocationOnMock.callRealMethod();
-        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any(), any());
         doAnswer(invocationOnMock -> {
             Object o = invocationOnMock.callRealMethod();
             log.info("createComplete finished, state: " + ledger.getState());
@@ -3332,15 +3338,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
 
         BookKeeper bk = mock(BookKeeper.class);
-        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+        CreateBuilder createBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
+        doReturn(new CompletableFuture<WriteHandle>()).when(createBuilder).execute();
+        doReturn(createBuilder).when(bk).newCreateLedgerOp();
         AtomicInteger response = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Object> ctxHolder = new AtomicReference<>();
-        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {
+        ledger.asyncCreateLedger(bk, config, BookKeeper.DigestType.CRC32C, (rc, lh, ctx) -> {
             response.set(rc);
             latch.countDown();
             ctxHolder.set(ctx);
-        }, Collections.emptyMap());
+        }, Collections.emptyMap(), ledger.getLogger());
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
@@ -5408,5 +5416,66 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), expectedProperties);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(0, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(0);
+
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAdvanceCursorsIfNecessaryNeverLoseMarkDeleteProperties", config);
+        @Cleanup
+        ManagedCursorImpl durableCursor = (ManagedCursorImpl) ledger.openCursor("durableCursor1");
+        @Cleanup
+        NonDurableCursorImpl realNonDurableCursor =
+                (NonDurableCursorImpl) ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+        NonDurableCursorImpl nonDurableCursor = spy(realNonDurableCursor);
+
+        ledger.getCursors().removeCursor(realNonDurableCursor.getName());
+        ledger.getCursors().add(nonDurableCursor, null);
+
+        CountDownLatch advanceCursorsMarkDeleteEnteredLatch = new CountDownLatch(1);
+        CountDownLatch nonDurableCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+        CountDownLatch advanceCursorsMarkDeleteCompletedLatch = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            Map<String, Long> invocationProperties = invocation.getArgument(1);
+            // Pause the advanceCursorsIfNecessary mark-delete so the nonDurableCursor markDelete() can complete first.
+            if (invocationProperties == null || invocationProperties.isEmpty()) {
+                advanceCursorsMarkDeleteEnteredLatch.countDown();
+                assertTrue(nonDurableCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+                try {
+                    return invocation.callRealMethod();
+                } finally {
+                    advanceCursorsMarkDeleteCompletedLatch.countDown();
+                }
+            }
+
+            return invocation.callRealMethod();
+        }).when(nonDurableCursor)
+                .internalAsyncMarkDelete(any(Position.class), nullable(Map.class), any(MarkDeleteCallback.class),
+                        nullable(Object.class), nullable(Runnable.class));
+
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        Position pos2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Mark-delete the durable cursor to trigger trimming, which advances non-durable cursors.
+        durableCursor.markDelete(pos2);
+        assertTrue(advanceCursorsMarkDeleteEnteredLatch.await(5, TimeUnit.SECONDS));
+
+        String propertyKey = "test-property";
+        Map<String, Long> properties = new HashMap<>();
+        properties.put(propertyKey, 1L);
+        nonDurableCursor.markDelete(pos2, properties);
+        nonDurableCursorsMarkDeleteCompletedLatch.countDown();
+
+        assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        assertEquals(nonDurableCursor.getProperties(), properties);
     }
 }

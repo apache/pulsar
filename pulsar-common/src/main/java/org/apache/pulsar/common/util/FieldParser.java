@@ -358,7 +358,7 @@ public final class FieldParser {
         String[] tokens = trim(strValue).split(",");
         Map<K, V> map = new HashMap<>();
         for (String token : tokens) {
-            String[] keyValue = trim(token).split("=");
+            String[] keyValue = trim(token).split("=", 2);
             checkArgument(keyValue.length == 2,
                     strValue + " map-value is not in correct format key1=value,key2=value2");
             map.put(convert(trim(keyValue[0]), keyType), convert(trim(keyValue[1]), valueType));

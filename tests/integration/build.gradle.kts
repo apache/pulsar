@@ -30,6 +30,8 @@ dependencies {
     testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-client-original"))
+    testImplementation(project(":pulsar-client-api-v5"))
+    testImplementation(project(":pulsar-client-v5"))
     testImplementation(project(":pulsar-client-admin-original"))
     testImplementation(project(":pulsar-proxy"))
     testImplementation(project(":managed-ledger"))
@@ -51,15 +53,22 @@ dependencies {
     testImplementation(libs.restassured)
     testImplementation(libs.testcontainers.k3s)
     testImplementation(libs.jetty.websocket.jetty.client)
+    testImplementation(libs.joda.time)
     testImplementation(libs.kubernetes.client.java) {
         exclude(group = "io.prometheus", module = "simpleclient_httpserver")
         exclude(group = "org.bouncycastle")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
+        exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
     }
     testImplementation(libs.kubernetes.client.java.api.fluent) {
         exclude(group = "io.prometheus", module = "simpleclient_httpserver")
         exclude(group = "org.bouncycastle")
         exclude(group = "javax.annotation", module = "javax.annotation-api")
+        exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
     }
 }
 
@@ -79,26 +88,38 @@ tasks.test {
 }
 
 // Register a task for each integration test suite
-val integrationTestSuiteFile = providers.gradleProperty("integrationTestSuiteFile").getOrElse("pulsar.xml")
+val integrationTestSuiteFileProperty = providers.gradleProperty("integrationTestSuiteFile")
+val integrationTestSuiteFile = integrationTestSuiteFileProperty.getOrElse("pulsar.xml")
+val integrationTestSuiteFileExplicit = integrationTestSuiteFileProperty.isPresent
 val integrationTestGroups = providers.gradleProperty("testGroups").orNull
 val integrationTestExcludedGroups = providers.gradleProperty("excludedTestGroups").orNull
+val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
+// When `--tests` is passed on the CLI, let TestNG discover tests directly from the classpath
+// instead of restricting discovery to the suite XML — unless -PintegrationTestSuiteFile was
+// set explicitly, in which case the user-selected suite still wins.
+val hasCliTestsFilter = gradle.startParameter.taskRequests
+    .flatMap { it.args }
+    .any { it == "--tests" }
 val integrationTest by tasks.registering(Test::class) {
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
 
-    useTestNG {
-        suites("src/test/resources/${integrationTestSuiteFile}")
-        if (!integrationTestGroups.isNullOrEmpty()) {
-            includeGroups(integrationTestGroups)
-        }
-        if (!integrationTestExcludedGroups.isNullOrEmpty()) {
-            excludeGroups(integrationTestExcludedGroups)
+    if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
+        useTestNG {
+            suites("src/test/resources/${integrationTestSuiteFile}")
+            if (!integrationTestGroups.isNullOrEmpty()) {
+                includeGroups(integrationTestGroups)
+            }
+            if (!integrationTestExcludedGroups.isNullOrEmpty()) {
+                excludeGroups(integrationTestExcludedGroups)
+            }
         }
     }
 
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
-    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse("1"))
+    val defaultTestRetryCount = if (ideaActive) "0" else "1"
+    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
 
     systemProperty("currentVersion", project.version.toString())

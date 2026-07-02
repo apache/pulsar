@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.TimeoutHandler;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -40,8 +42,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.TimeoutHandler;
 import lombok.AllArgsConstructor;
 import lombok.CustomLog;
 import lombok.Data;
@@ -189,7 +189,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return resolveLookupUrl(usePulsarBinaryProtocol).toString();
     }
 
-    private URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
+    protected URI resolveLookupUrl(boolean usePulsarBinaryProtocol) {
         if (usePulsarBinaryProtocol) {
             return URI.create(pulsar.getBrokerServiceUrl());
         } else {

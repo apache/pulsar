@@ -374,7 +374,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.cursorProperties = Collections.emptyMap();
         this.ledger = ledger;
         this.name = cursorName;
-        this.log = slog.with().attr("managedLedger", ledger.getName()).attr("cursor", name).build();
+        this.log = slog.with().ctx(ledger.getLogger()).attr("cursor", name).build();
         this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter,
                 positionRangeReverseConverter, this);
         if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
@@ -1391,6 +1391,50 @@ public class ManagedCursorImpl implements ManagedCursor {
         return backlog;
     }
 
+    @Override
+    public boolean hasBacklog() {
+        Position markDeletePosition = this.markDeletePosition;
+        Position lastPosition = ledger.getLastPosition();
+        if (markDeletePosition == null || markDeletePosition.compareTo(lastPosition) >= 0) {
+            return false;
+        }
+
+        Position nextPosition = ledger.getNextValidPosition(markDeletePosition);
+        if (nextPosition.compareTo(lastPosition) > 0) {
+            return false;
+        }
+
+        lock.readLock().lock();
+        try {
+            while (nextPosition.compareTo(lastPosition) <= 0) {
+                Range<Position> deletedRange = individualDeletedMessages.rangeContaining(
+                        nextPosition.getLedgerId(), nextPosition.getEntryId());
+                if (deletedRange == null) {
+                    return true;
+                }
+
+                Position upperEndpoint = deletedRange.upperEndpoint();
+                if (upperEndpoint.compareTo(lastPosition) >= 0) {
+                    return false;
+                }
+                nextPosition = ledger.getNextValidPosition(upperEndpoint);
+            }
+            return false;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    @Override
+    public boolean hasBacklog(boolean isPrecise) {
+        if (isPrecise) {
+            return hasBacklog();
+        }
+
+        long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
+        return backlog >= 0 ? backlog > 0 : hasBacklog();
+    }
+
     public long getNumberOfEntriesInStorage() {
         return ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
     }
@@ -1686,7 +1730,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         persistentMarkDeletePosition = null;
         inProgressMarkDeletePersistPosition = null;
-        internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(),
+        internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? null : Collections.emptyMap(),
                 new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -3322,7 +3366,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug().attr("ledgerId", lh.getId()).log("Created cursor ledger");
                 future.complete(lh);
             });
-        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name), log);
 
         return future;
     }

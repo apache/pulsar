@@ -140,6 +140,13 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         DagWatchClient watch = new DagWatchClient(v4Client, topicName);
         watch.start()
                 .thenCompose(layout -> {
+                    if (watch.isUsingProxy()) {
+                        // Behind a proxy the controller's advertised address isn't reachable
+                        // directly. Pair to any broker through the proxy; that broker forwards the
+                        // subscribe to the controller and relays assignment updates back.
+                        log.debug().log("Connecting through proxy to any broker for subscribe");
+                        return v4Client.getAnyBrokerProxyConnection();
+                    }
                     String controllerUrl = layout.controllerBrokerUrl();
                     if (controllerUrl == null || controllerUrl.isEmpty()) {
                         // Controller leader election hasn't completed yet (or the broker
@@ -307,10 +314,20 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         List<ActiveSegment> segments = new ArrayList<>(assignment.getSegmentsCount());
         for (int i = 0; i < assignment.getSegmentsCount(); i++) {
             ScalableAssignedSegment s = assignment.getSegmentAt(i);
+            // PIP-486: the entry-bucket hash ranges this consumer owns within the segment (empty =
+            // the whole segment). Drives Shared vs Key_Shared STICKY when subscribing to the segment.
+            List<HashRange> ownedBucketRanges = new ArrayList<>(s.getBucketRangesCount());
+            for (int j = 0; j < s.getBucketRangesCount(); j++) {
+                var range = s.getBucketRangeAt(j);
+                ownedBucketRanges.add(HashRange.of(range.getStart(), range.getEnd()));
+            }
             segments.add(new ActiveSegment(
                     s.getSegmentId(),
                     HashRange.of((int) s.getHashStart(), (int) s.getHashEnd()),
-                    s.getSegmentTopic()));
+                    s.getSegmentTopic(),
+                    /*legacyTopicName*/ null,
+                    /*entryBucketSplits, producer-only*/ List.of(),
+                    ownedBucketRanges));
         }
         return Collections.unmodifiableList(segments);
     }

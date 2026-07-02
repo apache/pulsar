@@ -19,11 +19,11 @@
 package org.apache.pulsar.functions.utils.io;
 
 import java.util.List;
-import java.util.TreeMap;
+import java.util.Map;
 
 /**
  * Result of {@link ConnectorUtils#reloadConnectors}: the new connector map and connectors evicted from the active set
  * that the caller must close.
  */
-public record ReloadConnectorsResult(TreeMap<String, Connector> connectors, List<Connector> connectorsToClose) {
+public record ReloadConnectorsResult(Map<String, Connector> connectors, List<Connector> connectorsToClose) {
 }

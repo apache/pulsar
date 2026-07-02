@@ -1681,17 +1681,19 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * NonPersistentReplicator.removeReplicator doesn't remove replicator in atomic way and does in multiple step:
-     * 1. disconnect replicator producer
+     * PersistentReplicator.removeReplicator doesn't remove replicator in atomic way and does in multiple step:
+     * 1. Turn off replication.
      * <p>
-     * 2. close cursor
+     * 2. Broker will do two things:
+     *   2-1. terminate replication.
+     *   2-2. delete cursor that named "repl.x"
      * <p>
-     * 3. remove from replicator-list.
+     * 3. remove the terminated replicator from "topic.replicators".
      * <p>
      *
-     * If we try to startReplicationProducer before step-c finish then it should not avoid restarting repl-producer.
-     *
-     * @throws Exception
+     * Test:
+     *  do: try to restart replicator producer before step-2-2 finish.
+     *  verify: the replicator producer will not be started.
      */
     @Test
     @SuppressWarnings("unchecked")
@@ -1749,9 +1751,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // step-2 now, policies doesn't have removed replication cluster so, it should not invoke "startProducer" of the
         // replicator
         // try to start replicator again
-        topic.startReplProducers().join();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        });
+        replicator.startProducer();
+        Thread.sleep(10_000);
         // verify: replicator.startProducer is not invoked
-        verify(replicator, Mockito.times(1)).startProducer();
+        assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        assertFalse(replicator.isConnected());
 
         // step-3 : complete the callback to remove replicator from the list
         ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);

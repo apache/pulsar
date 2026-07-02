@@ -20,8 +20,10 @@ package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -29,14 +31,17 @@ import org.testng.annotations.Test;
 public class ProducerCleanupTest extends SharedPulsarBaseTest {
 
     @Test
-    public void testAllTimerTaskShouldCanceledAfterProducerClosed() throws PulsarClientException, InterruptedException {
-        Producer<byte[]> producer = pulsarClient.newProducer()
+    public void testAllTimerTaskShouldCanceledAfterProducerClosed() throws PulsarClientException {
+        @Cleanup
+        PulsarClient client = newPulsarClient();
+        Producer<byte[]> producer = client.newProducer()
                 .topic(newTopicName())
-                .sendTimeout(1, TimeUnit.SECONDS)
+                .sendTimeout(15, TimeUnit.SECONDS)
                 .create();
         producer.close();
-        Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) client).timer();
+        Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 }

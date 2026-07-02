@@ -92,10 +92,6 @@ dependencies {
         api(project(":pulsar-functions:pulsar-functions-secrets"))
         api(project(":pulsar-functions:pulsar-functions-utils"))
 
-        // Bouncy Castle
-        api(project(":bouncy-castle:bouncy-castle-bc"))
-        api(project(":bouncy-castle:bcfips"))
-
         // Athenz auth
         api(project(":pulsar-client-auth-athenz"))
         api(project(":pulsar-broker-auth-athenz"))

@@ -50,10 +50,9 @@
             </AppenderRef>
         </Logger>
         <Root>
-            <level>info</level>
+            <level>${sys:pulsar.log.level:-info}</level>
             <AppenderRef>
                 <ref>Console</ref>
-                <level>${sys:pulsar.log.level}</level>
             </AppenderRef>
         </Root>
     </Loggers>

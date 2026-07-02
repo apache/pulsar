@@ -121,6 +121,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Getter
     private final Timer timer;
     private boolean needStopTimer;
+    private boolean serviceUrlProviderInitialized;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
     private final ExecutorProvider lookupExecutorProvider;
@@ -274,6 +275,7 @@ public class PulsarClientImpl implements PulsarClient {
 
             if (conf.getServiceUrlProvider() != null) {
                 conf.getServiceUrlProvider().initialize(this);
+                serviceUrlProviderInitialized = true;
             }
 
             if (conf.isEnableTransaction()) {
@@ -1064,16 +1066,26 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             // close the service url provider allocated resource.
-            if (conf != null && conf.getServiceUrlProvider() != null) {
+            if (conf != null && conf.getServiceUrlProvider() != null && serviceUrlProviderInitialized) {
                 conf.getServiceUrlProvider().close();
             }
 
             if (addressResolver != null) {
-                addressResolver.close();
+                try {
+                    addressResolver.close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close addressResolver");
+                    throwable = t;
+                }
             }
 
             if (dnsResolverGroupLocalInstance != null) {
-                dnsResolverGroupLocalInstance.close();
+                try {
+                    dnsResolverGroupLocalInstance.close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close dnsResolverGroup");
+                    throwable = t;
+                }
             }
 
             try {
@@ -1279,6 +1291,20 @@ public class PulsarClientImpl implements PulsarClient {
         }
         InetSocketAddress address = lookup.resolveHost();
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
+    }
+
+    /**
+     * Open a connection to the proxy and ask it to pair the connection to any broker it selects
+     * (an empty proxyToBrokerUrl). Used for control-plane operations that aren't tied to a specific
+     * broker (e.g. scalable-topic subscribe/namespace-watch) when connecting through a proxy.
+     */
+    public CompletableFuture<ClientCnx> getAnyBrokerProxyConnection() {
+        if (!lookup.isBinaryProtoLookupService()) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Can't pair to any broker through an HTTP service URL", null));
+        }
+        return getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, lookup.resolveHost(),
+                cnxPool.genRandomKeyToSelectCon());
     }
 
     public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,

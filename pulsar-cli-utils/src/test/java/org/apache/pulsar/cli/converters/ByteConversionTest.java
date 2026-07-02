@@ -45,12 +45,36 @@ public class ByteConversionTest {
     }
 
     @DataProvider
+    public static Object[][] successfulByteUnitIntegerConverterTestCases() {
+        return new Object[][] {
+                {"4096", 4096},
+                {"1000", 1000},
+                {"100K", 102400},
+                {"100k", 102400},
+                {"100M", 104857600},
+                {"100m", 104857600},
+                {"1G", 1073741824},
+                {"1g", 1073741824},
+        };
+    }
+
+    @DataProvider
     public static Object[][] failingByteUnitUtilTestCases() {
         return new Object[][] {
                 {""}, // Empty string
                 {"1Z"}, // Invalid size unit
                 {"1.5K"}, // Non-integer value
                 {"K"} // Missing size value
+        };
+    }
+
+    @DataProvider
+    public static Object[][] overflowingByteUnitIntegerConverterTestCases() {
+        return new Object[][] {
+                {"2G"},
+                {"2g"},
+                {"100G"},
+                {"100T"},
         };
     }
 
@@ -65,11 +89,10 @@ public class ByteConversionTest {
         assertEquals(converter.convert(input), Long.valueOf(expected));
     }
 
-    @Test(dataProvider = "successfulByteUnitUtilTestCases")
-    public void testSuccessfulByteUnitIntegerConverter(String input, long expected) throws Exception {
+    @Test(dataProvider = "successfulByteUnitIntegerConverterTestCases")
+    public void testSuccessfulByteUnitIntegerConverter(String input, int expected) throws Exception {
         ByteUnitToIntegerConverter converter = new ByteUnitToIntegerConverter();
-        // Since the converter returns an Integer, we need to cast expected to int
-        assertEquals(converter.convert(input), Integer.valueOf((int) expected));
+        assertEquals(converter.convert(input), Integer.valueOf(expected));
     }
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
@@ -88,5 +111,10 @@ public class ByteConversionTest {
         ByteUnitToIntegerConverter converter = new ByteUnitToIntegerConverter();
         assertThrows(TypeConversionException.class, () -> converter.convert(input));
     }
-}
 
+    @Test(dataProvider = "overflowingByteUnitIntegerConverterTestCases")
+    public void testOverflowingByteUnitIntegerConverter(String input) {
+        ByteUnitToIntegerConverter converter = new ByteUnitToIntegerConverter();
+        assertThrows(TypeConversionException.class, () -> converter.convert(input));
+    }
+}

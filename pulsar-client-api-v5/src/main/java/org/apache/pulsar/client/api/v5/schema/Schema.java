@@ -204,4 +204,42 @@ public interface Schema<T> {
     static Schema<byte[]> autoProduceBytes() {
         return PulsarClientProvider.get().autoProduceBytesSchema();
     }
+
+    /**
+     * Build a generic schema from a raw {@link SchemaInfo} definition. Use this when the schema
+     * is described by a definition document (e.g. an Avro or JSON schema string) rather than a
+     * compiled POJO class.
+     *
+     * @param schemaInfo the schema descriptor (type + definition bytes)
+     * @return a generic {@link Schema} for the given definition
+     * @see SchemaInfo#of
+     */
+    static Schema<?> generic(SchemaInfo schemaInfo) {
+        return PulsarClientProvider.get().genericSchema(schemaInfo);
+    }
+
+    /**
+     * Get a schema that produces raw bytes while validating them against the supplied
+     * {@code base} schema (in addition to the topic schema). This is the wrapping form of
+     * {@link #autoProduceBytes()} — the producer sends already-encoded bytes, and the bytes are
+     * checked for compatibility with {@code base} before being published.
+     *
+     * @param base the schema the produced bytes must conform to
+     * @return a {@link Schema} for producing pre-encoded bytes validated against {@code base}
+     */
+    static Schema<byte[]> autoProduceBytesOf(Schema<?> base) {
+        return PulsarClientProvider.get().autoProduceBytesSchema(base);
+    }
+
+    /**
+     * Get a schema that auto-detects the topic schema at runtime and decodes each message into a
+     * {@link GenericRecord}. Use this on the consumer side when the value type is not known at
+     * compile time (e.g. a generic consume tool). The decoded {@link GenericRecord} exposes the
+     * value's runtime {@link SchemaType} and, for structured types, its fields.
+     *
+     * @return a {@link Schema} that decodes messages into {@link GenericRecord} values
+     */
+    static Schema<GenericRecord> autoConsume() {
+        return PulsarClientProvider.get().autoConsumeSchema();
+    }
 }

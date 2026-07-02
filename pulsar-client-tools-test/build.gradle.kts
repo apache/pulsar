@@ -35,6 +35,7 @@ dependencies {
     testImplementation(libs.guava)
     testImplementation(project(":pulsar-client-admin-original"))
     testImplementation(project(":pulsar-client-original"))
+    testImplementation(project(":pulsar-client-api-v5"))
     testImplementation(project(":pulsar-functions:pulsar-functions-api"))
     testImplementation(libs.picocli)
 }
@@ -49,11 +50,4 @@ val copyCustomCommandsNar by tasks.registering(Copy::class) {
 
 tasks.withType<Test> {
     dependsOn(copyCustomCommandsNar)
-}
-
-// checkstyleTest also scans test resources — ensure NAR copy runs first
-plugins.withId("checkstyle") {
-    tasks.named("checkstyleTest") {
-        dependsOn(copyCustomCommandsNar)
-    }
 }

@@ -44,11 +44,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import lombok.Getter;
 import lombok.Setter;
@@ -59,6 +61,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupPublishLimiter;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -67,6 +70,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -116,6 +120,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected final ConcurrentHashMap<String, Producer> producers;
 
     protected final BrokerService brokerService;
+
+    // Wraps this topic as a TopicPolicyListener so topic-policy updates received while the initial policy is still
+    // loading are buffered and applied in order once initTopicPolicy() completes initialization.
+    protected final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
 
     // Prefix for replication cursors
     protected final String replicatorPrefix;
@@ -178,7 +186,17 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
-    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = Collections.emptyMap();
+    // Effective per-subscription policies, merged from the local and global topic policies with local precedence.
+    // Unlike the PolicyHierarchyValue-backed fields, subscriptionPolicies is a plain map. It is kept as the merge of
+    // the two scopes below (rather than assigned directly) because the local-before-global initialization order
+    // (see TopicPolicyListenerWrapper) would otherwise let the global map -- empty by default in TopicPolicies --
+    // overwrite and clear the local per-subscription policies that were applied just before it.
+    // subscriptionPolicies is volatile because it is read on dispatch threads (getSubscriptionDispatchRate) while it
+    // is updated on the policy-update thread. localSubscriptionPolicies/globalSubscriptionPolicies are only ever read
+    // and written on the (single) policy-update thread, so they don't need to be volatile.
+    private volatile Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = Collections.emptyMap();
+    private Map<String/*subscription*/, SubscriptionPolicies> localSubscriptionPolicies = Collections.emptyMap();
+    private Map<String/*subscription*/, SubscriptionPolicies> globalSubscriptionPolicies = Collections.emptyMap();
 
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
@@ -189,11 +207,17 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected final Clock clock;
 
     protected Set<String> additionalSystemCursorNames = new TreeSet<>();
+    private final ExecutorService topicPoliciesNotifyThread;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.log = LOG.with().attr("topic", topic).build();
         this.namespace = TopicName.get(topic).getNamespaceObject();
+        // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
+        // the topic-to-thread mapping so it stays consistent with SystemTopicBasedTopicPoliciesService. In unit
+        // tests that construct topics with a mock BrokerService this returns null (the thread is unused there).
+        this.topicPoliciesNotifyThread =
+                brokerService.getTopicPoliciesNotifyThread(TopicName.getPartitionedTopicName(topic));
         this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
@@ -312,9 +336,34 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters(), isGlobalPolicies);
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
                 .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled(), isGlobalPolicies);
-        this.subscriptionPolicies = data.getSubscriptionPolicies();
+
+        // Merge instead of assigning directly: keep the local and global per-subscription policies separately and
+        // recompute the effective map with local precedence, so applying the (default-empty) global map does not
+        // clear the local per-subscription policies during the local-before-global initialization.
+        if (isGlobalPolicies) {
+            globalSubscriptionPolicies = data.getSubscriptionPolicies();
+        } else {
+            localSubscriptionPolicies = data.getSubscriptionPolicies();
+        }
+        subscriptionPolicies = mergeSubscriptionPolicies(globalSubscriptionPolicies, localSubscriptionPolicies);
 
         updateEntryFilters();
+    }
+
+    // Merges the global and local per-subscription policies with local precedence: a subscription present in the
+    // local policies keeps its local value; otherwise the global value (if any) is used.
+    private static Map<String, SubscriptionPolicies> mergeSubscriptionPolicies(
+            Map<String, SubscriptionPolicies> globalSubscriptionPolicies,
+            Map<String, SubscriptionPolicies> localSubscriptionPolicies) {
+        if (globalSubscriptionPolicies.isEmpty()) {
+            return localSubscriptionPolicies;
+        }
+        if (localSubscriptionPolicies.isEmpty()) {
+            return globalSubscriptionPolicies;
+        }
+        Map<String, SubscriptionPolicies> merged = new HashMap<>(globalSubscriptionPolicies);
+        merged.putAll(localSubscriptionPolicies);
+        return merged;
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -557,14 +606,67 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 && maxProducers <= USER_CREATED_PRODUCER_COUNTER_UPDATER.get(this);
     }
 
-    protected void registerTopicPolicyListener() {
-        brokerService.getPulsar().getTopicPoliciesService()
-                .registerListener(TopicName.getPartitionedTopicName(topic), this);
+    protected TopicPolicyListener getTopicPolicyListener() {
+        return topicPolicyListener;
     }
 
     protected void unregisterTopicPolicyListener() {
         brokerService.getPulsar().getTopicPoliciesService()
-                .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
+                .unregisterListener(TopicName.getPartitionedTopicName(topic), getTopicPolicyListener());
+    }
+
+    /**
+     * Registers the topic-policy listener and applies the topic's initial policies (global and local) to this topic.
+     * Shared by {@link org.apache.pulsar.broker.service.persistent.PersistentTopic} and
+     * {@link org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic} so both load their own policies on
+     * topic load, which removes the need to broadcast every topic's policy when a namespace's policy cache finishes
+     * loading (see {@code topicPolicyListenerReplayEnabled}).
+     *
+     * <p>Each call re-initializes the listener wrapper and, whatever the outcome, always completes its initialization
+     * afterwards, so the wrapper never stays in the buffering phase (dropping updates) even if policy loading fails.
+     * This makes the method safe to run again (e.g. a future retry); runs are expected to be serialized.
+     */
+    protected CompletableFuture<Void> initTopicPolicy() {
+        final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
+        final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
+
+        // Begin a fresh initialization phase: updates are buffered until initialization completes below. This resets
+        // any previous phase so the method can be run again.
+        topicPolicyListener.startInitialization();
+        CompletableFuture<Void> initTopicPolicyFuture =
+                topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
+                        .thenCompose(registered -> {
+                            if (!registered) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+                                // Internal topics don't load topic-level policies
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // future for fetching global topic policies
+                            CompletableFuture<Optional<TopicPolicies>> globalPoliciesFuture =
+                                    topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                                            TopicPoliciesService.GetType.GLOBAL_ONLY);
+                            // future for fetching local topic policies
+                            CompletableFuture<Optional<TopicPolicies>> localPoliciesFuture =
+                                    topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                                            TopicPoliciesService.GetType.LOCAL_ONLY);
+                            return globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
+                                // finally update the topic policies with the latest value or loaded value
+                                return CompletableFuture.runAsync(() ->
+                                                topicPolicyListener.completeInitialization(global.orElse(null),
+                                                        local.orElse(null)),
+                                        getPoliciesNotifyThread());
+                            }).thenCompose(Function.identity());
+                        });
+        // Whatever the outcome -- success, failure, or the listener not being registered -- make sure the wrapper
+        // leaves the initialization (buffering) phase, so it forwards any buffered value plus all future live updates
+        // instead of dropping them. This is a no-op when the loaded policies were already applied above. Return the
+        // whenComplete stage (not initTopicPolicyFuture) so the returned future completes only after this has run, and
+        // whenComplete's pass-through semantics carry the original success or failure to the caller's initialize().
+        return initTopicPolicyFuture.whenCompleteAsync((v, ex) -> {
+            topicPolicyListener.completeInitializationUnlessAlreadyCompleted();
+        }, getPoliciesNotifyThread());
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {
@@ -665,6 +767,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return null;
     }
 
+    protected boolean hasProducersActive() {
+        return !producers.isEmpty();
+    }
+
+    protected boolean hasActiveReplicators() {
+        for (Replicator replicator : getReplicators().values()) {
+            if (replicator.isConnected()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected boolean hasLocalProducers() {
         if (producers.isEmpty()) {
             return false;
@@ -675,6 +790,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             }
         }
         return false;
+    }
+
+    public void disconnectReplicatorsIfNoTrafficAndBacklog() {
+        for (Replicator replicator : getReplicators().values()) {
+            if (replicator instanceof PersistentReplicator persistentReplicator) {
+                persistentReplicator.disconnectIfNoTrafficAndBacklog();
+            }
+        }
+        for (Replicator replicator : getShadowReplicators().values()) {
+            if (replicator instanceof PersistentReplicator persistentReplicator) {
+                persistentReplicator.disconnectIfNoTrafficAndBacklog();
+            }
+        }
     }
 
     @Override
@@ -1365,8 +1493,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             subscribeRateInBroker(brokerService.pulsar().getConfiguration()));
     }
 
-    public Optional<ClusterUrl> getMigratedClusterUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar(), topic);
+    public CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync() {
+        return getMigratedClusterUrlAsync(brokerService.getPulsar(), topic);
     }
 
     public static CompletableFuture<Boolean> isClusterMigrationEnabled(PulsarService pulsar,
@@ -1404,16 +1532,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return pulsar.getPulsarResources().getLocalPolicies()
                 .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenApply(policies -> policies.isPresent() && policies.get().migrated);
-    }
-
-    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {
-        try {
-            return getMigratedClusterUrlAsync(pulsar, topic)
-                    .get(pulsar.getPulsarResources().getClusterResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            LOG.warn().exception(e).log("Failed to get migration cluster URL");
-        }
-        return Optional.empty();
     }
 
     public boolean isSystemCursor(String sub) {
@@ -1477,5 +1595,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         } else {
             return Collections.emptyMap();
         }
+    }
+
+    protected ExecutorService getPoliciesNotifyThread() {
+        return topicPoliciesNotifyThread;
     }
 }

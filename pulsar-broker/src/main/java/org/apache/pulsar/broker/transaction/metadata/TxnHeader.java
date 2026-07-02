@@ -49,4 +49,12 @@ public class TxnHeader {
      * the CAS that flips {@link #state}. {@code null} while OPEN.
      */
     private Instant finalizedAt;
+
+    /**
+     * Principal that opened the transaction (from {@code NEW_TXN}). Used to authorize subsequent
+     * {@code END_TXN} / add-participant commands — only the owner (or a superuser) may operate on
+     * the txn. {@code null} when authentication is disabled, mirroring the legacy coordinator's
+     * "null owner ⟹ allowed" semantics.
+     */
+    private String owner;
 }

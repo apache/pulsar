@@ -37,6 +37,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -267,6 +268,56 @@ public class MultiTopicsConsumerImplTest {
         // getPartitionedTopicMetadata should have been called only the first time, for each of the 3 topics,
         // but not anymore since the topics are not partitioned.
         verify(clientMock, times(3)).getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testOnTopicsExtendedRemovedTopicCleansUnackedMessages() {
+        String topicName = "persistent://public/default/deleted-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+        String otherTopicPartition = "persistent://public/default/other-topic-partition-0";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+        consumerConfData.setAckTimeoutMillis(1000);
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(consumerConfData);
+
+        impl.partitionedTopics.put(topicName, 2);
+        impl.allTopicPartitionsNumber.set(2);
+
+        ConsumerImpl<byte[]> partitionConsumer0 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        ConsumerImpl<byte[]> partitionConsumer1 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        when(partitionConsumer0.getTopic()).thenReturn(topicPartition0);
+        when(partitionConsumer1.getTopic()).thenReturn(topicPartition1);
+        when(partitionConsumer0.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(partitionConsumer1.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        impl.consumers.put(topicPartition0, partitionConsumer0);
+        impl.consumers.put(topicPartition1, partitionConsumer1);
+
+        TopicMessageIdImpl removedTopicMessageId = new TopicMessageIdImpl(topicPartition0, new MessageIdImpl(1, 1, 0));
+        TopicMessageIdImpl otherTopicMessageId =
+                new TopicMessageIdImpl(otherTopicPartition, new MessageIdImpl(2, 2, 0));
+        impl.getUnAckedMessageTracker().add(removedTopicMessageId);
+        impl.getUnAckedMessageTracker().add(otherTopicMessageId);
+        assertEquals(impl.getUnAckedMessageTracker().size(), 2);
+
+        when(impl.client.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.emptyList()));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        assertTrue(impl.getConsumers().isEmpty());
+        assertEquals(impl.partitionedTopics.get(topicName), Integer.valueOf(0));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+        assertEquals(impl.getUnAckedMessageTracker().size(), 1);
+        assertTrue(impl.getUnAckedMessageTracker().remove(otherTopicMessageId));
+        verify(partitionConsumer0).closeAsync();
+        verify(partitionConsumer1).closeAsync();
     }
 
 }

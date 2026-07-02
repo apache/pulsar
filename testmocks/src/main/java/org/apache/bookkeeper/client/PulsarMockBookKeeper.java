@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,14 @@ import lombok.Setter;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
+import org.apache.bookkeeper.client.api.CreateAdvBuilder;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.client.api.DeleteBuilder;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteFlag;
+import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -238,6 +243,80 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
 
+
+    @Override
+    public CreateBuilder newCreateLedgerOp() {
+        return new CreateBuilder() {
+            private int ensembleSize = 3;
+            private int writeQuorumSize = 2;
+            private int ackQuorumSize = 2;
+            private byte[] password = new byte[0];
+            private org.apache.bookkeeper.client.api.DigestType digestType =
+                    org.apache.bookkeeper.client.api.DigestType.CRC32;
+            private Map<String, byte[]> customMetadata = Collections.emptyMap();
+
+            @Override
+            public CreateBuilder withEnsembleSize(int ensembleSize) {
+                this.ensembleSize = ensembleSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withWriteQuorumSize(int writeQuorumSize) {
+                this.writeQuorumSize = writeQuorumSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withAckQuorumSize(int ackQuorumSize) {
+                this.ackQuorumSize = ackQuorumSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withPassword(byte[] password) {
+                this.password = password;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withWriteFlags(EnumSet<WriteFlag> writeFlags) {
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withCustomMetadata(Map<String, byte[]> customMetadata) {
+                this.customMetadata = customMetadata;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withDigestType(org.apache.bookkeeper.client.api.DigestType digestType) {
+                this.digestType = digestType;
+                return this;
+            }
+
+            @Override
+            public CreateAdvBuilder makeAdv() {
+                throw new UnsupportedOperationException("Adv ledger creation is not supported by the mock");
+            }
+
+            @Override
+            public CompletableFuture<WriteHandle> execute() {
+                CompletableFuture<WriteHandle> future = new CompletableFuture<>();
+                asyncCreateLedger(ensembleSize, writeQuorumSize, ackQuorumSize,
+                        DigestType.fromApiDigestType(digestType), password,
+                        (rc, lh, ctx) -> {
+                            if (rc != BKException.Code.OK) {
+                                future.completeExceptionally(BKException.create(rc));
+                            } else {
+                                future.complete(lh);
+                            }
+                        }, null, customMetadata);
+                return future;
+            }
+        };
+    }
 
     @Override
     public OpenBuilder newOpenLedgerOp() {

@@ -21,6 +21,12 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -29,12 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
@@ -49,7 +49,6 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.eclipse.jetty.ee8.nested.Request;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -159,7 +158,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             public void service(ServletRequest servletRequest, ServletResponse servletResponse)
                     throws ServletException, IOException {
                 log.info()
-                        .attr("path", ((Request) servletRequest).getOriginalURI())
+                        .attr("path", ((jakarta.servlet.http.HttpServletRequest) servletRequest).getRequestURI())
                         .log("service]");
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
@@ -184,7 +183,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
         Mockito.when(proxyAdditionalServlet.getServletInstance()).thenReturn(servlet);
         Mockito.when(proxyAdditionalServlet.getServletType()).thenReturn(
-                AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
+                AdditionalServlet.AdditionalServletType.JAKARTA_SERVLET);
 
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();

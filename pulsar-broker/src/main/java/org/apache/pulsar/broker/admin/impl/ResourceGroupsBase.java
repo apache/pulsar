@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import jakarta.ws.rs.core.Response;
 import java.util.List;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;

@@ -198,6 +198,9 @@ functionRuntimeFactoryConfigs:
 #    # The Kubernetes pod name to run the function instances. It is set to
 #    # `pf-<tenant>-<namespace>-<function_name>-<random_uuid(8)>` if this setting is left to be empty
 #    jobName:
+#    # Optional domain suffix to use when the Function Worker constructs the gRPC address to connect to function instances.
+#    # If left blank, it defaults to `.svc.cluster.local`. Set this if your Function Worker is outside the cluster and connects via an external Gateway/Ingress.
+#    kubernetesServiceDomainSuffix:
 #    # the docker image to run function instance. by default it is `apachepulsar/pulsar`
 #    pulsarDockerImageName:
 #    # the docker image to run function instance according to different configurations provided by users.

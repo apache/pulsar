@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
@@ -31,8 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -41,6 +44,7 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.scalable.HashRange;
@@ -84,6 +88,27 @@ public class ScalableTopicController {
     /** Sealed-segment GC scheduled task. Non-null only while this broker is leader. */
     private volatile ScheduledFuture<?> gcTask;
 
+    /** Periodic auto split/merge evaluation task (PIP-483). Non-null only while leader. */
+    private volatile ScheduledFuture<?> autoScaleTask;
+
+    /**
+     * Serializes auto split/merge: an evaluation acquires this before deciding and holds it
+     * for the whole split/merge it dispatches, so concurrent ticks / consumer-change triggers
+     * never launch overlapping auto operations.
+     */
+    private final AtomicBoolean autoScaleInFlight = new AtomicBoolean(false);
+
+    /**
+     * Set when a trigger arrives while an evaluation is in flight; the in-flight run
+     * re-evaluates once on completion so coalesced triggers are not lost until the next tick.
+     */
+    private final AtomicBoolean autoScaleReEvaluate = new AtomicBoolean(false);
+
+    /** Epoch millis of the last split on this topic (manual or auto); MIN_VALUE if none. */
+    private volatile long lastSplitAtMs = Long.MIN_VALUE;
+    /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
+    private volatile long lastMergeAtMs = Long.MIN_VALUE;
+
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
 
@@ -126,10 +151,11 @@ public class ScalableTopicController {
     private void onLeaderStateChange(LeaderElectionState state) {
         log.info().attr("state", state).log("Leader state change for scalable topic");
         if (state != LeaderElectionState.Leading) {
-            // Stepped down (or never was leader). Stop the GC tick so the deposed leader
-            // doesn't race the new one on layout writes / backing-topic deletes. The new
-            // leader's initialize() will reschedule.
+            // Stepped down (or never was leader). Stop the GC and auto-scale ticks so the
+            // deposed leader doesn't race the new one on layout writes / backing-topic
+            // deletes. The new leader's initialize() will reschedule.
             cancelGcTask();
+            cancelAutoScaleTask();
         }
         if (state == LeaderElectionState.NoLeader && !closed) {
             initialize().exceptionally(ex -> {
@@ -160,12 +186,37 @@ public class ScalableTopicController {
                 })
                 .thenCompose(__ -> {
                     if (isLeader()) {
+                        seedAutoScaleCooldownsFromLayout();
                         scheduleGcTask();
+                        scheduleAutoScaleTask();
                         return ensureActiveSegmentsExist()
                                 .thenCompose(___ -> restoreSessionsFromStore());
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Recover the auto split/merge cooldown clocks after winning leadership. The timestamps
+     * are in-memory only, but the layout itself records when each segment was created — a
+     * split's children have exactly one parent, a merge's child has two — so the most recent
+     * creation time of each class is exactly when the last split / merge happened. Without
+     * this, every leader failover would reset both cooldowns and e.g. allow an auto merge
+     * seconds after one just ran on the previous leader.
+     */
+    private void seedAutoScaleCooldownsFromLayout() {
+        long split = Long.MIN_VALUE;
+        long merge = Long.MIN_VALUE;
+        for (SegmentInfo segment : currentLayout.getAllSegments().values()) {
+            int parents = segment.parentIds().size();
+            if (parents == 1) {
+                split = Math.max(split, segment.createdAtMs());
+            } else if (parents >= 2) {
+                merge = Math.max(merge, segment.createdAtMs());
+            }
+        }
+        lastSplitAtMs = split;
+        lastMergeAtMs = merge;
     }
 
     /**
@@ -235,6 +286,228 @@ public class ScalableTopicController {
             // throws synchronously, so log and swallow here.
             log.warn().exception(t).log("Scalable-topic GC tick threw");
         }
+    }
+
+    // --- Auto split/merge (PIP-483) ---
+
+    /**
+     * Schedule the periodic traffic-driven auto split/merge evaluation. Only fires on the
+     * controller leader; idempotent. Cancelled on close / leader-loss. Consumer-count
+     * changes are handled event-driven (see {@link #onConsumerCountChanged()}), not by this
+     * tick.
+     *
+     * <p>The tick is scheduled even when auto-scaling is currently disabled: the enabled
+     * flag is dynamic and re-checked on every evaluation, so flipping it on takes effect at
+     * the next tick rather than waiting for a leadership cycle. A disabled tick is a cheap
+     * no-op.
+     */
+    private synchronized void scheduleAutoScaleTask() {
+        if (closed || autoScaleTask != null) {
+            return;
+        }
+        ServiceConfiguration config = brokerConfig();
+        if (config == null) {
+            return;
+        }
+        long intervalMs = Duration.ofSeconds(
+                config.getScalableTopicAutoScaleIntervalSeconds()).toMillis();
+        if (intervalMs <= 0) {
+            return;
+        }
+        autoScaleTask = scheduler().scheduleAtFixedRate(
+                () -> runAutoScaleSafely("tick"), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private synchronized void cancelAutoScaleTask() {
+        if (autoScaleTask != null) {
+            autoScaleTask.cancel(false);
+            autoScaleTask = null;
+        }
+    }
+
+    /**
+     * Event-driven trigger: a stream/checkpoint consumer registered or unregistered, which
+     * may change the per-subscription consumer count. Evaluates the consumer-count split rule
+     * within seconds rather than waiting for the periodic tick.
+     */
+    private void onConsumerCountChanged() {
+        runAutoScaleSafely("consumer-change");
+    }
+
+    private void runAutoScaleSafely(String trigger) {
+        if (!isLeader() || closed) {
+            return;
+        }
+        try {
+            evaluateAndAct(trigger).exceptionally(ex -> {
+                log.warn().attr("trigger", trigger).exceptionMessage(ex)
+                        .log("Auto split/merge evaluation failed");
+                return null;
+            });
+        } catch (Throwable t) {
+            log.warn().attr("trigger", trigger).exception(t)
+                    .log("Auto split/merge evaluation threw");
+        }
+    }
+
+    /**
+     * Collect the current inputs, run the pure {@link AutoScalePolicyEvaluator}, and dispatch
+     * the resulting action. At most one auto operation runs at a time: {@link #autoScaleInFlight}
+     * is held from before the decision through the end of the dispatched split/merge.
+     */
+    private CompletableFuture<Void> evaluateAndAct(String trigger) {
+        ServiceConfiguration brokerConfig = brokerConfig();
+        if (brokerConfig == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!autoScaleInFlight.compareAndSet(false, true)) {
+            // Another evaluation or auto operation is already running. Don't drop the
+            // trigger: mark it pending so the in-flight run re-evaluates on completion —
+            // e.g. a consumer registering mid-evaluation would otherwise not be considered
+            // until the next periodic tick.
+            autoScaleReEvaluate.set(true);
+            return CompletableFuture.completedFuture(null);
+        }
+        try {
+            return resolveAutoScaleConfig(brokerConfig)
+                    .thenCompose(config -> {
+                        if (!config.enabled()) {
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return collectConsumerCounts()
+                                .thenCombine(collectLoadSamples(), (consumers, load) ->
+                                        AutoScalePolicyEvaluator.decide(currentLayout, load,
+                                                consumers, config, clock.millis(),
+                                                lastSplitAtMs, lastMergeAtMs))
+                                .thenCompose(decision -> dispatch(decision, config, trigger));
+                    })
+                    .whenComplete((__, ex) -> {
+                        autoScaleInFlight.set(false);
+                        if (autoScaleReEvaluate.getAndSet(false)) {
+                            // Re-run off the completion thread for the trigger(s) coalesced
+                            // while this evaluation was in flight.
+                            scheduler().execute(() -> runAutoScaleSafely("coalesced"));
+                        }
+                    });
+        } catch (Throwable t) {
+            // A synchronous throw between the CAS and the future chain would otherwise leave
+            // the in-flight flag set forever, silently disabling auto-scaling on this topic.
+            autoScaleInFlight.set(false);
+            throw t;
+        }
+    }
+
+    /**
+     * Resolve the effective auto split/merge policy for this topic: broker defaults overlaid
+     * with the namespace-level override ({@code Policies.scalableTopicAutoScalePolicy}) and
+     * then the per-topic override ({@code ScalableTopicMetadata.autoScalePolicy}). Both reads
+     * are metadata-cache-backed, so this is cheap per evaluation and override changes take
+     * effect on the next tick without controller restarts.
+     *
+     * <p>Set-time validation is best-effort only (the namespace override can change after a
+     * topic override was validated against it, and broker defaults can change across
+     * restarts), so the stored combination can be invalid here. In that case auto split/merge
+     * is treated as <b>disabled</b> for the topic — predictable, and loudly logged on every
+     * evaluation until an operator fixes the overrides — rather than failing the evaluation
+     * chain.
+     */
+    private CompletableFuture<AutoScaleConfig> resolveAutoScaleConfig(
+            ServiceConfiguration brokerConfig) {
+        CompletableFuture<AutoScalePolicyOverride> namespaceOverride =
+                brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                        .getPoliciesAsync(topicName.getNamespaceObject())
+                        .thenApply(opt -> opt.map(p -> p.scalableTopicAutoScalePolicy)
+                                .orElse(null));
+        CompletableFuture<AutoScalePolicyOverride> topicOverride =
+                resources.getScalableTopicMetadataAsync(topicName)
+                        .thenApply(opt -> opt.map(ScalableTopicMetadata::getAutoScalePolicy)
+                                .orElse(null));
+        return namespaceOverride.thenCombine(topicOverride, (ns, topic) -> {
+            try {
+                return AutoScaleConfig.resolve(brokerConfig, ns, topic);
+            } catch (IllegalArgumentException e) {
+                log.warn().attr("reason", e.getMessage())
+                        .log("Resolved auto split/merge policy is invalid; treating auto "
+                                + "split/merge as disabled for this topic until the namespace "
+                                + "or topic override is fixed");
+                return AutoScaleConfig.fromBrokerConfig(brokerConfig)
+                        .toBuilder().enabled(false).build();
+            }
+        });
+    }
+
+    private CompletableFuture<Void> dispatch(AutoScaleDecision decision, AutoScaleConfig config,
+                                             String trigger) {
+        if (decision instanceof AutoScaleDecision.Split split) {
+            log.info().attr("segmentId", split.segmentId()).attr("reason", split.reason())
+                    .attr("trigger", trigger).log("Auto split");
+            return splitSegment(split.segmentId())
+                    .thenApply(__ -> {
+                        scheduleFollowUpEvaluation(config);
+                        return null;
+                    });
+        }
+        if (decision instanceof AutoScaleDecision.Merge merge) {
+            log.info().attr("segmentId1", merge.segmentId1()).attr("segmentId2", merge.segmentId2())
+                    .attr("reason", merge.reason()).attr("trigger", trigger).log("Auto merge");
+            return mergeSegments(merge.segmentId1(), merge.segmentId2()).thenApply(__ -> null);
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * After a successful auto split, schedule one follow-up evaluation right after the split
+     * cooldown expires. A burst of consumers joining at once needs one split per cooldown to
+     * converge (e.g. 1 segment → N); without this it converges one split per periodic tick
+     * instead, which is slower whenever the cooldown is shorter than the tick. The chain
+     * stops naturally at the first evaluation that decides {@code NoAction}.
+     */
+    private void scheduleFollowUpEvaluation(AutoScaleConfig config) {
+        if (closed || !isLeader()) {
+            return;
+        }
+        long delayMs = config.splitCooldown().toMillis() + 1;
+        scheduler().schedule(() -> runAutoScaleSafely("post-split"),
+                delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Per-subscription consumer counts for the controller-managed (STREAM/CHECKPOINT)
+     * subscriptions. QUEUE subscriptions bypass the controller and have no coordinator here,
+     * so they are naturally excluded — exactly the set the consumer-count split rule wants.
+     */
+    private CompletableFuture<Map<String, Integer>> collectConsumerCounts() {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        subscriptions.forEach((name, coordinator) ->
+                counts.put(name, coordinator.getConsumers().size()));
+        return CompletableFuture.completedFuture(counts);
+    }
+
+    /** Read the load record (value + Stat modified time) for every active segment. */
+    private CompletableFuture<Map<Long, SegmentLoadSample>> collectLoadSamples() {
+        Map<Long, SegmentLoadSample> samples = new ConcurrentHashMap<>();
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+        for (Long segmentId : currentLayout.getActiveSegments().keySet()) {
+            futures.add(resources.getSegmentLoadAsync(topicName, segmentId)
+                    .thenAccept(opt -> opt.ifPresent(result -> samples.put(segmentId,
+                            new SegmentLoadSample(result.getValue(),
+                                    result.getStat().getModificationTimestamp())))));
+        }
+        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                .thenApply(__ -> samples);
+    }
+
+    private ServiceConfiguration brokerConfig() {
+        return brokerService.getPulsar().getConfig();
+    }
+
+    /**
+     * Run one auto split/merge evaluation synchronously-awaitable, for tests. Production code
+     * triggers evaluation via the periodic tick and consumer-change events.
+     */
+    @VisibleForTesting
+    CompletableFuture<Void> evaluateAutoScaleForTest() {
+        return evaluateAndAct("test");
     }
 
     /**
@@ -427,11 +700,14 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
               SegmentLayout updated = latest.splitSegment(segmentId, nowMs);
-              return updated.toMetadata(md.getProperties());
+              return updated.toMetadata(md);
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the auto-split cooldown only now that the split actually happened
+              // (covers manual and auto splits; a failed attempt doesn't burn the cooldown).
+              lastSplitAtMs = nowMs;
 
               // Step 5: Notify subscriptions of layout change (triggers consumer reassignment)
               return notifySubscriptions(currentLayout);
@@ -473,11 +749,14 @@ public class ScalableTopicController {
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
               SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs);
-              return updated.toMetadata(md.getProperties());
+              return updated.toMetadata(md);
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the auto-merge cooldown only now that the merge actually happened
+              // (covers manual and auto merges; a failed attempt doesn't burn the cooldown).
+              lastMergeAtMs = nowMs;
               return notifySubscriptions(currentLayout);
           }).thenApply(__ -> currentLayout);
     }
@@ -516,6 +795,9 @@ public class ScalableTopicController {
         }
         return coordinator.registerConsumer(consumerName, consumerId, cnx)
                 .thenApply(assignments -> {
+                    // A new consumer may now outnumber the segments — evaluate the
+                    // consumer-count split rule promptly rather than waiting for the tick.
+                    onConsumerCountChanged();
                     // Look up by name since the key may have been an existing session
                     return assignments.entrySet().stream()
                             .filter(e -> consumerName.equals(e.getKey().getConsumerName()))
@@ -953,7 +1235,7 @@ public class ScalableTopicController {
                     updated = updated.pruneSegment(s.segmentId());
                 }
             }
-            return updated == latest ? md : updated.toMetadata(md.getProperties());
+            return updated == latest ? md : updated.toMetadata(md);
         }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
@@ -961,7 +1243,11 @@ public class ScalableTopicController {
           })
           .thenCompose(__ -> {
               CompletableFuture<?>[] deletes = drained.stream()
-                      .map(this::deleteSegmentBackingTopic)
+                      .map(s -> deleteSegmentBackingTopic(s)
+                              // The segment is gone from the layout — drop its load record
+                              // too, or the .../segments/{id}/load entry leaks forever.
+                              .thenCompose(___ ->
+                                      resources.deleteSegmentLoadAsync(topicName, s.segmentId())))
                       .toArray(CompletableFuture[]::new);
               return CompletableFuture.allOf(deletes);
           })
@@ -1094,6 +1380,7 @@ public class ScalableTopicController {
     public CompletableFuture<Void> close() {
         closed = true;
         cancelGcTask();
+        cancelAutoScaleTask();
         // Stop each coordinator's drain poller before clearing — otherwise the scheduler
         // task keeps running after the controller goes away.
         subscriptions.values().forEach(SubscriptionCoordinator::close);
@@ -1149,6 +1436,7 @@ public class ScalableTopicController {
      * Create initial segment layout for a new scalable topic.
      */
     public static ScalableTopicMetadata createInitialMetadata(int numInitialSegments,
+                                                        int entryBucketBudget,
                                                         Map<String, String> properties) {
         if (numInitialSegments < 1) {
             throw new IllegalArgumentException("Must have at least 1 segment");
@@ -1157,12 +1445,17 @@ public class ScalableTopicController {
         int rangeSize = (HashRange.MAX_HASH + 1) / numInitialSegments;
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
 
+        // PIP-486: share the topic's entry-bucket budget equally across the initial segments.
+        List<Integer> entryBucketSplits = EntryBucketSplits.equalWidth(
+                EntryBucketSplits.bucketsForBudget(entryBucketBudget, numInitialSegments));
+
         long nowMs = System.currentTimeMillis();
         for (int i = 0; i < numInitialSegments; i++) {
             int start = i * rangeSize;
             int end = (i == numInitialSegments - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
             HashRange range = HashRange.of(start, end);
-            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs);
+            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs)
+                    .withEntryBucketSplits(entryBucketSplits);
             segments.put((long) i, segment);
         }
 
@@ -1171,6 +1464,80 @@ public class ScalableTopicController {
                 .nextSegmentId(numInitialSegments)
                 .segments(segments)
                 .properties(properties != null ? properties : Map.of())
+                .build();
+    }
+
+    /**
+     * Build the initial scalable-topic layout for a regular-to-scalable migration (PIP-475).
+     *
+     * <p>Each of the {@code partitions} old partitions (or the whole topic, for a
+     * non-partitioned source where {@code partitions <= 0}) becomes a <b>sealed legacy
+     * parent</b> segment that wraps the existing {@code persistent://...} topic. Alongside
+     * them, {@code N} fresh <b>active children</b> are created with equal-width contiguous
+     * hash ranges tiling {@code [0x0000, MAX_HASH]} and standard range-based routing.
+     *
+     * <p>The parents each span the <i>full</i> hash range because v4 partitioned routing
+     * ({@code signSafeMod(hash, N)}) scattered keys for any child's range across every
+     * partition. Consequently every child lists <i>all</i> parents as predecessors: the
+     * subscription controller's drain-before-assign protocol then drains all parents before
+     * a consumer is assigned to any child, preserving per-key ordering across the migration.
+     *
+     * <p>Segment IDs: parents are {@code 0..N-1}, children are {@code N..2N-1},
+     * {@code nextSegmentId == 2N}.
+     *
+     * @param persistentBase the source topic in the {@code persistent://} domain (its
+     *                       partitions are {@code persistentBase-partition-K})
+     * @param partitions     the source partition count; {@code <= 0} means non-partitioned
+     */
+    public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
+                                                               int partitions,
+                                                               int entryBucketBudget) {
+        int n = Math.max(partitions, 1);
+        long nowMs = System.currentTimeMillis();
+        Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
+
+        // PIP-486: the active children share the topic's entry-bucket budget. The sealed legacy parents
+        // take no new writes, so they keep a single bucket (no splits).
+        List<Integer> childEntryBucketSplits = EntryBucketSplits.equalWidth(
+                EntryBucketSplits.bucketsForBudget(entryBucketBudget, n));
+
+        // Child IDs are N..2N-1; every child lists every parent (full fan-in).
+        List<Long> childIds = new ArrayList<>(n);
+        for (int j = 0; j < n; j++) {
+            childIds.add((long) (n + j));
+        }
+        List<Long> parentIds = new ArrayList<>(n);
+        for (int k = 0; k < n; k++) {
+            parentIds.add((long) k);
+        }
+
+        // N sealed legacy parents — the old partitions, each spanning the full hash range.
+        for (int k = 0; k < n; k++) {
+            String legacyTopic = partitions <= 0
+                    ? persistentBase.toString()
+                    : persistentBase.getPartition(k).toString();
+            SegmentInfo parent = SegmentInfo
+                    .activeLegacy(k, HashRange.of(0x0000, HashRange.MAX_HASH), legacyTopic, 0, nowMs)
+                    .sealed(0, nowMs, childIds);
+            segments.put((long) k, parent);
+        }
+
+        // N active range-based children tiling [0x0000, MAX_HASH]; each has all parents.
+        int rangeSize = (HashRange.MAX_HASH + 1) / n;
+        for (int j = 0; j < n; j++) {
+            long segId = n + j;
+            int start = j * rangeSize;
+            int end = (j == n - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
+            SegmentInfo child = SegmentInfo.active(segId, HashRange.of(start, end), parentIds, 0, nowMs)
+                    .withEntryBucketSplits(childEntryBucketSplits);
+            segments.put(segId, child);
+        }
+
+        return ScalableTopicMetadata.builder()
+                .epoch(0)
+                .nextSegmentId(2L * n)
+                .segments(segments)
+                .properties(Map.of())
                 .build();
     }
 }

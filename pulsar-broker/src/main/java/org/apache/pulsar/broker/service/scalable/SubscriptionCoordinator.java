@@ -579,14 +579,17 @@ public class SubscriptionCoordinator {
 
         int consumerIndex = 0;
         for (SegmentInfo segment : sortedSegments) {
-            ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
             TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
                     segment.segmentId());
+            // PIP-486: assign each whole segment to a single consumer for efficient single-active
+            // (Exclusive) dispatch — no per-bucket pending tracking. A segment's entry-buckets let it be
+            // *shared* across multiple consumers, but fanning a segment out into Key_Shared bucket
+            // ownership is a controller-driven scale-up action handled separately; by default one
+            // consumer owns the whole segment. Empty bucketRanges signals the client to subscribe
+            // Exclusive.
+            ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
             assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                    segment.segmentId(),
-                    segment.hashRange(),
-                    segmentTopic.toString()
-            ));
+                    segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
             consumerIndex++;
         }
 

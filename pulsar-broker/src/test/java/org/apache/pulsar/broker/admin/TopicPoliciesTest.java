@@ -30,6 +30,10 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectReader;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -46,10 +50,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -119,7 +119,9 @@ import org.glassfish.jersey.client.JerseyClient;
 import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -144,10 +146,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final int testTopicPartitions = 2;
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
+        this.conf.setForceDeleteNamespaceAllowed(true);
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -156,15 +159,41 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
         admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
-        Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create();
-        producer.close();
-        waitForZooKeeperWatchers();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @BeforeMethod
+    void setupTestTopic() throws Exception {
+        // Recreate namespace to clear any policies set by previous tests
+        try {
+            admin.topics().deletePartitionedTopic(testTopic, true);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // topic may already be deleted
+        }
+        // Use deleteNamespaceWithRetry since the forced namespace deletion can fail transiently with HTTP 422 when a
+        // topic deletion in the cascade races with concurrent topic loading; the helper retries and treats an
+        // already-deleted namespace as success.
+        deleteNamespaceWithRetry(myNamespace, true);
+        deleteNamespaceWithRetry(myNamespaceV1, true);
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
+        admin.namespaces().createNamespace(myNamespaceV1);
+        admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
+        // Acquire namespace bundle ownership so tests that call getOrCreateTopic() directly succeed.
+        // Without this, services that don't create a __change_events reader (e.g. MetadataStoreTopicPoliciesService)
+        // leave the bundle unowned after namespace recreation and the first broker-side topic load fails.
+        admin.lookups().lookupTopic(testTopic + "-partition-0");
+    }
+
+    @AfterMethod(alwaysRun = true)
+    void afterMethodCleanup() throws Exception{
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
+        clearTopicPoliciesCache();
     }
 
     @Test
@@ -220,6 +249,73 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //load the topic.
         AbstractTopic topic1 = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
         assertEquals(topic1.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
+    }
+
+    @Test
+    public void testNonPersistentTopicAppliesTopicPolicyOnLoad() throws Exception {
+        // Non-persistent topics now load and apply their own topic policies on load (like persistent topics), so a
+        // freshly loaded non-persistent topic must already reflect its topic-level policy without waiting for a
+        // namespace-wide broadcast. Before this change a non-persistent topic never applied its policies on load.
+        TopicName topicName = TopicName.get(
+                TopicDomain.non_persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-np-" + UUID.randomUUID()
+        );
+        String topic = topicName.toString();
+
+        SystemTopicBasedTopicPoliciesService policyService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setMaxSubscriptionsPerTopicAsync(topic, 10).get();
+
+        //wait until topic loaded with right policy value.
+        Awaitility.await().untilAsserted(() -> {
+            AbstractTopic loaded = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
+            assertEquals(loaded.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
+        });
+
+        //unload the topic
+        pulsar.getNamespaceService().unloadNamespaceBundle(pulsar.getNamespaceService().getBundle(topicName)).get();
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
+
+        //re-own the namespace bundle without loading the topic
+        log.info().attr("lookup", admin.lookups().lookupTopic(topic)).log("lookup");
+        assertTrue(pulsar.getBrokerService().isTopicNsOwnedByBrokerAsync(topicName).join());
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
+        //make sure namespace policy reader is fully started.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()).isDone()));
+
+        //load the topic: it must already reflect the topic policy, proving it was applied on load, not via a
+        //later broadcast.
+        AbstractTopic loaded = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
+        assertEquals(loaded.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
+    }
+
+    @Test
+    public void testGlobalPolicyUpdateDoesNotClearLocalSubscriptionPolicy() throws Exception {
+        // A global topic policy carries no subscription-level overrides by default (an empty subscriptionPolicies
+        // map). Because AbstractTopic keeps the local and global per-subscription policies separately and merges them
+        // with local precedence, applying such a global policy must not clear the local per-subscription dispatch-rate
+        // policy -- which the previous direct assignment would do under the local-before-global ordering.
+        final String topic = "persistent://" + myNamespace + "/test-sub-policy-merge-" + UUID.randomUUID();
+        final String subName = "sub-1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subName, MessageId.earliest);
+
+        DispatchRate localRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(100).dispatchThrottlingRateInByte(2048).ratePeriodInSecond(1).build();
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, subName, localRate);
+
+        AbstractTopic topicRef = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, false).get().orElseThrow();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(topicRef.getSubscriptionDispatchRate(subName).getDispatchThrottlingRateInMsg(), 100));
+
+        // Simulate a global topic-policy update that carries no subscription-level overrides.
+        topicRef.onUpdate(TopicPolicies.builder().isGlobal(true).build());
+
+        assertEquals(topicRef.getSubscriptionDispatchRate(subName).getDispatchThrottlingRateInMsg(), 100);
     }
 
 
@@ -519,8 +615,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies(String clientRequestType) throws Exception {
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -600,8 +696,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies2(String clientRequestType) throws Exception {
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -687,8 +783,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the limitation of max producers.
@@ -729,8 +825,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the persistence policies.
@@ -2756,10 +2852,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPublishRateInDifferentLevelPolicy() throws Exception {
-        cleanup();
-        conf.setMaxPublishRatePerTopicInMessages(5);
-        conf.setMaxPublishRatePerTopicInBytes(50L);
-        setup();
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "5");
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "50");
 
         final String topicName = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         pulsarClient.newProducer().topic(topicName).create().close();
@@ -3050,9 +3144,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxUnackedMessagesOnSubscriptionPriority() throws Exception {
-        cleanup();
-        conf.setMaxUnackedMessagesPerSubscription(30);
-        setup();
+        restartBroker(conf -> conf.setMaxUnackedMessagesPerSubscription(30));
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
         @Cleanup
@@ -3115,6 +3207,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 && admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic) == null);
         messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
         assertEquals(messages.size(), defaultMaxUnackedMsgOnBroker);
+
+        // restore default config
+        restartBroker(conf -> conf.setMaxUnackedMessagesPerSubscription(4 * 50000));
     }
 
     private void produceMsg(Producer<byte[]> producer, int msgNum) throws Exception{
@@ -3299,14 +3394,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testAutoCreationDisabled() throws Exception {
-        cleanup();
-        conf.setAllowAutoTopicCreation(false);
-        setup();
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "false");
+
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
         //should not fail
         assertNull(admin.topicPolicies().getMessageTTL(topic));
+
+        // restore default
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "true");
     }
 
     @SuppressWarnings("deprecation")
@@ -3431,6 +3528,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
                 .subscribe().close();
+
+        // restore dynamic broker config and conf object
+        pulsar.getConfiguration().setSubscriptionTypesEnabled(
+                Set.of("Exclusive", "Shared", "Failover", "Key_Shared"));
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled",
+                "Exclusive,Shared,Failover,Key_Shared");
     }
 
     @Test(timeOut = 20000)
@@ -3765,7 +3868,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testDoNotCreateSystemTopicForHeartbeatNamespace() {
+    public void testDoNotCreateSystemTopicForHeartbeatNamespace() throws Exception {
+        initEventsTopicAndPartitions();
         assertTrue(pulsar.getBrokerService().getTopics().size() > 0);
         pulsar.getBrokerService().getTopics().forEach((k, v) -> {
             TopicName topicName = TopicName.get(k);
@@ -3826,8 +3930,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     private void triggerAndWaitNewTopicCompaction(String topicName) throws Exception {
-        PersistentTopic tp =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        Optional<Topic> topicOpt =
+                pulsar.getBrokerService().getTopic(topicName, false).join();
+        if (topicOpt.isEmpty()) {
+            // Topic doesn't exist (e.g., when not using system-topic-based policies service), nothing to compact.
+            return;
+        }
+        PersistentTopic tp = (PersistentTopic) topicOpt.get();
         // Wait for the old task finish.
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<Long> compactionTask = WhiteboxImpl.getInternalState(tp, "currentCompaction");
@@ -3846,7 +3955,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
      * It is not a thread safety method, something will go to a wrong pointer if there is a task is trying to load a
      * topic policies.
      */
-    private void clearTopicPoliciesCache() {
+    protected void clearTopicPoliciesCache() {
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
         if (topicPoliciesService instanceof TopicPoliciesService.TopicPoliciesServiceDisabled) {
             return;
@@ -4076,8 +4185,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .isNull());
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(1,
                 2));
-        SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // check global topic policies can be added correctly.
         Awaitility.await().untilAsserted(() -> assertNotNull(
@@ -4121,6 +4230,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxMessageSizeWithChunking() throws Exception {
+        final var maxMessageSize = this.conf.getMaxMessageSize();
         this.conf.setMaxMessageSize(1000);
 
         @Cleanup
@@ -4149,6 +4259,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // chunk message send success
         producer.send(new byte[2000]);
+        this.conf.setMaxMessageSize(maxMessageSize);
     }
 
     @Test(timeOut = 30000)
@@ -4202,6 +4313,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceChangesWithEncryptionRequired() throws Exception {
+        initEventsTopicAndPartitions();
         final String beforeLac = admin.topics().getInternalStats(topicPolicyEventsTopic).lastConfirmedEntry;
         admin.namespaces().setEncryptionRequiredStatus(myNamespace, true);
         // just an update to trigger writes on __change_events
@@ -4656,5 +4768,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNotNull(offloadPolicies, "Applied policies should not be null");
         assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
                 "Should inherit offload threshold from legacy namespace policy");
+    }
+
+    private void initEventsTopicAndPartitions() throws Exception {
+        try (Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create()) {
+            // No-op. Creating the producer initializes the events topic and partitions.
+        }
     }
 }

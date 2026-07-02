@@ -22,6 +22,8 @@ import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.Response;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
@@ -29,8 +31,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -468,7 +468,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
-        final Client client = javax.ws.rs.client.ClientBuilder
+        final Client client = jakarta.ws.rs.client.ClientBuilder
                 .newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             final Response r = client.target(webServer.getServiceUri()).path("/status.html").request().get();
@@ -497,7 +497,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());

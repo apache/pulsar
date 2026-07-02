@@ -18,36 +18,39 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.FunctionMetaData;
-import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @Path("/functions")
-@Api(value = "/functions", description = "Functions admin apis", tags = "functions", hidden = true)
+@Tag(name = "functions", description = "Functions admin apis")
+@Hidden
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @SuppressWarnings("deprecation")
@@ -58,12 +61,12 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
+    @Operation(summary = "Creates a new Pulsar Function in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "200", description = "Pulsar Function successfully created")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -80,11 +83,11 @@ public class Functions extends AdminResource {
     }
 
     @PUT
-    @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
+    @Operation(summary = "Updates a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(responseCode = "200", description = "Pulsar Function successfully updated")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -102,13 +105,13 @@ public class Functions extends AdminResource {
 
 
     @DELETE
-    @ApiOperation(value = "Deletes a Pulsar Function currently running in cluster mode")
+    @Operation(summary = "Deletes a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function doesn't exist"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "The function was successfully deleted")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function doesn't exist"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "200", description = "The function was successfully deleted")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
@@ -118,15 +121,16 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches information about a Pulsar Function currently running in cluster mode",
-            response = FunctionMetaData.class
-    )
+    @Operation(summary = "Fetches information about a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches information about a Pulsar Function currently running in cluster mode",
+                    content = @Content(schema = @Schema(type = "object",
+                            description = "FunctionMetaData (protobuf JSON format)"))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "404", description = "The function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
@@ -137,15 +141,16 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Function instance",
-            response = FunctionStatus.class
-    )
+    @Operation(summary = "Displays the status of a Pulsar Function instance")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the status of a Pulsar Function instance",
+                    content = @Content(schema = @Schema(type = "object",
+                            description = "InstanceCommunication.FunctionStatus (protobuf JSON format)"))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
     public Response getFunctionInstanceStatus(final @PathParam("tenant") String tenant,
@@ -158,14 +163,16 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Function running in cluster mode",
-            response = FunctionStatus.class
-    )
+    @Operation(summary = "Displays the status of a Pulsar Function running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(responseCode = "200",
+                    description = "Displays the status of a Pulsar Function running in cluster mode",
+                    content = @Content(schema = @Schema(type = "object",
+                            description = "InstanceCommunication.FunctionStatus (protobuf JSON format)"))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
@@ -176,14 +183,13 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Lists all Pulsar Functions currently deployed in a given namespace",
-            response = String.class,
-            responseContainer = "Collection"
-    )
+    @Operation(summary = "Lists all Pulsar Functions currently deployed in a given namespace")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(responseCode = "200",
+                    description = "Lists all Pulsar Functions currently deployed in a given namespace",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = String.class)))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
@@ -192,15 +198,15 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(
-            value = "Triggers a Pulsar Function with a user-specified value or file data",
-            response = Message.class
-    )
+    @Operation(summary = "Triggers a Pulsar Function with a user-specified value or file data")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200",
+                    description = "Triggers a Pulsar Function with a user-specified value or file data",
+                    content = @Content(schema = @Schema(implementation = Message.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -215,15 +221,15 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetch the current state associated with a Pulsar Function",
-            response = String.class
-    )
+    @Operation(summary = "Fetch the current state associated with a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The key does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetch the current state associated with a Pulsar Function",
+                    content = @Content(schema = @Schema(implementation = String.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The key does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public Response getFunctionState(final @PathParam("tenant") String tenant,
@@ -234,12 +240,15 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart function instance", response = Void.class)
+    @Operation(summary = "Restart function instance")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(responseCode = "200", description = "Restart function instance",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error") })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
@@ -251,10 +260,13 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart all function instances", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Restart all function instances")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Restart all function instances",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
@@ -264,10 +276,13 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop function instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+    @Operation(summary = "Stop function instance")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Stop function instance",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error") })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
@@ -279,10 +294,13 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop all function instances", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Stop all function instances")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Stop all function instances",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
@@ -292,10 +310,7 @@ public class Functions extends AdminResource {
     }
 
     @POST
-    @ApiOperation(
-            value = "Uploads Pulsar Function file data (admin only)",
-            hidden = true
-    )
+    @Operation(summary = "Uploads Pulsar Function file data (admin only)", hidden = true)
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
@@ -304,24 +319,21 @@ public class Functions extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Downloads Pulsar Function file data",
-            hidden = true
-    )
+    @Operation(summary = "Downloads Pulsar Function file data", hidden = true)
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
         return functions().downloadFunction(path, authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = List.class
-    )
+    @Operation(summary = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
+                    content = @Content(schema = @Schema(implementation = List.class))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout")
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
