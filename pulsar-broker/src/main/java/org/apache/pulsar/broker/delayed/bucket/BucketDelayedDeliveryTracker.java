@@ -931,13 +931,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private void removeBucket(Range<Long> range) {
-        // Calculate removed snapshot length before removal
-        long removedLength = immutableBuckets.subRangeMap(range).asMapOfRanges().values().stream()
-                .mapToLong(ImmutableBucket::getSnapshotLength)
-                .sum();
+        // Use exact key matching to avoid removing merged buckets
+        // subRangeMap() returns truncated keys which could match merged buckets
+        ImmutableBucket bucket = immutableBuckets.asMapOfRanges().get(range);
 
-        if (removedLength > 0) {
-            immutableBuckets.remove(range);
+        if (bucket != null) {
+            long removedLength = bucket.getSnapshotLength();
+
+            // Always call remove() to delete bucket, even if snapshot length is 0
+            // This is necessary for newly created buckets that haven't persisted yet
+            immutableBuckets.asMapOfRanges().remove(range);
             bucketsCount.set(immutableBuckets.asMapOfRanges().size());
             totalSnapshotLengthBytes.addAndGet(-removedLength);
         }
