@@ -68,10 +68,10 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     private static final Logger log = Logger.get(PositionRangeSet.class);
 
-    private static final long EARLIEST_KEY = -1L;
-    private static final long EARLIEST_VALUE = -1L;
-    private static final long LATEST_KEY = Long.MAX_VALUE;
-    private static final long LATEST_VALUE = Long.MAX_VALUE;
+    private static final long EARLIEST_LEDGER_ID = -1L;
+    private static final long EARLIEST_ENTRY_ID = -1L;
+    private static final long LATEST_LEDGER_ID = Long.MAX_VALUE;
+    private static final long LATEST_ENTRY_ID = Long.MAX_VALUE;
 
     /**
      * Maps ledger ID to a bitmap of deleted entry IDs within that ledger.
@@ -142,11 +142,11 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitmap == null || !rangeBitmap.contains(getSafeEntry(entryId))) {
             return null;
         }
-        long entry = getSafeEntry(entryId);
-        long lowerEntryId = rangeBitmap.previousAbsentValue(entry) + 1;
+        long safeEntryId = getSafeEntry(entryId);
+        long lowerEntryId = rangeBitmap.previousAbsentValue(safeEntryId) + 1;
         Position lower = consumer.apply(ledgerId, lowerEntryId);
-        long nextClear = rangeBitmap.nextAbsentValue(entry);
-        Position upper = consumer.apply(ledgerId, Math.max(nextClear - 1, lowerEntryId));
+        long nextAbsentEntryId = rangeBitmap.nextAbsentValue(safeEntryId);
+        Position upper = consumer.apply(ledgerId, Math.max(nextAbsentEntryId - 1, lowerEntryId));
         return Range.closed(lower, upper);
     }
 
@@ -184,14 +184,14 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long firstKey = rangeBitmapMap.firstLongKey();
-        long lastKey = rangeBitmapMap.lastLongKey();
-        LongBitmap firstBitmap = rangeBitmapMap.get(firstKey);
-        LongBitmap lastBitmap = rangeBitmapMap.get(lastKey);
-        long first = firstBitmap.nextPresentValue(0);
-        long last = lastBitmap.lastPresentValue();
-        return Range.openClosed(consumer.apply(firstKey, first - 1),
-                consumer.apply(lastKey, last));
+        long firstLedgerId = rangeBitmapMap.firstLongKey();
+        long lastLedgerId = rangeBitmapMap.lastLongKey();
+        LongBitmap firstBitmap = rangeBitmapMap.get(firstLedgerId);
+        LongBitmap lastBitmap = rangeBitmapMap.get(lastLedgerId);
+        long firstEntryId = firstBitmap.nextPresentValue(0);
+        long lastEntryId = lastBitmap.lastPresentValue();
+        return Range.openClosed(consumer.apply(firstLedgerId, firstEntryId - 1),
+                consumer.apply(lastLedgerId, lastEntryId));
     }
 
     @Override
@@ -226,19 +226,19 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
             if (completed.get() || bitmap.isEmpty()) {
                 return;
             }
-            long first = bitmap.nextPresentValue(0);
-            long last = bitmap.lastPresentValue();
-            long currentClosedMark = first;
-            while (currentClosedMark != -1 && currentClosedMark <= last) {
-                long nextOpenMark = bitmap.nextAbsentValue(currentClosedMark);
-                if (!processor.processRawRange(ledgerId, currentClosedMark - 1, ledgerId, nextOpenMark - 1)) {
+            long firstEntryId = bitmap.nextPresentValue(0);
+            long lastEntryId = bitmap.lastPresentValue();
+            long currentEntryId = firstEntryId;
+            while (currentEntryId != -1 && currentEntryId <= lastEntryId) {
+                long nextAbsentEntryId = bitmap.nextAbsentValue(currentEntryId);
+                if (!processor.processRawRange(ledgerId, currentEntryId - 1, ledgerId, nextAbsentEntryId - 1)) {
                     completed.set(true);
                     break;
                 }
-                if (nextOpenMark > Integer.MAX_VALUE) {
+                if (nextAbsentEntryId > Integer.MAX_VALUE) {
                     break;
                 }
-                currentClosedMark = bitmap.nextPresentValue(nextOpenMark);
+                currentEntryId = bitmap.nextPresentValue(nextAbsentEntryId);
             }
         });
     }
@@ -248,12 +248,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long firstKey = rangeBitmapMap.firstLongKey();
-        LongBitmap firstBitmap = rangeBitmapMap.get(firstKey);
-        long lower = firstBitmap.nextPresentValue(0);
-        long upper = Math.max(lower, firstBitmap.nextAbsentValue(lower) - 1);
-        return Range.openClosed(consumer.apply(firstKey, lower - 1),
-                consumer.apply(firstKey, upper));
+        long firstLedgerId = rangeBitmapMap.firstLongKey();
+        LongBitmap firstBitmap = rangeBitmapMap.get(firstLedgerId);
+        long lowerEntryId = firstBitmap.nextPresentValue(0);
+        long upperEntryId = Math.max(lowerEntryId, firstBitmap.nextAbsentValue(lowerEntryId) - 1);
+        return Range.openClosed(consumer.apply(firstLedgerId, lowerEntryId - 1),
+                consumer.apply(firstLedgerId, upperEntryId));
     }
 
     @Override
@@ -261,12 +261,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         if (rangeBitmapMap.isEmpty()) {
             return null;
         }
-        long lastKey = rangeBitmapMap.lastLongKey();
-        LongBitmap lastBitmap = rangeBitmapMap.get(lastKey);
-        long upper = lastBitmap.lastPresentValue();
-        long lower = Math.min(lastBitmap.previousAbsentValue(upper), upper);
-        return Range.openClosed(consumer.apply(lastKey, lower),
-                consumer.apply(lastKey, upper));
+        long lastLedgerId = rangeBitmapMap.lastLongKey();
+        LongBitmap lastBitmap = rangeBitmapMap.get(lastLedgerId);
+        long upperEntryId = lastBitmap.lastPresentValue();
+        long lowerEntryId = Math.min(lastBitmap.previousAbsentValue(upperEntryId), upperEntryId);
+        return Range.openClosed(consumer.apply(lastLedgerId, lowerEntryId),
+                consumer.apply(lastLedgerId, upperEntryId));
     }
 
     @Override
@@ -368,41 +368,43 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     @VisibleForTesting
     void add(Range<Position> range) {
         Position lowerEndpoint = range.hasLowerBound() ? range.lowerEndpoint()
-                : PositionFactory.create(EARLIEST_KEY, EARLIEST_VALUE);
+                : PositionFactory.create(EARLIEST_LEDGER_ID, EARLIEST_ENTRY_ID);
         Position upperEndpoint = range.hasUpperBound() ? range.upperEndpoint()
-                : PositionFactory.create(LATEST_KEY, LATEST_VALUE);
+                : PositionFactory.create(LATEST_LEDGER_ID, LATEST_ENTRY_ID);
 
-        long lowerValueOpen = (range.hasLowerBound() && range.lowerBoundType().equals(BoundType.CLOSED))
+        long lowerEntryIdOpen = (range.hasLowerBound() && range.lowerBoundType().equals(BoundType.CLOSED))
                 ? getSafeEntry(lowerEndpoint) - 1
                 : getSafeEntry(lowerEndpoint);
-        long upperValueClosed = (range.hasUpperBound() && range.upperBoundType().equals(BoundType.CLOSED))
+        long upperEntryIdClosed = (range.hasUpperBound() && range.upperBoundType().equals(BoundType.CLOSED))
                 ? getSafeEntry(upperEndpoint)
                 : getSafeEntry(upperEndpoint) + 1;
 
         rangeBitmapMap.computeIfAbsent(lowerEndpoint.getLedgerId(), k -> LongBitmaps.create())
-                .add(lowerValueOpen + 1);
-        addOpenClosed(lowerEndpoint.getLedgerId(), lowerValueOpen,
-                upperEndpoint.getLedgerId(), upperValueClosed);
+                .add(lowerEntryIdOpen + 1);
+        addOpenClosed(lowerEndpoint.getLedgerId(), lowerEntryIdOpen,
+                upperEndpoint.getLedgerId(), upperEntryIdClosed);
     }
 
     @VisibleForTesting
     void remove(Range<Position> range) {
         Position lowerEndpoint = range.hasLowerBound() ? range.lowerEndpoint()
-                : PositionFactory.create(EARLIEST_KEY, EARLIEST_VALUE);
+                : PositionFactory.create(EARLIEST_LEDGER_ID, EARLIEST_ENTRY_ID);
         Position upperEndpoint = range.hasUpperBound() ? range.upperEndpoint()
-                : PositionFactory.create(LATEST_KEY, LATEST_VALUE);
+                : PositionFactory.create(LATEST_LEDGER_ID, LATEST_ENTRY_ID);
 
-        long lower = (range.hasLowerBound() && range.lowerBoundType().equals(BoundType.CLOSED))
+        long lowerEntryId = (range.hasLowerBound() && range.lowerBoundType().equals(BoundType.CLOSED))
                 ? getSafeEntry(lowerEndpoint)
                 : getSafeEntry(lowerEndpoint) + 1;
-        long upper = (range.hasUpperBound() && range.upperBoundType().equals(BoundType.CLOSED))
+        long upperEntryId = (range.hasUpperBound() && range.upperBoundType().equals(BoundType.CLOSED))
                 ? getSafeEntry(upperEndpoint)
                 : getSafeEntry(upperEndpoint) - 1;
 
         long lowerLedgerId = lowerEndpoint.getLedgerId();
         long upperLedgerId = upperEndpoint.getLedgerId();
-        boolean lowerIsEarliest = lowerLedgerId == EARLIEST_KEY && lowerEndpoint.getEntryId() == EARLIEST_VALUE;
-        boolean upperIsLatest = upperLedgerId == LATEST_KEY && upperEndpoint.getEntryId() == LATEST_VALUE;
+        boolean lowerIsEarliest = lowerLedgerId == EARLIEST_LEDGER_ID
+                && lowerEndpoint.getEntryId() == EARLIEST_ENTRY_ID;
+        boolean upperIsLatest = upperLedgerId == LATEST_LEDGER_ID
+                && upperEndpoint.getEntryId() == LATEST_ENTRY_ID;
         boolean sameLedger = lowerLedgerId == upperLedgerId;
 
         if (lowerIsEarliest) {
@@ -420,13 +422,13 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
                 : (sameLedger ? lowerSet : rangeBitmapMap.get(upperLedgerId));
 
         if (sameLedger && lowerSet != null) {
-            lowerSet.remove(lower, upper + 1);
+            lowerSet.remove(lowerEntryId, upperEntryId + 1);
         } else {
             if (lowerSet != null) {
-                lowerSet.remove(lower, lastPresentValue(lowerSet));
+                lowerSet.remove(lowerEntryId, lastPresentValue(lowerSet));
             }
             if (upperSet != null) {
-                upperSet.remove(0, upper + 1);
+                upperSet.remove(0, upperEntryId + 1);
             }
         }
 
@@ -473,8 +475,8 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     }
 
     private boolean isValid(long ledgerId, long entryId) {
-        return ledgerId != EARLIEST_KEY && entryId != EARLIEST_VALUE
-                && ledgerId != LATEST_KEY && entryId != LATEST_VALUE;
+        return ledgerId != EARLIEST_LEDGER_ID && entryId != EARLIEST_ENTRY_ID
+                && ledgerId != LATEST_LEDGER_ID && entryId != LATEST_ENTRY_ID;
     }
 
     private int getSafeEntry(Position position) {
