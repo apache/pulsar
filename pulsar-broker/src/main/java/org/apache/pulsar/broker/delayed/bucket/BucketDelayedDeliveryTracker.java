@@ -304,7 +304,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         if (!subRangeMap.isEmpty()) {
             for (Map.Entry<Range<Long>, ImmutableBucket> rangeEntry : subRangeMap.entrySet()) {
                 if (range.encloses(rangeEntry.getKey())) {
-                    toBeDeletedBucketMap.put(rangeEntry.getKey(), rangeEntry.getValue());
+                    // Find the original key from the full map to avoid clipped keys
+                    ImmutableBucket bucket = rangeEntry.getValue();
+                    Range<Long> originalKey = Range.closed(bucket.startLedgerId, bucket.endLedgerId);
+                    toBeDeletedBucketMap.put(originalKey, bucket);
                     canPut = true;
                 }
             }
@@ -931,18 +934,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private void removeBucket(Range<Long> range) {
-        // Use exact key matching to avoid removing merged buckets
-        // subRangeMap() returns truncated keys which could match merged buckets
+        // Use exact key matching - all callers should provide exact keys
         ImmutableBucket bucket = immutableBuckets.asMapOfRanges().get(range);
 
         if (bucket != null) {
-            long removedLength = bucket.getSnapshotLength();
-
-            // Always call remove() to delete bucket, even if snapshot length is 0
-            // This is necessary for newly created buckets that haven't persisted yet
+            // Remove even if snapshot length is 0 (for newly created buckets)
             immutableBuckets.asMapOfRanges().remove(range);
             bucketsCount.set(immutableBuckets.asMapOfRanges().size());
-            totalSnapshotLengthBytes.addAndGet(-removedLength);
+            totalSnapshotLengthBytes.addAndGet(-bucket.getSnapshotLength());
         }
     }
 
