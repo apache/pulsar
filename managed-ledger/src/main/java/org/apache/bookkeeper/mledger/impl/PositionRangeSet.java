@@ -98,65 +98,65 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     }
 
     @Override
-    public void addOpenClosed(long lowerKey, long lowerValueOpen, long upperKey, long upperValue) {
+    public void addOpenClosed(long lowerLedgerId, long lowerEntryIdOpen, long upperLedgerId, long upperEntryId) {
         if (enableMultiEntry) {
-            markDirty(lowerKey, upperKey);
+            markDirty(lowerLedgerId, upperLedgerId);
         }
-        long lowerValue = lowerValueOpen + 1;
-        if (lowerKey != upperKey) {
-            // Extend lower-key's bitmap only if it already exists and has bits at/after lowerValue;
+        long lowerEntryId = lowerEntryIdOpen + 1;
+        if (lowerLedgerId != upperLedgerId) {
+            // Extend lower ledger's bitmap only if it already exists and has bits at/after lowerEntryId;
             // otherwise we'd invent acknowledgements that never happened (e.g. (2:10..4:10] must not
             // touch 2:10 if ledger 2 was empty).
-            if (isValid(lowerKey, lowerValue)) {
-                LongBitmap rangeBitmap = rangeBitmapMap.get(lowerKey);
+            if (isValid(lowerLedgerId, lowerEntryId)) {
+                LongBitmap rangeBitmap = rangeBitmapMap.get(lowerLedgerId);
                 if (rangeBitmap != null) {
-                    long lastValue = rangeBitmap.lastPresentValue();
-                    if (lastValue > lowerValueOpen) {
-                        rangeBitmap.add(lowerValue, Math.max(lastValue, lowerValue) + 1);
+                    long lastEntryId = rangeBitmap.lastPresentValue();
+                    if (lastEntryId > lowerEntryIdOpen) {
+                        rangeBitmap.add(lowerEntryId, Math.max(lastEntryId, lowerEntryId) + 1);
                     }
                 }
             }
-            if (isValid(upperKey, upperValue)) {
-                LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(upperKey, k -> LongBitmaps.create());
-                rangeBitmap.add(0, upperValue + 1);
+            if (isValid(upperLedgerId, upperEntryId)) {
+                LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(upperLedgerId, k -> LongBitmaps.create());
+                rangeBitmap.add(0, upperEntryId + 1);
             }
         } else {
-            LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(lowerKey, k -> LongBitmaps.create());
-            rangeBitmap.add(lowerValue, upperValue + 1);
+            LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(lowerLedgerId, k -> LongBitmaps.create());
+            rangeBitmap.add(lowerEntryId, upperEntryId + 1);
         }
         invalidateCaches();
     }
 
     @Override
-    public boolean contains(long key, long value) {
-        LongBitmap rangeBitmap = rangeBitmapMap.get(key);
+    public boolean contains(long ledgerId, long entryId) {
+        LongBitmap rangeBitmap = rangeBitmapMap.get(ledgerId);
         if (rangeBitmap != null) {
-            return rangeBitmap.contains(getSafeEntry(value));
+            return rangeBitmap.contains(getSafeEntry(entryId));
         }
         return false;
     }
 
     @Override
-    public Range<Position> rangeContaining(long key, long value) {
-        LongBitmap rangeBitmap = rangeBitmapMap.get(key);
-        if (rangeBitmap == null || !rangeBitmap.contains(getSafeEntry(value))) {
+    public Range<Position> rangeContaining(long ledgerId, long entryId) {
+        LongBitmap rangeBitmap = rangeBitmapMap.get(ledgerId);
+        if (rangeBitmap == null || !rangeBitmap.contains(getSafeEntry(entryId))) {
             return null;
         }
-        long entry = getSafeEntry(value);
-        long lowerValue = rangeBitmap.previousAbsentValue(entry) + 1;
-        Position lower = consumer.apply(key, lowerValue);
+        long entry = getSafeEntry(entryId);
+        long lowerEntryId = rangeBitmap.previousAbsentValue(entry) + 1;
+        Position lower = consumer.apply(ledgerId, lowerEntryId);
         long nextClear = rangeBitmap.nextAbsentValue(entry);
-        Position upper = consumer.apply(key, Math.max(nextClear - 1, lowerValue));
+        Position upper = consumer.apply(ledgerId, Math.max(nextClear - 1, lowerEntryId));
         return Range.closed(lower, upper);
     }
 
     @Override
-    public void removeAtMost(long key, long value) {
-        if (enableMultiEntry && key >= 0) {
-            long end = Math.min(key + 1L, (long) Integer.MAX_VALUE + 1);
+    public void removeAtMost(long ledgerId, long entryId) {
+        if (enableMultiEntry && ledgerId >= 0) {
+            long end = Math.min(ledgerId + 1L, (long) Integer.MAX_VALUE + 1);
             dirtyLedgers.remove(0, end);
         }
-        remove(Range.atMost(PositionFactory.create(key, value)));
+        remove(Range.atMost(PositionFactory.create(ledgerId, entryId)));
     }
 
     @Override
@@ -211,10 +211,10 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
     @Override
     public void forEach(RangeProcessor<Position> action, LongPairConsumer<? extends Position> consumerParam) {
-        forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+        forEachRawRange((lowerLedgerId, lowerEntryId, upperLedgerId, upperEntryId) -> {
             Range<Position> range = Range.openClosed(
-                    consumerParam.apply(lowerKey, lowerValue),
-                    consumerParam.apply(upperKey, upperValue));
+                    consumerParam.apply(lowerLedgerId, lowerEntryId),
+                    consumerParam.apply(upperLedgerId, upperEntryId));
             return action.process(range);
         });
     }
@@ -222,7 +222,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     @Override
     public void forEachRawRange(RawRangeProcessor processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
-        rangeBitmapMap.forEach((key, bitmap) -> {
+        rangeBitmapMap.forEach((ledgerId, bitmap) -> {
             if (completed.get() || bitmap.isEmpty()) {
                 return;
             }
@@ -231,7 +231,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
             long currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 long nextOpenMark = bitmap.nextAbsentValue(currentClosedMark);
-                if (!processor.processRawRange(key, currentClosedMark - 1, key, nextOpenMark - 1)) {
+                if (!processor.processRawRange(ledgerId, currentClosedMark - 1, ledgerId, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -273,11 +273,11 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     public Map<Long, long[]> toRanges(int maxRanges) {
         Map<Long, long[]> internalBitSetMap = new HashMap<>();
         MutableInt rangeCount = new MutableInt();
-        rangeBitmapMap.forEach((id, bitmap) -> {
+        rangeBitmapMap.forEach((ledgerId, bitmap) -> {
             if (rangeCount.addAndGet((int) bitmap.cardinality()) > maxRanges) {
                 return;
             }
-            internalBitSetMap.put(id, bitmap.serializeToLongArray());
+            internalBitSetMap.put(ledgerId, bitmap.serializeToLongArray());
         });
         return internalBitSetMap;
     }
@@ -287,25 +287,25 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         rangeBitmapMap.clear();
         resetDirtyKeys();
 
-        internalRange.forEach((id, ranges) -> {
-            rangeBitmapMap.put(id.longValue(), LongBitmaps.deserializeFromLongArray(ranges));
+        internalRange.forEach((ledgerId, ranges) -> {
+            rangeBitmapMap.put(ledgerId.longValue(), LongBitmaps.deserializeFromLongArray(ranges));
         });
         invalidateCaches();
     }
 
     @Override
-    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
-        Long2ObjectSortedMap<LongBitmap> subMap = rangeBitmapMap.subMap(lowerKey, upperKey + 1);
+    public int cardinality(long lowerLedgerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
+        Long2ObjectSortedMap<LongBitmap> subMap = rangeBitmapMap.subMap(lowerLedgerId, upperLedgerId + 1);
         MutableInt v = new MutableInt(0);
-        subMap.forEach((key, bitmap) -> {
-            if (key == lowerKey && key == upperKey) {
-                long count = bitmap.rank(upperValue + 1) - bitmap.rank(lowerValue);
+        subMap.forEach((ledgerId, bitmap) -> {
+            if (ledgerId == lowerLedgerId && ledgerId == upperLedgerId) {
+                long count = bitmap.rank(upperEntryId + 1) - bitmap.rank(lowerEntryId);
                 v.add(Math.toIntExact(count));
-            } else if (key == lowerKey) {
-                long count = bitmap.cardinality() - bitmap.rank(lowerValue);
+            } else if (ledgerId == lowerLedgerId) {
+                long count = bitmap.cardinality() - bitmap.rank(lowerEntryId);
                 v.add(Math.toIntExact(count));
-            } else if (key == upperKey) {
-                long count = bitmap.rank(upperValue + 1);
+            } else if (ledgerId == upperLedgerId) {
+                long count = bitmap.rank(upperEntryId + 1);
                 v.add(Math.toIntExact(count));
             } else {
                 v.add(Math.toIntExact(bitmap.cardinality()));
@@ -318,7 +318,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);
-            forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            forEachRawRange((lowerLedgerId, lowerEntryId, upperLedgerId, upperEntryId) -> {
                 size.increment();
                 return true;
             });
@@ -448,32 +448,33 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         return ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE && dirtyLedgers.contains(ledgerId);
     }
 
-    private void markDirty(long lowerKey, long upperKey) {
+    private void markDirty(long lowerLedgerId, long upperLedgerId) {
         // Original semantics: dirtyLedgers.addOpenClosed(k1, 0, k2, 0), which in LongPair ordering
         // is (k1, k2] on ledger ids. LongBitmap.add(from, to) is half-open [from, to), so shift both
         // bounds. Same-ledger or inverted range is a no-op.
         //
         // Note: Ledger IDs are 64-bit longs, but LongBitmap supports unsigned 32-bit range [0, 2^32-1].
-        // In practice, BookKeeper ledger IDs rarely exceed Integer.MAX_VALUE. If upperKey exceeds
+        // In practice, BookKeeper ledger IDs rarely exceed Integer.MAX_VALUE. If upperLedgerId exceeds
         // this limit, we skip tracking to avoid overflow. This is acceptable because:
         // 1. The dirty tracker is an optimization hint for selective persistence
         // 2. Missing a dirty mark means conservative full-ledger write (safe, just slower)
         // 3. Real-world ledger IDs stay well within 32-bit range
-        if (upperKey <= lowerKey || lowerKey < 0) {
+        if (upperLedgerId <= lowerLedgerId || lowerLedgerId < 0) {
             return;
         }
-        if (lowerKey >= Integer.MAX_VALUE || upperKey > Integer.MAX_VALUE) {
+        if (lowerLedgerId >= Integer.MAX_VALUE || upperLedgerId > Integer.MAX_VALUE) {
             log.warn()
-                    .attr("lowerKey", lowerKey)
-                    .attr("upperKey", upperKey)
+                    .attr("lowerLedgerId", lowerLedgerId)
+                    .attr("upperLedgerId", upperLedgerId)
                     .log("Skipping dirty tracking for ledger ID at/exceeding Integer.MAX_VALUE");
             return;
         }
-        dirtyLedgers.add(lowerKey + 1, upperKey + 1);
+        dirtyLedgers.add(lowerLedgerId + 1, upperLedgerId + 1);
     }
 
-    private boolean isValid(long key, long value) {
-        return key != EARLIEST_KEY && value != EARLIEST_VALUE && key != LATEST_KEY && value != LATEST_VALUE;
+    private boolean isValid(long ledgerId, long entryId) {
+        return ledgerId != EARLIEST_KEY && entryId != EARLIEST_VALUE
+                && ledgerId != LATEST_KEY && entryId != LATEST_VALUE;
     }
 
     private int getSafeEntry(Position position) {
