@@ -377,12 +377,12 @@ public class ConsumerImplTest {
         MessageIdImpl messageId = new MessageIdImpl(1L, 2L, -1);
         MessagePayloadContextImpl context = MessagePayloadContextImpl.get(
                 null, messageMetadata, messageId, consumer, 0, ackSet, DEFAULT_CONSUMER_EPOCH);
+        MessagePayload payload0 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{0}));
+        MessagePayload payload1 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{1}));
         try {
             // Index 0 is already acked per the broker, so it must not be redelivered to the app.
-            MessagePayload payload0 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{0}));
             Assert.assertNull(context.getMessageAt(0, batchSize, payload0, false, Schema.BYTES));
 
-            MessagePayload payload1 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{1}));
             Message<byte[]> message1 = context.getMessageAt(1, batchSize, payload1, false, Schema.BYTES);
             Assert.assertNotNull(message1);
 
@@ -393,6 +393,8 @@ public class ConsumerImplTest {
             Assert.assertTrue(ackSetInMessageId.get(1), "index 1 is still outstanding");
             Assert.assertTrue(ackSetInMessageId.get(2), "index 2 is still outstanding");
         } finally {
+            payload0.release();
+            payload1.release();
             context.recycle();
         }
     }
