@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.common.util;
 
-import lombok.experimental.UtilityClass;
-
 /**
  * Utility methods for operating on ack-set word arrays without allocating a {@code BitSet} instance.
  */
-@UtilityClass
 public class AckSetUtil {
 
     /**
@@ -43,15 +40,19 @@ public class AckSetUtil {
     /**
      * Returns a new word array whose elements are the bitwise AND of the corresponding elements of the two inputs.
      *
-     * <p>When the arrays differ in length, the result has {@code min(set1.length, set2.length)} words — extra words
-     * in the longer array are implicitly ANDed with zero and therefore contribute no set bits.
+     * <p>Extra words in the longer array are implicitly ANDed with zero and therefore contribute no set bits.
+     * Trailing all-zero words are trimmed from the result, so it is in the same canonical form produced by
+     * {@link java.util.BitSet#toLongArray()}.
      *
      * @param set1 a long array containing a little-endian representation of a sequence of bits
      * @param set2 a long array containing a little-endian representation of a sequence of bits
-     * @return a new array representing the intersection of the two bit sets
+     * @return a new array representing the intersection of the two bit sets, with trailing zero words trimmed
      */
     public static long[] intersect(long[] set1, long[] set2) {
         int len = Math.min(set1.length, set2.length);
+        while (len > 0 && (set1[len - 1] & set2[len - 1]) == 0) {
+            len--;
+        }
         long[] result = new long[len];
         for (int i = 0; i < len; i++) {
             result[i] = set1[i] & set2[i];
@@ -65,9 +66,9 @@ public class AckSetUtil {
      * <p>When the arrays differ in length, extra words in the longer array are treated as zero (i.e. the AND
      * result for those positions is zero and contributes nothing to the cardinality).
      *
-     * @param set1  a long array containing a little-endian representation of a sequence of bits
+     * @param set1 a long array containing a little-endian representation of a sequence of bits
      * @param set2 a long array containing a little-endian representation of a sequence of bits
-     * @return the number of bits set to {@code true} in {@code firstWords & secondWords}
+     * @return the number of bits set to {@code true} in {@code set1 & set2}
      */
     public static int cardinalityOfIntersection(long[] set1, long[] set2) {
         int sum = 0;

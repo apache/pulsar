@@ -31,15 +31,16 @@ public class PositionAckSetUtil {
         if (currentAckSet == null || otherAckSet == null) {
             return false;
         }
-        // A bit of 0 means "acked". Overlap exists when any position is acked in both sets,
-        // i.e. ~(a | b) != 0 for some word pair.
-        int len = Math.min(currentAckSet.length, otherAckSet.length);
-        for (int i = 0; i < len; i++) {
-            if (~(currentAckSet[i] | otherAckSet[i]) != 0) {
-                return true;
-            }
-        }
-        return false;
+
+        BitSetRecyclable currentBitSet = BitSetRecyclable.valueOf(currentAckSet);
+        BitSetRecyclable otherBitSet = BitSetRecyclable.valueOf(otherAckSet);
+        currentBitSet.flip(0, currentBitSet.size());
+        otherBitSet.flip(0, otherBitSet.size());
+        currentBitSet.and(otherBitSet);
+        boolean isAckSetRepeated = !currentBitSet.isEmpty();
+        currentBitSet.recycle();
+        otherBitSet.recycle();
+        return isAckSetRepeated;
     }
 
     //This method is do `and` operation for position's ack set

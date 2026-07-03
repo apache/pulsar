@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.util.BitSet;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -140,8 +141,8 @@ public class AckSetUtilTest {
 
     @Test
     public void testIntersectNoOverlap() {
-        // 0b1010 & 0b0101 == 0
-        Assert.assertEquals(AckSetUtil.intersect(new long[]{0b1010L}, new long[]{0b0101L}), new long[]{0L});
+        // 0b1010 & 0b0101 == 0 → the all-zero word is trimmed, leaving an empty array
+        Assert.assertEquals(AckSetUtil.intersect(new long[]{0b1010L}, new long[]{0b0101L}), new long[0]);
     }
 
     @Test
@@ -177,5 +178,25 @@ public class AckSetUtilTest {
         Assert.assertEquals(
                 AckSetUtil.intersect(new long[]{0b1111L, -1L}, new long[]{0b1010L, 0b0011L}),
                 new long[]{0b1010L, 0b0011L});
+    }
+
+    @Test
+    public void testIntersectTrimsTrailingZeroWords() {
+        // High words AND to zero → result must be trimmed to the canonical form of BitSet#toLongArray
+        Assert.assertEquals(
+                AckSetUtil.intersect(new long[]{-1L, 0b01L}, new long[]{-1L, 0b10L}),
+                new long[]{-1L});
+        // Same result as BitSet-based AND followed by toLongArray()
+        BitSet bitSet = BitSet.valueOf(new long[]{-1L, 0b01L});
+        bitSet.and(BitSet.valueOf(new long[]{-1L, 0b10L}));
+        Assert.assertEquals(AckSetUtil.intersect(new long[]{-1L, 0b01L}, new long[]{-1L, 0b10L}),
+                bitSet.toLongArray());
+    }
+
+    @Test
+    public void testIntersectTrimsAllZeroResultToEmpty() {
+        Assert.assertEquals(
+                AckSetUtil.intersect(new long[]{0b1010L, 0b01L}, new long[]{0b0101L, 0b10L}),
+                new long[0]);
     }
 }
