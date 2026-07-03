@@ -38,11 +38,11 @@ tasks.named<ProcessResources>("processTestResources") {
 dependencies {
     implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-runtime"))
-    implementation(project(":pulsar-broker-common"))
+    api(project(":pulsar-broker-common"))
     implementation(project(":pulsar-opentelemetry"))
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
-    implementation(project(":pulsar-functions:pulsar-functions-proto"))
+    api(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))
     implementation(project(":pulsar-docs-tools")) {
         exclude(group = "io.swagger.core.v3")
@@ -54,12 +54,12 @@ dependencies {
     implementation(libs.guava)
     implementation(libs.gson)
     implementation(libs.picocli)
-    implementation(libs.jackson.core)
-    implementation(libs.jackson.databind)
+    api(libs.jackson.core)
+    api(libs.jackson.databind)
     implementation(libs.netty.common)
     implementation(libs.byte.buddy)
 
-    implementation(libs.distributedlog.core) {
+    api(libs.distributedlog.core) {
         exclude(group = "net.jpountz.lz4", module = "lz4")
     }
     implementation(libs.bookkeeper.server)
@@ -69,7 +69,7 @@ dependencies {
     implementation(libs.jersey.container.servlet)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.media.json.jackson)
-    implementation(libs.jersey.media.multipart)
+    api(libs.jersey.media.multipart)
 
     implementation(libs.jetty.server)
     implementation(libs.jetty.alpn.conscrypt.server)
@@ -77,7 +77,7 @@ dependencies {
     implementation(libs.jetty.ee10.servlets)
 
     implementation(libs.jakarta.activation.api)
-    implementation(libs.jakarta.ws.rs.api)
+    api(libs.jakarta.ws.rs.api)
 
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)

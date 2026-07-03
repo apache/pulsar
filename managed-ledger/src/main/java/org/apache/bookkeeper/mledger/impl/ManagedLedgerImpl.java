@@ -5006,6 +5006,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
         stats.state = this.getState().toString();
 
+        stats.properties = new HashMap<>(propertiesMap);
+
         stats.cursors = new HashMap<>();
         this.getCursors().forEach(c -> {
             ManagedCursorImpl cursor = (ManagedCursorImpl) c;

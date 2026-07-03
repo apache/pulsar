@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import java.security.Security;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +38,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.io.core.Source;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public abstract class PulsarSource<T> implements Source<T> {
     protected final PulsarClient pulsarClient;
@@ -185,11 +183,6 @@ public abstract class PulsarSource<T> implements Source<T> {
         consumerConfBuilder.schema(schema);
 
         if (conf.getCryptoConfig() != null) {
-            // add provider only if it's not in the JVM
-            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-                Security.addProvider(new BouncyCastleProvider());
-            }
-
             consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
             consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
                     conf.getCryptoConfig().getCryptoKeyReaderClassName(),

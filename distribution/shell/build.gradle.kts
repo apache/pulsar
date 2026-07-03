@@ -31,8 +31,10 @@ val distLib by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
-    // Inherit version constraints from the enforced platform (via implementation)
-    extendsFrom(configurations["implementation"])
+    // Inherit the enforced version-alignment platform so bundled dependency versions match the
+    // version catalog (the platform lives on the non-published `internalPlatform` bucket from
+    // pulsar.java-conventions; `implementation` no longer carries it).
+    extendsFrom(configurations["implementation"], configurations["internalPlatform"])
     exclude(group = "org.projectlombok", module = "lombok")
     // Exclude jars not in the shell distribution
     exclude(group = "javax.xml.bind", module = "jaxb-api")
@@ -40,16 +42,23 @@ val distLib by configurations.creating {
     exclude(group = "net.java.dev.jna", module = "jna-platform")
     exclude(group = "io.netty", module = "netty-transport-native-kqueue")
     exclude(group = "io.prometheus", module = "simpleclient_caffeine")
+    // The full fastutil jar (~24MB) is replaced by :pulsar-client-fastutil-minimized below,
+    // which ships only the fastutil classes the client-side modules actually use.
+    exclude(group = "it.unimi.dsi", module = "fastutil")
 }
 dependencies {
     distLib(project(":pulsar-client-tools"))
+    // Minimized fastutil (replaces the full fastutil jar excluded from distLib above): only the
+    // fastutil classes reachable from the client-side modules (client, client-tools, admin).
+    distLib(project(":pulsar-client-fastutil-minimized"))
     distLib(libs.log4j.core)
     distLib(libs.log4j.web)
     distLib(libs.log4j.layout.template.json)
     distLib(libs.log4j.slf4j2.impl)
     distLib(libs.simpleclient.log4j2)
-    // Bouncy Castle
-    distLib(project(":bouncy-castle:bouncy-castle-bc"))
+    // Bouncy Castle (non-FIPS JCA provider for client-side message crypto + TLS)
+    distLib(libs.bcprov.jdk18on)
+    distLib(libs.bcpkix.jdk18on)
     // conscrypt (in Maven shell dist)
     distLib(libs.conscrypt.openjdk.uber)
     // swagger-annotations (in Maven shell dist)
@@ -75,10 +84,7 @@ val shellDistTar by tasks.registering(Tar::class) {
             val file = result.file
             val newName = when (id) {
                 is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
-                    var mappedName = file.nameWithoutExtension
-                    if (mappedName.startsWith("bouncy-castle-bc-")) {
-                        mappedName = mappedName + "-pkg"
-                    }
+                    val mappedName = file.nameWithoutExtension
                     "${mappedName}.${file.extension}"
                 }
                 else -> file.name
@@ -149,10 +155,7 @@ val shellDistZip by tasks.registering(Zip::class) {
             val file = result.file
             val newName = when (id) {
                 is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
-                    var mappedName = file.nameWithoutExtension
-                    if (mappedName.startsWith("bouncy-castle-bc-")) {
-                        mappedName = mappedName + "-pkg"
-                    }
+                    val mappedName = file.nameWithoutExtension
                     "${mappedName}.${file.extension}"
                 }
                 else -> file.name

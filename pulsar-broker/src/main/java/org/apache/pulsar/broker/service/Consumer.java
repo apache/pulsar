@@ -28,6 +28,8 @@ import io.github.merlimat.slog.Logger;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
+import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -72,8 +74,6 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.IntIntPair;
-import org.apache.pulsar.common.util.collections.ObjectIntPair;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -980,20 +980,16 @@ public class Consumer {
         }
     }
 
-    public boolean checkAndApplyTopicMigration() {
-        if (subscription.isSubscriptionMigrated()) {
-            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar(),
-                    topicName);
-            if (clusterUrl.isPresent()) {
-                ClusterUrl url = clusterUrl.get();
-                cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
-                        url.getBrokerServiceUrlTls());
-                // disconnect consumer after sending migrated cluster url
-                disconnect();
-                return true;
-            }
+    public CompletableFuture<Boolean> checkAndApplyTopicMigrationAsync() {
+        if (!subscription.isSubscriptionMigrated()) {
+            return CompletableFuture.completedFuture(false);
         }
-        return false;
+        return AbstractTopic.getMigratedClusterUrlAsync(cnx.getBrokerService().getPulsar(), topicName)
+                .thenApply(clusterUrl -> {
+                    // topicMigrated() sends the migrated cluster url and disconnects the consumer if present
+                    topicMigrated(clusterUrl);
+                    return clusterUrl.isPresent();
+                });
     }
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>

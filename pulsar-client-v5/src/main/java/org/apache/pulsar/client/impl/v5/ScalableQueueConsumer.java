@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,10 +78,10 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
      */
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
             segmentConsumers = new ConcurrentHashMap<>();
-    private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> receiveQueue;
     /**
      * Where each per-segment receive loop deposits a freshly-arrived message. Defaults
-     * to enqueueing on {@link #messageQueue} for the user's {@link #receive()} to pull;
+     * to enqueueing on {@link #receiveQueue} for the user's {@link #receive()} to pull;
      * the multi-topic wrapper overrides this to forward directly into its shared
      * multiplexed queue, so no per-topic pump thread is needed.
      */
@@ -127,10 +126,12 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.dlqPolicy = dlqPolicy;
         this.dlqTopic = dlqPolicy == null ? null : resolveDlqTopic(dlqPolicy);
-        // Default sink enqueues on the local messageQueue for receive()/receive(timeout).
+        // Default sink enqueues on the local receiveQueue for receive()/receive(timeout).
         // Multi-topic mode passes a sink that forwards into the shared mux instead — no
         // per-topic pump thread needed.
-        this.messageSink = messageSink != null ? messageSink : messageQueue::add;
+        this.receiveQueue = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+        this.messageSink = messageSink != null ? messageSink : receiveQueue::offer;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncQueueConsumerV5<>(this);
     }
@@ -209,22 +210,12 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return messageQueue.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.take();
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return messageQueue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.poll(timeout);
     }
 
     @Override
@@ -281,18 +272,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     @Override
     public CompletableFuture<Message<T>> receiveAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive();
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
-        });
+        return receiveQueue.receiveAsync();
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         closed = true;
+        receiveQueue.close();
         dagWatch.close();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
