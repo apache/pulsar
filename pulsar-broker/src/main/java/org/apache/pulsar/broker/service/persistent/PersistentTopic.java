@@ -59,7 +59,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import lombok.Getter;
 import lombok.Value;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
@@ -136,8 +135,6 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
-import org.apache.pulsar.broker.service.TopicPolicyListener;
-import org.apache.pulsar.broker.service.TopicPolicyListenerWrapper;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -299,9 +296,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // Record the last time max read position is moved forward, unless it's a marker message.
     @Getter
     private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
-
-    // prevents race conditions in topic policy initialization
-    private final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
 
     @Getter
     private final ExecutorService orderedExecutor;
@@ -515,8 +509,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenCompose(ignore -> removeOrphanReplicationCursors())
                 .exceptionally(ex -> {
                     log.warn()
+                            .attr("topic", topic)
                             .exceptionMessage(ex)
-                            .log("Error getting policies and isEncryptionRequired will be set to false");
+                            .log("Error loading topic policies during initialization. Ignoring the failure. "
+                                    + "isEncryptionRequired will be set to false.");
                     isEncryptionRequired = false;
                     return null;
                 }));
@@ -4878,50 +4874,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    protected CompletableFuture<Void> initTopicPolicy() {
-        final var topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
-        final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
-
-        return topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
-                .thenCompose(registered -> {
-                    if (!registered) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
-                        // Internal topics don't load topic-level policies, but the listener wrapper must
-                        // still be initialized so any buffered/future updates are forwarded to the topic
-                        // instead of being silently dropped.
-                        return CompletableFuture.runAsync(
-                                () -> topicPolicyListener.completeInitialization(null, null),
-                                getPoliciesNotifyThread());
-                    }
-                    // future for fetching global topic policies
-                    CompletableFuture<Optional<TopicPolicies>> globalPoliciesFuture =
-                            topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
-                                    TopicPoliciesService.GetType.GLOBAL_ONLY);
-                    // future for fetching local topic policies
-                    CompletableFuture<Optional<TopicPolicies>> localPoliciesFuture =
-                            topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
-                                    TopicPoliciesService.GetType.LOCAL_ONLY);
-                    CompletableFuture<Void> initialPoliciesFuture =
-                            globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
-                                // finally update the topic policies with the latest value or loaded value
-                                return CompletableFuture.runAsync(() ->
-                                        topicPolicyListener.completeInitialization(global.orElse(null),
-                                                local.orElse(null)),
-                                        getPoliciesNotifyThread());
-                            }).thenCompose(Function.identity());
-                    return initialPoliciesFuture.exceptionallyCompose(ex ->
-                            // The topic load path logs and continues when initial policy loading fails. Make sure the
-                            // already-registered wrapper is not left buffering future live updates forever.
-                            CompletableFuture.runAsync(
-                                    () -> topicPolicyListener.completeInitialization(null, null),
-                                    getPoliciesNotifyThread())
-                                    .thenCompose(__ -> FutureUtil.failedFuture(
-                                            FutureUtil.unwrapCompletionException(ex))));
-                });
-    }
-
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {
         return messageDeduplication;
@@ -5097,8 +5049,4 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    @Override
-    public TopicPolicyListener getTopicPolicyListener() {
-        return topicPolicyListener;
-    }
 }

@@ -39,13 +39,29 @@ public class ScalableTopicProducerTest {
 
     private static ActiveSegment segment() {
         return new ActiveSegment(0L, HashRange.of(0x0000, 0xFFFF), "segment://t/n/x/0", null,
-                List.of(0x8000));
+                List.of(0x8000), List.of());
+    }
+
+    /** A single-bucket segment (N = 1, e.g. a legacy/synthetic layout for a regular topic). */
+    private static ActiveSegment singleBucketSegment() {
+        return new ActiveSegment(0L, HashRange.of(0x0000, 0xFFFF), "segment://t/n/x/0", null,
+                List.of(), List.of());
     }
 
     @Test
     public void testBatchingEnabledUsesEntryBucketBatcher() {
         ProducerConfigurationData conf = new ProducerConfigurationData();
         ScalableTopicProducer.applyEntryBucketing(conf, segment());
+        assertTrue(conf.isBatchingEnabled());
+        assertTrue(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
+    }
+
+    @Test
+    public void testSingleBucketSegmentAlsoUsesEntryBucketBatcher() {
+        // N = 1 still uses the entry-bucket batcher so it stamps the effective hash range — standalone
+        // metadata (e.g. for geo-replication re-routing), even though there is only one bucket.
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        ScalableTopicProducer.applyEntryBucketing(conf, singleBucketSegment());
         assertTrue(conf.isBatchingEnabled());
         assertTrue(conf.getBatcherBuilder() instanceof EntryBucketBatcherBuilder);
     }

@@ -154,11 +154,17 @@ final class SegmentRouter {
      * {@code segmentTopicName} otherwise.
      */
     record ActiveSegment(long segmentId, HashRange hashRange, String segmentTopicName,
-                         String legacyTopicName, List<Integer> entryBucketSplits) {
+                         String legacyTopicName, List<Integer> entryBucketSplits,
+                         List<HashRange> ownedBucketRanges) {
 
         ActiveSegment {
-            // PIP-486: entry-bucket split points (empty = single bucket over the whole ring).
+            // PIP-486: entry-bucket split points (empty = single bucket over the whole ring). Used by
+            // the producer to bucket its batches.
             entryBucketSplits = entryBucketSplits != null ? List.copyOf(entryBucketSplits) : List.of();
+            // PIP-486: the entry-bucket hash ranges this consumer owns within the segment (from the
+            // controller assignment). Empty = the whole segment (subscribe Shared); non-empty = subscribe
+            // Key_Shared STICKY declaring exactly these ranges. Unused on the producer side.
+            ownedBucketRanges = ownedBucketRanges != null ? List.copyOf(ownedBucketRanges) : List.of();
         }
 
         /** Number of entry-buckets this segment is divided into ({@code entryBucketSplits.size()+1}). */

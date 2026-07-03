@@ -430,6 +430,43 @@ public class SubscriptionCoordinatorTest {
         assertTrue(reconnected.isConnected());
     }
 
+    // --- PIP-486 entry-bucket assignment ---
+
+    @Test
+    public void testSingleBucketSegmentsHaveNoBucketRanges() throws Exception {
+        // The default 4-segment layout is N=1 per segment: each whole segment is assigned to one
+        // consumer with empty bucketRanges (single-active / Exclusive).
+        Map<ConsumerSession, ConsumerAssignment> result =
+                coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        for (ConsumerAssignment.AssignedSegment seg : findByName(result, "consumer-1").assignedSegments()) {
+            assertTrue(seg.bucketRanges().isEmpty());
+        }
+    }
+
+    @Test
+    public void testBucketedSegmentIsAssignedWholeToOneConsumer() throws Exception {
+        // One segment with N=4 entry-buckets (budget 4 / 1 segment). Even with several consumers, the
+        // controller assigns the whole segment to a single consumer with empty bucketRanges (efficient
+        // single-active / Exclusive dispatch); fanning it out into per-bucket Key_Shared ownership is a
+        // separate controller-driven scale-up action.
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createInitialMetadata(1, 4, Map.of())),
+                resources, scheduler, Duration.ofMillis(200));
+        c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+
+        int owners = 0;
+        for (ConsumerAssignment assignment : result.values()) {
+            for (ConsumerAssignment.AssignedSegment seg : assignment.assignedSegments()) {
+                assertEquals(seg.segmentId(), 0);
+                assertTrue(seg.bucketRanges().isEmpty());
+                owners++;
+            }
+        }
+        assertEquals(owners, 1);
+    }
+
     // --- Helpers ---
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {

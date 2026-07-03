@@ -945,6 +945,11 @@ message ScalableAssignedSegment {
     required uint32 hash_end               = 3;
     // Fully-qualified segment:// topic name the consumer should attach to.
     required string segment_topic          = 4;
+    // PIP-486: the entry-bucket hash ranges (16-bit, inclusive) this consumer owns within the
+    // segment. Empty means the consumer owns the whole segment (single bucket) and subscribes
+    // Shared; non-empty means the segment is shared by bucket, and the consumer subscribes
+    // Key_Shared STICKY declaring exactly these ranges.
+    repeated IntRange bucket_ranges        = 5;
 }
 
 // An assignment of active segments to a single consumer. Carries the layout epoch

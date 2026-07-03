@@ -357,12 +357,46 @@ public abstract class PersistentReplicator extends AbstractReplicator
         InFlightTask inFlightTask = (InFlightTask) ctx;
 
         latestPublishTime = System.currentTimeMillis();
-        // Release memory if terminated.
+        // The read result must be discarded because the replicator is terminating or the cursor was
+        // rewound while this read was in flight (e.g. after a failed publish or a schema change).
         if (state == State.Terminated || state == State.Terminating
                 || inFlightTask.isSkipReadResultDueToCursorRewind()) {
             for (Entry entry : entries) {
-                inFlightTask.incCompletedEntries();
                 entry.release();
+            }
+            boolean resumeReads = state != State.Terminated && state != State.Terminating;
+            // Hold the inFlightTasks lock (the same lock doRewindCursor() and readMoreEntries()'s
+            // read-scheduling path use) so completing the task and rewinding the cursor here are atomic with
+            // respect to readMoreEntries(), which reads both the free read slot and the cursor read position
+            // under that lock; otherwise a concurrent read could observe the freed slot but the stale
+            // (advanced) read position.
+            synchronized (inFlightTasks) {
+                if (resumeReads) {
+                    // The discarded read already advanced the cursor read position past these still-unacked
+                    // messages (ManagedCursor advances the read position when a read completes), which
+                    // overwrites the earlier doRewindCursor(). Rewind again so the messages are re-read;
+                    // otherwise they stay stranded behind the read position and the backlog never drains.
+                    // rewind() resets the read position to the mark-delete position, so only unacked
+                    // messages are re-read; entries already acknowledged (replicated) are skipped on the
+                    // re-read. This makes the recovery at-least-once, with duplicates bounded to the
+                    // messages that were in flight when the rewind happened.
+                    cursor.rewind();
+                }
+                // Complete the task with an empty result so it releases its permit and no longer counts
+                // as a pending cursor read. Without this, a pending read that could not be cancelled
+                // (cursor.cancelPendingReadRequest() returns false for an already-dispatched read, which
+                // is the common case when there is a backlog) would stay entries == null forever, keeping
+                // hasPendingRead() permanently true and stalling replication.
+                if (inFlightTask.getEntries() == null) {
+                    inFlightTask.setEntries(Collections.emptyList());
+                }
+            }
+            if (resumeReads) {
+                // Resume reading on the broker executor rather than calling readMoreEntries() directly:
+                // cursor reads can complete inline (cache hit), so a direct call risks deep
+                // readEntriesComplete -> readMoreEntries recursion (StackOverflowError), the same hazard
+                // PersistentDispatcherMultipleConsumers.readMoreEntriesAsync() guards against.
+                topic.getBrokerService().executor().execute(this::readMoreEntries);
             }
             return;
         }

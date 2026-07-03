@@ -1994,6 +1994,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "When enabled, all registered topic-policy listeners in a namespace are re-notified with the current"
+                    + " topic policies after the namespace's topic-policy cache finishes its initial load. Topics load"
+                    + " and apply their own policies when they are loaded, so this broadcast is normally redundant; it"
+                    + " is only needed for custom plugins that register TopicPolicyListeners and depend on it for"
+                    + " backwards compatibility. Disabled by default.")
+    private boolean topicPolicyListenerReplayEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = """
                     The class name of the topic policies service. There are 2 built-in implementations:
                     1. "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService" (default)
