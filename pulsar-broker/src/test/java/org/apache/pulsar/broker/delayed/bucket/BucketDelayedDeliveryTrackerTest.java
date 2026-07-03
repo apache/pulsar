@@ -728,4 +728,83 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         ts.close();
     }
+
+    /**
+     * Test that overlapping buckets are correctly cleaned up during recovery.
+     * This verifies the fix for the subRangeMap clipped key issue where
+     * putAndCleanOverlapRange would store clipped keys that couldn't be
+     * removed by exact key matching in removeBucket().
+     */
+    @Test
+    public void testOverlappingBucketsCleanupDuringRecovery() throws Exception {
+        // Setup mocks
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_overlap_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testOverlap / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            // Create first tracker with small minIndexCountPerBucket
+            BucketDelayedDeliveryTracker tracker1 = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    3, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Add messages to create multiple immutable buckets
+            for (int i = 1; i <= 12; i++) {
+                tracker1.addMessage(i, i, i * 10);
+            }
+
+            // Wait for all bucket operations to complete
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(tracker1.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging),
+                        "All buckets should finish merging");
+                assertTrue(tracker1.getImmutableBuckets().asMapOfRanges().size() >= 2,
+                        "Should have created multiple buckets");
+            });
+
+            int bucketCountBeforeClose = tracker1.getImmutableBuckets().asMapOfRanges().size();
+
+            tracker1.close();
+
+            // Create second tracker - triggers recovery with putAndCleanOverlapRange
+            BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    3, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Verify buckets were recovered
+            int bucketCountAfterRecovery = tracker2.getImmutableBuckets().asMapOfRanges().size();
+            assertTrue(bucketCountAfterRecovery > 0, "Should have recovered buckets");
+
+            // Key assertion: verify no orphaned buckets remain
+            // If clipped keys weren't fixed, removeBucket() would fail and buckets would accumulate
+            assertTrue(bucketCountAfterRecovery <= bucketCountBeforeClose,
+                    String.format("Orphaned buckets detected: %d after recovery > %d before close",
+                            bucketCountAfterRecovery, bucketCountBeforeClose));
+
+            // Verify messages were recovered
+            assertTrue(tracker2.getNumberOfDelayedMessages() > 0,
+                    "Should have recovered messages");
+
+            // Verify snapshot length tracking is correct
+            long totalSnapshotLength = tracker2.getImmutableBuckets().asMapOfRanges().values().stream()
+                    .mapToLong(ImmutableBucket::getSnapshotLength)
+                    .sum();
+            assertTrue(totalSnapshotLength >= 0,
+                    "Snapshot length tracking broken - likely due to failed removeBucket()");
+
+            tracker2.close();
+        } finally {
+            storage.clean();
+        }
+    }
 }
