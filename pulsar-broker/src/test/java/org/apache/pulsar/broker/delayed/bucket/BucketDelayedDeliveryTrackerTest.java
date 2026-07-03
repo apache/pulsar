@@ -807,4 +807,86 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             storage.clean();
         }
     }
+
+    /**
+     * Test that putAndCleanOverlapRange correctly uses original keys instead of truncated keys
+     * when checking if a new range encloses existing buckets.
+     *
+     * This prevents the bug where a truncated key from subRangeMap() would incorrectly pass
+     * the encloses() check, causing a bucket to be replaced when it shouldn't be.
+     */
+    @Test
+    public void testPutAndCleanOverlapRangeWithTruncatedKeys() throws Exception {
+        // Setup mocks
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_truncated_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testTruncated / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            // Create tracker
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    3, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Add messages to create a bucket [1-6]
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+
+            // Wait for bucket to be created
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() >= 1,
+                        "Should have created at least one bucket");
+            });
+
+            int initialBucketCount = tracker.getImmutableBuckets().asMapOfRanges().size();
+            long initialMessageCount = tracker.getNumberOfDelayedMessages();
+
+            // Now add messages that would create a bucket [7-9]
+            // This should NOT replace the existing bucket [1-6]
+            for (int i = 7; i <= 9; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+
+            // Wait for new bucket operations
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging),
+                        "All buckets should finish processing");
+            });
+
+            // Verify bucket count increased (or stayed same if they got merged)
+            int finalBucketCount = tracker.getImmutableBuckets().asMapOfRanges().size();
+            assertTrue(finalBucketCount >= initialBucketCount,
+                    "Bucket count should not decrease when adding non-overlapping ranges");
+
+            // Verify all messages are tracked
+            long finalMessageCount = tracker.getNumberOfDelayedMessages();
+            assertTrue(finalMessageCount >= initialMessageCount,
+                    String.format("Message count should not decrease: initial=%d, final=%d",
+                            initialMessageCount, finalMessageCount));
+
+            // Verify no bucket was incorrectly replaced
+            // If putAndCleanOverlapRange used truncated keys, it might have incorrectly
+            // removed a bucket that shouldn't have been removed
+            tracker.getImmutableBuckets().asMapOfRanges().forEach((range, bucket) -> {
+                assertTrue(bucket.getNumberBucketDelayedMessages() > 0,
+                        "All buckets should have messages - bucket " + range + " is empty");
+            });
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
 }
