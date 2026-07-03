@@ -303,10 +303,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         boolean canPut = false;
         if (!subRangeMap.isEmpty()) {
             for (Map.Entry<Range<Long>, ImmutableBucket> rangeEntry : subRangeMap.entrySet()) {
-                if (range.encloses(rangeEntry.getKey())) {
-                    // Find the original key from the full map to avoid clipped keys
-                    ImmutableBucket bucket = rangeEntry.getValue();
-                    Range<Long> originalKey = Range.closed(bucket.startLedgerId, bucket.endLedgerId);
+                // Use original key instead of truncated key for encloses check
+                ImmutableBucket bucket = rangeEntry.getValue();
+                Range<Long> originalKey = Range.closed(bucket.startLedgerId, bucket.endLedgerId);
+
+                if (range.encloses(originalKey)) {
                     toBeDeletedBucketMap.put(originalKey, bucket);
                     canPut = true;
                 }
