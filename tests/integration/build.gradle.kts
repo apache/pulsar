@@ -93,6 +93,8 @@ val integrationTestSuiteFile = integrationTestSuiteFileProperty.getOrElse("pulsa
 val integrationTestSuiteFileExplicit = integrationTestSuiteFileProperty.isPresent
 val integrationTestGroups = providers.gradleProperty("testGroups").orNull
 val integrationTestExcludedGroups = providers.gradleProperty("excludedTestGroups").orNull
+val integrationTestAsyncProfilerDir = providers.gradleProperty("inttest.asyncprofiler.dir")
+    .getOrElse(layout.buildDirectory.get().asFile.absolutePath)
 val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
 // When `--tests` is passed on the CLI, let TestNG discover tests directly from the classpath
 // instead of restricting discovery to the suite XML — unless -PintegrationTestSuiteFile was
@@ -124,6 +126,19 @@ val integrationTest by tasks.registering(Test::class) {
 
     systemProperty("currentVersion", project.version.toString())
     systemProperty("buildDirectory", layout.buildDirectory.get().asFile.absolutePath)
+    systemProperty("inttest.asyncprofiler.dir", integrationTestAsyncProfilerDir)
+    providers.gradleProperty("inttest.asyncprofiler.opts").orNull?.let {
+        systemProperty("inttest.asyncprofiler.opts", it)
+    }
+    providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
+        systemProperty("inttest.asyncprofiler.outputformat", it)
+    }
+    providers.gradleProperty("git.commit.id.abbrev").orNull?.let {
+        systemProperty("git.commit.id.abbrev", it)
+    }
+    providers.gradleProperty("build.timestamp").orNull?.let {
+        systemProperty("build.timestamp", it)
+    }
 
     jvmArgs(
         "-XX:+ExitOnOutOfMemoryError",
