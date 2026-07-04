@@ -65,6 +65,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -277,6 +278,146 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } else {
             assertFalse(channel1.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
             assertTrue(channel2.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test(priority = 1)
+    public void testCompletedGetOwnerRequestDoesNotRemoveNewRequest() throws Exception {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000000_0x10000001";
+        var getOwnerRequests = channel.getOwnerRequests();
+        getOwnerRequests.remove(serviceUnit);
+        CompletableFuture<String> oldRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+        assertEquals(getOwnerRequests.get(serviceUnit), oldRequest);
+
+        CountDownLatch staleCallbackRunning = new CountDownLatch(1);
+        CountDownLatch releaseStaleCallback = new CountDownLatch(1);
+        oldRequest.whenComplete((__, ___) -> {
+            staleCallbackRunning.countDown();
+            try {
+                assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+            }
+        });
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> completeOldRequest = executor.submit(() -> oldRequest.complete(brokerId1));
+            assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
+                    "The stale get-owner completion callback did not start");
+            assertTrue(getOwnerRequests.get(serviceUnit) == oldRequest,
+                    "The stale cleanup must not run before the new request is installed");
+
+            // Replace the map entry before releasing the old callback.
+            CompletableFuture<String> newRequest = new CompletableFuture<>();
+            getOwnerRequests.put(serviceUnit, newRequest);
+            releaseStaleCallback.countDown();
+            completeOldRequest.get(5, TimeUnit.SECONDS);
+
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale get-owner cleanup must not remove a newer request future");
+        } finally {
+            releaseStaleCallback.countDown();
+            executor.shutdownNow();
+            getOwnerRequests.remove(serviceUnit);
+        }
+    }
+
+    @Test(priority = 1)
+    public void testSkippedEventDoesNotRemoveNewGetOwnerRequest() throws Exception {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000002_0x10000003";
+        var getOwnerRequests = channel.getOwnerRequests();
+        CompletableFuture<String> oldRequest = new CompletableFuture<>();
+        try {
+            overrideTableView(channel, serviceUnit, new ServiceUnitStateData(Owned, brokerId1, 1));
+            getOwnerRequests.put(serviceUnit, oldRequest);
+
+            CountDownLatch staleCallbackRunning = new CountDownLatch(1);
+            CountDownLatch releaseStaleCallback = new CountDownLatch(1);
+            oldRequest.whenComplete((__, ___) -> {
+                staleCallbackRunning.countDown();
+                try {
+                    assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new CompletionException(e);
+                }
+            });
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            try {
+                Future<?> handleSkippedEvent = executor.submit(() -> channel.handleSkippedEvent(serviceUnit));
+                assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
+                        "The stale skipped-event callback did not start");
+                assertTrue(getOwnerRequests.get(serviceUnit) == oldRequest,
+                        "The skipped-event cleanup must not run before the new request is installed");
+
+                // Replace the map entry before releasing the old callback.
+                CompletableFuture<String> newRequest = new CompletableFuture<>();
+                getOwnerRequests.put(serviceUnit, newRequest);
+                releaseStaleCallback.countDown();
+                handleSkippedEvent.get(5, TimeUnit.SECONDS);
+
+                assertEquals(oldRequest.getNow(null), brokerId1);
+                assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                        "A stale skipped-event cleanup must not remove a newer request future");
+            } finally {
+                releaseStaleCallback.countDown();
+                executor.shutdownNow();
+            }
+        } finally {
+            getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            overrideTableView(channel, serviceUnit, null);
+        }
+    }
+
+    @Test(priority = 1)
+    public void testCompletedCleanupJobDoesNotRemoveNewCleanupJob() throws Exception {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String broker = brokerId3;
+        var cleanupJobs = channel.getCleanupJobs();
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
+
+        CountDownLatch staleCallbackRunning = new CountDownLatch(1);
+        CountDownLatch releaseStaleCallback = new CountDownLatch(1);
+        oldJob.whenComplete((__, ___) -> {
+            staleCallbackRunning.countDown();
+            try {
+                assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+            }
+        });
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> completeOldJob = executor.submit(() -> oldJob.complete(null));
+            assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
+                    "The stale cleanup job completion callback did not start");
+            assertTrue(cleanupJobs.get(broker) == oldJob,
+                    "The stale cleanup callback must not run before the new cleanup job is installed");
+
+            // Replace the cleanup job before releasing the old callback.
+            CompletableFuture<Void> newJob = new CompletableFuture<>();
+            cleanupJobs.put(broker, newJob);
+            releaseStaleCallback.countDown();
+            completeOldJob.get(5, TimeUnit.SECONDS);
+
+            assertTrue(cleanupJobs.get(broker) == newJob,
+                    "A stale cleanup job completion must not remove a newer cleanup job future");
+        } finally {
+            releaseStaleCallback.countDown();
+            executor.shutdownNow();
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
         }
     }
 
@@ -820,6 +961,44 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             assertTrue(future.isCancelled());
         });
 
+    }
+
+    @Test(priority = 8)
+    public void handleBrokerCreationEventDoesNotCancelNewCleanupJobTest() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        var cleanupJobs = channel.getCleanupJobs();
+        String broker = brokerId2;
+        CompletableFuture<Void> oldJob = new CompletableFuture<>();
+        CompletableFuture<Void> newJob = new CompletableFuture<>();
+        CompletableFuture<Void> healthCheck = new CompletableFuture<>();
+        cleanupJobs.put(broker, oldJob);
+
+        reset(brokers);
+        doReturn(healthCheck).when(brokers).healthcheckAsync(any());
+        doReturn(brokers).when(pulsarAdmin).brokers();
+        try {
+            channel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
+            verify(brokers, times(1)).healthcheckAsync(any());
+
+            // Replace the cleanup job before completing the broker health-check callback.
+            cleanupJobs.put(broker, newJob);
+            healthCheck.complete(null);
+
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(cleanupJobs.get(broker) == newJob,
+                        "A stale broker-creation callback must not remove a newer cleanup job");
+                assertFalse(newJob.isCancelled());
+                assertFalse(oldJob.isCancelled());
+            });
+        } finally {
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
+            newJob.cancel(false);
+            reset(brokers);
+            doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
+                    .healthcheckAsync(any());
+            reset(pulsarAdmin);
+        }
     }
 
     @Test(priority = 9)
@@ -2075,9 +2254,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
+    private static ConcurrentHashMap<String, CompletableFuture<String>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
-        return (ConcurrentHashMap<String, CompletableFuture<Optional<String>>>)
+        return (ConcurrentHashMap<String, CompletableFuture<String>>)
                 FieldUtils.readDeclaredField(channel,
                         "getOwnerRequests", true);
     }
