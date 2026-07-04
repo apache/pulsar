@@ -1331,6 +1331,96 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testCleanUnloadedTopicFromCacheDoesNotRemoveNewTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/cleanUnloadedTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> oldTopicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(oldTopicFuture);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        CompletableFuture<Optional<Topic>> newTopicFuture =
+                CompletableFuture.completedFuture(Optional.of(topic));
+        // Simulate the same topic being reloaded before a stale bundle cleanup callback runs.
+        brokerService.getTopics().put(topicName, newTopicFuture);
+        try {
+            brokerService.cleanUnloadedTopicFromCache(bundle);
+
+            assertTrue(brokerService.getTopics().get(topicName) == newTopicFuture,
+                    "A stale bundle unload cleanup must not remove a newer topic future");
+        } finally {
+            brokerService.getTopics().put(topicName, oldTopicFuture);
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testRemoveTopicFromCacheDoesNotRemoveSupersededTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/removeSupersededTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> oldTopicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(oldTopicFuture);
+
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+
+        CompletableFuture<Optional<Topic>> newTopicFuture =
+                CompletableFuture.completedFuture(Optional.of(topic));
+        // Simulate the same topic being reloaded before the old topic close callback removes it.
+        brokerService.getTopics().put(topicName, newTopicFuture);
+        try {
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+
+            assertTrue(brokerService.getTopics().get(topicName) == newTopicFuture,
+                    "A stale topic close callback must not remove a newer topic future");
+            assertTrue(unloadEvents.isEmpty(),
+                    "A stale topic close callback must not dispatch unload events");
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+            brokerService.getTopics().put(topicName, oldTopicFuture);
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheRemovesInactiveBundleTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/cleanInactiveUnloadedTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).get(5, TimeUnit.SECONDS);
+        ((AbstractTopic) topic).isFenced = true;
+        try {
+            brokerService.cleanUnloadedTopicFromCache(bundle);
+
+            assertFalse(brokerService.getTopics().containsKey(topicName),
+                    "Inactive bundle cleanup should remove the matching topic future");
+        } finally {
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, true).get(5, TimeUnit.SECONDS);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
     public void testCheckInactiveSubscriptionWhenNoMessageToAck() throws Exception {
         String namespace = "prop/testInactiveSubscriptionWhenNoMessageToAck";
 
@@ -2066,4 +2156,3 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 }
-

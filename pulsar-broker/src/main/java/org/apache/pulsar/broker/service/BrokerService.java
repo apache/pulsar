@@ -2717,16 +2717,22 @@ public class BrokerService implements Closeable {
     }
 
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
-        for (String topic : topics.keySet()) {
+        topics.forEach((topic, topicFuture) -> {
             TopicName topicName = TopicName.get(topic);
-            if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
+            Optional<Topic> topicRef = extractTopic(topicFuture);
+            // The bundle cleanup should only remove topics already fenced by close/unload.
+            if (serviceUnit.includes(topicName) && topicRef.isPresent() && isTopicBeingUnloaded(topicRef.get())) {
                 log.info()
                         .attr("value", serviceUnit.toString())
                         .attr("topic", topic)
                         .log("Clean unloaded topic from cache.");
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit, null);
+                removeTopicFromCache(topicName.toString(), serviceUnit, topicFuture);
             }
-        }
+        });
+    }
+
+    private boolean isTopicBeingUnloaded(Topic topic) {
+        return topic instanceof AbstractTopic abstractTopic && abstractTopic.isFenced();
     }
 
     public AuthorizationService getAuthorizationService() {
@@ -2735,7 +2741,7 @@ public class BrokerService implements Closeable {
 
     /**
      * Removes the topic from the cache only if the topicName and associated createFuture match exactly.
-     * The TopicEvent.UNLOAD event will be triggered before and after removal.
+     * The TopicEvent.UNLOAD event will be triggered only when the matching cache entry is removed.
      *
      * @param topic The topic to be removed.
      * @return A CompletableFuture that completes when the operation is done.
@@ -2750,6 +2756,16 @@ public class BrokerService implements Closeable {
 
     private void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle,
                                      CompletableFuture<Optional<Topic>> createTopicFuture) {
+        boolean removed = createTopicFuture == null
+                ? topics.remove(topic) != null
+                : topics.remove(topic, createTopicFuture);
+        if (!removed) {
+            // A stale close/unload callback must not emit unload side effects for a superseded topic future.
+            log.debug()
+                    .attr("topic", topic)
+                    .log("Skip removing topic from cache since it was already removed or superseded.");
+            return;
+        }
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
@@ -2776,12 +2792,6 @@ public class BrokerService implements Closeable {
                     });
                 }
             }
-        }
-
-        if (createTopicFuture == null) {
-            topics.remove(topic);
-        } else {
-            topics.remove(topic, createTopicFuture);
         }
 
         Compactor compactor = pulsar.getNullableCompactor();
