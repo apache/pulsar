@@ -21,16 +21,20 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.oxia.testcontainers.OxiaContainer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -113,5 +117,46 @@ public class OxiaPartitionKeyTest {
         List<String> children = store.getChildren(parent, opts).get();
         assertTrue(children.containsAll(List.of("a", "b")),
                 "expected children a and b, got: " + children);
+    }
+
+    @Test
+    public void scanByIndexUsesPartitionKeyResolverForPrimaryReads() throws Exception {
+        @Cleanup
+        MetadataStore store = newStore();
+
+        String parent = "/partition-key-index-scan-" + System.nanoTime();
+        String indexName = "idx:partition-key-resolver-" + System.nanoTime();
+        String indexKey = "match";
+        RoutedKey routedKey = createIndexedKeyOnlyVisibleWithPartitionKey(store, parent, indexName, indexKey);
+
+        List<GetResult> results = new ArrayList<>();
+        Set<Option> opts = Set.of(new Option.PartitionKeyResolver(
+                path -> path.substring(path.lastIndexOf('/') + 1, path.lastIndexOf("-record"))));
+        store.scanByIndex(parent, indexName, indexKey, indexKey, __ -> true,
+                ScanConsumer.collectInto(results), opts).get();
+
+        assertEquals(results.stream().map(result -> result.getStat().getPath()).toList(),
+                List.of(routedKey.path()),
+                "scanByIndex should use the resolver to route follow-up primary-key reads");
+    }
+
+    private RoutedKey createIndexedKeyOnlyVisibleWithPartitionKey(
+            MetadataStore store, String parent, String indexName, String indexKey) throws Exception {
+        for (int i = 0; i < 100; i++) {
+            String partitionKey = "index-route-" + i + "-" + System.nanoTime();
+            String path = parent + "/" + partitionKey + "-record";
+            Set<Option> options = Set.of(new Option.PartitionKey(partitionKey),
+                    new Option.SecondaryIndex(indexName, indexKey));
+            store.put(path, "value".getBytes(StandardCharsets.UTF_8), Optional.empty(), options).get();
+            if (store.get(path).get().isEmpty()) {
+                return new RoutedKey(path, options);
+            }
+            store.deleteIfExists(path, Optional.empty(), options).get();
+        }
+        fail("Could not find an indexed key whose PartitionKey routes to a different shard from its path");
+        return null;
+    }
+
+    private record RoutedKey(String path, Set<Option> options) {
     }
 }

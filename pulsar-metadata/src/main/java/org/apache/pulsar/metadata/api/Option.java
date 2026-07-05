@@ -19,6 +19,8 @@
 package org.apache.pulsar.metadata.api;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * An option attached to a {@link MetadataStore} operation.
@@ -66,6 +68,22 @@ public sealed interface Option {
      * @param key the partition key (treated opaquely; equality-routed)
      */
     record PartitionKey(String key) implements Option {}
+
+    /**
+     * Resolve the routing hint from a primary key discovered during a scan. This is useful for
+     * native secondary-index scans on sharded backends: the index lookup returns primary keys, and
+     * each primary record may need a different {@link PartitionKey} for the follow-up read.
+     *
+     * <p>Backends only consult this option when they have a primary key before fetching a record;
+     * regular point operations should use {@link PartitionKey}.
+     *
+     * @param resolver function mapping primary path to partition key; may return {@code null} if unknown
+     */
+    record PartitionKeyResolver(Function<String, String> resolver) implements Option {
+        public PartitionKeyResolver {
+            Objects.requireNonNull(resolver);
+        }
+    }
 
     /**
      * Request server-assigned multi-dimensional sequence keys on {@code put}. The {@code path}
