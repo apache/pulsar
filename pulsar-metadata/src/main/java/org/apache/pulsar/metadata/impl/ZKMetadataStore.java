@@ -524,6 +524,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             return new NotFoundException(ex);
         case NODEEXISTS:
             return new AlreadyExistsException(ex);
+        case NOTEMPTY:
+            return new MetadataStoreException.NotEmptyException(path);
         default:
             return new MetadataStoreException(ex);
         }
