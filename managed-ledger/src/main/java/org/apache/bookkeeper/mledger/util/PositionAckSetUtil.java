@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.util;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.AckSetState;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.pulsar.common.util.AckSetUtil;
+import org.apache.pulsar.common.util.LongArrayAckSets;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 public class PositionAckSetUtil {
@@ -55,11 +55,11 @@ public class PositionAckSetUtil {
 
     //This method is do `and` operation for ack set
     public static long[] andAckSet(long[] firstAckSet, long[] secondAckSet) {
-        return AckSetUtil.intersect(firstAckSet, secondAckSet);
+        return LongArrayAckSets.intersect(firstAckSet, secondAckSet);
     }
 
     public static boolean isAckSetEmpty(long[] ackSet) {
-        return AckSetUtil.cardinality(ackSet) == 0;
+        return LongArrayAckSets.cardinality(ackSet) == 0;
     }
 
     //This method is compare two position which position is bigger than another one.

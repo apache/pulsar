@@ -70,9 +70,9 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
-import org.apache.pulsar.common.util.AckSetUtil;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.LongArrayAckSets;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -388,7 +388,7 @@ public class Consumer {
                     long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     int remainingUnacked;
                     if (ackSet != null) {
-                        remainingUnacked = AckSetUtil.cardinality(ackSet);
+                        remainingUnacked = LongArrayAckSets.cardinality(ackSet);
                         unackedMessages -= (batchSize - remainingUnacked);
                     } else {
                         remainingUnacked = batchSize;
@@ -803,15 +803,15 @@ public class Consumer {
         }
         long[] cursorAckSet = getCursorAckSet(position);
         if (cursorAckSet == null) {
-            return batchSize - AckSetUtil.cardinality(ackSets);
+            return batchSize - LongArrayAckSets.cardinality(ackSets);
         }
-        int lastCardinality = AckSetUtil.cardinality(cursorAckSet);
-        int currentCardinality = AckSetUtil.cardinalityOfIntersection(cursorAckSet, ackSets);
+        int lastCardinality = LongArrayAckSets.cardinality(cursorAckSet);
+        int currentCardinality = LongArrayAckSets.cardinalityOfIntersection(cursorAckSet, ackSets);
         return lastCardinality - currentCardinality;
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
-        return batchSize - AckSetUtil.cardinality(ackSets);
+        return batchSize - LongArrayAckSets.cardinality(ackSets);
     }
 
     private void checkAckValidationError(CommandAck ack, Position position) {
