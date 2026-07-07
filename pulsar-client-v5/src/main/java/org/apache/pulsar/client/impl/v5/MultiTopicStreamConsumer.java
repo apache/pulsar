@@ -83,11 +83,12 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     private final V5ReceiveQueue<T> mux;
 
     /**
-     * Tracks the latest delivered message id per (parent topic, segment id) across
-     * every per-topic consumer. Snapshotted at enqueue time for each delivered
-     * message so cumulative ack covers everything visible up to that message.
+     * Latest-delivered position per parent topic, each an <em>immutable</em> per-segment slice
+     * (the message's own position vector). Snapshotted — shallowly, sharing those immutable
+     * slices — at enqueue time for each delivered message so cumulative ack covers everything
+     * visible up to that message.
      */
-    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId>>
+    private final ConcurrentHashMap<String, Map<Long, org.apache.pulsar.client.api.MessageId>>
             latestDeliveredPerTopicSegment = new ConcurrentHashMap<>();
 
     private volatile boolean closed = false;
@@ -264,10 +265,10 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
             return CompletableFuture.completedFuture(null);
         }
         // Flush: ack everything we delivered for this topic.
-        ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> latest =
+        Map<Long, org.apache.pulsar.client.api.MessageId> latest =
                 latestDeliveredPerTopicSegment.remove(topicName);
         if (latest != null && !latest.isEmpty()) {
-            state.consumer.ackUpToVector(new HashMap<>(latest));
+            state.consumer.ackUpToVector(latest);
         }
         return state.consumer.closeAsync()
                 .thenRun(() -> log.info().attr("topic", topicName)
@@ -417,9 +418,12 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      * message id; we adopt that as the per-topic slice of our cross-topic
      * vector, snapshot the full map, and forward into the shared mux.
      *
-     * <p>Runs on the netty IO thread that delivered the per-segment message —
-     * the only contention is the synchronized snapshot block which guards
-     * against torn cross-topic views during concurrent deliveries.
+     * <p>Runs on the netty IO thread that delivered the per-segment message. No lock: the
+     * message's own {@code positionVector} is already an immutable, complete snapshot of this
+     * topic's live segments, so we adopt it as the topic's slice and take a <em>shallow</em>
+     * copy of the cross-topic map. Because every slice is immutable, a concurrent delivery to
+     * another topic only ever swaps in a whole new slice — the snapshot can never observe a
+     * torn per-topic view — which also removes the per-message O(topics×segments) deep copy.
      */
     private CompletableFuture<Void> onPerTopicMessage(String parentTopic, MessageV5<T> msg) {
         if (closed) {
@@ -427,23 +431,15 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         MessageIdV5 origId = (MessageIdV5) msg.id();
 
-        // Adopt the message's own positionVector as our per-topic latest-delivered
-        // slice. ScalableStreamConsumer maintained the increasing invariant on
-        // each segment id; merging via putAll keeps the property cross-topic.
-        ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> ours =
-                latestDeliveredPerTopicSegment.computeIfAbsent(parentTopic,
-                        k -> new ConcurrentHashMap<>());
-        ours.putAll(origId.positionVector());
+        // Adopt the message's own (immutable) position vector as this topic's latest-delivered
+        // slice. It already covers every live segment of the topic up to this message; segments
+        // that sealed or rebalanced away are gone from segmentConsumers, so acking them is a
+        // no-op — dropping them here is observationally identical to the old accumulate-forever.
+        latestDeliveredPerTopicSegment.put(parentTopic, origId.positionVector());
 
-        // Snapshot the cross-topic vector under lock so concurrent deliveries
-        // can't observe a torn view.
-        Map<String, Map<Long, org.apache.pulsar.client.api.MessageId>> snapshot;
-        synchronized (latestDeliveredPerTopicSegment) {
-            snapshot = new HashMap<>(latestDeliveredPerTopicSegment.size());
-            for (var e : latestDeliveredPerTopicSegment.entrySet()) {
-                snapshot.put(e.getKey(), new HashMap<>(e.getValue()));
-            }
-        }
+        // Shallow snapshot: O(topics), values are the shared immutable slices above.
+        Map<String, Map<Long, org.apache.pulsar.client.api.MessageId>> snapshot =
+                new HashMap<>(latestDeliveredPerTopicSegment);
 
         MessageIdV5 newId = new MessageIdV5(
                 origId.v4MessageId(), origId.segmentId(),
