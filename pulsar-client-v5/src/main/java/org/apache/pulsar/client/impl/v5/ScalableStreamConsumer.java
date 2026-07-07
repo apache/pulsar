@@ -28,8 +28,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 
 /**
@@ -77,6 +78,9 @@ final class ScalableStreamConsumer<T>
      */
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
             segmentConsumers = new ConcurrentHashMap<>();
+    // PIP-486: the entry-bucket ranges each segment consumer was last subscribed with, so a change in
+    // ownership (a consumer joined/left) re-subscribes the segment with the new ranges.
+    private final ConcurrentHashMap<Long, List<HashRange>> segmentBucketRanges = new ConcurrentHashMap<>();
 
     /**
      * Tracks the latest message ID delivered from each segment. Updated atomically
@@ -86,10 +90,10 @@ final class ScalableStreamConsumer<T>
     private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> latestDelivered =
             new ConcurrentHashMap<>();
 
-    private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> receiveQueue;
     /**
      * Where each per-segment receive loop deposits a freshly-arrived message. Defaults
-     * to enqueueing on {@link #messageQueue} for the user's {@link #receive()} to pull;
+     * to enqueueing on {@link #receiveQueue} for the user's {@link #receive()} to pull;
      * the multi-topic wrapper overrides this to forward into its shared multiplexed
      * queue, applying its own multi-topic position-vector capture in the process.
      */
@@ -111,7 +115,9 @@ final class ScalableStreamConsumer<T>
         this.session = session;
         this.topicName = topicName;
         this.subscriptionName = consumerConf.getSubscriptionName();
-        this.messageSink = messageSink != null ? messageSink : messageQueue::add;
+        this.receiveQueue = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+        this.messageSink = messageSink != null ? messageSink : receiveQueue::offer;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncStreamConsumerV5<>(this);
     }
@@ -193,48 +199,17 @@ final class ScalableStreamConsumer<T>
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return messageQueue.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.take();
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return messageQueue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.poll(timeout);
     }
 
     @Override
     public Messages<T> receiveMulti(int maxNumMessages, Duration timeout) throws PulsarClientException {
-        List<Message<T>> batch = new ArrayList<>();
-        long deadlineNanos = System.nanoTime() + timeout.toNanos();
-
-        while (batch.size() < maxNumMessages) {
-            long remainingNanos = deadlineNanos - System.nanoTime();
-            if (remainingNanos <= 0) {
-                break;
-            }
-            try {
-                MessageV5<T> msg = messageQueue.poll(remainingNanos, TimeUnit.NANOSECONDS);
-                if (msg == null) {
-                    break;
-                }
-                batch.add(msg);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new PulsarClientException("Receive interrupted", e);
-            }
-            // Drain any immediately available messages
-            messageQueue.drainTo(batch, maxNumMessages - batch.size());
-        }
-        return new MessagesV5<>(batch);
+        return new MessagesV5<>(receiveQueue.receiveMulti(maxNumMessages, timeout));
     }
 
     @Override
@@ -286,27 +261,20 @@ final class ScalableStreamConsumer<T>
     // --- Async internals ---
 
     CompletableFuture<Message<T>> receiveAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive();
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
-        });
+        return receiveQueue.receiveAsync();
     }
 
     CompletableFuture<Message<T>> receiveAsync(Duration timeout) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive(timeout);
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
-        });
+        return receiveQueue.receiveAsync(timeout);
+    }
+
+    CompletableFuture<List<Message<T>>> receiveMultiAsync(int maxNumMessages, Duration timeout) {
+        return receiveQueue.receiveMultiAsync(maxNumMessages, timeout);
     }
 
     CompletableFuture<Void> closeAsync() {
         closed = true;
+        receiveQueue.close();
         session.close();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -351,6 +319,7 @@ final class ScalableStreamConsumer<T>
                         .log("Closing consumer for segment removed from assignment");
                 entry.getValue().thenAccept(c -> c.closeAsync());
                 segmentConsumers.remove(entry.getKey());
+                segmentBucketRanges.remove(entry.getKey());
                 latestDelivered.remove(entry.getKey());
             }
         }
@@ -358,6 +327,17 @@ final class ScalableStreamConsumer<T>
         // Subscribe to newly-assigned segments.
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var seg : assigned) {
+            // PIP-486: if the controller changed which entry-buckets we own on a segment we are
+            // already subscribed to (a consumer joined or left), re-subscribe with the new ranges so
+            // the broker's exclusive bucket selector sees a consistent, non-overlapping assignment.
+            var existing = segmentConsumers.get(seg.segmentId());
+            if (existing != null
+                    && !seg.ownedBucketRanges().equals(segmentBucketRanges.get(seg.segmentId()))) {
+                log.info().attr("segmentId", seg.segmentId())
+                        .log("Re-subscribing segment for changed entry-bucket ownership");
+                existing.thenAccept(c -> c.closeAsync());
+                segmentConsumers.remove(seg.segmentId());
+            }
             futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(),
                     id -> createSegmentConsumerAsync(seg)));
         }
@@ -377,7 +357,23 @@ final class ScalableStreamConsumer<T>
         // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
-        segConf.setSubscriptionType(SubscriptionType.Exclusive);
+        List<HashRange> ownedBucketRanges = segment.ownedBucketRanges();
+        if (ownedBucketRanges.isEmpty()) {
+            // Single-bucket segment: this consumer owns the whole segment exclusively (pre-PIP-486).
+            segConf.setSubscriptionType(SubscriptionType.Exclusive);
+        } else {
+            // PIP-486: this consumer owns a subset of the segment's entry-buckets. Subscribe Key_Shared
+            // STICKY declaring exactly those bucket hash-ranges, so the broker dispatches each entry to
+            // the consumer owning its bucket; other owners of the same segment share the subscription
+            // with disjoint ranges.
+            List<Range> ranges = new ArrayList<>(ownedBucketRanges.size());
+            for (HashRange r : ownedBucketRanges) {
+                ranges.add(Range.of(r.start(), r.end()));
+            }
+            segConf.setSubscriptionType(SubscriptionType.Key_Shared);
+            segConf.setKeySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges));
+        }
+        segmentBucketRanges.put(segment.segmentId(), ownedBucketRanges);
         // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
         // migration pre-check inspects, so mark just those connections as V5-managed —
         // connections to real segment:// topics are never examined.

@@ -34,7 +34,8 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
 @CustomLog
 @Data
@@ -55,7 +56,7 @@ abstract class Bucket {
     long startLedgerId;
     long endLedgerId;
 
-    Map<Long, RoaringBitmap> delayedIndexBitMap;
+    Map<Long, LongBitmap> delayedIndexBitMap;
 
     long numberBucketDelayedMessages;
 
@@ -76,7 +77,7 @@ abstract class Bucket {
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
-        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
+        LongBitmap bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet == null) {
             return false;
         }
@@ -84,12 +85,12 @@ abstract class Bucket {
     }
 
     void putIndexBit(long ledgerId, long entryId) {
-        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
+        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId, entryId + 1);
     }
 
     boolean removeIndexBit(long ledgerId, long entryId) {
         boolean contained = false;
-        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
+        LongBitmap bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet != null && bitSet.contains(entryId, entryId + 1)) {
             contained = true;
             bitSet.remove(entryId, entryId + 1);

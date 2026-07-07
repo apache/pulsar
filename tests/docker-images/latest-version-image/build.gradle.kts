@@ -21,7 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
-val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.24-alpine")
+val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.25-alpine")
 
 // Ensure the parent project is configured before resolving cross-project task references.
 // Required for --configure-on-demand: the Kotlin DSL needs parent ClassLoaderScopes to be locked.
@@ -45,11 +45,22 @@ val buildtoolsJar by configurations.creating {
     isCanBeConsumed = false
     isTransitive = false
 }
+// The filesystem offloader NAR is excluded from the base image; layer it back in here as an overlay
+// so the filesystem offload integration tests can run against this image.
+val offloaderNar by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
+    }
+}
 
 dependencies {
     testFunctionsJar(project(":tests:java-test-functions"))
     testPluginsJar(project(":tests:java-test-plugins"))
     buildtoolsJar(project(":buildtools"))
+    offloaderNar(project(":tiered-storage:tiered-storage-file-system"))
 }
 
 // Prepare the build context in target/ (to match Dockerfile COPY paths)
@@ -78,6 +89,11 @@ val prepareBuildContext by tasks.registering(Sync::class) {
     // Copy buildtools.jar
     from(buildtoolsJar) {
         rename { "buildtools.jar" }
+    }
+
+    // Copy the filesystem offloader NAR (excluded from the base image)
+    from(offloaderNar) {
+        into("offloaders")
     }
 
     into("${projectDir}/target")

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.util.Timeout;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.v5.Message;
@@ -80,7 +80,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
 
     private final ScalableTopicsWatcher watcher;
     private final ConcurrentHashMap<String, PerTopic<T>> perTopic = new ConcurrentHashMap<>();
-    private final LinkedTransferQueue<MessageV5<T>> mux = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> mux;
 
     /**
      * Tracks the latest delivered message id per (parent topic, segment id) across
@@ -106,6 +106,8 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         this.propertyFilters = propertyFilters;
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.watcher = watcher;
+        this.mux = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
         this.log = LOG.with()
                 .attr("namespace", namespace)
                 .attr("subscription", subscriptionName)
@@ -176,7 +178,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                         sc.closeAsync();
                         return;
                     }
-                    PerTopic<T> state = new PerTopic<>(topicName, sc);
+                    PerTopic<T> state = new PerTopic<>(sc);
                     PerTopic<T> existing = perTopic.putIfAbsent(topicName, state);
                     if (existing != null) {
                         sc.closeAsync();
@@ -200,11 +202,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         long delayMs = nextBackoff(topicName);
         log.info().attr("topic", topicName).attr("delayMs", delayMs)
                 .log("Retrying per-topic stream subscribe");
-        client.v4Client().timer().newTimeout(timeout -> openTopic(topicName, /* retry= */ true),
-                delayMs, TimeUnit.MILLISECONDS);
+        Timeout timeout = client.v4Client().timer().newTimeout(t -> {
+            retryTimeouts.remove(topicName);
+            openTopic(topicName, /* retry= */ true);
+        }, delayMs, TimeUnit.MILLISECONDS);
+        retryTimeouts.put(topicName, timeout);
     }
 
     private final ConcurrentHashMap<String, AtomicLong> retryDelays = new ConcurrentHashMap<>();
+    /** Pending backoff-retry timers, so {@link #closeTopic} can cancel a retry for a topic that
+     * dropped out of the match set before the timer fires (otherwise it would resurrect the topic). */
+    private final ConcurrentHashMap<String, Timeout> retryTimeouts = new ConcurrentHashMap<>();
 
     private long nextBackoff(String topicName) {
         AtomicLong al = retryDelays.computeIfAbsent(topicName, t -> new AtomicLong(100));
@@ -245,6 +253,12 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
+        // Cancel any pending backoff retry so a topic that just left the match set can't be
+        // re-subscribed when a stale timer fires.
+        Timeout retry = retryTimeouts.remove(topicName);
+        if (retry != null) {
+            retry.cancel();
+        }
         PerTopic<T> state = perTopic.remove(topicName);
         if (state == null) {
             return CompletableFuture.completedFuture(null);
@@ -279,50 +293,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return mux.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return mux.take();
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return mux.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return mux.poll(timeout);
     }
 
     @Override
     public Messages<T> receiveMulti(int maxNumMessages, Duration timeout) throws PulsarClientException {
-        // Block for up to `timeout` waiting for the first message, then drain whatever
-        // else is immediately available up to maxNumMessages. Same shape as the single
-        // topic StreamConsumer.
-        long deadline = System.nanoTime() + timeout.toNanos();
-        List<Message<T>> batch = new ArrayList<>();
-        try {
-            long remaining = deadline - System.nanoTime();
-            while (batch.size() < maxNumMessages && remaining > 0) {
-                MessageV5<T> msg = mux.poll(remaining, TimeUnit.NANOSECONDS);
-                if (msg == null) {
-                    break;
-                }
-                batch.add(msg);
-                remaining = deadline - System.nanoTime();
-            }
-            // Opportunistic drain of anything else already queued.
-            List<MessageV5<T>> tail = new ArrayList<>();
-            mux.drainTo(tail, maxNumMessages - batch.size());
-            batch.addAll(tail);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
-        return new MessagesV5<>(batch);
+        return new MessagesV5<>(mux.receiveMulti(maxNumMessages, timeout));
     }
 
     @Override
@@ -385,6 +366,11 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         closed = true;
         watcher.close();
+        mux.close();
+        // Cancel pending retries for topics that never finished subscribing (they're not in
+        // perTopic, so the closeTopic loop below wouldn't reach them).
+        retryTimeouts.values().forEach(Timeout::cancel);
+        retryTimeouts.clear();
         List<CompletableFuture<Void>> closes = new ArrayList<>();
         for (var topic : new HashSet<>(perTopic.keySet())) {
             closes.add(closeTopic(topic));
@@ -462,7 +448,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         MessageIdV5 newId = new MessageIdV5(
                 origId.v4MessageId(), origId.segmentId(),
                 origId.positionVector(), parentTopic, snapshot);
-        mux.add(new MessageV5<>(msg.v4Message(), newId, parentTopic));
+        mux.offer(new MessageV5<>(msg.v4Message(), newId, parentTopic));
     }
 
     // --- Per-topic state ---
@@ -474,11 +460,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      * shutdown.
      */
     private static final class PerTopic<T> {
-        private final String parentTopic;
         private final ScalableStreamConsumer<T> consumer;
 
-        PerTopic(String parentTopic, ScalableStreamConsumer<T> consumer) {
-            this.parentTopic = parentTopic;
+        PerTopic(ScalableStreamConsumer<T> consumer) {
             this.consumer = consumer;
         }
     }
@@ -488,40 +472,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     private final class AsyncStreamConsumerV5Multi implements AsyncStreamConsumer<T> {
         @Override
         public CompletableFuture<Message<T>> receive() {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    return MultiTopicStreamConsumer.this.receive();
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveAsync();
         }
 
         @Override
         public CompletableFuture<Message<T>> receive(Duration timeout) {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    return MultiTopicStreamConsumer.this.receive(timeout);
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveAsync(timeout);
         }
 
         @Override
         public CompletableFuture<List<Message<T>>> receiveMulti(int maxNumMessages, Duration timeout) {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    Messages<T> ms = MultiTopicStreamConsumer.this.receiveMulti(maxNumMessages, timeout);
-                    List<Message<T>> out = new ArrayList<>();
-                    for (Message<T> m : ms) {
-                        out.add(m);
-                    }
-                    return out;
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveMultiAsync(maxNumMessages, timeout);
         }
 
         @Override

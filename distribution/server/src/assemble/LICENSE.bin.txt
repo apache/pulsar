@@ -245,21 +245,21 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
  * Picocli
-     - info.picocli-picocli-4.7.5.jar
-     - info.picocli-picocli-shell-jline3-4.7.5.jar
+     - info.picocli-picocli-4.7.7.jar
+     - info.picocli-picocli-shell-jline3-4.7.7.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.21.jar
-     - com.fasterxml.jackson.core-jackson-core-2.21.3.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.21.3.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.21.3.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.21.3.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.21.3.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.21.3.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.21.3.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.21.3.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.22.jar
+     - com.fasterxml.jackson.core-jackson-core-2.22.0.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.22.0.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.22.0.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.22.0.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.22.0.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.22.0.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.22.0.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.22.0.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.4.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
@@ -554,8 +554,7 @@ BSD 3-clause "New" or "Revised" License
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
- * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
- * JLine3 -- org.jline-jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- org.jline-jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
  * OW2 ASM
    - org.ow2.asm-asm-9.10.jar -- ../licenses/LICENSE-ASM.txt
    - org.ow2.asm-asm-commons-9.10.jar -- ../licenses/LICENSE-ASM.txt
