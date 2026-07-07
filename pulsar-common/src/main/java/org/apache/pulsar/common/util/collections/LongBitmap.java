@@ -120,6 +120,9 @@ public interface LongBitmap {
     /** Returns {@code true} if no values are stored. */
     boolean isEmpty();
 
+    /** Removes all values from the bitmap. */
+    void clear();
+
     /**
      * Returns the smallest absent value greater than or equal to {@code from}.
      *
@@ -127,6 +130,57 @@ public interface LongBitmap {
      * @return next absent value, or {@code -1} if none exists
      */
     long nextAbsentValue(long from);
+
+    /**
+     * Returns the smallest present value greater than or equal to {@code from}.
+     *
+     * @param from inclusive lower bound
+     * @return next present value, or {@code -1} if none exists
+     */
+    long nextPresentValue(long from);
+
+    /**
+     * Returns the largest absent value less than or equal to {@code from}.
+     *
+     * <p><b>Boundary behavior:</b> If {@code from > MAX_UINT32 (0xFFFFFFFF)}, it is clamped
+     * to {@code MAX_UINT32}. This allows safe usage in expressions like
+     * {@code previousAbsentValue(lastValue)} where {@code lastValue} may be at the boundary,
+     * avoiding the need for {@code Math.min(result, boundary)} checks at call sites.
+     *
+     * <p>Normal usage (entryId within int range) never triggers this clamping; it only
+     * applies when computing ranges that may include the uint32 upper boundary.
+     *
+     * @param from inclusive upper bound
+     * @return previous absent value, or {@code -1} if none exists
+     */
+    long previousAbsentValue(long from);
+
+    /**
+     * Returns the last (highest) present value, or {@code -1} if empty.
+     *
+     * @return last present value, or {@code -1} if bitmap is empty
+     */
+    long lastPresentValue();
+
+    /**
+     * Returns the number of present values strictly less than {@code value}.
+     * This is the rank of the value in the sorted sequence of present values.
+     *
+     * <p>Useful for computing range cardinality:
+     * {@code cardinality(from, to) = rank(to) - rank(from)}.
+     *
+     * <p><b>Boundary behavior:</b> If {@code value > UINT32_SIZE (0x100000000)}, it is clamped
+     * to {@code UINT32_SIZE}, effectively returning the total cardinality (all values are less
+     * than a value beyond the supported range). This allows safe usage in expressions like
+     * {@code rank(upperValue + 1)} where {@code upperValue} may be {@code MAX_UINT32 (0xFFFFFFFF)}.
+     *
+     * <p>Normal usage never triggers this clamping; it only applies when computing ranges
+     * that include the uint32 upper boundary.
+     *
+     * @param value upper bound (exclusive)
+     * @return count of present values less than {@code value}
+     */
+    long rank(long value);
 
     /**
      * Adds all values from {@code other} into this bitmap.
@@ -167,4 +221,19 @@ public interface LongBitmap {
      * Serializes the bitmap into a newly allocated byte array.
      */
     byte[] serialize();
+
+    /**
+     * Serializes the bitmap to long[] format compatible with {@link java.util.BitSet#toLongArray()}.
+     * This format can be restored using {@link #deserializeFromLongArray(long[])}.
+     *
+     * @return long array representing the bitmap
+     */
+    long[] serializeToLongArray();
+
+    /**
+     * Deserializes a bitmap from long[] format compatible with {@link java.util.BitSet#valueOf(long[])}.
+     *
+     * @param data long array in BitSet format
+     */
+    void deserializeFromLongArray(long[] data);
 }

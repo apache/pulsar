@@ -1689,4 +1689,76 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
 
+    @Test
+    public void testAckedBatchMessageNotSentToDeadLetterTopicOnFinalRedeliveryRound() throws Exception {
+        final String topic = newTopicName();
+        final int maxRedeliveryCount = 3;
+        final int batchSize = 5;
+        final String subscriptionName = "my-subscription";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableBatchIndexAcknowledgment(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .receiverQueueSize(100)
+                .subscribe();
+
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient();
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-" + subscriptionName + "-DLQ")
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sendFutures.add(producer.newMessage().value(("message-" + i).getBytes()).sendAsync());
+        }
+        for (CompletableFuture<MessageId> future : sendFutures) {
+            future.get();
+        }
+        producer.close();
+
+        // Batch indices 1 and 2 are deliberately left to time out for the first `maxRedeliveryCount`
+        // rounds, then explicitly acked on the final round (redeliveryCount == maxRedeliveryCount) --
+        // the app's last chance to prevent them from being routed to the DLQ. The other 3 messages in
+        // the batch are acked immediately on the first delivery.
+        // Expected deliveries: (batchSize - 2) once each, plus indices 1 and 2 redelivered on every
+        // round from 0 through maxRedeliveryCount inclusive.
+        final int expectedDeliveries = (batchSize - 2) + 2 * (maxRedeliveryCount + 1);
+        int received = 0;
+        while (received < expectedDeliveries) {
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message, "consumer should keep receiving messages until the batch settles");
+            received++;
+            MessageIdAdv messageId = (MessageIdAdv) message.getMessageId();
+            int batchIndex = messageId.getBatchIndex();
+            int redeliveryCount = message.getRedeliveryCount();
+            if ((batchIndex == 1 || batchIndex == 2) && redeliveryCount < maxRedeliveryCount) {
+                // Let it time out instead of acking.
+                continue;
+            }
+            consumer.acknowledge(message);
+        }
+
+        // No message should ever be routed to the DLQ, since every message was explicitly acked at or
+        // before its final allowed redelivery round.
+        Message<byte[]> deadLetterMessage = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+        assertNull(deadLetterMessage, "no message should have been routed to the DLQ, "
+                + "but received: " + deadLetterMessage);
+
+        deadLetterConsumer.close();
+        consumer.close();
+    }
+
 }
