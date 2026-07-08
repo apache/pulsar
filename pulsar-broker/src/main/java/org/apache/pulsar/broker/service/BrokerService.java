@@ -3571,9 +3571,9 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        pendingTopic.polledFromQueue();
+        pendingTopic.trace("queued");
         final String topic = pendingTopic.getTopicName().toString();
-        checkTopicNsOwnership(topic).thenRun(() -> {
+        pendingTopic.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();

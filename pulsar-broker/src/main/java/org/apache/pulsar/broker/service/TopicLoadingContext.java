@@ -27,7 +27,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.utils.LatencyTracer;
 import org.jspecify.annotations.Nullable;
 
-public class TopicLoadingContext extends LatencyTracer{
+public class TopicLoadingContext extends LatencyTracer {
 
     private final LatencyTracer latencyTracer = new LatencyTracer(5);
     @Getter
@@ -46,25 +46,5 @@ public class TopicLoadingContext extends LatencyTracer{
         this.topicName = topicName;
         this.createIfMissing = createIfMissing;
         this.topicFuture = topicFuture;
-    }
-
-    public void polledFromQueue() {
-        latencyTracer.trace("queued");
-    }
-
-    public void trace(String message) {
-        latencyTracer.trace(message);
-    }
-
-    public <T> CompletableFuture<T> trace(String message, CompletableFuture<T> future) {
-        return latencyTracer.trace(message, future);
-    }
-
-    public long latencyInMillis() {
-        return latencyTracer.latencyInMillis();
-    }
-
-    public String latencyString() {
-        return latencyTracer.latencyString();
     }
 }

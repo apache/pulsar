@@ -61,7 +61,7 @@ public class LatencyTracerTest {
         tracer.trace("B", 2_000_000);
         tracer.trace("C", 2_100_000);
         System.out.println(tracer);
-        assertEquals(tracer.latencyString(), "total: 2 ms, B: 1 ms");
+        assertEquals(tracer.latencyString(), "total: 2 ms, A: 999 us, B: 1 ms, C: 100 us");
         assertEquals(tracer.latencyInMillis(), 2);
     }
 

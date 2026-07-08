@@ -68,10 +68,12 @@ public class LatencyTracer {
         sb.append("total: ").append(latencyInMillis()).append(" ms");
         long prevNs = startNs;
         for (final var tp : timepoints) {
+            sb.append(", ").append(tp.name).append(": ");
             long latencyMs = TimeUnit.NANOSECONDS.toMillis(tp.timeInNanos - prevNs);
             if (latencyMs > 0) {
-                sb.append(", ");
-                sb.append(tp.name).append(": ").append(latencyMs).append(" ms");
+                sb.append(latencyMs).append(" ms");
+            } else {
+                sb.append(TimeUnit.NANOSECONDS.toMicros(tp.timeInNanos - prevNs)).append(" us");
             }
             prevNs = tp.timeInNanos;
         }
