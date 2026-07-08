@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.utils.LatencyTracer;
+import org.apache.pulsar.common.util.LatencyTracer;
 import org.jspecify.annotations.Nullable;
 
 public class TopicLoadingContext extends LatencyTracer {

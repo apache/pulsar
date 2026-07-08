@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -24,6 +24,8 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.testng.annotations.Test;
 
 @Test(groups = "utils")
@@ -60,7 +62,6 @@ public class LatencyTracerTest {
         tracer.trace("A", 999_999);
         tracer.trace("B", 2_000_000);
         tracer.trace("C", 2_100_000);
-        System.out.println(tracer);
         assertEquals(tracer.latencyString(), "total: 2 ms, A: 999 us, B: 1 ms, C: 100 us");
         assertEquals(tracer.latencyInMillis(), 2);
     }
@@ -78,7 +79,9 @@ public class LatencyTracerTest {
         assertNotSame(tracedFuture, future2);
         assertEquals(tracedFuture.get(), 1);
         String s = tracer.latencyString();
-        System.out.println("DEBUG: latencyString = " + s);
-        assertTrue(s.matches("total: [5-9][0-9]{2} ms, A: [5-9][0-9]{2} ms"));
+        Matcher m = Pattern.compile("total: (\\d+) ms, A: (\\d+) ms").matcher(s);
+        assertTrue(m.matches());
+        assertTrue(Long.parseLong(m.group(1)) >= 500);
+        assertEquals(m.group(2), m.group(1));
     }
 }
