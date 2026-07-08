@@ -1313,31 +1313,31 @@ public class BrokerService implements Closeable {
                     context.setProperties(properties);
                 }
                 topicFuture.exceptionally(t -> {
-                    final var now = System.nanoTime();
                     if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latencyMs", context.latencyMs(now))
+                                .attr("latencyMs", context.latencyInMillis())
                                 .log("Failed to load topic");
                     } else {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latencyMs", context.latencyString(now))
+                                .attr("latencyMs", context.latencyInMillis())
                                 .exception(t)
                                 .log("Failed to load topic");
                     }
                     pulsarStats.recordTopicLoadFailed();
                     return Optional.empty();
                 });
-                checkNonPartitionedTopicExists(topicName).thenAccept(exists -> {
+                context.trace("topic exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
                     if (!exists && !createIfMissing) {
                         topicFuture.complete(Optional.empty());
                         return;
                     }
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
-                    getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                            .thenRun(() -> {
+                    final var systemTopicLoadFuture = context.trace("system topic",
+                            getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
+                    systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
                             inserted.setTrue();
@@ -1349,7 +1349,7 @@ public class BrokerService implements Closeable {
                             // actual loading latency that should not be recorded in metrics.
                             log.info()
                                     .attr("topic", topicName)
-                                    .attr("latencyMs", context.latencyString(System.nanoTime()))
+                                    .attr("latencyMs", context.latencyInMillis())
                                     .log("Finished loading from other concurrent loading task");
                             cachedFuture.whenComplete((optTopic, e) -> {
                                 if (e == null) {
@@ -1859,7 +1859,7 @@ public class BrokerService implements Closeable {
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicLoadingContext context) {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
-        checkTopicNsOwnership(topic)
+        context.trace("ownership", checkTopicNsOwnership(topic))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -1924,7 +1924,7 @@ public class BrokerService implements Closeable {
         TopicName topicName = context.getTopicName();
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
-        checkTopicNsOwnership(topic).thenRun(() -> {
+        context.trace("2nd ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
             CompletableFuture<Map<String, String>> propertiesFuture;
             if (context.getProperties() == null) {
                 //Read properties from storage when loading topic.
@@ -1932,7 +1932,7 @@ public class BrokerService implements Closeable {
             } else {
                 propertiesFuture = CompletableFuture.completedFuture(context.getProperties());
             }
-            propertiesFuture.thenAccept(finalProperties -> {
+            context.trace("properties", propertiesFuture).thenAccept(finalProperties -> {
                 context.setProperties(finalProperties);
                 //TODO add topicName in properties?
                 createPersistentTopic0(context);
@@ -1977,6 +1977,7 @@ public class BrokerService implements Closeable {
                             n.recycle();
                             return found;
                         }), (managedLedgerConfig, exists) -> {
+            context.trace("ml-config");
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -2038,27 +2039,26 @@ public class BrokerService implements Closeable {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
+                                context.trace("open-ml");
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic.setCreateFuture(topicFuture);
-                                persistentTopic
-                                        .initialize()
-                                        .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
-                                        .thenCompose(__ -> persistentTopic.checkReplication())
-                                        .thenCompose(v -> {
-                                            // Also check dedup status
-                                            return persistentTopic.checkDeduplicationStatus();
-                                        })
+                                context.trace("init", persistentTopic.initialize())
+                                        .thenCompose(__ -> context.trace("pre-create compacted sub",
+                                                persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
+                                        .thenCompose(__ -> context.trace("replication",
+                                                persistentTopic.checkReplication()))
+                                        .thenCompose(v -> context.trace("deduplication",
+                                                persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
-                                            long nowInNanos = System.nanoTime();
-                                            long topicLoadLatencyMs = context.latencyMs(nowInNanos);
+                                            context.trace("done");
                                             log.info()
                                                     .attr("topic", topic)
                                                     .attr("dedupEnabled", persistentTopic.isDeduplicationEnabled())
-                                                    .attr("latencyMs", context.latencyString(nowInNanos))
+                                                    .attr("latency", context.latencyString())
                                                     .log("Loaded topic");
-                                            pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                                            pulsarStats.recordTopicLoadTimeValue(topic, context.latencyInMillis());
                                             if (!topicFuture.complete(Optional.of(persistentTopic))) {
                                                 // Check create persistent topic timeout.
                                                 if (topicFuture.isCompletedExceptionally()) {

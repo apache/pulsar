@@ -21,19 +21,15 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.utils.LatencyTracer;
 import org.jspecify.annotations.Nullable;
 
-@RequiredArgsConstructor
-public class TopicLoadingContext {
+public class TopicLoadingContext extends LatencyTracer{
 
-    private static final String EXAMPLE_LATENCY_OUTPUTS = "1234 ms (queued: 567)";
-
-    private final long startNs = System.nanoTime();
+    private final LatencyTracer latencyTracer = new LatencyTracer(5);
     @Getter
     private final TopicName topicName;
     @Getter
@@ -43,23 +39,32 @@ public class TopicLoadingContext {
     @Getter
     @Setter
     @Nullable private Map<String, String> properties;
-    private long polledFromQueueNs = -1L;
+
+    public TopicLoadingContext(TopicName topicName, boolean createIfMissing,
+                               CompletableFuture<Optional<Topic>> topicFuture) {
+        super(5);
+        this.topicName = topicName;
+        this.createIfMissing = createIfMissing;
+        this.topicFuture = topicFuture;
+    }
 
     public void polledFromQueue() {
-        polledFromQueueNs = System.nanoTime();
+        latencyTracer.trace("queued");
     }
 
-    public long latencyMs(long nowInNanos) {
-        return TimeUnit.NANOSECONDS.toMillis(nowInNanos - startNs);
+    public void trace(String message) {
+        latencyTracer.trace(message);
     }
 
-    public String latencyString(long nowInNanos) {
-        final var builder = new StringBuilder(EXAMPLE_LATENCY_OUTPUTS.length());
-        builder.append(latencyMs(nowInNanos));
-        builder.append(" ms");
-        if (polledFromQueueNs >= 0) {
-            builder.append(" (queued: ").append(latencyMs(polledFromQueueNs)).append(")");
-        }
-        return builder.toString();
+    public <T> CompletableFuture<T> trace(String message, CompletableFuture<T> future) {
+        return latencyTracer.trace(message, future);
+    }
+
+    public long latencyInMillis() {
+        return latencyTracer.latencyInMillis();
+    }
+
+    public String latencyString() {
+        return latencyTracer.latencyString();
     }
 }
