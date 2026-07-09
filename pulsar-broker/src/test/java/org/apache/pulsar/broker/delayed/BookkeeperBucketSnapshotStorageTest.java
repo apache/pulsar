@@ -241,10 +241,6 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
 
     @Test
     public void testParseSnapshotMetadataEntryMaterializesLazyBytes() {
-        BookkeeperBucketSnapshotStorage storage = mock(BookkeeperBucketSnapshotStorage.class);
-        when(storage.parseSnapshotMetadataEntry(mock(LedgerEntry.class)))
-                .thenCallRealMethod();
-
         long ts = System.currentTimeMillis();
         SnapshotSegmentMetadata segmentMetadata = new SnapshotSegmentMetadata();
         segmentMetadata.setMinScheduleTimestamp(ts);
@@ -260,7 +256,7 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         LedgerEntry entry = mock(LedgerEntry.class);
         when(entry.getEntryBuffer()).thenReturn(buffer);
 
-        SnapshotMetadata parsed = storage.parseSnapshotMetadataEntry(entry);
+        SnapshotMetadata parsed = bucketSnapshotStorage.parseSnapshotMetadataEntry(entry);
         assertEquals(buffer.refCnt(), 0);
 
         AtomicInteger entryCount = new AtomicInteger();
