@@ -49,6 +49,7 @@ import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * V5 StreamConsumer implementation for scalable topics.
@@ -184,7 +185,7 @@ final class ScalableStreamConsumer<T>
         ScalableStreamConsumer<T> consumer = new ScalableStreamConsumer<>(
                 client, v5Schema, consumerConf, session, topicName, messageSink);
         consumer.latestAssignment = initialAssignment;
-        return consumer.subscribeAssigned(initialAssignment)
+        return consumer.subscribeInitialWithRetry(initialAssignment)
                 .thenApply(__ -> {
                     session.setListener(consumer);
                     return consumer;
@@ -372,6 +373,48 @@ final class ScalableStreamConsumer<T>
         // delivered the update.
         latestAssignment = newSegments;
         reconcile();
+    }
+
+    /**
+     * Initial subscribe with retries for the transient rebalance rejections. Joining a group
+     * rebalances it: until a previous owner has released a segment (or shrunk its declared bucket
+     * ranges), our subscribe is rejected — {@code ConsumerBusy} while it still holds the segment,
+     * {@code ConsumerAssignError} while its STICKY ranges still overlap ours — and neither is
+     * retried at the v4 layer. Bounded by the client operation timeout; any other failure fails
+     * the subscribe immediately, preserving fail-fast for real errors.
+     */
+    private CompletableFuture<Void> subscribeInitialWithRetry(List<ActiveSegment> assigned) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(
+                client.v4Client().getConfiguration().getOperationTimeoutMs());
+        attemptInitialSubscribe(assigned, deadlineNanos, result);
+        return result;
+    }
+
+    private void attemptInitialSubscribe(List<ActiveSegment> assigned, long deadlineNanos,
+                                         CompletableFuture<Void> result) {
+        subscribeAssigned(assigned).whenComplete((__, ex) -> {
+            if (ex == null) {
+                reconcileBackoff.reset();
+                result.complete(null);
+                return;
+            }
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            boolean transientRebalance = cause instanceof org.apache.pulsar.client.api
+                    .PulsarClientException.ConsumerBusyException
+                    || cause instanceof org.apache.pulsar.client.api
+                            .PulsarClientException.ConsumerAssignException;
+            if (closed || !transientRebalance || System.nanoTime() >= deadlineNanos) {
+                result.completeExceptionally(ex);
+                return;
+            }
+            evictFailedSegmentConsumers();
+            Duration delay = reconcileBackoff.next();
+            log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                    .log("Initial subscribe rejected during rebalance, retrying after backoff");
+            scheduler().schedule(() -> attemptInitialSubscribe(assigned, deadlineNanos, result),
+                    delay.toMillis(), TimeUnit.MILLISECONDS);
+        });
     }
 
     /**

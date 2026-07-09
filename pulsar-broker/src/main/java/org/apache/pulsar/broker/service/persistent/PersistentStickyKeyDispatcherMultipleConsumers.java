@@ -641,14 +641,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // PIP-486: an entry-bucket subscription routes each whole entry by its producer-stamped
             // entry-bucket hash range, so a batch holding one bucket's keys goes to the bucket's owner
             // with no per-key hashing. The stamp shares the 16-bit key-hash space, so it feeds the
-            // selector directly. Unstamped entries (non-batched messages) fall through to the message's
-            // sticky-key hash, which is the same low-16 Murmur value the producer would have stamped.
+            // selector directly. Cached as THE entry's sticky-key hash so pending acks, redelivery and
+            // draining all see the value dispatch used. Unstamped entries (non-batched messages) fall
+            // through to the message's sticky-key hash, which is the same low-16 Murmur value the
+            // producer would have stamped.
             if (entryBucketDispatch) {
                 var metadata = entryAndMetadata.getMetadata();
                 if (metadata != null && metadata.hasEntryHashMin()) {
-                    int bucketHash = metadata.getEntryHashMin();
-                    // 0 is reserved as "hash not set"; nudge it to 1, which is still inside bucket 0.
-                    return bucketHash == STICKY_KEY_HASH_NOT_SET ? 1 : bucketHash;
+                    return entryAndMetadata.getOrUpdateCachedStickyKeyHash(stickyKey -> {
+                        int bucketHash = metadata.getEntryHashMin();
+                        // 0 is reserved as "hash not set"; nudge to 1, which is still inside bucket 0.
+                        return bucketHash == STICKY_KEY_HASH_NOT_SET ? 1 : bucketHash;
+                    });
                 }
             }
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
