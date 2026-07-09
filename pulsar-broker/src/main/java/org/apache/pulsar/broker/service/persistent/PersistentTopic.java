@@ -1224,6 +1224,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         synchronized (ledger) {
             // Create a new non-durable cursor only for the first consumer that connects
             PersistentSubscription subscription = subscriptions.get(subscriptionName);
+            CompletableFuture<Void> initPropertiesFuture = CompletableFuture.completedFuture(null);
 
             if (subscription == null) {
                 MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
@@ -1250,9 +1251,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false,
-                        subscriptionProperties);
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
                 subscriptions.put(subscriptionName, subscription);
+
+                if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
+                    // Trade-off: subscriptionProperties should be received by the cursor at creation time,
+                    // the way durable cursors take cursorProperties through ManagedLedger#asyncOpenCursor.
+                    // ManagedLedger#newNonDurableCursor has no equivalent parameter, so we seed the cursor
+                    // with a post-construction setCursorProperties call.
+                    initPropertiesFuture = cursor.setCursorProperties(subscriptionProperties);
+                }
             } else {
                 // if subscription exists, check if it's a durable subscription
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
@@ -1261,11 +1269,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             }
 
+            final PersistentSubscription finalSubscription = subscription;
             if (startMessageRollbackDurationSec > 0) {
-                resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
+                initPropertiesFuture.whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        subscriptionFuture.completeExceptionally(ex);
+                    } else {
+                        resetSubscriptionCursor(finalSubscription, subscriptionFuture,
+                                startMessageRollbackDurationSec);
+                    }
+                });
                 return subscriptionFuture;
             } else {
-                return CompletableFuture.completedFuture(subscription);
+                return initPropertiesFuture.thenApply(__ -> finalSubscription);
             }
         }
     }
