@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.PendingAcksMap;
@@ -845,6 +846,59 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
             assertTrue(readMoreEntriesCalled.get() >= 1);
         });
+    }
+
+    @Test
+    public void testEntryBucketDispatchRoutesByStampedRange() {
+        // PIP-486: with entryBucketDispatch set on the subscription's KeySharedMeta, a stamped entry
+        // routes as a whole by its entry-bucket hash (entry_hash_min), not by the message key.
+        PersistentStickyKeyDispatcherMultipleConsumers bucketDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock,
+                        configMock, new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                                .setEntryBucketDispatch(true));
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, stamped)), 0x1234);
+
+            // entry_hash_min == 0 collides with the reserved "hash not set" sentinel, so it is nudged
+            // to 1, which is still inside bucket 0.
+            MessageMetadata zero = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0).setEntryHashMax(0);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, zero)), 1);
+
+            // Unstamped entries (non-batched messages) fall back to the message's sticky-key hash.
+            MessageMetadata unstamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1).setPartitionKey("some-key");
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, unstamped)),
+                    bucketDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
+    }
+
+    @Test
+    public void testStampedEntryStillRoutesByKeyWithoutEntryBucketDispatch() {
+        // Without the entryBucketDispatch flag (any plain Key_Shared subscription), a stamped entry
+        // keeps dispatching by the message key — the stamp is ignored.
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setPartitionKey("some-key")
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(persistentDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, stamped)),
+                    persistentDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
     }
 
     private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId) {
