@@ -78,8 +78,13 @@ came from. A client MUST:
   message's vector.
 
 For a **namespace** stream consumer the vector spans topics and segments (`{topic → {segmentId →
-messageId}}`), and the ack fans out to every per-topic consumer accordingly; a topic removed mid-stream
-MUST be flushed (acked up to its last delivered position) before its per-topic consumer is closed.
+messageId}}`), and the ack fans out to every per-topic consumer accordingly.
+
+Acknowledgment is **always explicit**. Closing the consumer, and a topic leaving the matching set, MUST
+NOT acknowledge anything on the application's behalf: a removed topic's per-topic consumer is simply
+detached, and any message that was delivered but not yet acknowledged is redelivered if the topic is
+later re-added (**at-least-once**). If a cumulative ack's vector references a topic that has since left
+the set, that topic's slice is skipped.
 
 ## 7. Checkpoints
 

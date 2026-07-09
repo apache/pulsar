@@ -254,8 +254,8 @@ CommandWatchScalableTopicsClose  { watch_id }
 
 For **each** topic in the set the client runs an independent per-topic DAG watch (§4) and assignment
 (§6.2), multiplexing into one receive queue; cumulative ack uses a position vector spanning
-`{topic → {segmentId → messageId}}`. On a diff: subscribe **added** topics; for **removed**, flush acks
-up to the last delivered position, then close the per-topic consumer.
+`{topic → {segmentId → messageId}}`. On a diff: subscribe **added** topics; for **removed**, detach the
+per-topic consumer without acknowledging — acks are always explicit ([Client Behavior](client-behavior.md) §6).
 
 ```mermaid
 sequenceDiagram
@@ -267,7 +267,7 @@ sequenceDiagram
         B-->>N: CommandWatchScalableTopicsUpdate{ snapshot=[t1, t2] }
         N->>T: subscribe t1, t2 (each: §4 DAG watch + §6.2 assignment)
         B-->>N: CommandWatchScalableTopicsUpdate{ diff: added=[t3], removed=[t1] }
-        N->>T: subscribe t3; flush+close t1
+        N->>T: subscribe t3; detach t1 (no ack)
     else error
         B-->>N: CommandWatchScalableTopicsUpdate{ error, message }
         Note over N: fail subscribe()
