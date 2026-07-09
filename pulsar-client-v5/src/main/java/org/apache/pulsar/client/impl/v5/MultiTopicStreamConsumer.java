@@ -57,9 +57,10 @@ import org.apache.pulsar.common.naming.TopicName;
  * per-topic consumer with the right segment vector — same semantics as the
  * single-topic case, just lifted one level.
  *
- * <p>For Removed-mid-stream topics we flush acks up to {@code latestDelivered}
- * for that topic before closing the per-topic consumer, so the user's
- * processing-acked invariant is preserved if the topic is later re-added.
+ * <p>Acknowledgment is always explicit: neither {@code close()} nor a topic
+ * leaving the matching set acks anything on the application's behalf. A removed
+ * topic's per-topic consumer is simply detached; anything delivered-but-unacked
+ * is redelivered if the topic is later re-added (at-least-once).
  */
 final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
 
@@ -247,10 +248,13 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     }
 
     /**
-     * Close per-topic consumer, flushing pending cumulative acks up to whatever was
-     * last delivered for that topic. If the topic later re-appears (re-Added), a
-     * fresh consumer subscribes and resumes from the broker-side cursor — already
-     * advanced past the messages we've delivered to the user.
+     * Detach the per-topic consumer and drop our delivery tracking for it. Runs both on
+     * {@link #closeAsync()} and when a topic leaves the matching set. We deliberately do
+     * <em>not</em> acknowledge anything here: acks on a stream consumer are cumulative and
+     * always explicit, so closing (or a topic removal) must never advance a cursor past
+     * what the application itself acked. Whatever was delivered-but-unacked is redelivered
+     * on the next attach (at-least-once). If the topic later re-appears, a fresh consumer
+     * subscribes and resumes from the broker-side cursor.
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
@@ -264,12 +268,8 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         if (state == null) {
             return CompletableFuture.completedFuture(null);
         }
-        // Flush: ack everything we delivered for this topic.
-        Map<Long, org.apache.pulsar.client.api.MessageId> latest =
-                latestDeliveredPerTopicSegment.remove(topicName);
-        if (latest != null && !latest.isEmpty()) {
-            state.consumer.ackUpToVector(latest);
-        }
+        // Stop tracking this topic's delivery positions. No ack flush — see javadoc.
+        latestDeliveredPerTopicSegment.remove(topicName);
         return state.consumer.closeAsync()
                 .thenRun(() -> log.info().attr("topic", topicName)
                         .log("Per-topic stream consumer detached"));
@@ -337,7 +337,8 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         for (var entry : vector.entrySet()) {
             PerTopic<T> state = perTopic.get(entry.getKey());
             if (state == null) {
-                // Topic was Removed since enqueue; closeTopic already flushed.
+                // Topic left the matching set since this message was enqueued: we've
+                // detached it and no longer ack removed topics, so skip its slice.
                 continue;
             }
             action.accept(state.consumer, entry.getValue());
