@@ -444,12 +444,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         if (partitionedTopic) {
             MultiTopicsReaderImpl<String> reader =
                     ((CompletableFuture<MultiTopicsReaderImpl<String>>) FieldUtils
-                            .readDeclaredField(tv1, "reader", true)).get();
+                            .readField(tv1, "reader", true)).get();
             consumerBase = spy(reader.getMultiTopicsConsumer());
             FieldUtils.writeDeclaredField(reader, "multiTopicsConsumer", consumerBase, true);
         } else {
             ReaderImpl<String> reader = ((CompletableFuture<ReaderImpl<String>>) FieldUtils
-                    .readDeclaredField(tv1, "reader", true)).get();
+                    .readField(tv1, "reader", true)).get();
             consumerBase = spy(reader.getConsumer());
             FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
         }
@@ -558,7 +558,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // inject failure on consumer.receiveAsync()
         var reader = ((CompletableFuture<Reader<byte[]>>)
-                FieldUtils.readDeclaredField(tv, "reader", true)).join();
+                FieldUtils.readField(tv, "reader", true)).join();
         var consumer = spy((ConsumerImpl<byte[]>)
                 FieldUtils.readDeclaredField(reader, "consumer", true));
 
