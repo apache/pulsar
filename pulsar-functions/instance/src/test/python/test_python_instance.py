@@ -98,7 +98,7 @@ class TestContextImpl(unittest.TestCase):
     args, kwargs = consumer.acknowledge.call_args
     self.assertEqual(args[0], "test_message_id")
 
-class TestPythonInstance(unittest.TestCase):
+class TestPropertiesForwarding(unittest.TestCase):
 
   def _setup_mock_instance(self, forward_property):
     function_details = Function_pb2.FunctionDetails()
@@ -120,7 +120,7 @@ class TestPythonInstance(unittest.TestCase):
     
     return instance, mock_producer
 
-  def test_process_result_forwards_properties(self):
+  def test_forwards_properties(self):
     instance, mock_producer = self._setup_mock_instance(forward_property=True)
     
     mock_msg = Mock()
@@ -135,7 +135,7 @@ class TestPythonInstance(unittest.TestCase):
     self.assertEqual(kwargs['properties']["custom-key"], "custom-value")
     self.assertIn("__pfn_input_topic__", kwargs['properties'])
 
-  def test_process_result_does_not_forward_properties(self):
+  def test_do_not_forward_properties(self):
     instance, mock_producer = self._setup_mock_instance(forward_property=False)
     
     mock_msg = Mock()
