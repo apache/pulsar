@@ -68,7 +68,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     @Test(dataProvider = "useOpenRangeSet")
     public void testMarkDeleteAndRead(boolean useOpenRangeSet) throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
+                ;
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
         final ManagedCursor cursor = ledger.openCursor("c1");

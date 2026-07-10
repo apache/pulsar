@@ -678,7 +678,7 @@ jobs:
 
       - name: Run Trivy container scan
         id: trivy_scan
-        uses: lhotari/sandboxed-trivy-action@555963036b2012b44c1071508a236e569db28ebb
+        uses: lhotari/sandboxed-trivy-action@f01374b6cc3bf7264ab238293e94f6db7ada6dd0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         continue-on-error: true
         with:

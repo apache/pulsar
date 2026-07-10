@@ -77,6 +77,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -188,19 +189,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.currentLedger = spyLedgerHandle;
     }
 
-    public static void makeReadEntryProbFail(ManagedLedgerImpl ml, Supplier<ManagedLedgerException> errorOrNot)
-            throws Exception {
+    public static void makeReadEntryProbFail(ManagedLedgerImpl ml, Supplier<ManagedLedgerException> errorOrNot,
+                                             Executor errorSupplierExecutor) throws Exception {
         ml.entryCache.clear();
         LedgerHandle currentLedger = ml.currentLedger;
         final LedgerHandle spyLedgerHandle = spy(currentLedger);
         doAnswer(invocation -> {
-            long ledgerId = (long) invocation.getArguments()[0];
-            long entryId = (long) invocation.getArguments()[1];
-            ManagedLedgerException mightError = errorOrNot.get();
-            if (mightError != null) {
-                return CompletableFuture.failedFuture(mightError);
-            }
-            return currentLedger.readUnconfirmedAsync(ledgerId, entryId);
+            long ledgerId = invocation.getArgument(0);
+            long entryId = invocation.getArgument(1);
+            // Evaluate errorOrNot on errorSupplierExecutor. Pass a single-threaded executor when errorOrNot may
+            // block (e.g. it waits on a CountDownLatch) so it doesn't block the calling read thread; pass
+            // MoreExecutors.directExecutor() to evaluate it inline on the calling thread.
+            return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
+                    .thenCompose(mightError -> mightError != null
+                            ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
+                            : currentLedger.readUnconfirmedAsync(ledgerId, entryId));
         }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
         ml.currentLedger = spyLedgerHandle;
     }

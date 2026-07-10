@@ -144,7 +144,9 @@ public class ScalableTopicService {
         }
 
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
-                numInitialSegments, properties);
+                numInitialSegments,
+                brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                properties);
 
         // Write the scalable metadata FIRST, then materialize the underlying segment topics.
         // The metadata is the source of truth: its presence is what defines whether the topic

@@ -616,7 +616,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 .attr("consumerCount", consumerList.size())
                 .log("Distributing messages to consumers");
 
-        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        long size = getTotalBytesSize(entries);
         updatePendingBytesToDispatch(size);
 
         // dispatch messages to a separate thread, but still in order for this subscription
@@ -868,7 +868,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             // Set the wait time to -1 to avoid rescheduling the read.
             waitTimeMillis = -1;
         } else if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+            if (!cursor.hasBacklog(false)) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
@@ -1280,7 +1280,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
         if (isAtleastOneConsumerAvailable() && !havePendingReplayRead && !havePendingRead
-                && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+                && cursor.hasBacklog(false)) {
             log.warn("Dispatcher is stuck and unblocking by issuing reads");
             readMoreEntries();
             return true;

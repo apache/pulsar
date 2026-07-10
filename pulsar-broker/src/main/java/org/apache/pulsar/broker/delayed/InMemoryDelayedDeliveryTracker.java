@@ -36,7 +36,8 @@ import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
-import org.roaringbitmap.longlong.Roaring64Bitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
 public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
@@ -44,8 +45,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     protected final Logger log;
 
     // timestamp -> ledgerId -> entryId
-    // AVL tree -> OpenHashMap -> RoaringBitmap
-    protected final Long2ObjectSortedMap<Long2ObjectSortedMap<Roaring64Bitmap>>
+    // AVL tree -> OpenHashMap -> LongBitmap
+    protected final Long2ObjectSortedMap<Long2ObjectSortedMap<LongBitmap>>
             delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
@@ -141,14 +142,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .log("Add message");
         long timestamp = roundTimestamp(deliverAt);
 
-        Roaring64Bitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
-            .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
-        // Roaring64Bitmap does not store duplicates, so track if it a new element
-        // so we can keep delayedMessagesCount in sync
-        boolean isNew = !bitmap.contains(entryId);
-
-        if (isNew) {
-            bitmap.addLong(entryId);
+        LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
+            .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+        if (bitmap.checkedAdd(entryId)) {
             delayedMessagesCount.incrementAndGet();
         }
 
@@ -221,28 +217,19 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             }
 
             LongSet ledgerIdToDelete = new LongOpenHashSet();
-            Long2ObjectSortedMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
-            for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+            Long2ObjectSortedMap<LongBitmap> ledgerMap = delayedMessageMap.get(timestamp);
+            for (Long2ObjectMap.Entry<LongBitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();
-                Roaring64Bitmap entryIds = ledgerEntry.getValue();
-                long cardinality = entryIds.getLongCardinality();
-                if (cardinality <= n) {
-                    int cardinalityInt = (int) cardinality;
-                    entryIds.forEach(entryId -> {
-                        positions.add(PositionFactory.create(ledgerId, entryId));
-                    });
-                    n -= cardinalityInt;
-                    delayedMessagesCount.addAndGet(-cardinalityInt);
+                LongBitmap entryIds = ledgerEntry.getValue();
+                long cardinality = entryIds.cardinality();
+                long drained = entryIds.drainTo(n, entryId -> {
+                    positions.add(PositionFactory.create(ledgerId, entryId));
+                });
+                delayedMessagesCount.addAndGet(-drained);
+                n -= drained;
+                if (drained == cardinality) {
+                    // Bitmap is now empty; the entry will be removed from the ledger map below.
                     ledgerIdToDelete.add(ledgerId);
-                } else {
-                    Roaring64Bitmap entryIdsToRemove = new Roaring64Bitmap();
-                    entryIds.stream().limit(n).forEach(entryId -> {
-                        positions.add(PositionFactory.create(ledgerId, entryId));
-                        entryIdsToRemove.addLong(entryId);
-                    });
-                    entryIds.andNot(entryIdsToRemove);
-                    delayedMessagesCount.addAndGet(-n);
-                    n = 0;
                 }
                 if (n <= 0) {
                     break;
@@ -286,16 +273,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     /**
-     * This method rely on Roaring64Bitmap::getLongSizeInBytes to calculate the memory usage of the buffer.
-     * The memory usage of the buffer is not accurate, because Roaring64Bitmap::getLongSizeInBytes will
-     * overestimate the memory usage of the buffer a lot.
-     * @return the memory usage of the buffer
+     * Estimates memory usage of all bitmaps in the tracker.
+     * Uses serialized size as an approximation of memory usage.
+     * @return estimated memory usage in bytes
      */
     @Override
     public long getBufferMemoryUsage() {
         return delayedMessageMap.values().stream().mapToLong(
-                ledgerMap -> ledgerMap.values().stream().mapToLong(
-                        Roaring64Bitmap::getLongSizeInBytes).sum()).sum();
+                ledgerMap -> ledgerMap.values().stream().mapToLong(LongBitmap::serializedSize).sum()).sum();
     }
 
     @Override
