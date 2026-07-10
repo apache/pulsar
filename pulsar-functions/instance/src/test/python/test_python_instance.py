@@ -23,6 +23,12 @@
 from mock import Mock
 import sys
 sys.modules['prometheus_client'] = Mock()
+sys.modules['bookkeeper'] = Mock()
+sys.modules['bookkeeper.types'] = Mock()
+sys.modules['bookkeeper.common'] = Mock()
+sys.modules['bookkeeper.common.exceptions'] = Mock()
+sys.modules['bookkeeper.proto'] = Mock()
+sys.modules['bookkeeper.proto.stream_pb2'] = Mock()
 
 from contextimpl import ContextImpl
 from python_instance import PythonInstance, InstanceConfig
@@ -42,7 +48,8 @@ class TestContextImpl(unittest.TestCase):
     return Any()
 
   def setUp(self):
-    log.init_logger("INFO", "foo", os.environ.get("PULSAR_HOME") + "/conf/functions-logging/console_logging_config.ini")
+    if not hasattr(sys.stdout, 'logger'):
+      log.init_logger("INFO", "foo", os.environ.get("PULSAR_HOME") + "/conf/functions-logging/console_logging_config.ini")
 
   def test_context_publish(self):
     instance_id = 'test_instance_id'
