@@ -20,15 +20,21 @@ package org.apache.pulsar.broker.delayed;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerException;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
@@ -42,6 +48,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -151,6 +158,147 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         @Cleanup
         DelayedDeliveryTracker tracker = brokerService.getDelayedDeliveryTrackerFactory().newTracker(dispatcher);
         Assert.assertEquals(tracker, DelayedDeliveryTracker.DISABLE);
+    }
+
+    @Test
+    public void testCreateBucketTrackerAsync() throws Exception {
+        // Verify async creation waits for bucket snapshot recovery to complete.
+        BrokerService brokerService = Mockito.spy(pulsar.getBrokerService());
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                Mockito.mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        Mockito.doReturn("sub").when(cursor).getName();
+        Mockito.doReturn(Map.of(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_2", "1"))
+                .when(cursor).getCursorProperties();
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(cursor).removeCursorProperty(Mockito.any());
+        Mockito.doReturn(cursor).when(dispatcher).getCursor();
+        Mockito.doReturn("persistent://public/default/test / sub").when(dispatcher).getName();
+
+        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        Mockito.doReturn(brokerService).when(topic).getBrokerService();
+        Mockito.doReturn("topic").when(topic).getName();
+        Subscription subscription = Mockito.mock(Subscription.class);
+        Mockito.doReturn("sub").when(subscription).getName();
+        Mockito.doReturn(topic).when(dispatcher).getTopic();
+        Mockito.doReturn(subscription).when(dispatcher).getSubscription();
+
+        BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
+        CompletableFuture<SnapshotMetadata> metadataFuture = new CompletableFuture<>();
+        Mockito.doReturn(metadataFuture).when(storage).getBucketSnapshotMetadata(Mockito.anyLong());
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(storage).deleteBucketSnapshot(Mockito.anyLong());
+
+        @Cleanup
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        factory.initialize(pulsar);
+        factory.bucketSnapshotStorage.close();
+        factory.bucketSnapshotStorage = storage;
+
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = factory.newTrackerAsync(dispatcher);
+        Assert.assertFalse(trackerFuture.isDone());
+
+        metadataFuture.complete(new SnapshotMetadata());
+        @Cleanup
+        DelayedDeliveryTracker tracker = trackerFuture.get(1, TimeUnit.MINUTES);
+        Assert.assertTrue(tracker instanceof BucketDelayedDeliveryTracker);
+    }
+
+    @Test
+    public void testCreateBucketTrackerAsyncRecoveryTimeoutFallbackToInMemoryTracker() throws Exception {
+        // Verify bucket recovery timeout falls back without waiting for the real timeout.
+        BrokerService brokerService = Mockito.spy(pulsar.getBrokerService());
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                Mockito.mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Mockito.doReturn("persistent://public/default/test / sub").when(dispatcher).getName();
+
+        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        Mockito.doReturn(brokerService).when(topic).getBrokerService();
+        Mockito.doReturn("topic").when(topic).getName();
+        Subscription subscription = Mockito.mock(Subscription.class);
+        Mockito.doReturn("sub").when(subscription).getName();
+        Mockito.doReturn(topic).when(dispatcher).getTopic();
+        Mockito.doReturn(subscription).when(dispatcher).getSubscription();
+
+        @Cleanup
+        BucketDelayedDeliveryTrackerFactory factory = Mockito.spy(new BucketDelayedDeliveryTrackerFactory());
+        factory.initialize(pulsar);
+        BucketDelayedDeliveryTracker bucketTracker = Mockito.mock(BucketDelayedDeliveryTracker.class);
+        TimeoutException timeoutException = new TimeoutException("recover timeout");
+        var timeoutExecutor = brokerService.executor();
+        Mockito.doReturn(FutureUtil.failedFuture(timeoutException))
+                .when(bucketTracker).recoverBucketSnapshotAsync(Mockito.eq(timeoutExecutor));
+        Mockito.doReturn(bucketTracker).when(factory).newTracker0(Mockito.eq(dispatcher));
+
+        @Cleanup
+        DelayedDeliveryTracker tracker = factory.newTrackerAsync(dispatcher).get(1, TimeUnit.MINUTES);
+        Assert.assertTrue(tracker instanceof InMemoryDelayedDeliveryTracker);
+        Mockito.verify(bucketTracker).recoverBucketSnapshotAsync(Mockito.eq(timeoutExecutor));
+    }
+
+    @Test(timeOut = 60_000)
+    public void testDelayedMessageWaitsForAsyncTrackerCreationInBrokerPath() throws Exception {
+        // Verify broker dispatch waits for bucket snapshot recovery before resuming delayed delivery.
+        String topicName = "persistent://public/default/" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        topic = Mockito.spy(topic);
+        BrokerService brokerService = Mockito.spy(pulsar.getBrokerService());
+
+        BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
+        CompletableFuture<SnapshotMetadata> metadataFuture = new CompletableFuture<>();
+        Mockito.doReturn(metadataFuture).when(storage).getBucketSnapshotMetadata(1L);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(storage).deleteBucketSnapshot(1L);
+
+        @Cleanup
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        factory.initialize(pulsar);
+        factory.bucketSnapshotStorage.close();
+        factory.bucketSnapshotStorage = storage;
+
+        Mockito.doReturn(factory).when(brokerService).getDelayedDeliveryTrackerFactory();
+        Mockito.doReturn(brokerService).when(topic).getBrokerService();
+        brokerService.getTopics().put(topicName, CompletableFuture.completedFuture(Optional.of(topic)));
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        PersistentSubscription subscription = topic.getSubscription("sub");
+        Dispatcher dispatcher = subscription.getDispatcher();
+        Assert.assertTrue(dispatcher instanceof PersistentDispatcherMultipleConsumers);
+        PersistentDispatcherMultipleConsumers dispatcher0 = (PersistentDispatcherMultipleConsumers) dispatcher;
+
+        // Force bucket recovery to wait on snapshot metadata.
+        dispatcher0.getCursor().putCursorProperty(
+                BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_2", "1")
+                .get(1, TimeUnit.MINUTES);
+
+        producer.newMessage()
+                .value("delayed")
+                .deliverAfter(100, TimeUnit.MILLISECONDS)
+                .send();
+
+        Mockito.verify(storage, Mockito.timeout(10_000)).getBucketSnapshotMetadata(1L);
+
+        // The delivery time has passed, but bucket recovery is still pending.
+        Assert.assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        // Finish bucket recovery; dispatcher should replay the elapsed delayed message.
+        metadataFuture.complete(new SnapshotMetadata());
+        Mockito.verify(storage, Mockito.timeout(10_000)).deleteBucketSnapshot(1L);
+
+        var message = consumer.receive(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(message);
+        Assert.assertEquals(message.getValue(), "delayed");
+        consumer.acknowledge(message);
     }
 
     // 1. Create BucketDelayedDeliveryTracker failed, fallback to InMemoryDelayedDeliveryTracker,

@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Factory of InMemoryDelayedDeliveryTracker objects. This is the entry point for implementations.
@@ -43,6 +45,21 @@ public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
      *            a multi-consumer dispatcher instance
      */
     DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher);
+
+    /**
+     * Create a new tracker instance asynchronously.
+     *
+     * @param dispatcher
+     *            a multi-consumer dispatcher instance
+     */
+    default CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
+            AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        try {
+            return CompletableFuture.completedFuture(newTracker(dispatcher));
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
+        }
+    }
 
     /**
      * Close the factory and release all the resources.

@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.carrotsearch.hppc.ObjectSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,6 +33,9 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
@@ -250,5 +255,146 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPuls
             }
         }
         Assert.assertEquals(errors.get(), 0, "No exceptions should occur during concurrent operations");
+    }
+
+    @Test
+    public void testCloseReleasesDelayedDeliveryTrackerCreatedAsync() throws Exception {
+        // Verify close prevents a late async tracker from being installed.
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                newDispatcherWithDelayedTrackerFuture(trackerFuture);
+        MessageMetadata messageMetadata = newDelayedMessageMetadata(System.currentTimeMillis() + 5_000);
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, messageMetadata));
+        Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 1);
+
+        CompletableFuture<Void> clearFuture = dispatcher.clearDelayedMessages();
+        Assert.assertFalse(clearFuture.isDone());
+
+        dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        Assert.assertFalse(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        clearFuture.get(1, TimeUnit.MINUTES);
+
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        trackerFuture.complete(tracker);
+
+        Mockito.verify(tracker, Mockito.timeout(5_000)).close();
+        Mockito.verify(dispatcher, Mockito.never()).readMoreEntriesAsync();
+    }
+
+    @Test
+    public void testDelayedDeliveryTrackerCreatedAsyncTracksPendingMessages() throws Exception {
+        // Verify pending delayed messages are drained into the created tracker.
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                newDispatcherWithDelayedTrackerFuture(trackerFuture);
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        MessageMetadata messageMetadata = newDelayedMessageMetadata(deliverAtTime);
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, messageMetadata));
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doReturn(true).when(tracker).addMessage(1, 1, deliverAtTime);
+
+        trackerFuture.complete(tracker);
+
+        Assert.assertFalse(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        Mockito.verify(tracker).resetTickTime(1000L);
+        Mockito.verify(tracker).addMessage(1, 1, deliverAtTime);
+        Mockito.verify(dispatcher).readMoreEntriesAsync();
+    }
+
+    @Test
+    public void testClearDelayedMessagesWaitsForDelayedDeliveryTrackerCreatedAsync() throws Exception {
+        // Verify clear waits for async tracker creation before clearing tracker state.
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                newDispatcherWithDelayedTrackerFuture(trackerFuture);
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+        CompletableFuture<Void> clearFuture = dispatcher.clearDelayedMessages();
+        Assert.assertFalse(clearFuture.isDone());
+
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doReturn(true).when(tracker).addMessage(1, 1, deliverAtTime);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+        trackerFuture.complete(tracker);
+
+        clearFuture.get(1, TimeUnit.MINUTES);
+        Mockito.verify(tracker).clear();
+        Mockito.verify(dispatcher).readMoreEntriesAsync();
+    }
+
+    @Test
+    public void testDelayedDeliveryTrackerCreatedAsyncFailureReplaysPendingMessages() throws Exception {
+        // Verify pending delayed messages are replayed when tracker creation fails.
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                newDispatcherWithDelayedTrackerFuture(trackerFuture);
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1,
+                newDelayedMessageMetadata(System.currentTimeMillis() + 5_000)));
+        trackerFuture.completeExceptionally(new RuntimeException("failed to create tracker"));
+
+        Assert.assertFalse(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        Assert.assertEquals(dispatcher.getNumberOfMessagesInReplay(), 1);
+        Mockito.verify(dispatcher).readMoreEntriesAsync();
+    }
+
+    @Test
+    public void testClearDelayedMessagesCompletesWhenDelayedDeliveryTrackerCreateFailsAsync() throws Exception {
+        // Verify clear completes even when async tracker creation fails.
+        CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                newDispatcherWithDelayedTrackerFuture(trackerFuture);
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1,
+                newDelayedMessageMetadata(System.currentTimeMillis() + 5_000)));
+        CompletableFuture<Void> clearFuture = dispatcher.clearDelayedMessages();
+
+        trackerFuture.completeExceptionally(new RuntimeException("failed to create tracker"));
+
+        clearFuture.get(1, TimeUnit.MINUTES);
+        Assert.assertFalse(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        Mockito.verify(dispatcher).readMoreEntriesAsync();
+    }
+
+    private PersistentDispatcherMultipleConsumersClassic newDispatcherWithDelayedTrackerFuture(
+            CompletableFuture<DelayedDeliveryTracker> trackerFuture) {
+        BrokerService brokerService = Mockito.spy(getPulsar().getBrokerService());
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        Mockito.doReturn(trackerFuture).when(factory).newTrackerAsync(Mockito.any());
+        Mockito.doReturn(factory).when(brokerService).getDelayedDeliveryTrackerFactory();
+
+        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        Mockito.doReturn(brokerService).when(topic).getBrokerService();
+        Mockito.doReturn("persistent://public/default/test").when(topic).getName();
+        Mockito.doReturn(true).when(topic).isDelayedDeliveryEnabled();
+        Mockito.doReturn(1000L).when(topic).getDelayedDeliveryTickTimeMillis();
+
+        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
+        Mockito.doReturn("sub").when(cursor).getName();
+
+        Subscription sub = Mockito.mock(PersistentSubscription.class);
+        Mockito.doReturn("sub").when(sub).getName();
+        Mockito.doReturn(topic).when(sub).getTopic();
+
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                Mockito.spy(new PersistentDispatcherMultipleConsumersClassic(topic, cursor, sub));
+        Mockito.doNothing().when(dispatcher).readMoreEntriesAsync();
+        return dispatcher;
+    }
+
+    private MessageMetadata newDelayedMessageMetadata(long deliverAtTime) {
+        return new MessageMetadata()
+                .setSequenceId(1)
+                .setProducerName("testProducer")
+                .setPublishTime(System.currentTimeMillis())
+                .setDeliverAtTime(deliverAtTime);
     }
 }
