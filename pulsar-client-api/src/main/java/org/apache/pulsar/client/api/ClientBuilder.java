@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
@@ -168,7 +167,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
-     * Defaults to 25 seconds.
+     * Defaults to 60 seconds.
      *
      * @return the client builder instance
      */
@@ -616,6 +615,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
     /**
+     * Enable OpenTelemetry distributed tracing.
+     *
+     * <p>When enabled, interceptors are automatically added to all producers and consumers
+     * to create spans for message publishing and consumption, and automatically propagate trace context
+     * via message properties.
+     *
+     * <p>This method is useful when OpenTelemetry is configured globally (e.g., via Java Agent or
+     * {@link io.opentelemetry.api.GlobalOpenTelemetry}) and you just want to enable tracing interceptors
+     * without explicitly setting an OpenTelemetry instance.
+     *
+     * <p>Example with Java Agent:
+     * <pre>{@code
+     * // When using -javaagent:opentelemetry-javaagent.jar
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)  // Use GlobalOpenTelemetry
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example with GlobalOpenTelemetry:
+     * <pre>{@code
+     * // Configure GlobalOpenTelemetry elsewhere in your application
+     * GlobalOpenTelemetry.set(myOpenTelemetry);
+     *
+     * // Just enable tracing in the client
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)
+     *     .build();
+     * }</pre>
+     *
+     * @param tracingEnabled whether to enable tracing (default: false)
+     * @return the client builder instance
+     * @since 4.2.0
+     */
+    ClientBuilder enableTracing(boolean tracingEnabled);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -684,6 +721,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Set the scope that controls which connections are routed through the SOCKS5 proxy.
+     *
+     * <p>The default is {@link Socks5ProxyScope#BINARY_ONLY}, which preserves the pre-existing
+     * behavior where the SOCKS5 proxy only applied to Pulsar binary protocol connections to brokers.
+     * HTTP lookup and failover HTTP clients inside {@code PulsarClient} were not affected.
+     *
+     * <p>Set to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH} to also route
+     * HTTP/HTTPS lookup traffic and failover HTTP clients through the SOCKS5 proxy.
+     *
+     * @param socks5ProxyScope the scope selector; must not be {@code null}
+     * @return the client builder instance
+     * @see Socks5ProxyScope
+     */
+    ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope);
 
     /**
      * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.

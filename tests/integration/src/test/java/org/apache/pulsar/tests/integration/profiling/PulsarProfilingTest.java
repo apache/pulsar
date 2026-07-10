@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.ManualTestUtil;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
  * Example usage:
  * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
  * # compile integration test dependencies
- * mvn -am -pl tests/integration -Dcheckstyle.skip=true -Dlicense.skip=true -Dspotbugs.skip=true -DskipTests install
+ * ./gradlew assemble
  * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
  * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
  * # set environment variables
@@ -65,13 +65,12 @@ import org.testng.annotations.Test;
  * kernel.perf_event_max_stack=1024
  * kernel.perf_event_mlock_kb=2048
  * # run the test
- * mvn -DintegrationTests -pl tests/integration -Dtest=PulsarProfilingTest -DtestRetryCount=0 \
- *   -DredirectTestOutputToFile=false test
- * By default, the .jfr files will go into tests/integration/target
+ * ./gradlew :tests:integration:integrationTest -PintegrationTestSuiteFile=pulsar-profiling.xml -PtestRetryCount=0
+ * By default, the .jfr files will go into tests/integration/build
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
  */
-@Slf4j
+@CustomLog
 public class PulsarProfilingTest extends PulsarTestSuite {
     // this assumes that Transparent Huge Pages are available on the host machine
     // Please notice that "madvise" mode is recommended for performance reasons.
@@ -315,7 +314,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                         log.info("Test timed out, ignoring this in profiling.");
                         return null;
                     } else {
-                        log.error("Failed to run pulsar-perf", t);
+                        log.error().exception(t).log("Failed to run pulsar-perf");
                     }
                     throw FutureUtil.wrapToCompletionException(t);
                 })

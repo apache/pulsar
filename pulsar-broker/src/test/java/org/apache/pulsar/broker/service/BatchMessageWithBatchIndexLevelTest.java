@@ -35,8 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -58,18 +58,26 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
-public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
+public class BatchMessageWithBatchIndexLevelTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.baseSetup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
@@ -429,7 +437,9 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             consumer.acknowledge(message);
         }
 
-        log.info("messagesSent: {}, messagesReceived: {}", messagesSent, messagesReceived);
+        log.info().attr("messagesSent", messagesSent)
+                .attr("messagesReceived", messagesReceived)
+                .log("Messages sent and received");
         Assert.assertEquals(messagesReceived.size(), messagesSent.size());
 
         // cleanup.
@@ -579,6 +589,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     /***
      * After {@param signal} complete, the consumer({@param consumerName}) start to receive messages.
      */
+    @SuppressWarnings("unchecked")
     private org.apache.pulsar.broker.service.Consumer makeConsumerReceiveMessagesDelay(String topic, String sub,
                                                             String consumerName,
                                                             CompletableFuture<Void> signal) throws Exception {

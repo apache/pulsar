@@ -75,8 +75,13 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         context.consumer = consumer;
         context.redeliveryCount = redeliveryCount;
         context.ackSetInMessageId = BatchMessageIdImpl.newAckSet(context.getNumMessages());
-        context.ackBitSet = (ackSet != null && ackSet.size() > 0)
-                ? BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet))
+        boolean isAckSetNotEmpty = ackSet != null && ackSet.size() > 0;
+        long[] ackSetArray = SafeCollectionUtils.longListToArray(ackSet);
+        if (isAckSetNotEmpty) {
+            context.ackSetInMessageId.and(BitSet.valueOf(ackSetArray));
+        }
+        context.ackBitSet = isAckSetNotEmpty
+                ? BitSetRecyclable.valueOf(ackSetArray)
                 : null;
         return context;
     }

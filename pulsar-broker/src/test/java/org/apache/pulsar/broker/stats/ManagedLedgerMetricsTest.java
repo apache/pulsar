@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,7 +94,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         List<Metrics> list1 = metrics.generate();
         Assert.assertTrue(list1.isEmpty());
 
-        var topicName = "persistent://my-property/use/my-ns/my-topic1";
+        var topicName = "persistent://my-property/my-ns/my-topic1";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
@@ -133,6 +134,9 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         var ml = ledgers.get(mlName);
         var attribCommon = Attributes.of(
                 OpenTelemetryAttributes.ML_NAME, mlName,
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace()
+        );
+        final var attribOnlyNamespace = Attributes.of(
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace()
         );
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
@@ -189,6 +193,16 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
                     value -> assertThat(value).isGreaterThanOrEqualTo(0));
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_CACHE_MISS_COUNTER,
                     attribCommon, value -> assertThat(value).isGreaterThanOrEqualTo(0));
+
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_LATENCY_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.LEDGER_ADD_ENTRY_LATENCY_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.ENTRY_SIZE_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
         });
     }
 

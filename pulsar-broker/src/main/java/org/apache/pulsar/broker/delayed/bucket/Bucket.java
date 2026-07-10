@@ -23,21 +23,21 @@ import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTrack
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
-@Slf4j
+@CustomLog
 @Data
 @AllArgsConstructor
 abstract class Bucket {
@@ -56,7 +56,7 @@ abstract class Bucket {
     long startLedgerId;
     long endLedgerId;
 
-    Map<Long, RoaringBitmap> delayedIndexBitMap;
+    Map<Long, LongBitmap> delayedIndexBitMap;
 
     long numberBucketDelayedMessages;
 
@@ -70,7 +70,6 @@ abstract class Bucket {
 
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
-
     Bucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
         this(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0,
@@ -78,7 +77,7 @@ abstract class Bucket {
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
-        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
+        LongBitmap bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet == null) {
             return false;
         }
@@ -86,12 +85,12 @@ abstract class Bucket {
     }
 
     void putIndexBit(long ledgerId, long entryId) {
-        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
+        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId, entryId + 1);
     }
 
     boolean removeIndexBit(long ledgerId, long entryId) {
         boolean contained = false;
-        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
+        LongBitmap bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet != null && bitSet.contains(entryId, entryId + 1)) {
             contained = true;
             bitSet.remove(entryId, entryId + 1);
@@ -143,22 +142,31 @@ abstract class Bucket {
                                 topicName, cursorName)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
-                                log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
-                                        dispatcherName, bucketKey, ex);
+                                log.warn()
+                                        .attr("dispatcher", dispatcherName)
+                                        .attr("bucketKey", bucketKey)
+                                        .exception(ex)
+                                        .log("Failed to create bucket snapshot");
                             }
                         }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
-                                dispatcherName, bucketKey, newBucketId, ex);
+                        log.warn()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketKey", bucketKey)
+                                .attr("bucketId", newBucketId)
+                                .exception(ex)
+                                .log("Failed to record bucketId to cursor property");
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
-        Objects.requireNonNull(bucketId);
+        if (bucketId == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected bucketId should not be null"));
+        }
         return sequencer.sequential(() -> {
             return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                     ManagedLedgerException.BadVersionException.class, MaxRetryTimes);

@@ -100,6 +100,7 @@ public class GenericJsonRecordTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testEncodeAndDecodeObject() throws JsonProcessingException {
         // test case from issue https://github.com/apache/pulsar/issues/9605
         JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());

@@ -21,13 +21,14 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import java.nio.charset.StandardCharsets;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -36,7 +37,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBaseTest {
 
@@ -55,7 +56,9 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
     @Test
     public void testFetchPartitionedTopicMetadataWithCacheRefresh() throws Exception {
         final String configMetadataStoreConnectString =
-                WhiteboxImpl.getInternalState(pulsar.getConfigurationMetadataStore(), "zkConnectString");
+                WhiteboxImpl.getInternalState(
+                        ((DualMetadataStore) pulsar.getConfigurationMetadataStore()).getSourceStore(),
+                        "zkConnectString");
         @Cleanup
         final ZooKeeper anotherZKCli = new ZooKeeper(configMetadataStoreConnectString, 5000, null);
         // Set policy of auto create topic to PARTITIONED.

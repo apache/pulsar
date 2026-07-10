@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -34,14 +34,17 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-@Slf4j
-@WebSocket(maxTextMessageSize = 64 * 1024)
-public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements Closeable {
+@CustomLog
+@WebSocket
+public class ClientSideEncryptionWssConsumer implements Closeable {
 
     private Session session;
     private final CryptoKeyReader cryptoKeyReader;
@@ -69,8 +72,8 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
     public void start() throws Exception {
         wssClient = new WebSocketClient();
         wssClient.start();
-        session = wssClient.connect(this, buildConnectURL(), new ClientUpgradeRequest()).get();
-        assertTrue(session.isOpen());
+        Session ses = wssClient.connect(this, new ClientUpgradeRequest(buildConnectURL())).get();
+        assertTrue(ses.isOpen());
     }
 
     private URI buildConnectURL() throws PulsarClientException.CryptoException {
@@ -93,32 +96,35 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
         return msg;
     }
 
-    @Override
+    @OnWebSocketClose
     public void onWebSocketClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
     }
 
-    @Override
+    @OnWebSocketOpen
     public void onWebSocketConnect(Session session) {
-        log.info("Got connect: {}", session);
+        log.info().attr("connect", session).log("Got connect");
         this.session = session;
     }
 
-    @Override
+    @OnWebSocketError
     public void onWebSocketError(Throwable cause) {
-        log.error("Received an error", cause);
+        log.error().exception(cause).log("Received an error");
     }
 
-    @Override
+    @OnWebSocketMessage
     public void onWebSocketText(String text) {
 
         try {
             ConsumerMessage msg =
                     ObjectMapperFactory.getMapper().reader().readValue(text, ConsumerMessage.class);
             if (msg.messageId == null) {
-                log.error("Consumer[{}-{}] Could not extract the response payload: {}", topicName, subscriptionName,
-                        text);
+                log.error()
+                        .attr("consumer", topicName)
+                        .attr("subscriptionName", subscriptionName)
+                        .attr("payload", text)
+                        .log("Consumer[ - ] Could not extract the response payload");
                 return;
             }
             // Decrypt.
@@ -139,7 +145,11 @@ public class ClientSideEncryptionWssConsumer extends WebSocketAdapter implements
                 incomingMessages.add(msg);
             }
         } catch (Exception ex) {
-            log.error("Consumer[{}-{}] Could not extract the response payload: {}", topicName, subscriptionName, text);
+            log.error()
+                    .attr("consumer", topicName)
+                    .attr("subscriptionName", subscriptionName)
+                    .attr("payload", text)
+                    .log("Consumer[ - ] Could not extract the response payload");
         }
     }
 

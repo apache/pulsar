@@ -34,15 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
  */
-@Slf4j
+@CustomLog
 @Data
 @NoArgsConstructor
 public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
@@ -265,13 +265,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             }
         }
 
-        Map<String, String> extraConfigurations = properties.entrySet().stream()
-                .filter(entry -> entry.getKey().toString().startsWith(EXTRA_CONFIG_PREFIX))
-                .collect(Collectors.toMap(
-                        entry -> entry.getKey().toString().replaceFirst(EXTRA_CONFIG_PREFIX, ""),
-                        entry -> entry.getValue().toString()));
-
-        data.getManagedLedgerExtraConfigurations().putAll(extraConfigurations);
+        Map<String, String> extraConfigurations = getExtraConfigurations(properties);
+        if (extraConfigurations != null) {
+            data.getManagedLedgerExtraConfigurations().putAll(extraConfigurations);
+        }
 
         data.compatibleWithBrokerConfigFile(properties);
         return data;
@@ -354,6 +351,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             try {
                 f.setAccessible(true);
                 if ("managedLedgerExtraConfigurations".equals(f.getName())) {
+                    @SuppressWarnings("unchecked") // field type is Map<String, String>
                     Map<String, String> extraConfig = (Map<String, String>) f.get(this);
                     extraConfig.forEach((key, value) -> {
                         setProperty(properties, EXTRA_CONFIG_PREFIX + key, value);
@@ -431,7 +429,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
             for (Field field : CONFIGURATION_FIELDS) {
                 Object object;
-                if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
+                if (field.getName().equals("managedLedgerExtraConfigurations")) {
+                    object = mergeManagedLedgerExtraConfigurations(topicLevelPolicies, nsLevelPolicies,
+                            brokerProperties);
+                } else if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     object = field.get(nsLevelPolicies);
@@ -451,8 +452,30 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 return offloadPolicies;
             }
         } catch (Exception e) {
-            log.error("Failed to merge configuration.", e);
+            log.error().exception(e).log("Failed to merge configuration.");
             return null;
+        }
+    }
+
+    private static Map<String, String> mergeManagedLedgerExtraConfigurations(OffloadPoliciesImpl topicLevelPolicies,
+                                                                            OffloadPoliciesImpl nsLevelPolicies,
+                                                                            Properties brokerProperties) {
+        Map<String, String> mergedExtraConfigurations = new HashMap<>();
+        putAllExtraConfigurations(mergedExtraConfigurations, getExtraConfigurations(brokerProperties));
+        if (nsLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    nsLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        if (topicLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    topicLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        return mergedExtraConfigurations.isEmpty() ? null : mergedExtraConfigurations;
+    }
+
+    private static void putAllExtraConfigurations(Map<String, String> target, Map<String, String> extraConfigurations) {
+        if (extraConfigurations != null && !extraConfigurations.isEmpty()) {
+            target.putAll(extraConfigurations);
         }
     }
 
@@ -469,7 +492,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      */
     private static Object getCompatibleValue(Properties properties, Field field) {
         Object object;
-        if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
+        if (field.getName().equals("managedLedgerExtraConfigurations")) {
+            return getExtraConfigurations(properties);
+        } else if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
             object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
                     properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
@@ -482,6 +507,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             object = properties.get(field.getName());
         }
         return value((String) object, field);
+    }
+
+    private static Map<String, String> getExtraConfigurations(Properties properties) {
+        Map<String, String> extraConfigurations = properties.entrySet().stream()
+                .filter(entry -> entry.getKey().toString().startsWith(EXTRA_CONFIG_PREFIX))
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString().replaceFirst(EXTRA_CONFIG_PREFIX, ""),
+                        entry -> entry.getValue().toString()));
+        return extraConfigurations.isEmpty() ? null : extraConfigurations;
     }
 
     public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {

@@ -19,39 +19,54 @@
 package org.apache.pulsar.broker.web;
 
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.jetty.JettyStatisticsCollector;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.broker.validator.BindAddressValidator;
+import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletContextRequest;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
-import org.eclipse.jetty.server.ConnectionLimit;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.NetworkConnectionLimit;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
@@ -61,30 +76,25 @@ import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.QoSHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.QoSFilter;
-import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Web Service embedded into Pulsar.
  */
+@CustomLog
 public class WebService implements AutoCloseable {
 
     private static final String MATCH_ALL = "/*";
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
+    public static final String ATTRIBUTE_LISTENER_NAME = "listenerName";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
 
     private final PulsarService pulsar;
@@ -111,6 +121,7 @@ public class WebService implements AutoCloseable {
                 .setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
     }
 
+    @SuppressWarnings("deprecation")
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = new ArrayList<>();
         this.pulsar = pulsar;
@@ -124,33 +135,33 @@ public class WebService implements AutoCloseable {
                 new WebExecutorThreadPoolStats(pulsar.getOpenTelemetry().getMeter(), webServiceExecutor);
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
-            server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
+            server.addBean(new NetworkConnectionLimit(config.getMaxHttpServerConnections(), server));
         }
-        List<ServerConnector> connectors = new ArrayList<>();
+        server.setStopTimeout(config.getBrokerShutdownTimeoutMs());
 
-        Optional<Integer> port = config.getWebServicePort();
+        List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(config,
+                Arrays.asList("http", "https"));
+        String internalListenerName = config.getInternalListenerName();
+        boolean tlsRequired = bindAddresses.stream()
+                .anyMatch(a -> "https".equalsIgnoreCase(a.getAddress().getScheme()));
+
         HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setUriCompliance(UriCompliance.LEGACY);
         if (config.isWebServiceTrustXForwardedFor()) {
             httpConfig.addCustomizer(new ForwardedRequestCustomizer());
         }
         httpConfig.setRequestHeaderSize(pulsar.getConfig().getHttpMaxRequestHeaderSize());
-        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
-        if (port.isPresent()) {
-            List<ConnectionFactory> connectionFactories = new ArrayList<>();
-            if (config.isWebServiceHaProxyProtocolEnabled()) {
-                connectionFactories.add(new ProxyConnectionFactory());
-            }
-            connectionFactories.add(httpConnectionFactory);
-            httpConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
-            httpConnector.setPort(port.get());
-            httpConnector.setHost(pulsar.getBindAddress());
-            connectors.add(httpConnector);
-        } else {
-            httpConnector = null;
+        httpConfig.setIdleTimeout(pulsar.getConfig().getHttpServerIdleTimeout());
+        if (tlsRequired) {
+            // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+            // this is needed for TLS authentication
+            // disable SNI host check for backwards compatibility with Jetty 9.x
+            httpConfig.addCustomizer(new SecureRequestCustomizer(false));
         }
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
 
-        Optional<Integer> tlsPort = config.getWebServicePortTls();
-        if (tlsPort.isPresent()) {
+        SslContextFactory.Server sslCtxFactory = null;
+        if (tlsRequired) {
             try {
                 PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
                 this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
@@ -164,37 +175,60 @@ public class WebService implements AutoCloseable {
                                     config.getTlsCertRefreshCheckDurationSec(),
                                     TimeUnit.SECONDS);
                 }
-                SslContextFactory sslCtxFactory =
-                        JettySslContextFactory.createSslContextFactory(config.getWebServiceTlsProvider(),
-                                this.sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
-                                config.getTlsCiphers(), config.getTlsProtocols());
-                List<ConnectionFactory> connectionFactories = new ArrayList<>();
-                if (config.isWebServiceHaProxyProtocolEnabled()) {
-                    connectionFactories.add(new ProxyConnectionFactory());
-                }
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
-                connectionFactories.add(httpConnectionFactory);
-                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
-                // this is needed for TLS authentication
-                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
-                    httpConfig.addCustomizer(new SecureRequestCustomizer());
-                }
-                httpsConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
-                httpsConnector.setPort(tlsPort.get());
-                httpsConnector.setHost(pulsar.getBindAddress());
-                connectors.add(httpsConnector);
+                sslCtxFactory = JettySslContextFactory.createSslContextFactory(config.getWebServiceTlsProvider(),
+                        this.sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                        config.getTlsCiphers(), config.getTlsProtocols());
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
-        } else {
-            httpsConnector = null;
         }
 
-        // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
-        server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
+        List<ServerConnector> connectors = new ArrayList<>();
+        ServerConnector primaryHttpConnector = null;
+        ServerConnector primaryHttpsConnector = null;
+        // Connector to BindAddress mapping is used to resolve the listener name for the request
+        // in AddListenerAttributeFilter, which adds a listenerName attribute to the request
+        Map<Connector, BindAddress> connectorToBindAddress = new HashMap<>();
+        for (BindAddress bindAddress : bindAddresses) {
+            URI address = bindAddress.getAddress();
+            boolean isTls = "https".equalsIgnoreCase(address.getScheme());
+            List<ConnectionFactory> connectionFactories = new ArrayList<>();
+            if (config.isWebServiceHaProxyProtocolEnabled()) {
+                connectionFactories.add(new ProxyConnectionFactory());
+            }
+            if (isTls) {
+                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+            }
+            connectionFactories.add(httpConnectionFactory);
+            ServerConnector connector = new ServerConnector(server,
+                    connectionFactories.toArray(new ConnectionFactory[0]));
+            connector.setPort(address.getPort());
+            connector.setHost(StringUtils.defaultIfBlank(address.getHost(), pulsar.getBindAddress()));
+            connectorToBindAddress.put(connector, bindAddress);
+            connectors.add(connector);
 
-        filterInitializer = new FilterInitializer(pulsar);
+            // identify the primary connector. Note that the legacy bindings appear first and have no listener.
+            if (StringUtils.isBlank(bindAddress.getListenerName())
+                    || StringUtils.equalsIgnoreCase(bindAddress.getListenerName(), internalListenerName)) {
+                if (!isTls && primaryHttpConnector == null) {
+                    primaryHttpConnector = connector;
+                }
+                if (isTls && primaryHttpsConnector == null) {
+                    primaryHttpsConnector = connector;
+                }
+            }
+        }
+        this.httpConnector = primaryHttpConnector;
+        this.httpsConnector = primaryHttpsConnector;
+
+        // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
+        connectors.forEach(c -> {
+            c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize());
+            c.setIdleTimeout(pulsar.getConfig().getHttpServerIdleTimeout());
+        });
+        server.setConnectors(connectors.toArray(new ServerConnector[0]));
+
+        filterInitializer = new FilterInitializer(pulsar, connectorToBindAddress);
         // Whether to reject requests with unknown attributes.
         sharedUnknownPropertyHandler.setSkipUnknownProperty(!config.isHttpRequestsFailOnUnknownPropertiesEnabled());
     }
@@ -235,14 +269,9 @@ public class WebService implements AutoCloseable {
     private static class FilterInitializer {
         private final List<FilterHolder> filterHolders = new ArrayList<>();
         private final FilterHolder authenticationFilterHolder;
-        FilterInitializer(PulsarService pulsarService) {
-            ServiceConfiguration config = pulsarService.getConfiguration();
 
-            if (config.getMaxConcurrentHttpRequests() > 0) {
-                FilterHolder filterHolder = new FilterHolder(QoSFilter.class);
-                filterHolder.setInitParameter("maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
-                filterHolders.add(filterHolder);
-            }
+        FilterInitializer(PulsarService pulsarService, Map<Connector, BindAddress> connectorToBindAddress) {
+            ServiceConfiguration config = pulsarService.getConfiguration();
 
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
@@ -253,6 +282,8 @@ public class WebService implements AutoCloseable {
             // wait until the PulsarService is ready to serve incoming requests
             filterHolders.add(
                     new FilterHolder(new WaitUntilPulsarServiceIsReadyForIncomingRequestsFilter(pulsarService)));
+            // add listenerName attribute to the request
+            filterHolders.add(new FilterHolder(new AddListenerAttributeFilter(connectorToBindAddress)));
 
             boolean brokerInterceptorEnabled = pulsarService.getBrokerInterceptor() != null;
             if (brokerInterceptorEnabled) {
@@ -343,17 +374,85 @@ public class WebService implements AutoCloseable {
         }
     }
 
+    // Parses the internal listener name from the connector name and sets it as a request attribute
+    private static class AddListenerAttributeFilter implements Filter {
+        private final Map<Connector, BindAddress> connectorToBindAddress;
+
+        public AddListenerAttributeFilter(Map<Connector, BindAddress> connectorToBindAddress) {
+            this.connectorToBindAddress = connectorToBindAddress;
+        }
+
+        @Override
+        public void init(FilterConfig filterConfig) throws ServletException {
+
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            Connector connector = ServletContextRequest.getServletContextRequest(request)
+                    .getConnectionMetaData().getConnector();
+            BindAddress bindAddress = connectorToBindAddress.get(connector);
+            if (bindAddress != null) {
+                request.setAttribute(ATTRIBUTE_LISTENER_NAME, bindAddress.getListenerName());
+            }
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+    }
+
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
                            Map<String, Object> attributeMap) {
         ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
         servletContextHandler.setContextPath(path);
         servletContextHandler.addServlet(servletHolder, MATCH_ALL);
+        // Jetty 12 ee10 rejects ambiguous URIs (e.g. %2F-encoded path separators) at the servlet layer by
+        // default, independent of the connector's UriCompliance. Pulsar admin paths embed encoded separators
+        // (e.g. topic names), so the servlet handler must be allowed to decode them (PIP-472 / Jetty 12).
+        servletContextHandler.getServletHandler().setDecodeAmbiguousURIs(true);
         if (attributeMap != null) {
             attributeMap.forEach(servletContextHandler::setAttribute);
         }
         filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
 
+        // The ee10 ServletContextHandler is itself an org.eclipse.jetty.server.Handler
+        handlers.add(servletContextHandler);
+    }
+
+    /**
+     * Registers a legacy {@code javax.servlet}-based servlet in Jetty's ee8 environment. This path exists
+     * solely to keep existing {@code AdditionalServlet} plugins that report
+     * {@link org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet.AdditionalServletType#JAVAX_SERVLET}
+     * working without recompilation (PIP-472). Pulsar's own servlets and {@code jakarta.servlet} additional
+     * servlets use {@link #addServlet} (ee10). The broker filter chain is jakarta-typed (ee10) and is therefore
+     * not applied to the ee8 environment; legacy javax additional servlets run without the broker filter chain.
+     */
+    public void addServletEe8(String path, org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder,
+                              boolean requiresAuthentication, Map<String, Object> attributeMap) {
+        org.eclipse.jetty.ee8.servlet.ServletContextHandler servletContextHandler =
+                new org.eclipse.jetty.ee8.servlet.ServletContextHandler(
+                        org.eclipse.jetty.ee8.servlet.ServletContextHandler.SESSIONS);
+        servletContextHandler.setContextPath(path);
+        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
+        if (attributeMap != null) {
+            attributeMap.forEach(servletContextHandler::setAttribute);
+        }
+        // The ee8 ServletContextHandler.get() bridges the ee8 context to a core org.eclipse.jetty.server.Handler
+        handlers.add(servletContextHandler.get());
+    }
+
+    public void addWebSocketServlet(String path, JettyWebSocketServlet webSocketServlet,
+                                    Map<String, Object> attributeMap) {
+        ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        servletContextHandler.setContextPath(path);
+        JettyWebSocketServletContainerInitializer.configure(servletContextHandler, null);
+        ServletHolder servletHolder = new ServletHolder(webSocketServlet);
+        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
         handlers.add(servletContextHandler);
     }
 
@@ -361,7 +460,8 @@ public class WebService implements AutoCloseable {
         ContextHandler capHandler = new ContextHandler();
         capHandler.setContextPath(basePath);
         ResourceHandler resHandler = new ResourceHandler();
-        resHandler.setBaseResource(Resource.newClassPathResource(resourcePath));
+        ResourceFactory resourceFactory = ResourceFactory.root();
+        resHandler.setBaseResource(resourceFactory.newClassLoaderResource(resourcePath, true));
         resHandler.setEtags(true);
         resHandler.setCacheControl(WebService.HANDLER_CACHE_CONTROL);
         capHandler.setHandler(resHandler);
@@ -370,23 +470,20 @@ public class WebService implements AutoCloseable {
 
     public void start() throws PulsarServerException {
         try {
-            RequestLogHandler requestLogHandler = new RequestLogHandler();
             boolean showDetailedAddresses = pulsar.getConfiguration().getWebServiceLogDetailedAddresses() != null
                     ? pulsar.getConfiguration().getWebServiceLogDetailedAddresses() :
                     (pulsar.getConfiguration().isWebServiceHaProxyProtocolEnabled()
                             || pulsar.getConfiguration().isWebServiceTrustXForwardedFor());
             RequestLog requestLogger = JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server);
-            requestLogHandler.setRequestLog(requestLogger);
-            handlers.add(0, new ContextHandlerCollection());
-            handlers.add(requestLogHandler);
+            server.setRequestLog(requestLogger);
 
             ContextHandlerCollection contexts = new ContextHandlerCollection();
-            contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
+            contexts.setHandlers(handlers);
 
             Handler handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts,
                     pulsar.getConfig().getHttpServerGzipCompressionExcludedPaths());
-            HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] {handlerForContexts, new DefaultHandler(), requestLogHandler});
+            Handler.Collection  handlerCollection = new Handler.Sequence();
+            handlerCollection.setHandlers(handlerForContexts, new DefaultHandler());
 
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
@@ -398,19 +495,31 @@ public class WebService implements AutoCloseable {
                 // Already registered. Eg: in unit tests
             }
 
-            server.setHandler(stats);
+            Handler serverHandler = stats;
+            if (pulsar.getConfiguration().getMaxConcurrentHttpRequests() > 0) {
+                QoSHandler qoSHandler = new QoSHandler(serverHandler);
+                qoSHandler.setMaxRequestCount(pulsar.getConfiguration().getMaxConcurrentHttpRequests());
+                serverHandler = qoSHandler;
+            }
+            server.setHandler(serverHandler);
+
             server.start();
 
             if (httpConnector != null) {
-                log.info("HTTP Service started at http://{}:{}", httpConnector.getHost(), httpConnector.getLocalPort());
+                log.info()
+                        .attr("host", httpConnector.getHost())
+                        .attr("localPort", httpConnector.getLocalPort())
+                        .log("HTTP Service started");
                 pulsar.getConfiguration().setWebServicePort(Optional.of(httpConnector.getLocalPort()));
             } else {
                 log.info("HTTP Service disabled");
             }
 
             if (httpsConnector != null) {
-                log.info("HTTPS Service started at https://{}:{}", httpsConnector.getHost(),
-                        httpsConnector.getLocalPort());
+                log.info()
+                        .attr("host", httpsConnector.getHost())
+                        .attr("localPort", httpsConnector.getLocalPort())
+                        .log("HTTPS Service started");
                 pulsar.getConfiguration().setWebServicePortTls(Optional.of(httpsConnector.getLocalPort()));
             } else {
                 log.info("HTTPS Service disabled");
@@ -434,7 +543,7 @@ public class WebService implements AutoCloseable {
                     try {
                         doClose();
                     } catch (Exception e) {
-                        log.error("Error while closing web service", e);
+                        log.error().exception(e).log("Error while closing web service");
                     }
                 });
                 webServiceTerminator.setName("pulsar-web-service-terminator");
@@ -510,9 +619,7 @@ public class WebService implements AutoCloseable {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebService.class);
 }

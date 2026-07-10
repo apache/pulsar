@@ -46,8 +46,9 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.IntSupplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -64,7 +65,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PendingReadsManagerTest  {
 
     static final Object CTX = "foo";
@@ -110,7 +111,7 @@ public class PendingReadsManagerTest  {
         doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                log.info("rangeEntryCache asyncReadEntry0 {}", invocationOnMock);
+                log.info().attr("invocation", invocationOnMock).log("rangeEntryCache asyncReadEntry0");
                 ReadHandle rh = invocationOnMock.getArgument(0);
                 long startEntry = invocationOnMock.getArgument(1);
                 long endEntry = invocationOnMock.getArgument(2);
@@ -132,6 +133,7 @@ public class PendingReadsManagerTest  {
 
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     private static class CapturingReadEntriesCallback extends CompletableFuture<Void>
             implements AsyncCallbacks.ReadEntriesCallback  {
         List<Position> entries;
@@ -169,7 +171,7 @@ public class PendingReadsManagerTest  {
 
     private void verifyRange(List<Position> entries, long firstEntry, long endEntry) {
         int pos = 0;
-        log.info("verifyRange numEntries {}", entries.size());
+        log.info().attr("numEntries", entries.size()).log("verifyRange");
         for (long entry = firstEntry; entry <= endEntry; entry++) {
             assertEquals(entries.get(pos++).getEntryId(), entry);
         }
@@ -200,13 +202,14 @@ public class PendingReadsManagerTest  {
                                                            long firstEntry, long endEntry,
                                                            IntSupplier expectedReadCount) {
         PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, expectedReadCount);
-        log.info("prepareReadFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry, expectedReadCount);
+        log.info().attr("firstEntry", firstEntry).attr("endEntry", endEntry)
+                .attr("expectedReadCount", expectedReadCount).log("prepareReadFromStorage");
         when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry),
                 argThat(expectedReadCountArg -> expectedReadCountArg.getAsInt()
                         == expectedReadCount.getAsInt()))).thenAnswer(
                 (invocationOnMock -> {
-                    log.info("readFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry,
-                            expectedReadCount);
+                    log.info().attr("firstEntry", firstEntry).attr("endEntry", endEntry)
+                            .attr("expectedReadCount", expectedReadCount).log("readFromStorage");
                     entryRangeReadCount.computeIfAbsent(Pair.of(firstEntry, endEntry), __ -> new AtomicInteger(0))
                             .getAndIncrement();
                     return read;
@@ -522,7 +525,7 @@ public class PendingReadsManagerTest  {
         readFutures.get(2).get(1, TimeUnit.SECONDS);
         assertEquals(readFutures.get(2).getEntries().size(), 91);
 
-        log.info("entryRangeReadCount: {}", entryRangeReadCount);
+        log.info().attr("entryRangeReadCount", entryRangeReadCount).log("Entry range read counts");
         final var keys = Set.of(Pair.of(10L, 70L), Pair.of(71L, 79L),
                 Pair.of(80L, 100L));
         assertEquals(entryRangeReadCount.keySet(), keys);

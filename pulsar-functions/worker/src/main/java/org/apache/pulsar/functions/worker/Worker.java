@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Slf4j
+@CustomLog
 public class Worker {
 
     private final WorkerConfig workerConfig;
@@ -61,7 +61,8 @@ public class Worker {
         try {
             errorNotifier.waitForError();
         } catch (Throwable th) {
-            log.error("!-- Fatal error encountered. Worker will exit now. --!", th);
+            log.error().exception(th)
+                    .log("Fatal error encountered. Worker will exit now.");
             throw th;
         }
     }
@@ -98,14 +99,14 @@ public class Worker {
             }
             workerService.stop();
         } catch (Exception e) {
-            log.warn("Failed to gracefully stop worker service ", e);
+            log.warn().exception(e).log("Failed to gracefully stop worker service ");
         }
 
         if (this.configMetadataStore != null) {
             try {
                 this.configMetadataStore.close();
             } catch (Exception e) {
-                log.warn("Failed to close global zk cache ", e);
+                log.warn().exception(e).log("Failed to close global zk cache ");
             }
         }
 

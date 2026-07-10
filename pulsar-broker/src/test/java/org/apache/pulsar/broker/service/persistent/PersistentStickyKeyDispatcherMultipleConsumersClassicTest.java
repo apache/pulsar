@@ -499,13 +499,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
             return Collections.emptySet();
         }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
 
+        // Simulate real cursor behavior: track read position so entries are only returned once
+        // by normal reads (subsequent access must go through asyncReplayEntries).
+        // When no new entries are available, don't call the callback (simulating "OrWait" behavior).
+        Set<Position> normalReadReturned = new ConcurrentSkipListSet<>();
         doAnswer(invocationOnMock -> {
             int maxEntries = invocationOnMock.getArgument(0);
             AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(2);
             List<Entry> entries = allEntries.stream()
-                    .filter(entry -> entry.getLedgerId() != -1 && !alreadySent.contains(entry.getPosition()))
+                    .filter(entry -> entry.getLedgerId() != -1
+                            && !normalReadReturned.contains(entry.getPosition()))
                     .limit(maxEntries)
                     .toList();
+            if (entries.isEmpty()) {
+                // No new entries available - simulate "wait" by not calling callback
+                return null;
+            }
+            entries.forEach(e -> normalReadReturned.add(e.getPosition()));
             Object ctx = invocationOnMock.getArgument(3);
             callback.readEntriesComplete(copyEntries(entries), ctx);
             return null;
@@ -550,6 +560,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
         // set permits to 2
         slowConsumerAvailablePermits.set(2);
+
+        // Trigger a new read cycle so the dispatcher can do a replay read to deliver
+        // messages to the slow consumer. In production, this would be triggered by
+        // consumerFlow when the consumer sends more permits.
+        persistentDispatcher.readMoreEntriesAsync();
 
         // now wait for slow consumer messages since there are permits
         assertTrue(slowConsumerMessagesSent.await(5, TimeUnit.SECONDS));

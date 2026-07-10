@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.impl.cache.RangeCacheTestUtil;
@@ -62,7 +62,7 @@ import org.testng.annotations.Test;
  * regular test suite.
  */
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class BrokerEntryCacheTest extends ProducerConsumerBase {
     AtomicInteger bkReadCount = new AtomicInteger(0);
     @BeforeMethod
@@ -135,6 +135,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
 
     // change enabled to true to run the test
     @Test(enabled = false)
+    @SuppressWarnings("unchecked")
     public void testTailingReadsKeySharedSlowConsumer() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -160,6 +161,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -200,9 +202,9 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                     producer.newMessage().keyBytes(keyBytes).value(value).send();
                     messagesSent++;
                 }
-                log.info("Producer finished sending {} messages", messagesSent);
+                log.info().attr("messagesSent", messagesSent).log("Producer finished sending messages");
             } catch (Exception e) {
-                log.error("Producer error", e);
+                log.error().exception(e).log("Producer error");
                 fail("Producer failed: " + e.getMessage());
             } finally {
                 producerLatch.countDown();
@@ -240,9 +242,10 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                             // Expected timeout, continue
                         }
                     }
-                    log.info("Consumer {} received {} messages", consumerId, messagesReceived);
+                    log.info().attr("consumerId", consumerId).attr("messagesReceived", messagesReceived)
+                            .log("Consumer received messages");
                 } catch (Exception e) {
-                    log.error("Consumer {} error", consumerId, e);
+                    log.error().attr("consumerId", consumerId).exception(e).log("Consumer error");
                 } finally {
                     consumersLatch.countDown();
                 }
@@ -272,10 +275,11 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         long cacheHitsDelta = finalCacheHits - initialCacheHits;
         long cacheMissesDelta = finalCacheMisses - initialCacheMisses;
 
-        log.info("Cache metrics - Hits: {} -> {} (delta: {}), Misses: {} -> {} (delta: {})",
-                initialCacheHits, finalCacheHits, cacheHitsDelta,
-                initialCacheMisses, finalCacheMisses, cacheMissesDelta);
-        log.info("Bk read count: {}", bkReadCount.get());
+        log.info().attr("initialHits", initialCacheHits).attr("finalHits", finalCacheHits)
+                .attr("hitsDelta", cacheHitsDelta).attr("initialMisses", initialCacheMisses)
+                .attr("finalMisses", finalCacheMisses).attr("missesDelta", cacheMissesDelta)
+                .log("Cache metrics");
+        log.info().attr("bkReadCount", bkReadCount.get()).log("Bk read count");
 
         // Verify that cache activity occurred
         assertTrue(cacheHitsDelta + cacheMissesDelta > 0,
@@ -290,7 +294,8 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         double totalCacheRequests = cacheHitsDelta + cacheMissesDelta;
         if (totalCacheRequests > 0) {
             double cacheHitRate = cacheHitsDelta / totalCacheRequests;
-            log.info("Cache hit rate: {}%", String.format("%.2f", cacheHitRate * 100));
+            log.info().attr("cacheHitRate", String.format("%.2f", cacheHitRate * 100))
+                    .log("Cache hit rate");
 
             // With tail consumers, we might expect good cache hit rates
             // since recent messages are more likely to be cached
@@ -300,6 +305,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     // change enabled to true to run the test
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(enabled = false)
     public void testCatchUpReadsWithFailureProxyDisconnectingAllConnections() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-catchup-test-topic";
@@ -331,6 +337,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers in paused state with receiver queue size of 50
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -350,11 +357,11 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         long initialCacheMisses = cacheStats.getCacheMissesTotal();
 
         // Produce all messages while consumers are paused
-        log.info("Starting to produce {} messages", totalMessages);
+        log.info().attr("totalMessages", totalMessages).log("Starting to produce messages");
         for (long messageId = 0; messageId < totalMessages; messageId++) {
             producer.send(messageId);
         }
-        log.info("Finished producing {} messages", totalMessages);
+        log.info().attr("totalMessages", totalMessages).log("Finished producing messages");
 
         // Record cache metrics after production
         long afterProductionCacheHits = cacheStats.getCacheHitsTotal();
@@ -407,9 +414,11 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                         }
                     }
                     messagesReceivedPerConsumer[consumerId] = messagesReceived.size();
-                    log.info("Consumer {} received {} messages", consumerId, messagesReceived.size());
+                    log.info().attr("consumerId", consumerId)
+                            .attr("messagesReceived", messagesReceived.size())
+                            .log("Consumer received messages");
                 } catch (Exception e) {
-                    log.error("Consumer {} error", consumerId, e);
+                    log.error().attr("consumerId", consumerId).exception(e).log("Consumer error");
                 } finally {
                     consumersLatch.countDown();
                 }
@@ -439,11 +448,13 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         long consumptionCacheHitsDelta = finalCacheHits - afterProductionCacheHits;
         long consumptionCacheMissesDelta = finalCacheMisses - afterProductionCacheMisses;
 
-        log.info("Production phase - Cache hits delta: {}, Cache misses delta: {}",
-                productionCacheHitsDelta, productionCacheMissesDelta);
-        log.info("Consumption phase - Cache hits delta: {}, Cache misses delta: {}",
-                consumptionCacheHitsDelta, consumptionCacheMissesDelta);
-        log.info("Bk read count: {}", bkReadCount.get());
+        log.info().attr("hitsDelta", productionCacheHitsDelta)
+                .attr("missesDelta", productionCacheMissesDelta)
+                .log("Production phase cache metrics");
+        log.info().attr("hitsDelta", consumptionCacheHitsDelta)
+                .attr("missesDelta", consumptionCacheMissesDelta)
+                .log("Consumption phase cache metrics");
+        log.info().attr("bkReadCount", bkReadCount.get()).log("Bk read count");
 
         // Verify all consumers received all messages
         for (int i = 0; i < numConsumers; i++) {
@@ -461,7 +472,8 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         double totalConsumptionCacheRequests = consumptionCacheHitsDelta + consumptionCacheMissesDelta;
         if (totalConsumptionCacheRequests > 0) {
             double cacheHitRate = consumptionCacheHitsDelta / totalConsumptionCacheRequests;
-            log.info("Consumption cache hit rate: {}%", String.format("%.2f", cacheHitRate * 100));
+            log.info().attr("cacheHitRate", String.format("%.2f", cacheHitRate * 100))
+                    .log("Consumption cache hit rate");
 
             // For catch-up scenarios, we expect very few cache misses
             assertTrue(consumptionCacheMissesDelta == 0 || cacheHitRate > 0.6,
@@ -470,11 +482,12 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                             consumptionCacheMissesDelta, cacheHitRate * 100));
         }
 
-        log.info("Catch-up read test completed successfully with {} consumers and {} messages",
-                numConsumers, totalMessages);
+        log.info().attr("numConsumers", numConsumers).attr("totalMessages", totalMessages)
+                .log("Catch-up read test completed successfully");
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTailingReadsClearsCacheAfterCacheTimeout() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -491,6 +504,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -519,9 +533,9 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                     producer.send(messageId++);
                     messagesSent++;
                 }
-                log.info("Producer finished sending {} messages", messagesSent);
+                log.info().attr("messagesSent", messagesSent).log("Producer finished sending messages");
             } catch (Exception e) {
-                log.error("Producer error", e);
+                log.error().exception(e).log("Producer error");
                 fail("Producer failed: " + e.getMessage());
             } finally {
                 producerLatch.countDown();
@@ -547,9 +561,10 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                             // Expected timeout, continue
                         }
                     }
-                    log.info("Consumer {} received {} messages", consumerId, messagesReceived);
+                    log.info().attr("consumerId", consumerId).attr("messagesReceived", messagesReceived)
+                            .log("Consumer received messages");
                 } catch (Exception e) {
-                    log.error("Consumer {} error", consumerId, e);
+                    log.error().attr("consumerId", consumerId).exception(e).log("Consumer error");
                 } finally {
                     consumersLatch.countDown();
                 }
@@ -586,6 +601,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExpectedReads() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -602,6 +618,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -631,9 +648,9 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                     producer.send(messageId++);
                     messagesSent++;
                 }
-                log.info("Producer finished sending {} messages", messagesSent);
+                log.info().attr("messagesSent", messagesSent).log("Producer finished sending messages");
             } catch (Exception e) {
-                log.error("Producer error", e);
+                log.error().exception(e).log("Producer error");
                 fail("Producer failed: " + e.getMessage());
             } finally {
                 producerLatch.countDown();
@@ -660,9 +677,10 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                             // Expected timeout, continue
                         }
                     }
-                    log.info("Consumer {} received {} messages", consumerId, messagesReceived);
+                    log.info().attr("consumerId", consumerId).attr("messagesReceived", messagesReceived)
+                            .log("Consumer received messages");
                 } catch (Exception e) {
-                    log.error("Consumer {} error", consumerId, e);
+                    log.error().attr("consumerId", consumerId).exception(e).log("Consumer error");
                 } finally {
                     consumersLatch.countDown();
                 }
@@ -742,7 +760,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
             for (int i = 0; i < numMessages; i++) {
                 futures.add(producer.sendAsync(message).whenComplete((id, e) -> {
                     if (e != null) {
-                        log.error("error", e);
+                        log.error().exception(e).log("error");
                     }
                 }));
                 if (futures.size() == 1000) {

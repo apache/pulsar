@@ -40,8 +40,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -53,6 +54,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -66,9 +68,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Unit test for {@link TableView}.
+ * Unit test for {@link org.apache.pulsar.client.impl.TableViewImpl}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TableViewTest extends MockedPulsarServiceBaseTest {
 
@@ -87,7 +89,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"), false);
     }
 
     @AfterClass(alwaysRun = true)
@@ -157,6 +159,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
      * 1. multi-partition topic, p1, p2 has new message, p3 has no new messages.
      * 2. Call new `refresh` API, it will be completed after read new messages.
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "partition")
     public void testRefreshAPI(int partition) throws Exception {
         // 1. Prepare resource.
@@ -168,7 +171,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic)
                 .create();
         // Verify refresh can handle the case when the topic is empty
@@ -224,11 +227,11 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         String topic2 = "persistent://public/default/testRefreshTaskCanBeCompletedWhenReaderClosed-2";
         admin.topics().createNonPartitionedTopic(topic2);
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv1 = pulsarClient.newTableView(Schema.BYTES)
+        TableView<byte[]> tv1 = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic1)
                 .create();
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv2 = pulsarClient.newTableView(Schema.BYTES)
+        TableView<byte[]> tv2 = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic1)
                 .create();
         // 2. Slow down the rate of reading messages.
@@ -260,6 +263,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
         Awaitility.await().untilAsserted(() -> assertTrue(completedExceptionally.get()));
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testTableView() throws Exception {
@@ -268,23 +272,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         int count = 20;
         Set<String> keys = this.publishMessages(topic, count, false);
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        log.info().attr("size", tv.size()).log("start tv size");
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v))
+                .log("checkpoint entry"));
 
         // Send more data
         Set<String> keys2 = this.publishMessages(topic, count * 2, false);
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count * 2);
         });
         assertEquals(tv.keySet(), keys2);
@@ -315,17 +320,18 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
         Set<String> keys = this.publishMessages(topic, 10, false);
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableView()
+        TableView<byte[]> tv = pulsarClient.newTableView()
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), 10);
         });
         assertEquals(tv.keySet(), keys);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testTableViewUpdatePartitions(String topicDomain) throws Exception {
@@ -335,21 +341,22 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         // For non-persistent topic, this keys will never be received.
         Set<String> keys = this.publishMessages(topic, count, false);
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
-        log.info("start tv size: {}", tv.size());
+        log.info().attr("size", tv.size()).log("start tv size");
         if (topicDomain.equals(TopicDomain.non_persistent.value())) {
             keys = this.publishMessages(topic, count, false);
         }
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v))
+                .log("checkpoint entry"));
 
         admin.topics().updatePartitionedTopic(topic, 4);
         TopicName topicName = TopicName.get(topic);
@@ -362,18 +369,19 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Set<String> keys2 =
                 this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count * 2);
         });
         assertEquals(tv.keySet(), keys2);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testPublishNullValue(String topicDomain) throws Exception {
         String topic = topicDomain + "://public/default/tableview-test-publish-null-value";
         admin.topics().createPartitionedTopic(topic, 3);
 
-        final org.apache.pulsar.client.api.TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+        final TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -396,7 +404,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.close();
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
+        TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -413,6 +421,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     public static Object[][] partitioned() {
         return new Object[][] {{true}, {false}};
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
     public void testAck(boolean partitionedTopic) throws Exception {
@@ -426,7 +435,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -461,6 +470,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
 
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testListen() throws Exception {
@@ -475,7 +485,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -508,6 +518,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(mockAction.acceptedCount, 5);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testTableViewWithEncryptedMessages() throws Exception {
@@ -520,26 +531,27 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // TableView can read them using the private key
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
             .topic(topic)
             .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
             .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
             .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        log.info().attr("size", tv.size()).log("start tv size");
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testTableViewTailMessageReadRetry() throws Exception {
         String topic = "persistent://public/default/tableview-is-interrupted-test";
         admin.topics().createNonPartitionedTopic(topic);
         @Cleanup
-        org.apache.pulsar.client.api.TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
+        TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
@@ -572,6 +584,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBuildTableViewWithMessagesAlwaysAvailable() throws Exception {
         String topic = "persistent://public/default/testBuildTableViewWithMessagesAlwaysAvailable";
         admin.topics().createPartitionedTopic(topic, 10);
@@ -608,12 +621,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             return CompletableFuture.completedFuture(message);
         });
         @Cleanup
-        TableView<byte[]> tableView = (TableView<byte[]>) pulsarClient.newTableView()
+        TableViewImpl<byte[]> tableView = (TableViewImpl<byte[]>) pulsarClient.newTableView()
                 .topic(topic)
                 .createAsync()
                 .get();
-        TableView<byte[]> mockTableView = spy(tableView);
-        Method readAllExistingMessagesMethod = TableView.class
+        TableViewImpl<byte[]> mockTableView = spy(tableView);
+        Method readAllExistingMessagesMethod = AbstractTableViewImpl.class
                 .getDeclaredMethod("readAllExistingMessages", Reader.class);
         readAllExistingMessagesMethod.setAccessible(true);
         CompletableFuture<Reader<?>> future =
@@ -633,7 +646,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .createMapped(m -> {
                     if (m.getValue().equals("delete-me")) {
@@ -644,17 +657,14 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // Send a message to be mapped
         String testKey = "key1";
-        String testValue = "value1";
         producer.newMessage()
                 .key(testKey)
-                .value(testValue)
+                .value("value1")
                 .property("myProp", "myValue")
                 .send();
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
-
-        String mappedValue = tableView.get(testKey);
-        assertEquals(mappedValue, "value1:myValue");
+        assertEquals(tableView.get(testKey), "value1:myValue");
 
         // Send another message to update the value
         producer.newMessage()
@@ -694,9 +704,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .send();
 
         @Cleanup
-        org.apache.pulsar.client.api.TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
-                .createMapped(java.util.function.Function.identity());
+                .createMapped(Function.identity());
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
 
@@ -706,8 +716,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         assertEquals(message.getValue(), testValue);
         assertEquals(message.getProperty("myProp"), "myValue");
 
-        Message<String> missingMessage = tableView.get("missingKey");
-        Assert.assertNull(missingMessage, "Message should be null for missing key");
+        Assert.assertNull(tableView.get("missingKey"), "Message should be null for missing key");
     }
-
 }

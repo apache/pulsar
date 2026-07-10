@@ -28,17 +28,19 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.TreeMap;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Loads ServiceConfiguration with properties.
  *
  *
  */
+@CustomLog
 public class PulsarConfigurationLoader {
 
     /**
@@ -129,9 +131,10 @@ public class PulsarConfigurationLoader {
                     throw new RuntimeException(e);
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Validating configuration field '{}' = '{}'", field.getName(), value);
-                }
+                log.debug()
+                        .attr("field", field.getName())
+                        .attr("value", value)
+                        .log("Validating configuration field");
                 boolean isRequired = field.getAnnotation(FieldContext.class).required();
                 long minValue = field.getAnnotation(FieldContext.class).minValue();
                 long maxValue = field.getAnnotation(FieldContext.class).maxValue();
@@ -224,5 +227,39 @@ public class PulsarConfigurationLoader {
         return convertFrom(conf, true);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarConfigurationLoader.class);
+    /**
+     * Returns the subset of configuration whose values differ from the defaults of a freshly-instantiated
+     * configuration of the same class. Any entries in {@link PulsarConfiguration#getProperties()} that are not
+     * declared fields are also included. Useful to log only the user-provided overrides instead of the full
+     * configuration.
+     */
+    public static Map<String, Object> runtimeConfigurationOverrides(PulsarConfiguration conf) {
+        try {
+            PulsarConfiguration defaults = conf.getClass().getDeclaredConstructor().newInstance();
+            Map<String, Object> overrides = new TreeMap<>();
+            for (Field field : conf.getClass().getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                if (field.getDeclaredAnnotation(FieldContext.class) == null) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object current = field.get(conf);
+                Object def = field.get(defaults);
+                if (!Objects.equals(current, def)) {
+                    overrides.put(field.getName(), current);
+                }
+            }
+            Properties props = conf.getProperties();
+            if (props != null) {
+                for (String key : props.stringPropertyNames()) {
+                    overrides.putIfAbsent(key, props.getProperty(key));
+                }
+            }
+            return overrides;
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to compute configuration overrides", e);
+        }
+    }
 }

@@ -21,12 +21,12 @@ package org.apache.pulsar.zookeeper;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataNodeSizeStats;
 
-@Slf4j
+@CustomLog
 public class DefaultMetadataNodeSizeStats implements MetadataNodeSizeStats {
 
     public static final int UNSET = -1;

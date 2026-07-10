@@ -246,7 +246,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>Default routing mode is to round-robin across the available partitions.
      *
      * <p>This logic is applied when the application is not setting a key on a
-     * particular message. If the key is set with {@link MessageBuilder#setKey(String)},
+     * particular message. If the key is set with {@link TypedMessageBuilder#key(String)},
      * then the hash of the key will be used to select a partition for the message.
      *
      * @param messageRoutingMode
@@ -410,7 +410,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the producer builder instance
      */
-    ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.

@@ -25,15 +25,15 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class GenericJsonReader implements SchemaReader<GenericRecord> {
 
     private final ObjectReader objectReader;
@@ -82,10 +82,8 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("GenericJsonReader close inputStream close error", e);
+                log.error().exception(e).log("GenericJsonReader close inputStream close error");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(GenericJsonReader.class);
 }

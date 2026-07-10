@@ -22,8 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -35,17 +34,17 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-@Slf4j
+@CustomLog
 public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     protected List<PulsarTestContext> additionalPulsarTestContexts;
     protected List<PulsarService> additionalBrokers;
     protected List<PulsarAdmin> additionalBrokerAdmins;
     protected List<PulsarClient> additionalBrokerClients;
     protected PulsarMockBookKeeper mockBookKeeper;
+    // Populated after broker startup with kernel-assigned ports.
     protected int mainBrokerPort;
     protected List<Integer> additionalBrokerPorts = new ArrayList<>();
 
@@ -53,17 +52,10 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         return 2;
     }
 
-    protected boolean useDynamicBrokerPorts() {
-        return true;
-    }
-
     @BeforeClass(alwaysRun = true)
     @Override
     public final void setup() throws Exception {
         beforeSetup();
-        if (!useDynamicBrokerPorts()) {
-            mainBrokerPort = PortManager.nextLockedFreePort();
-        }
         OrderedExecutor mockBookKeeperExecutor = OrderedExecutor.newBuilder().numThreads(1)
                 .name(MultiBrokerBaseTest.class.getSimpleName() + "-bk-executor").build();
         registerCloseable(() -> GracefulExecutorServicesShutdown.initiate()
@@ -75,6 +67,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
             ((NonClosableMockBookKeeper) mockBookKeeper).reallyShutdown();
         });
         super.internalSetup();
+        mainBrokerPort = pulsar.getBrokerListenPort().orElse(0);
         additionalBrokersSetup();
         pulsarResourcesSetup();
         additionalSetup();
@@ -87,14 +80,6 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         pulsarTestContextBuilder.bookKeeperClient(mockBookKeeper);
-    }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        if (!useDynamicBrokerPorts()) {
-            conf.setBrokerServicePort(Optional.of(mainBrokerPort));
-        }
     }
 
     protected void additionalSetup() throws Exception {
@@ -115,17 +100,12 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         additionalBrokerClients = new ArrayList<>(numberOfAdditionalBrokers);
         additionalPulsarTestContexts = new ArrayList<>(numberOfAdditionalBrokers);
         additionalBrokerPorts = new ArrayList<>(numberOfAdditionalBrokers);
-        if (!useDynamicBrokerPorts()) {
-            for (int i = 0; i < numberOfAdditionalBrokers; i++) {
-                int port = PortManager.nextLockedFreePort();
-                additionalBrokerPorts.add(port);
-            }
-        }
         for (int i = 0; i < numberOfAdditionalBrokers; i++) {
             PulsarTestContext pulsarTestContext = createAdditionalBroker(i);
             additionalPulsarTestContexts.add(i, pulsarTestContext);
             PulsarService pulsarService = pulsarTestContext.getPulsarService();
             additionalBrokers.add(i, pulsarService);
+            additionalBrokerPorts.add(pulsarService.getBrokerListenPort().orElse(0));
             PulsarAdminBuilder pulsarAdminBuilder =
                     PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress() != null
                             ? pulsarService.getWebServiceAddress()
@@ -159,9 +139,6 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
 
     protected PulsarTestContext createAdditionalBroker(int additionalBrokerIndex) throws Exception {
         ServiceConfiguration conf = createConfForAdditionalBroker(additionalBrokerIndex);
-        if (!useDynamicBrokerPorts()) {
-            conf.setBrokerServicePort(Optional.of(additionalBrokerPorts.get(additionalBrokerIndex)));
-        }
         return createAdditionalPulsarTestContext(conf);
     }
 
@@ -172,17 +149,9 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         try {
             additionalCleanup();
         } catch (Exception e) {
-            log.warn("Exception during additional cleanup", e);
+            log.warn().exception(e).log("Exception during additional cleanup");
         }
         super.internalCleanup();
-        if (!useDynamicBrokerPorts()) {
-            if (mainBrokerPort > 0) {
-                PortManager.releaseLockedPort(mainBrokerPort);
-            }
-            for (Integer port : additionalBrokerPorts) {
-                PortManager.releaseLockedPort(port);
-            }
-        }
     }
 
     protected void additionalCleanup() throws Exception {
@@ -212,11 +181,8 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
                 try {
                     pulsarService.getConfiguration().setBrokerShutdownTimeoutMs(0L);
                     pulsarTestContext.close();
-                    pulsarService.getConfiguration().getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarService.getConfiguration().getWebServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarService.getConfiguration().getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
                 } catch (Exception e) {
-                    log.warn("Failed to stop additional broker", e);
+                    log.warn().exception(e).log("Failed to stop additional broker");
                 }
             }
             additionalBrokers = null;

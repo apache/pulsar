@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -53,7 +53,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
     LinkedBlockingDeque<Pair<String, Integer>> tails;
@@ -329,7 +329,9 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                             putResult.get();
                         } catch (Exception ignore) {
                         }
-                        log.info("Put value {} success:{}. ", val, !putResult.isCompletedExceptionally());
+                        log.info().attr("value", val)
+                                .attr("success", !putResult.isCompletedExceptionally())
+                                .log("Put value result");
                     } else {
                         break;
                     }

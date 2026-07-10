@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 /**
  * The implementation of {@link TransactionBufferClient}.
  */
-@Slf4j
+@CustomLog
 public class TransactionBufferClientImpl implements TransactionBufferClient {
 
     private final TransactionBufferHandler tbHandler;

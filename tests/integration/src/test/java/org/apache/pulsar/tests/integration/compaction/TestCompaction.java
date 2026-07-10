@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -42,7 +42,7 @@ import org.testng.collections.Maps;
 /**
  * Test cases for compaction.
  */
-@Slf4j
+@CustomLog
 public class TestCompaction extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
@@ -193,7 +193,7 @@ public class TestCompaction extends PulsarTestSuite {
                             .value(("key-" + i + "-value-" + j).getBytes(UTF_8))
                             .send();
                     }
-                    log.info("Successfully write {} values for key {}", numValuesPerKey, i);
+                    log.info().attr("write", numValuesPerKey).attr("key", i).log("Successfully write values for key");
                 }
             }
 
@@ -255,7 +255,7 @@ public class TestCompaction extends PulsarTestSuite {
                     assertEquals("" + key, m.getKey());
                     assertEquals("key-" + key + "-value-" + (startValue + i), new String(m.getValue(), UTF_8));
                 }
-                log.info("Read {} values from key {}", numValuesPerKey, key);
+                log.info().attr("read", numValuesPerKey).attr("key", key).log("Read values from key");
             }
 
         }

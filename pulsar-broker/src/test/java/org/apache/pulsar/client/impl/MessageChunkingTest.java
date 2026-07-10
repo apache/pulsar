@@ -37,6 +37,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.RandomUtils;
@@ -64,8 +65,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -73,8 +72,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class MessageChunkingTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(MessageChunkingTest.class);
 
     @BeforeMethod
     @Override
@@ -99,23 +98,10 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test
-    public void testInvalidConfig() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
-        // batching and chunking can't be enabled together
-        try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
-            fail("producer creation should have fail");
-        } catch (IllegalArgumentException ie) {
-            // Ok
-        }
-    }
-
     @Test(dataProvider = "ackReceiptEnabledWithMaxMessageSize")
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         if (clientSizeMaxMessageSize) {
             this.conf.setMaxMessageSize(35);
         } else {
@@ -151,7 +137,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("[{}] - Published [{}] Received message: [{}]", i, publishedMessages.get(i), receivedMessage);
+            log.info()
+                    .attr("i", i)
+                    .attr("published", publishedMessages.get(i))
+                    .attr("message", receivedMessage)
+                    .log("Published Received message");
             String expectedMessage = publishedMessages.get(i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             msgIds.add(msg.getMessageId());
@@ -180,9 +170,10 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
 
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testChunkingWithOrderingKey() throws Exception {
@@ -210,7 +201,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     @Test(dataProvider = "ackReceiptEnabled")
     public void testLargeMessageAckTimeOut(boolean ackReceiptEnabled) throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -240,7 +231,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             msg = reader.readNext(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = publishedMessages.get(i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -249,7 +240,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = publishedMessages.get(i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -264,7 +255,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             lastMsgId = msg.getMessageId();
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = publishedMessages.get(i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -283,13 +274,13 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         reader.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
 
     }
 
     @Test
     public void testPublishWithFailure() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         this.conf.setMaxMessageSize(50);
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
@@ -337,7 +328,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
      */
     @Test
     public void testMaxPendingChunkMessages() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         final String topicName = "persistent://my-property/my-ns/maxPending";
         final String subName = "my-subscriber-name";
         @Cleanup
@@ -376,7 +367,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testResendChunkMessagesWithoutAckHole() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         final String topicName = "persistent://my-property/my-ns/testResendChunkMessagesWithoutAckHole";
         final String subName = "my-subscriber-name";
         @Cleanup
@@ -408,7 +399,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testResendChunkMessages() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         final String topicName = "persistent://my-property/my-ns/testResendChunkMessages";
 
         @Cleanup
@@ -448,33 +439,9 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
-    /**
-     * Validate that chunking is not supported with batching and non-persistent topic.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testInvalidUseCaseForChunking() throws Exception {
-
-        log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
-
-        try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
-            fail("it should have failied because chunking can't be used with batching enabled");
-        } catch (IllegalArgumentException ie) {
-            // Ok
-        }
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
     @Test
     public void testExpireIncompleteChunkMessage() throws Exception{
-        final String topicName = "persistent://prop/use/ns-abc/expireMsg";
+        final String topicName = "persistent://my-property/my-ns/expireMsg";
 
         // 1. producer connect
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
@@ -527,7 +494,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     @Test
     public void testChunksEnqueueFailed() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test-chunks-enqueue-failed";
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         this.conf.setMaxMessageSize(50);
 
         final MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
@@ -568,7 +535,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testSeekChunkMessages() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/test-seek-chunk";
@@ -601,7 +568,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer1.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("[{}] - Received message: [{}]", i, receivedMessage);
+            log.info().attr("i", i).attr("message", receivedMessage).log("Received message");
             msgIds.add(msg.getMessageId());
         }
 
@@ -633,12 +600,12 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         consumer2.close();
         producer.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testReaderChunkingConfiguration() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).maxPendingChunkedMessage(12)
@@ -663,7 +630,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .create();
         for (int size = 1; size <= maxMessageSize; size++) {
             final MessageId messageId = producer.send(createMessagePayload(size));
-            log.info("Send {} bytes to {}", size, messageId);
+            log.info().attr("size", size).attr("messageId", messageId).log("Sent bytes");
             if (size <= payloadChunkSize) {
                 assertEquals(messageId.getClass(), MessageIdImpl.class);
             } else {

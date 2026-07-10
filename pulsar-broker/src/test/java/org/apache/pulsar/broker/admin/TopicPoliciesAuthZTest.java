@@ -492,4 +492,88 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         }
 
     }
+
+    @SneakyThrows
+    @Test
+    public void testSubscriptionExpirationTime() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        int expirationTimeInMinutes = 10;
+
+        // test superuser
+        superUserAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+        await().untilAsserted(() -> Assert.assertEquals(
+                superUserAdmin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(),
+                expirationTimeInMinutes));
+        superUserAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        await().untilAsserted(() ->
+                Assert.assertNull(superUserAdmin.topicPolicies().getSubscriptionExpirationTime(topic)));
+
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+        await().untilAsserted(() -> Assert.assertEquals(
+                tenantManagerAdmin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(),
+                expirationTimeInMinutes));
+        tenantManagerAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        await().untilAsserted(() ->
+                Assert.assertNull(tenantManagerAdmin.topicPolicies().getSubscriptionExpirationTime(topic)));
+
+        // test nobody
+        try {
+            subAdmin.topicPolicies().getSubscriptionExpirationTime(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        // test sub user with permissions
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace("public/default", subject, Set.of(action));
+            try {
+                subAdmin.topicPolicies().getSubscriptionExpirationTime(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+            superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
+        }
+    }
 }

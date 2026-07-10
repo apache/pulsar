@@ -19,94 +19,110 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import com.fasterxml.jackson.databind.ObjectReader;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLConnection;
-import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
  */
 public class DefaultMetadataResolver implements MetadataResolver {
 
-    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    private static final String WELL_KNOWN_PREFIX = "/.well-known/";
+    private static final String DEFAULT_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "openid-configuration";
+    /**
+     * The OAuth 2.0 Authorization Server Metadata path as defined in RFC 8414.
+     */
+    public static final String OAUTH_WELL_KNOWN_METADATA_PATH = WELL_KNOWN_PREFIX + "oauth-authorization-server";
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
-    private Duration connectTimeout;
-    private Duration readTimeout;
+    private final AsyncHttpClient httpClient;
 
-    public DefaultMetadataResolver(URL metadataUrl) {
+    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient) {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
-        // set a default timeout to ensure that this doesn't block
-        this.connectTimeout = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS);
-        this.readTimeout = Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS);
-    }
-
-    public DefaultMetadataResolver withConnectTimeout(Duration connectTimeout) {
-        this.connectTimeout = connectTimeout;
-        return this;
-    }
-
-    public DefaultMetadataResolver withReadTimeout(Duration readTimeout) {
-        this.readTimeout = readTimeout;
-        return this;
+        this.httpClient = httpClient;
     }
 
     /**
-     * Resolves the authorization metadata.
-     * @return metadata
-     * @throws IOException if the metadata could not be resolved.
+     * Gets a well-known metadata URL for the given OAuth issuer URL.
+     *
+     * @param issuerUrl The authorization server's issuer identifier
+     * @param httpClient The HTTP client
+     * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
+     * @return a resolver
      */
-    public Metadata resolve() throws IOException {
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient,
+                                                        String wellKnownMetadataPath) {
+        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
+    }
+
+    /**
+     * Gets a well-known metadata URL for the given OAuth issuer URL.
+     *
+     * @param issuerUrl The authorization server's issuer identifier
+     * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
+     * @return a URL
+     * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
+     * OAuth Discovery: Obtaining Authorization Server Metadata</a>
+     */
+    public static URL getWellKnownMetadataUrl(URL issuerUrl, String wellKnownMetadataPath) {
         try {
-            URLConnection c = this.metadataUrl.openConnection();
-            if (connectTimeout != null) {
-                c.setConnectTimeout((int) connectTimeout.toMillis());
+            if (wellKnownMetadataPath == null || wellKnownMetadataPath.isEmpty()) {
+                return URI.create(issuerUrl.toExternalForm() + DEFAULT_WELL_KNOWN_METADATA_PATH).normalize().toURL();
             }
-            if (readTimeout != null) {
-                c.setReadTimeout((int) readTimeout.toMillis());
+            if (wellKnownMetadataPath.startsWith(WELL_KNOWN_PREFIX)) {
+                String issuerUrlString = issuerUrl.toExternalForm();
+                // For OAuth2, insert well-known path before the issuer URL path
+                URL url = new URL(issuerUrlString);
+                String path = url.getPath();
+                String basePath = issuerUrlString.substring(0,
+                        issuerUrlString.length() - (path.isEmpty() ? 0 : path.length()));
+                return URI.create(basePath + wellKnownMetadataPath + path).normalize().toURL();
+            } else {
+                throw new IllegalArgumentException("Metadata path must start with '" + WELL_KNOWN_PREFIX
+                        + "', but was: " + wellKnownMetadataPath);
             }
-            c.setRequestProperty("Accept", "application/json");
-
-            Metadata metadata;
-            try (InputStream inputStream = c.getInputStream()) {
-                metadata = this.objectReader.readValue(inputStream);
-            }
-            return metadata;
-
-        } catch (IOException e) {
-            throw new IOException("Cannot obtain authorization metadata from " + metadataUrl.toString(), e);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 
     /**
-     * Gets a well-known metadata URL for the given OAuth issuer URL.
-     * @param issuerUrl The authorization server's issuer identifier
-     * @return a resolver
+     * Resolves the authorization metadata.
+     *
+     * @return metadata
+     * @throws IOException if the metadata could not be resolved.
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl) {
-        return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl));
-    }
+    public Metadata resolve() throws IOException {
 
-    /**
-     * Gets a well-known metadata URL for the given OAuth issuer URL.
-     * @see <a href="https://tools.ietf.org/id/draft-ietf-oauth-discovery-08.html#ASConfig">
-     *     OAuth Discovery: Obtaining Authorization Server Metadata</a>
-     * @param issuerUrl The authorization server's issuer identifier
-     * @return a URL
-     */
-    public static URL getWellKnownMetadataUrl(URL issuerUrl) {
         try {
-            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
+            Response response = httpClient.prepareGet(metadataUrl.toString())
+                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON)
+                    .execute()
+                    .toCompletableFuture()
+                    .get();
+
+            Metadata metadata;
+            try (InputStream inputStream = response.getResponseBodyAsStream()) {
+                metadata = this.objectReader.readValue(inputStream);
+            }
+            return metadata;
+
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw new IOException("Cannot obtain authorization metadata from " + metadataUrl, e);
         }
     }
 }

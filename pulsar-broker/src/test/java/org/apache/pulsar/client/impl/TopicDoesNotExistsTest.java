@@ -19,46 +19,35 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * Tests for not exists topic.
  */
 @Test(groups = "broker-impl")
-public class TopicDoesNotExistsTest extends ProducerConsumerBase {
+public class TopicDoesNotExistsTest extends SharedPulsarBaseTest {
 
-    @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
-        isTcpLookup = true;
-        conf.setAllowAutoTopicCreation(false);
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    @BeforeMethod(alwaysRun = true)
+    public void disableAutoTopicCreation() throws Exception {
+        admin.namespaces().setAutoTopicCreation(getNamespace(),
+                AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
     }
 
     @Test
     public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).build();
         try {
-            pulsarClient.newProducer()
-                    .topic("persistent://public/default/" + UUID.randomUUID().toString())
+            client.newProducer()
+                    .topic(newTopicName())
                     .sendTimeout(100, TimeUnit.MILLISECONDS)
                     .create();
             Assert.fail("Create producer should failed while topic does not exists.");
@@ -66,26 +55,29 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
             Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
         }
         Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) client).timer();
         Assert.assertEquals(timer.pendingTimeouts(), 0);
-        Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
+        Assert.assertEquals(((PulsarClientImpl) client).producersCount(), 0);
     }
 
     @Test
     public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
         @Cleanup
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .build();
         try {
-            pulsarClient.newConsumer()
-                    .topic("persistent://public/default/" + UUID.randomUUID().toString())
+            client.newConsumer()
+                    .topic(newTopicName())
                     .subscriptionName("test")
                     .subscribe();
             Assert.fail("Create consumer should failed while topic does not exists.");
         } catch (PulsarClientException ignore) {
         }
         Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) client).timer();
         Assert.assertEquals(timer.pendingTimeouts(), 0);
-        Assert.assertEquals(((PulsarClientImpl) pulsarClient).consumersCount(), 0);
+        Assert.assertEquals(((PulsarClientImpl) client).consumersCount(), 0);
     }
 }

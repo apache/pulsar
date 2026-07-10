@@ -59,30 +59,22 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/pulsar-client-tools/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $PULSAR_HOME/pulsar-client-tools/build/libs/pulsar-client-tools-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
+    echo "Make sure you've run './gradlew assemble'\n";
     exit 1;
 elif [ -e "$BUILT_JAR" ]; then
     PULSAR_JAR=$BUILT_JAR
 fi
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-      MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/shell/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    f="${PULSAR_HOME}/distribution/shell/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/shell generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-shell-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -91,7 +83,7 @@ add_maven_deps_to_classpath() {
 if [ -d "$PULSAR_HOME/lib" ]; then
     PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 if [ -z "$PULSAR_CLIENT_CONF" ]; then
@@ -126,6 +118,30 @@ if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
   # Required by Netty for optimized direct byte buffer access
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
+# These two settings work together to ensure the Pulsar process exits immediately and predictably
+# if it runs out of either Java heap memory or its internal off-heap memory,
+# as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
+# Netty tuning
+# These settings are primarily used to modify the Netty allocator configuration,
+# improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+#
+# Based on the netty source code, the allocator's default chunk size is calculated as:
+# io.netty.allocator.pageSize (default: 8192) shifted left by
+# io.netty.allocator.maxOrder (default: 9 after Netty 4.1.76.Final version).
+# This equals 8192 * 2^9 = 4 MB：
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PooledByteBufAllocator.java#L105
+#
+# Allocations that are larger than chunk size are considered huge allocations and don't use the pool:
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PoolArena.java#L141-L142
+#
+# Currently, Pulsar defaults to a maximum single message size of 5 MB.
+# Therefore, when frequently producing messages whose size exceeds the chunk size,
+# Netty cannot utilize resources from the memory pool and must frequently allocate native memory.
+# This can lead to increased physical memory fragmentation and higher reclamation costs.
+# Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger
+# than chunk size (8MB) and can reuse Netty's memory pool.
+OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
@@ -134,6 +150,9 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
+# PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated — use PULSAR_LOG_JSON_TEMPLATE
+PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"file:$PULSAR_HOME/conf/OtelLogLayout.json"}}
+PULSAR_LOG_FORMAT=${PULSAR_LOG_FORMAT:-"text"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
@@ -141,6 +160,8 @@ PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.json.template=$PULSAR_LOG_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.format=$PULSAR_LOG_FORMAT"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"

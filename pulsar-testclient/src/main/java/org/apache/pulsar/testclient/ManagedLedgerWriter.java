@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -58,8 +59,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -67,6 +66,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
+@CustomLog
 public class ManagedLedgerWriter extends CmdBase{
 
     private static final LongAdder messagesSent = new LongAdder();
@@ -152,7 +152,9 @@ public class ManagedLedgerWriter extends CmdBase{
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar managed-ledger perf writer with config: {}", w.writeValueAsString(this));
+        log.info()
+                .attr("config", w.writeValueAsString(this))
+                .log("Starting Pulsar managed-ledger perf writer with config");
 
         byte[] payloadData = new byte[this.msgSize];
         ByteBuf payloadBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer(this.msgSize);
@@ -214,7 +216,7 @@ public class ManagedLedgerWriter extends CmdBase{
 
         List<ManagedLedger> managedLedgers = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
-        log.info("Created {} managed ledgers", managedLedgers.size());
+        log.info().attr("created", managedLedgers.size()).log("Created managed ledgers");
 
         long start = System.nanoTime();
         ExecutorService executor = Executors
@@ -267,7 +269,7 @@ public class ManagedLedgerWriter extends CmdBase{
 
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
-                            log.warn("Write error on message", exception);
+                            log.warn().exception(exception).log("Write error on message");
                             PerfClientUtils.exit(1);
                         }
                     };
@@ -278,8 +280,11 @@ public class ManagedLedgerWriter extends CmdBase{
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
                             if (this.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
-                                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of "
-                                            + "production) --------------", this.testTime);
+                                    log.info()
+                                            .attr("duration", this.testTime)
+                                            .log("------------- DONE (reached the maximum"
+                                                    + " duration: [ seconds] of production)"
+                                                    + " --------------");
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -288,8 +293,11 @@ public class ManagedLedgerWriter extends CmdBase{
 
                             if (numMessagesForThisThread > 0) {
                                 if (totalSent++ >= numMessagesForThisThread) {
-                                    log.info("------------- DONE (reached the maximum number: [{}] of production) "
-                                            + "--------------", numMessagesForThisThread);
+                                    log.info()
+                                            .attr("number", numMessagesForThisThread)
+                                            .log("------------- DONE (reached the maximum"
+                                                    + " number: [] of production)"
+                                                    + " --------------");
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -307,7 +315,7 @@ public class ManagedLedgerWriter extends CmdBase{
                     if (PerfClientUtils.hasInterruptedException(t)) {
                         Thread.currentThread().interrupt();
                     } else {
-                        log.error("Got error", t);
+                        log.error().exception(t).log("Got error");
                     }
                 }
             });
@@ -339,19 +347,21 @@ public class ManagedLedgerWriter extends CmdBase{
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            log.info(
-                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    INTFORMAT.format(total),
-                    THROUGHPUTFORMAT.format(rate),
-                    THROUGHPUTFORMAT.format(throughput),
-                    DEC.format(reportHistogram.getMean() / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    DEC.format(reportHistogram.getMaxValue() / 1000.0));
+            log.info()
+                    .attr("produced", INTFORMAT.format(total))
+                    .attr("msg", THROUGHPUTFORMAT.format(rate))
+                    .attr("msg2", THROUGHPUTFORMAT.format(throughput))
+                    .attr("mean", DEC.format(reportHistogram.getMean() / 1000.0))
+                    .attr("med", DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0))
+                    .attr("pct", DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0))
+                    .attr("pct2", DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0))
+                    .attr("pct3", DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0))
+                    .attr("pct4", DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0))
+                    .attr("max", DEC.format(reportHistogram.getMaxValue() / 1000.0))
+                    .log("Throughput produced:  msg ---  msg/s ---  Mbit/s"
+                            + " --- Latency: mean:  ms - med: - 95pct:"
+                            + "  - 99pct:  - 99.9pct:  - 99.99pct:"
+                            + "  - Max:");
 
             reportHistogram.reset();
 
@@ -402,32 +412,33 @@ public class ManagedLedgerWriter extends CmdBase{
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
-        log.info(
-                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
-                totalMessagesSent,
-                TOTALFORMAT.format(rate),
-                TOTALFORMAT.format(throughput));
+        log.info()
+                .attr("stats", totalMessagesSent)
+                .attr("sent", TOTALFORMAT.format(rate))
+                .attr("msg", TOTALFORMAT.format(throughput))
+                .log("Aggregated throughput stats --- records sent --- msg/s --- Mbit/s");
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                DEC.format(reportHistogram.getMean() / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
-                DEC.format(reportHistogram.getMaxValue() / 1000.0));
+        log.info()
+                .attr("mean", DEC.format(reportHistogram.getMean() / 1000.0))
+                .attr("med", DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0))
+                .attr("pct", DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0))
+                .attr("pct2", DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0))
+                .attr("pct3", DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0))
+                .attr("pct4", DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0))
+                .attr("pct5", DEC.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0))
+                .attr("max", DEC.format(reportHistogram.getMaxValue() / 1000.0))
+                .log("Aggregated latency stats --- Latency: mean:"
+                        + "  ms - med:  - 95pct:  - 99pct:"
+                        + "  - 99.9pct: - 99.99pct:  - 99.999pct:"
+                        + "  - Max:");
     }
 
     static final DecimalFormat THROUGHPUTFORMAT = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
     static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerWriter.class);
 }

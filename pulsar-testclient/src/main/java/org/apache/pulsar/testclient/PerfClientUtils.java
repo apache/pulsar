@@ -19,14 +19,15 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import io.github.merlimat.slog.Logger;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -34,13 +35,17 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
+import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.slf4j.Logger;
 
 /**
  * Utility for test clients.
  */
-@Slf4j
+@CustomLog
 @UtilityClass
 public class PerfClientUtils {
 
@@ -60,13 +65,16 @@ public class PerfClientUtils {
      * @param log
      */
     public static void printJVMInformation(Logger log) {
-        log.info("JVM args {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
-        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}",
-                FileUtils.byteCountToDisplaySize(DirectMemoryUtils.jvmMaxDirectMemory()));
-        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}",
-                FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
+        log.info().attr("args", ManagementFactory.getRuntimeMXBean().getInputArguments()).log("JVM args");
+        log.info()
+                .attr("maxDirectMemory", FileUtils.byteCountToDisplaySize(DirectMemoryUtils.jvmMaxDirectMemory()))
+                .log("Netty max memory (PlatformDependent.maxDirectMemory");
+        log.info()
+                .attr("maxMemory", FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()))
+                .log("JVM max heap memory (Runtime.getRuntime.maxMemory");
     }
 
+    @SuppressWarnings("deprecation")
     public static ClientBuilder createClientBuilderFromArguments(PerformanceBaseArguments arguments)
             throws PulsarClientException.UnsupportedAuthenticationException {
 
@@ -108,6 +116,79 @@ public class PerfClientUtils {
             clientBuilder.listenerName(arguments.listenerName);
         }
         return clientBuilder;
+    }
+
+    /**
+     * Build a V5 {@link PulsarClientBuilder} from the perf CLI arguments.
+     *
+     * <p>The V5 client is used by the perf commands so they work transparently against both
+     * regular and scalable topics — the V5 SDK detects the topic kind via {@code topic://} vs
+     * {@code persistent://} lookup and routes accordingly.
+     *
+     * <p>A few v4 settings have no direct V5 equivalent and are dropped here: {@code --stats-
+     * interval-seconds} (V5 stats are OpenTelemetry-driven), {@code --max-lookup-request} (V5
+     * does not expose a public knob), {@code --ssl-factory-plugin*} (V5 does not have a pluggable
+     * SSL factory yet), and {@code --busy-wait} (no V5 equivalent). All other relevant flags map
+     * 1:1.
+     */
+    public static PulsarClientBuilder createV5ClientBuilderFromArguments(PerformanceBaseArguments arguments)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+
+        ConnectionPolicy.Builder connectionPolicy = ConnectionPolicy.builder()
+                .connectionsPerBroker(arguments.maxConnections)
+                .ioThreads(arguments.ioThreads)
+                .callbackThreads(arguments.listenerThreads);
+        if (isNotBlank(arguments.proxyServiceURL)) {
+            ProxyProtocol v5Proto = arguments.proxyProtocol != null
+                    ? ProxyProtocol.valueOf(arguments.proxyProtocol.name())
+                    : null;
+            connectionPolicy.proxy(arguments.proxyServiceURL, v5Proto);
+        }
+
+        PulsarClientBuilder builder = org.apache.pulsar.client.api.v5.PulsarClient.builder()
+                .serviceUrl(arguments.serviceURL)
+                .memoryLimit(MemorySize.ofBytes(arguments.memoryLimit))
+                .connectionPolicy(connectionPolicy.build())
+                .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
+                        .addPropertiesSupplier(() -> Map.of("otel.sdk.disabled", "true"))
+                        .build().getOpenTelemetrySdk());
+
+        if (isNotBlank(arguments.authPluginClassName)) {
+            builder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        // TLS: only wire a TlsPolicy if the user genuinely wants TLS. The Boolean flags can come
+        // through as Boolean.FALSE (not null) when picocli's default-value resolution fires even
+        // without the flag being passed, so we cannot treat "non-null" as "user wanted TLS" —
+        // that would incorrectly enable TLS against a plaintext broker. The rule:
+        //   - TLS is "on" if the URL is pulsar+ssl://, or
+        //   - a trust cert path was explicitly supplied, or
+        //   - either boolean was explicitly set to TRUE.
+        // PulsarClientBuilderV5#tlsPolicy unconditionally flips useTls=true.
+        boolean tlsByUrl = arguments.serviceURL != null
+                && arguments.serviceURL.startsWith("pulsar+ssl://");
+        boolean tlsByTrustPath = isNotBlank(arguments.tlsTrustCertsFilePath);
+        boolean tlsByBoolean = Boolean.TRUE.equals(arguments.tlsAllowInsecureConnection)
+                || Boolean.TRUE.equals(arguments.tlsHostnameVerificationEnable);
+        if (tlsByUrl || tlsByTrustPath || tlsByBoolean) {
+            TlsPolicy.Builder tls = TlsPolicy.builder();
+            if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
+                tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
+            }
+            if (arguments.tlsAllowInsecureConnection != null) {
+                tls.allowInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+            if (arguments.tlsHostnameVerificationEnable != null) {
+                tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
+            }
+            builder.tlsPolicy(tls.build());
+        }
+
+        if (isNotBlank(arguments.listenerName)) {
+            builder.listenerName(arguments.listenerName);
+        }
+
+        return builder;
     }
 
     public static PulsarAdminBuilder createAdminBuilderFromArguments(PerformanceBaseArguments arguments,
@@ -185,10 +266,53 @@ public class PerfClientUtils {
         try {
             client.close();
         } catch (PulsarClientException e) {
-            log.error("Failed to close client", e);
+            log.error().exception(e).log("Failed to close client");
         } finally {
             if (wasInterrupted) {
                 Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /** {@link #closeClient(PulsarClient)} overload for the V5 client used by the perf tools. */
+    public static void closeClient(org.apache.pulsar.client.api.v5.PulsarClient client) {
+        if (client == null) {
+            return;
+        }
+        boolean wasInterrupted = Thread.currentThread().interrupted();
+        try {
+            client.close();
+        } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+            log.error().exception(e).log("Failed to close client");
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Open a transaction on the V5 client, retrying briefly while the transaction-coordinator handler
+     * finishes its asynchronous connect. The first {@code newTransaction()} right after the client is
+     * built can race that connect and fail with {@code MetaStoreHandlerNotReadyException}; the perf
+     * tools open their initial transaction before building producers/consumers, so they hit this
+     * window (whereas a tool that builds participants first gives the handler time to connect).
+     *
+     * @param client the V5 client to open the transaction on
+     * @return a new transaction once the coordinator is ready
+     */
+    public static org.apache.pulsar.client.api.v5.Transaction newTransactionWithRetry(
+            org.apache.pulsar.client.api.v5.PulsarClient client)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException, InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(30);
+        while (true) {
+            try {
+                return client.newTransaction();
+            } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+                if (System.currentTimeMillis() > deadline || hasInterruptedException(e)) {
+                    throw e;
+                }
+                Thread.sleep(200);
             }
         }
     }

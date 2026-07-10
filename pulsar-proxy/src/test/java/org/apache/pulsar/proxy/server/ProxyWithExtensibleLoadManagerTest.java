@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -39,7 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -72,7 +73,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
 
     private static final int TEST_TIMEOUT_MS = 30_000;
@@ -117,6 +118,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         return proxyConfig;
     }
 
+    @SuppressWarnings("unchecked")
     private <T> T spyField(Object target, String fieldName) throws IllegalAccessException {
         T t = (T) FieldUtils.readDeclaredField(target, fieldName, true);
         var fieldSpy = spy(t);
@@ -190,7 +192,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         var producerClient = producerClientFuture.get();
         @Cleanup
         var producer = producerClient.newProducer(Schema.INT32).topic(topicName.toString()).create();
-        LookupService producerLookupServiceSpy = spyField(producerClient, "lookup");
+        LookupService producerLookupServiceSpy = spyField(producerClient.getLookup(), "delegate");
 
         @Cleanup
         var consumerClient = consumerClientFuture.get();
@@ -200,7 +202,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
                 subscriptionName(BrokerTestUtil.newUniqueName("my-sub")).
                 ackTimeout(1000, TimeUnit.MILLISECONDS).
                 subscribe();
-        LookupService consumerLookupServiceSpy = spyField(consumerClient, "lookup");
+        LookupService consumerLookupServiceSpy = spyField(consumerClient.getLookup(), "delegate");
 
         var bundleRange = admin.lookups().getBundleRange(topicName.toString());
 
@@ -268,7 +270,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         @Cleanup
         var producer = (ProducerImpl<Integer>) producerClient.newProducer(Schema.INT32).topic(topicName.toString()).
                 create();
-        LookupService producerLookupServiceSpy = spyField(producerClient, "lookup");
+        LookupService producerLookupServiceSpy = spyField(producerClient.getLookup(), "delegate");
         when(((ServiceNameResolver) spyField(producerLookupServiceSpy, "serviceNameResolver")).resolveHost()).
                 thenCallRealMethod().then(invocation -> getSourceBrokerInetAddress(topicName));
 
@@ -280,7 +282,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
                 subscriptionName(BrokerTestUtil.newUniqueName("my-sub")).
                 ackTimeout(1000, TimeUnit.MILLISECONDS).
                 subscribe();
-        LookupService consumerLookupServiceSpy = spyField(consumerClient, "lookup");
+        LookupService consumerLookupServiceSpy = spyField(consumerClient.getLookup(), "delegate");
         when(((ServiceNameResolver) spyField(consumerLookupServiceSpy, "serviceNameResolver")).resolveHost()).
                 thenCallRealMethod().then(invocation -> getSourceBrokerInetAddress(topicName));
 
@@ -341,9 +343,9 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         assertEquals(FieldUtils.readDeclaredField(consumer.getConnectionHandler(), "useProxy", true), Boolean.FALSE);
 
         verify(producerClient, times(1)).getProxyConnection(any(), anyInt());
-        verify(producerLookupServiceSpy, times(1)).getBroker(topicName);
+        verify(producerLookupServiceSpy, times(1)).getBroker(eq(topicName), any());
 
         verify(consumerClient, times(1)).getProxyConnection(any(), anyInt());
-        verify(consumerLookupServiceSpy, times(1)).getBroker(topicName);
+        verify(consumerLookupServiceSpy, times(1)).getBroker(eq(topicName), any());
     }
 }

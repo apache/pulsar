@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.distributedlog.ZooKeeperClientBuilder;
 import org.apache.distributedlog.exceptions.ZKException;
@@ -62,7 +62,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ClusterMetadataSetupTest {
     private ZookeeperServerTest localZkS;
@@ -412,7 +412,7 @@ public class ClusterMetadataSetupTest {
                 "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
-        log.info("zkdata:" + localZkS.dumpData());
+        log.info().attr("dumpData", localZkS.dumpData()).log("zkdata");
         BKDLConfig dlConfig = new BKDLConfig(zkServers, "/ledgers");
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
 
@@ -440,7 +440,6 @@ public class ClusterMetadataSetupTest {
         assertEquals(bkdlConfigFromZk.getBkLedgersPath(), "/ledgers");
 
     }
-
 
     @Test
     public void testInitialNamespaceSetupZKDefaultsFallbackWithChroot() throws Exception {
@@ -510,7 +509,7 @@ public class ClusterMetadataSetupTest {
         public ZookeeperServerTest(int zkPort) throws IOException {
             this.zkPort = zkPort;
             this.zkTmpDir = File.createTempFile("zookeeper", "test");
-            log.info("**** Start GZK on {} ****", zkTmpDir);
+            log.info().attr("gzkOn", zkTmpDir).log("**** Start GZK on ****");
             if (!zkTmpDir.delete() || !zkTmpDir.mkdir()) {
                 throw new IOException("Couldn't create zk directory " + zkTmpDir);
             }
@@ -525,12 +524,12 @@ public class ClusterMetadataSetupTest {
                 serverFactory.configure(new InetSocketAddress("127.0.0.1", zkPort), 1000);
                 serverFactory.startup(zks);
             } catch (Exception e) {
-                log.error("Exception while instantiating ZooKeeper", e);
+                log.error().exception(e).log("Exception while instantiating ZooKeeper");
             }
 
             String hostPort = "127.0.0.1:" + serverFactory.getLocalPort();
             LocalBookkeeperEnsemble.waitForServerUp(hostPort, 30000);
-            log.info("ZooKeeper started at {}", hostPort);
+            log.info().attr("startedAt", hostPort).log("ZooKeeper started at");
         }
 
         void clear() {
@@ -572,6 +571,5 @@ public class ClusterMetadataSetupTest {
             }
         }
     }
-
 
 }

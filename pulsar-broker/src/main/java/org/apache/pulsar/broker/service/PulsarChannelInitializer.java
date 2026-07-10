@@ -22,13 +22,12 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.flow.FlowControlHandler;
 import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslHandler;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -36,8 +35,9 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.util.netty.PulsarFlowControlHandler;
 
-@Slf4j
+@CustomLog
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
@@ -98,7 +98,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
-        ch.pipeline().addLast("flowController", new FlowControlHandler());
+        // PulsarFlowControlHandler is used instead of Netty's FlowControlHandler since Netty 4.2.15 changed the
+        // behavior to ignore setAutoRead(false) made by a downstream handler while queued messages are being
+        // delivered, which breaks throttling of already buffered messages. See PulsarFlowControlHandler javadoc.
+        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
         // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
         ChannelHandler cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
@@ -156,7 +159,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 }

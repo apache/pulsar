@@ -27,13 +27,21 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANE
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
+import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.ConcurrencyReducer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
@@ -49,24 +57,27 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
+import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -75,10 +86,13 @@ import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.asynchttpclient.proxy.ProxyServer;
+import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
@@ -89,7 +103,7 @@ import org.glassfish.jersey.client.spi.Connector;
 /**
  * Customized Jersey client connector with multi-host support.
  */
-@Slf4j
+@CustomLog
 public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
@@ -103,8 +117,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             new DefaultThreadFactory("delayer"));
     private ScheduledExecutorService sslRefresher;
     private final boolean acceptGzipCompression;
+    @Getter
+    private final NameResolver<InetAddress> nameResolver;
+    private final EventLoopGroup eventLoopGroup;
+    private final boolean createdEventLoopGroup;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
+    @Getter
+    @Setter
+    private boolean followRedirects = true;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
@@ -112,33 +133,66 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, null);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression,
+                              PulsarClientSharedResourcesImpl sharedResources) {
         Validate.notEmpty(conf.getServiceUrl(), "Service URL is not provided");
         serviceNameResolver = new PulsarServiceNameResolver();
         String serviceUrl = conf.getServiceUrl();
         serviceNameResolver.updateServiceUrl(serviceUrl);
         this.acceptGzipCompression = acceptGzipCompression;
+        SharedResourceHolder sharedResourceHolder =
+                buildResourcesIfConfigured(sharedResources);
+        this.nameResolver = sharedResourceHolder.getNameResolver();
+        this.eventLoopGroup = sharedResourceHolder.getEventLoopGroup();
+        this.createdEventLoopGroup = sharedResourceHolder.isCreateEventLoop();
         AsyncHttpClientConfig asyncHttpClientConfig =
                 createAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs,
-                        autoCertRefreshTimeSeconds);
+                        autoCertRefreshTimeSeconds, sharedResources);
         httpClient = createAsyncHttpClient(asyncHttpClientConfig);
         this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
+    private SharedResourceHolder buildResourcesIfConfigured(
+            PulsarClientSharedResourcesImpl sharedResources) {
+        EventLoopGroup eventLoopGroup = null;
+        NameResolver<InetAddress> nameResolver = null;
+        boolean createdEventLoopGroup = false;
+        if (sharedResources != null && sharedResources.getDnsResolverGroup() != null) {
+            if (sharedResources.getIoEventLoopGroup() != null) {
+                eventLoopGroup = sharedResources.getIoEventLoopGroup();
+            } else {
+                // build an EventLoopGroup with default value
+                eventLoopGroup = EventLoopUtil.newEventLoopGroup(
+                        Runtime.getRuntime().availableProcessors(), false,
+                        new ExecutorProvider.ExtendedThreadFactory("pulsar-admin-client-io",
+                                Thread.currentThread().isDaemon()));
+                createdEventLoopGroup = true;
+            }
+            nameResolver = DnsResolverUtil.adaptToNameResolver(
+                    sharedResources.getDnsResolverGroup().createAddressResolver(eventLoopGroup));
+        } else {
+            return SharedResourceHolder.EMPTY;
+        }
+        return new SharedResourceHolder(nameResolver, eventLoopGroup, createdEventLoopGroup);
+    }
+
     private AsyncHttpClientConfig createAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs,
                                                               int readTimeoutMs,
-                                                              int requestTimeoutMs, int autoCertRefreshTimeSeconds)
+                                                              int requestTimeoutMs,
+                                                              int autoCertRefreshTimeSeconds,
+                                                              PulsarClientSharedResourcesImpl sharedResources)
             throws GeneralSecurityException, IOException {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        configureAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs, confBuilder);
+        configureAsyncHttpClientConfig(conf, connectTimeoutMs,
+                readTimeoutMs, requestTimeoutMs, confBuilder, sharedResources);
         if (conf.getServiceUrl().startsWith("https://")) {
             configureAsyncHttpClientSslEngineFactory(conf, autoCertRefreshTimeSeconds, confBuilder);
         }
@@ -148,7 +202,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     private void configureAsyncHttpClientConfig(ClientConfigurationData conf, int connectTimeoutMs, int readTimeoutMs,
                                                 int requestTimeoutMs,
-                                                DefaultAsyncHttpClientConfig.Builder confBuilder) {
+                                                DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                                PulsarClientSharedResourcesImpl sharedResources) {
         if (conf.getConnectionsPerBroker() > 0) {
             confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
             // Use the request timeout value for acquireFreeChannelTimeout so that we don't need to add
@@ -157,19 +212,27 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             confBuilder.setAcquireFreeChannelTimeout(conf.getRequestTimeoutMs());
         }
         if (conf.getConnectionMaxIdleSeconds() > 0) {
-            confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
+            confBuilder.setPooledConnectionIdleTimeout(Duration.ofSeconds(conf.getConnectionMaxIdleSeconds()));
+        }
+        if (sharedResources != null) {
+            if (this.eventLoopGroup != null) {
+                confBuilder.setEventLoopGroup(this.eventLoopGroup);
+            }
+            if (sharedResources.getTimer() != null) {
+                confBuilder.setNettyTimer(sharedResources.getTimer());
+            }
         }
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
-        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
-        confBuilder.setConnectTimeout(connectTimeoutMs);
-        confBuilder.setReadTimeout(readTimeoutMs);
+        confBuilder.setRequestTimeout(Duration.ofMillis(conf.getRequestTimeoutMs()));
+        confBuilder.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        confBuilder.setReadTimeout(Duration.ofMillis(readTimeoutMs));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
                 PulsarVersion.getVersion(),
                 (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
         ));
-        confBuilder.setRequestTimeout(requestTimeoutMs);
+        confBuilder.setRequestTimeout(Duration.ofMillis(requestTimeoutMs));
         confBuilder.setIoThreadsCount(conf.getNumIoThreads());
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
@@ -177,10 +240,12 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                      HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
                 return (response.status().code() / 100 != 5)
-                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
+                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
-        confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        confBuilder.setSslEngineFactory(
+                new PulsarHttpAsyncSslEngineFactory(sslFactory, null, conf.isTlsHostnameVerificationEnable()));
+        configureSocks5ProxyIfNeeded(confBuilder, conf);
     }
 
     protected AsyncHttpClient createAsyncHttpClient(AsyncHttpClientConfig asyncHttpClientConfig) {
@@ -206,7 +271,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         }
         String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
                 .resolveHostUri().getHost();
-        SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname);
+        SslEngineFactory sslEngineFactory =
+                new PulsarHttpAsyncSslEngineFactory(sslFactory, hostname, conf.isTlsHostnameVerificationEnable());
         confBuilder.setSslEngineFactory(sslEngineFactory);
         confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
@@ -254,7 +320,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             } else {
                 ClientResponse jerseyResponse =
                         new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
-                jerseyResponse.setStatusInfo(new javax.ws.rs.core.Response.StatusType() {
+                jerseyResponse.setStatusInfo(new jakarta.ws.rs.core.Response.StatusType() {
                     @Override
                     public int getStatusCode() {
                         return response.getStatusCode();
@@ -280,7 +346,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 try {
                     callback.response(jerseyResponse);
                 } catch (Exception ex) {
-                    log.error("failed to handle the http response {}", jerseyResponse, ex);
+                    log.error().exception(ex).attr("response", jerseyResponse)
+                            .log("Failed to handle the http response");
                 }
             }
         }));
@@ -318,22 +385,19 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                 resultFuture.completeExceptionally(throwable);
                             } else {
                                 if (retries > 0) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Retrying operation. Remaining retries: {}", retries);
-                                    }
+                                    log.debug().attr("remainingRetries", retries)
+                                            .log("Retrying operation");
                                     retryOperation(
                                             resultFuture,
                                             operation,
                                             retries - 1);
                                 } else {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Number of retries has been exhausted. Failing the operation.",
-                                                throwable);
-                                    }
+                                    log.debug().exception(throwable)
+                                            .log("Number of retries has been exhausted. Failing the operation");
                                     resultFuture.completeExceptionally(
-                                        new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
-                                            throwable));
+                                            new RetryException("Could not complete the operation. Number of retries "
+                                                    + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                                    throwable));
                                 }
                             }
                         } else {
@@ -376,7 +440,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     }
 
     public CompletableFuture<Response> executeRequest(Request request,
-                                                       Supplier<AsyncHandler<Response>> handlerSupplier) {
+                                                      Supplier<AsyncHandler<Response>> handlerSupplier) {
         return executeRequest(request, handlerSupplier, 0);
     }
 
@@ -399,7 +463,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             responseFuture = doExecuteRequest(request, handlerSupplier);
         }
         CompletableFuture<Response> futureWithRedirect = responseFuture.thenCompose(response -> {
-            if (isRedirectStatusCode(response.getStatusCode())) {
+            if (followRedirects && isRedirectStatusCode(response.getStatusCode())) {
                 return executeRedirect(request, response, handlerSupplier, redirectCount);
             }
             return CompletableFuture.completedFuture(response);
@@ -426,6 +490,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (switchToGet) {
             builder.setMethod(GET);
         }
+        if (this.nameResolver != null) {
+            builder.setNameResolver(this.nameResolver);
+        }
         builder.setUri(newUri);
         if (keepBody) {
             builder.setCharset(request.getCharset());
@@ -433,7 +500,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 builder.setFormParams(request.getFormParams());
             } else if (request.getStringData() != null) {
                 builder.setBody(request.getStringData());
-            } else if (request.getByteData() != null){
+            } else if (request.getByteData() != null) {
                 builder.setBody(request.getByteData());
             } else if (request.getByteBufferData() != null) {
                 builder.setBody(request.getByteBufferData());
@@ -485,6 +552,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         BoundRequestBuilder builder =
                 httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
 
+        if (this.nameResolver != null) {
+            builder.setNameResolver(this.nameResolver);
+        }
         if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             currentRequest.setStreamProvider(contentLength -> outStream);
@@ -510,6 +580,43 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         return "Pulsar-Admin";
     }
 
+    /**
+     * Configure SOCKS5 proxy for the underlying Netty-based async-http-client if
+     * {@link ClientConfigurationData#getSocks5ProxyAddress()} is set. The configuration keys
+     * (socks5ProxyAddress / socks5ProxyUsername / socks5ProxyPassword) are shared with the
+     * pulsar-client module so that admin and client behave consistently.
+     *
+     * <p>async-http-client's {@link ProxyServer} with {@link ProxyType#SOCKS_V5} is backed by
+     * Netty's {@code Socks5ProxyHandler}, which is injected into the channel pipeline when
+     * establishing a new connection.
+     */
+    @VisibleForTesting
+    static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                             ClientConfigurationData conf) {
+        if (conf == null) {
+            return;
+        }
+        InetSocketAddress socks5Address = conf.getSocks5ProxyAddress();
+        if (socks5Address == null) {
+            return;
+        }
+        if (!conf.getSocks5ProxyScope().appliesToHttp()) {
+            return;
+        }
+        ProxyServer.Builder proxyBuilder =
+                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
+                        .setProxyType(ProxyType.SOCKS_V5);
+        String socks5Username = conf.getSocks5ProxyUsername();
+        if (StringUtils.isNotBlank(socks5Username)) {
+            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
+                    .setScheme(Realm.AuthScheme.BASIC)
+                    .build();
+            proxyBuilder.setRealm(realm);
+        }
+        confBuilder.setProxyServer(proxyBuilder.build());
+        log.info().attr("proxy", socks5Address).log("Pulsar admin client is using SOCKS5 proxy");
+    }
+
     @Override
     public void close() {
         try {
@@ -518,8 +625,11 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             if (sslRefresher != null) {
                 sslRefresher.shutdownNow();
             }
+            if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
+                eventLoopGroup.shutdownGracefully();
+            }
         } catch (IOException e) {
-            log.warn("Failed to close http client", e);
+            log.warn().exception(e).log("Failed to close http client");
         }
     }
 
@@ -552,7 +662,24 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
+        }
+    }
+
+    @Data
+    private static class SharedResourceHolder {
+        static final SharedResourceHolder EMPTY = new SharedResourceHolder(null, null, false);
+
+        final NameResolver<InetAddress> nameResolver;
+        final EventLoopGroup eventLoopGroup;
+        final boolean createEventLoop;
+
+        SharedResourceHolder(NameResolver<InetAddress> nameResolver,
+                             EventLoopGroup eventLoopGroup,
+                             boolean createEventLoop) {
+            this.nameResolver = nameResolver;
+            this.eventLoopGroup = eventLoopGroup;
+            this.createEventLoop = createEventLoop;
         }
     }
 

@@ -22,13 +22,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
-import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
+import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetry;
+import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetryBuilder;
+import io.opentelemetry.instrumentation.runtimetelemetry.internal.Experimental;
+import io.opentelemetry.instrumentation.runtimetelemetry.internal.Internal;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.semconv.ResourceAttributes;
+import io.opentelemetry.semconv.ServiceAttributes;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Objects;
@@ -44,11 +47,12 @@ import org.apache.commons.lang3.StringUtils;
 public class OpenTelemetryService implements Closeable {
 
     public static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
+    static final String OTEL_EXPORTER_PROMETHEUS_HOST_KEY = "otel.exporter.prometheus.host";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final AtomicReference<OpenTelemetrySdk> openTelemetrySdkReference = new AtomicReference<>();
 
-    private final AtomicReference<RuntimeMetrics> runtimeMetricsReference = new AtomicReference<>();
+    private final AtomicReference<RuntimeTelemetry> runtimeTelemetryReference = new AtomicReference<>();
 
     /**
      * Instantiates the OpenTelemetry SDK. All attributes are overridden by system properties or environment
@@ -74,9 +78,15 @@ public class OpenTelemetryService implements Closeable {
         sdkBuilder.addPropertiesSupplier(() -> Map.of(
                 OTEL_SDK_DISABLED_KEY, "true",
                 // Cardinality limit includes the overflow attribute set, so we need to add 1.
-                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1),
+                "otel.java.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1),
                 // Reduce number of allocations by using reusable data mode.
-                "otel.java.experimental.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name()
+                "otel.java.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name(),
+                // Preserve the pre-OpenTelemetry-1.62.0 behavior of binding the Prometheus exporter's HTTP server
+                // to all interfaces. OpenTelemetry 1.62.0 changed the default host from "0.0.0.0" to "localhost",
+                // which makes the metrics endpoint unreachable from outside the host (e.g. another container or a
+                // remote Prometheus scraper). Supplied as a default, so it is still overridden by an explicit
+                // OTEL_EXPORTER_PROMETHEUS_HOST environment variable / otel.exporter.prometheus.host system property.
+                OTEL_EXPORTER_PROMETHEUS_HOST_KEY, "0.0.0.0"
         ));
 
         sdkBuilder.addResourceCustomizer(
@@ -87,13 +97,13 @@ public class OpenTelemetryService implements Closeable {
                         resourceBuilder.put(OpenTelemetryAttributes.PULSAR_CLUSTER, clusterName);
                     }
                     if (StringUtils.isNotBlank(serviceName)
-                            && Objects.equals(Resource.getDefault().getAttribute(ResourceAttributes.SERVICE_NAME),
-                                              resource.getAttribute(ResourceAttributes.SERVICE_NAME))) {
-                        resourceBuilder.put(ResourceAttributes.SERVICE_NAME, serviceName);
+                            && Objects.equals(Resource.getDefault().getAttribute(ServiceAttributes.SERVICE_NAME),
+                                              resource.getAttribute(ServiceAttributes.SERVICE_NAME))) {
+                        resourceBuilder.put(ServiceAttributes.SERVICE_NAME, serviceName);
                     }
                     if (StringUtils.isNotBlank(serviceVersion)
-                            && resource.getAttribute(ResourceAttributes.SERVICE_VERSION) == null) {
-                        resourceBuilder.put(ResourceAttributes.SERVICE_VERSION, serviceVersion);
+                            && resource.getAttribute(ServiceAttributes.SERVICE_VERSION) == null) {
+                        resourceBuilder.put(ServiceAttributes.SERVICE_VERSION, serviceVersion);
                     }
                     return resource.merge(resourceBuilder.build());
                 });
@@ -119,12 +129,13 @@ public class OpenTelemetryService implements Closeable {
         openTelemetrySdkReference.set(sdkBuilder.build().getOpenTelemetrySdk());
 
         // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
-        runtimeMetricsReference.set(RuntimeMetrics.builder(openTelemetrySdkReference.get())
-                // disable JFR based telemetry and use only JMX telemetry
-                .disableAllFeatures()
-                // enable experimental JMX telemetry in addition
-                .enableExperimentalJmxTelemetry()
-                .build());
+        RuntimeTelemetryBuilder runtimeTelemetryBuilder =
+                RuntimeTelemetry.builder(openTelemetrySdkReference.get());
+        // Disable JFR-based telemetry and rely on JMX-based metrics only.
+        Internal.setDisableAllJfrFeatures(runtimeTelemetryBuilder, true);
+        // Emit experimental JMX-based runtime metrics in addition to the stable ones.
+        Experimental.setEmitExperimentalMetrics(runtimeTelemetryBuilder, true);
+        runtimeTelemetryReference.set(runtimeTelemetryBuilder.build());
     }
 
     public OpenTelemetry getOpenTelemetry() {
@@ -133,9 +144,9 @@ public class OpenTelemetryService implements Closeable {
 
     @Override
     public void close() {
-        RuntimeMetrics runtimeMetrics = runtimeMetricsReference.getAndSet(null);
-        if (runtimeMetrics != null) {
-            runtimeMetrics.close();
+        RuntimeTelemetry runtimeTelemetry = runtimeTelemetryReference.getAndSet(null);
+        if (runtimeTelemetry != null) {
+            runtimeTelemetry.close();
         }
         OpenTelemetrySdk openTelemetrySdk = openTelemetrySdkReference.getAndSet(null);
         if (openTelemetrySdk != null) {

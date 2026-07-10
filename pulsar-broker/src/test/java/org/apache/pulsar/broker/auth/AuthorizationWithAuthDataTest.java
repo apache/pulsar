@@ -60,6 +60,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("deprecation")
 @Test(groups = "broker")
 public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
 

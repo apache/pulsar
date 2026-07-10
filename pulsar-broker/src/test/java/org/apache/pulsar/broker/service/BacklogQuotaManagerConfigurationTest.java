@@ -40,6 +40,7 @@ public class BacklogQuotaManagerConfigurationTest {
         pulsarService = getPulsarService();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitGBConversion() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -49,6 +50,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitPrecedence() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -59,6 +61,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitBytes() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);

@@ -24,35 +24,53 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
-@Test(groups = "broker")
+@CustomLog
+@Test(groups = "broker-replication")
 public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
     @Override
@@ -68,16 +86,38 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.cleanup();
     }
 
+    @Override
+    @Test(enabled = false)
+    public void testReceiverSideReplicationStats() throws Exception {
+        super.testReceiverSideReplicationStats();
+    }
+
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         config.setTransactionCoordinatorEnabled(true);
     }
 
+    @Test(enabled = false)
+    public void testDeleteTopicWhenReplicating() throws Exception {
+        super.testDeleteTopicWhenReplicating();
+    }
 
-        @Test(enabled = false)
+    @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
+    }
+
+    @Test(dataProvider = "isPartitioned")
+    public void testReplicatorCreateTopic(boolean isPartitioned) throws Exception {
+        super.testReplicatorCreateTopic(isPartitioned);
     }
 
     @Override
@@ -172,7 +212,6 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
             assertFalse(clustersApplied2.contains(cluster1));
             assertTrue(clustersApplied2.contains(cluster2));
         });
-
 
         // Cluster1: Global policy overwrite namespace policy.
         // Cluster2: Global policy never overwrite namespace policy.
@@ -288,6 +327,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test(enabled = false)
     public void testCreateRemoteConsumerFirst() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
     }
 
     @Test(enabled = false)
@@ -436,7 +481,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.send("msg-1");
         p1.close();
 
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin2.topics().getList(ns1).contains(topic1));
         });
@@ -480,8 +526,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         final String topic = "persistent://" + ns1 + "/___tp-5dd50794-7af8-4a34-8a0b-06188052c66a";
         final String topicChangeEvents = "persistent://" + ns1 + "/__change_events";
         admin1.namespaces().createNamespace(ns1);
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         admin1.topics().createNonPartitionedTopic(topic);
+        admin1.topics().createSubscription(topic, "s1", MessageId.earliest);
 
         // Wait for loading topic up.
         Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
@@ -493,7 +541,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)), true);
         Awaitility.await().atMost(Duration.ofSeconds(120)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
@@ -516,7 +564,6 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
-
 
     @Test
     public void testTopicPoliciesReplicationRule() throws Exception {
@@ -544,5 +591,340 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test
     public void testPartitionedTopicWithTopicPolicyAndNoReplicationClusters() throws Exception {
         super.testPartitionedTopicWithTopicPolicyAndNoReplicationClusters();
+    }
+
+    @Test
+    public void testUpdateNamespaceIsolationPolicy() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        admin2.namespaces().createNamespace(ns1);
+        admin2.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false)
+                .join().get();
+
+        // Set namespace isolation policy.
+        // It will trigger a namespace unloading.
+        String policyName = "policy-1";
+        String namespaceRegex = ns1;
+        String brokerName = pulsar1.getAdvertisedAddress();
+        Map<String, String> parameters1 = new HashMap<>();
+        parameters1.put("min_limit", "1");
+        parameters1.put("usage_threshold", "100");
+        NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList(namespaceRegex))
+                .primary(Collections.singletonList(brokerName))
+                .secondary(Collections.singletonList(brokerName + ".*"))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters1)
+                        .build())
+                .build();
+        admin1.clusters().createNamespaceIsolationPolicy(cluster1, policyName, nsPolicyData1);
+
+        // Verify: the namespace was unloaded.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(persistentTopic.isClosingOrDeleting());
+        });
+        // Verify: the producer still works.
+        p.send("msg-1");
+
+        // cleanup.
+        p.close();
+        admin1.clusters().deleteNamespaceIsolationPolicy(cluster1, policyName);
+        admin1.topics().delete(topic);
+    }
+
+    /**
+     * Namespace deletion should not be allowed if more than one cluster is allowed to access.
+     */
+    @Test
+    public void testDeleteNamespaceIfTwoClustersAllowed() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns1);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceReplicationClusters(ns1);
+            assertEquals(clusters.size(), 1);
+            assertTrue(clusters.contains(cluster1));
+        });
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceAllowedClusters(ns1);
+            assertEquals(clusters.size(), 2);
+            assertTrue(clusters.contains(cluster1));
+            assertTrue(clusters.contains(cluster2));
+        });
+        try {
+            admin1.namespaces().deleteNamespace(ns1);
+            fail("namespace deletion should not be allowed if more than one cluster to access");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // expected.
+        }
+    }
+
+    @Test
+    public void testSetClustersAndAllowedClusters() throws Exception {
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns1);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> clusters = admin1.namespaces().getNamespaceReplicationClusters(ns1);
+            assertEquals(clusters.size(), 1);
+            assertTrue(clusters.contains(cluster1));
+        });
+
+        // New allowed clusters should include all replication clusters
+        try {
+            admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+            fail("New allowed clusters should include all replication clusters.");
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getMessage().contains("do not contain the replication cluster"));
+        }
+
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1)));
+
+        // New replication clusters should be included in allowed clusters.
+        try {
+            admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                    new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+            fail("New replication clusters should be included in allowed clusters.");
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getMessage().contains("is not in the list of allowed clusters list"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] localSystemTopicPartitions() {
+        return new Object[][] {
+                {0},
+                {3}
+        };
+    }
+
+    @Test(dataProvider = "localSystemTopicPartitions")
+    public void testSystemTopicCreationWithDifferentTopicCreationRule(int localSystemTopicPartitions) throws Exception {
+        String ns = BrokerTestUtil.newUniqueName(defaultTenant + "/ns");
+        Predicate<String> topicNameFilter = t -> TopicName.get(t).getNamespace().equals(ns);
+        String systemTopic = "persistent://" + ns + "/__change_events";
+        admin1.namespaces().createNamespace(ns);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)), false);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
+            assertEquals(admin2.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
+        });
+
+        // Trigger system topic creation on cluster1, following {@param localSystemTopicPartitions}.
+        AutoTopicCreationOverride autoTopicCreation1 = null;
+        if (localSystemTopicPartitions == 0) {
+            autoTopicCreation1 = AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                    .topicType("non-partitioned").build();
+        } else {
+            autoTopicCreation1 = AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                    .topicType("partitioned").defaultNumPartitions(localSystemTopicPartitions).build();
+        }
+        admin1.namespaces().setAutoTopicCreation(ns, autoTopicCreation1);
+        Awaitility.await().untilAsserted(() -> {
+            AutoTopicCreationOverride autoTopicCreationOverride =
+                    admin1.namespaces().getAutoTopicCreationAsync(ns).get(3, TimeUnit.SECONDS);
+            assertNotNull(autoTopicCreationOverride);
+            if (localSystemTopicPartitions == 0) {
+                assertTrue("non-partitioned".equalsIgnoreCase(autoTopicCreationOverride.getTopicType()));
+            } else {
+                assertEquals(autoTopicCreationOverride.getDefaultNumPartitions(), localSystemTopicPartitions);
+            }
+        });
+        // Use a topic loading to trigger system topic creation.
+        String topicUsedToTriggerSystemTopic = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin1.topics().createNonPartitionedTopic(topicUsedToTriggerSystemTopic);
+        admin1.topics().delete(topicUsedToTriggerSystemTopic, false);
+        // Verify: the system topic was created as expected.
+        Awaitility.await().untilAsserted(() -> {
+            TopicExistsInfo existsInfo = pulsar1.getNamespaceService()
+                    .checkTopicExistsAsync(TopicName.get(systemTopic)).get(3, TimeUnit.SECONDS);
+            assertTrue(existsInfo.isExists());
+            if (localSystemTopicPartitions == 0) {
+                assertEquals(existsInfo.getTopicType(), TopicType.NON_PARTITIONED);
+            } else {
+                assertEquals(existsInfo.getTopicType(), TopicType.PARTITIONED);
+                assertEquals(existsInfo.getPartitions(), localSystemTopicPartitions);
+            }
+        });
+
+        // Enable replication.
+        // Set topic auto-creation rule to "partitions: 2".
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        final Set<String> clusters = new HashSet<>(Arrays.asList(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(ns, clusters, true);
+        AutoTopicCreationOverride autoTopicCreation2 =
+                AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                        .topicType("partitioned").defaultNumPartitions(2).build();
+        admin1.namespaces().setAutoTopicCreation(ns, autoTopicCreation2);
+        admin2.namespaces().setAutoTopicCreation(ns, autoTopicCreation2);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.namespaces().getAutoTopicCreationAsync(ns).join()
+                    .getDefaultNumPartitions(), 2);
+            assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join()
+                    .getDefaultNumPartitions(), 2);
+        });
+
+        admin2.topics().createNonPartitionedTopic(tp);
+        Producer<String> p2 = client2.newProducer(Schema.STRING).topic(tp).create();
+        p2.send("msg-1");
+        p2.close();
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-1");
+        p1.close();
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic1.getReplicators().isEmpty());
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic2.getReplicators().isEmpty());
+        });
+
+        // Verify: the topics are the same between two clusters.
+        Awaitility.await().untilAsserted(() -> {
+            List<String> topics1 = pulsar1.getBrokerService().getTopics().keySet()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            List<String> topics2 = pulsar2.getBrokerService().getTopics().keySet()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            Collections.sort(topics1);
+            Collections.sort(topics2);
+            boolean systemTopicCreated1 = false;
+            for (String tp1 : topics1) {
+                if (tp1.contains("__change_events")) {
+                    systemTopicCreated1 = true;
+                    break;
+                }
+            }
+            boolean systemTopicCreated2 = false;
+            for (String tp2 : topics2) {
+                if (tp2.contains("__change_events")) {
+                    systemTopicCreated2 = true;
+                    break;
+                }
+            }
+            log.info().attr("topics1", topics1).log("topics1");
+            log.info().attr("topics2", topics2).log("topics2");
+            assertTrue(systemTopicCreated1);
+            assertTrue(systemTopicCreated2);
+            assertEquals(topics1, topics2);
+        });
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(tp, Arrays.asList(cluster1));
+        admin2.topics().setReplicationClusters(tp, Arrays.asList(cluster2));
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertTrue(persistentTopic1.getReplicators().isEmpty());
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(tp, false).join().get();
+            assertTrue(persistentTopic2.getReplicators().isEmpty());
+        });
+        admin1.topics().delete(tp, false);
+        admin2.topics().delete(tp, false);
+    }
+
+    @Test(enabled = false)
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        super.testDisconnectAndReconnectReplicator(binaryWayRepl, hasLocalProducerRegistered, localProducerHasTraffic,
+                hasRemoteProducerTraffic, hasRemoteProducerRegistered);
+    }
+
+    @Test
+    public void testTopicGCDoesNotDisconnectReplicatorWhenRemoteProducerIsActive() throws Exception {
+        int replicationInactiveThresholdSeconds = pulsar1.getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(3600);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();
+
+        try {
+            producer1.send("msg-1");
+            waitReplicatorStarted(topic, pulsar1);
+            waitReplicatorStarted(topic, pulsar2);
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(topic, false)
+                    .join().get();
+
+            // Set inactive policies.
+            InactiveTopicPolicies  inactiveTopicPolicies = new InactiveTopicPolicies();
+            inactiveTopicPolicies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+            inactiveTopicPolicies.setMaxInactiveDurationSeconds(10);
+            inactiveTopicPolicies.setDeleteWhileInactive(true);
+            admin2.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
+
+            // Ensure policies were set successfully.
+            Awaitility.await().untilAsserted(() -> {
+                assertFalse(persistentTopic2.getProducers().values().stream()
+                        .anyMatch(producer -> !producer.isRemote()));
+                assertTrue(persistentTopic2.getSubscriptions().isEmpty());
+                assertTrue(persistentTopic2.getInactiveTopicPolicies().isDeleteWhileInactive());
+                assertEquals(persistentTopic2.getInactiveTopicPolicies().getMaxInactiveDurationSeconds(), 10);
+
+                Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+                assertNotNull(replicator);
+                assertTrue(replicator.isConnected());
+                assertEquals(replicator.getNumberOfEntriesInBacklog(), 0);
+            });
+
+            // Trigger GC.
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+            Thread.sleep(15 * 1000);
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+
+            // Verify: the replication is not disconnected due to Topic GC.
+            Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+            assertNotNull(replicator);
+            assertTrue(replicator.isConnected());
+
+            // Verify: the replication still works.
+            producer1.send("msg-2");
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin2.topics().getStats(topic).getReplication().get(cluster1).getReplicationBacklog(), 0);
+            });
+
+        } finally {
+            pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(replicationInactiveThresholdSeconds);
+            producer1.close();
+            admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1));
+            admin2.topics().setReplicationClusters(topic, Arrays.asList(cluster2));
+            waitReplicatorStopped(topic, pulsar1, pulsar2, false);
+            waitReplicatorStopped(topic, pulsar2, pulsar1, false);
+            admin1.topics().delete(topic, false);
+            admin2.topics().delete(topic, false);
+        }
+    }
+
+    @Test
+    public void testUpdateNamespacePolicies() throws Exception {
+        // Create a namespace and allow both clusters to access.
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        admin2.namespaces().createNamespace(ns1);
+        admin2.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false)
+                .join().get();
+
+        admin1.namespaces().setRetention(ns1, new RetentionPolicies(10, 10));
+        Awaitility.await().untilAsserted(() -> {
+           assertEquals(admin1.namespaces().getRetention(ns1), new RetentionPolicies(10, 10));
+        });
+
+        // Verify: the namespace will not be unloaded, because the topic can be updated in memory.
+        assertFalse(persistentTopic.isClosingOrDeleting());
+        // Verify: the producer still works.
+        p.send("msg-1");
+
+        // cleanup.
+        p.close();
+        admin1.topics().delete(topic);
     }
 }

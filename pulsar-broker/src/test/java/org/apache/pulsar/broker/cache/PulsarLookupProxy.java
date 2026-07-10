@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.broker.cache;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.proxy.ProxyServlet;
+import org.eclipse.jetty.client.Response;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.Callback;
 
 /**

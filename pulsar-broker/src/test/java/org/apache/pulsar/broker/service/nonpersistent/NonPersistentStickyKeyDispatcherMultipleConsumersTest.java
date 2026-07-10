@@ -107,6 +107,33 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    public void testTotalAvailablePermitsWhenRemoveConsumer() throws Exception {
+        final int permits = 10;
+        // add 2 consumers to dispatcher
+        Consumer consumerMock = mock(Consumer.class);
+        when(consumerMock.getAvailablePermits()).thenReturn(permits);
+        nonpersistentDispatcher.addConsumer(consumerMock);
+        Consumer consumerMock2 = mock(Consumer.class);
+        when(consumerMock2.getAvailablePermits()).thenReturn(permits);
+        when(consumerMock2.isWritable()).thenReturn(true);
+        nonpersistentDispatcher.addConsumer(consumerMock2);
+
+        // add 10 flow permits to the dispatcher, so TOTAL_AVAILABLE_PERMITS_UPDATER will be 10
+        nonpersistentDispatcher.consumerFlow(consumerMock2, permits);
+        assertEquals(NonPersistentDispatcherMultipleConsumers
+                        .TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 10);
+        // add another 10 flow permits to the dispatcher, so TOTAL_AVAILABLE_PERMITS_UPDATER will be 20
+        nonpersistentDispatcher.consumerFlow(consumerMock, permits);
+        assertEquals(NonPersistentDispatcherMultipleConsumers.
+                        TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 20);
+        // remove one consumer, so the TOTAL_AVAILABLE_PERMITS_UPDATER of the dispatcher will be reduced to 10
+        nonpersistentDispatcher.removeConsumer(consumerMock);
+        assertEquals(NonPersistentDispatcherMultipleConsumers.
+                TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 10);
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testSendMessage() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         when(consumerMock.getAvailablePermits()).thenReturn(1000);
@@ -140,6 +167,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testSendMessageRespectFlowControl() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         nonpersistentDispatcher.addConsumer(consumerMock);

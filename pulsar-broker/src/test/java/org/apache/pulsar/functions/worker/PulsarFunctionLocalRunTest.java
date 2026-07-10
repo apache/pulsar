@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -91,8 +92,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -105,6 +104,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function.
  */
 @Test(groups = { "flaky" })
+@CustomLog
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -173,9 +173,6 @@ public class PulsarFunctionLocalRunTest {
 
     private URLClassLoader pulsarApiExamplesClassLoader;
     private Class<?> avroTestObjectClass;
-
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
     private FileServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -198,13 +195,14 @@ public class PulsarFunctionLocalRunTest {
             pulsarApiExamplesClassLoader = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -344,6 +342,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
@@ -387,6 +386,7 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthorizationEnabled(true);
         return workerConfig;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
@@ -462,7 +462,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
@@ -549,7 +549,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -619,6 +619,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
+    @SuppressWarnings("unchecked")
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
@@ -631,7 +632,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
 
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
@@ -800,7 +801,7 @@ public class PulsarFunctionLocalRunTest {
         final String sourceName = "PulsarSource-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
         if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
@@ -866,7 +867,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -957,7 +958,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
@@ -1031,7 +1032,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -1192,7 +1193,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();

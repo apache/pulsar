@@ -22,6 +22,11 @@ import static org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls.mapTo
 import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,13 +36,8 @@ import java.util.Properties;
 import java.util.Set;
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -61,11 +61,12 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     private final String clusterName = "test";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String CLIENTUSER_TOKEN =
             AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());
@@ -209,7 +210,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
     @Test
     public void testPersistentList() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());

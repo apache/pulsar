@@ -25,7 +25,7 @@ import java.util.function.Function;
 public class JavaNativeAsyncExclamationFunction implements Function<String, CompletableFuture<String>> {
     @Override
     public CompletableFuture<String> apply(String input) {
-        CompletableFuture<String> future = new CompletableFuture();
+        CompletableFuture<String> future = new CompletableFuture<>();
 
         Executors.newCachedThreadPool().submit(() -> {
             try {

@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -48,7 +48,7 @@ import org.testng.collections.Lists;
 /**
  * Test pulsar produce/consume semantics.
  */
-@Slf4j
+@CustomLog
 public class SemanticsTest extends PulsarTestSuite {
 
     //
@@ -125,7 +125,7 @@ public class SemanticsTest extends PulsarTestSuite {
                                                 long expectedSequenceId,
                                                 String expectedContent) throws Exception {
         Message<String> msg = consumer.receive();
-        log.info("Received message {}", msg);
+        log.info().attr("message", msg).log("Received message");
         assertEquals(expectedSequenceId, msg.getSequenceId());
         assertEquals(expectedContent, msg.getValue());
     }
@@ -277,14 +277,14 @@ public class SemanticsTest extends PulsarTestSuite {
         for (int i = 0; i < 5; i++) {
             assertTrue(producedMsgIds.get(i) instanceof BatchMessageIdImpl);
             BatchMessageIdImpl mid = (BatchMessageIdImpl) producedMsgIds.get(i);
-            log.info("Message {} id : {}", i, mid);
+            log.info().attr("message", i).attr("id", mid).log("Message id");
 
             assertEquals(i, mid.getBatchIndex());
         }
         for (int i = 5; i < 10; i++) {
             assertTrue(producedMsgIds.get(i) instanceof BatchMessageIdImpl);
             BatchMessageIdImpl mid = (BatchMessageIdImpl) producedMsgIds.get(i);
-            log.info("Message {} id : {}", i, mid);
+            log.info().attr("message", i).attr("id", mid).log("Message id");
 
             assertEquals(i - 5, mid.getBatchIndex());
         }

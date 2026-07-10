@@ -22,32 +22,16 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ConsumerDedupPermitsUpdateTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "combinations")
     public Object[][] combinations() {
@@ -65,7 +49,7 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "combinations")
     public void testConsumerDedup(boolean batchingEnabled, int receiverQueueSize) throws Exception {
-        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
+        String topic = newTopicName();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

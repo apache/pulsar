@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -28,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -42,7 +41,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 
-@Slf4j
+@CustomLog
 public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private static final byte[] LedgerPassword = "".getBytes();
@@ -139,9 +138,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         ByteBuf entryBuffer = null;
         try {
             entryBuffer = ledgerEntry.getEntryBuffer();
-            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
-        } catch (InvalidProtocolBufferException e) {
-            throw new BucketSnapshotSerializationException(e);
+            SnapshotMetadata metadata = new SnapshotMetadata();
+            metadata.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            return metadata;
         } finally {
             if (entryBuffer != null) {
                 entryBuffer.release();
@@ -170,19 +169,23 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
                 topicName, cursorName);
-        bookKeeper.asyncCreateLedger(
-                config.getManagedLedgerDefaultEnsembleSize(),
-                config.getManagedLedgerDefaultWriteQuorum(),
-                config.getManagedLedgerDefaultAckQuorum(),
-                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-                LedgerPassword,
-                (rc, handle, ctx) -> {
-                    if (rc != BKException.Code.OK) {
-                        future.completeExceptionally(bkException("Create ledger", rc, -1));
+        bookKeeper.newCreateLedgerOp()
+                .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                .withDigestType(config.getManagedLedgerDigestType())
+                .withPassword(LedgerPassword)
+                .withCustomMetadata(metadata)
+                .withLoggerContext(log.with().attr("topic", topicName).attr("cursor", cursorName).build())
+                .execute()
+                .whenComplete((writeHandle, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(bkException("Create ledger",
+                                BKException.getExceptionCode(ex), -1));
                     } else {
-                        future.complete(handle);
+                        future.complete((LedgerHandle) writeHandle);
                     }
-                }, null, metadata);
+                });
         return future;
     }
 
@@ -213,7 +216,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     } else {
                         future.complete(handle);
                     }
-                }, null
+                }, null, true
         );
         return future;
     }
@@ -222,7 +225,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerHandle.asyncClose((rc, handle, ctx) -> {
             if (rc != BKException.Code.OK) {
-                log.warn("Failed to close a Ledger Handle: {}", ledgerHandle.getId());
+                log.warn().attr("handle", ledgerHandle.getId()).log("Failed to close a Ledger Handle");
                 future.completeExceptionally(bkException("Close ledger", rc, ledgerHandle.getId()));
             } else {
                 future.complete(null);

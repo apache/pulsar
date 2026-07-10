@@ -57,6 +57,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testInit() throws Exception {
         final String zookeeperServer = "localhost:2184";
@@ -78,7 +79,12 @@ public class ServiceConfigurationTest {
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
-        assertEquals(config.isCreateTopicToRemoteClusterForReplication(), false);
+        assertEquals(config.getPulsarChannelWriteBufferHighWaterMark(), 60000);
+        assertEquals(config.getPulsarChannelWriteBufferLowWaterMark(), 120000);
+        assertEquals(config.isPulsarChannelPauseReceivingRequestsIfUnwritable(), true);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownMs(), 10_000);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPermits(), 100);
+        assertEquals(config.getPulsarChannelPauseReceivingCooldownRateLimitPeriodMs(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -216,16 +222,18 @@ public class ServiceConfigurationTest {
 
     @Test
     public void testBookkeeperMetadataStore() throws Exception {
+        String bookkeeperMetadataServiceUri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
         String confFile = "metadataStoreUrl=zk1:2181\n"
                 + "configurationMetadataStoreUrl=zk2:2182\n"
-                + "bookkeeperMetadataServiceUri=xx:other-system\n";
+                + "bookkeeperMetadataServiceUri=" + bookkeeperMetadataServiceUri + "\n";
         @Cleanup
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk2:2182");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "xx:other-system");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), bookkeeperMetadataServiceUri);
         assertTrue(conf.isConfigurationStoreSeparated());
         assertTrue(conf.isBookkeeperMetadataStoreSeparated());
     }
@@ -269,6 +277,7 @@ public class ServiceConfigurationTest {
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSubscriptionTypesEnableWins() throws Exception {

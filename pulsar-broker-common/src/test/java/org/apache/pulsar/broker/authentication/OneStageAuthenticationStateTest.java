@@ -28,11 +28,11 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.LongAdder;
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
@@ -42,6 +42,7 @@ public class OneStageAuthenticationStateTest {
     public static class CountingAuthenticationProvider implements AuthenticationProvider {
         public LongAdder authCallCount = new LongAdder();
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }

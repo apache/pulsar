@@ -20,26 +20,27 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
-import java.io.IOException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
-import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.roaringbitmap.InvalidRoaringFormat;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
-@Slf4j
+@CustomLog
 class ImmutableBucket extends Bucket {
 
     @Setter
@@ -78,26 +79,32 @@ class ImmutableBucket extends Bucket {
             loadMetaDataFuture = executeWithRetry(() -> bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
                     .whenComplete((___, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot metadata,"
-                                            + " bucketKey: {}, bucketId: {}",
-                                    dispatcherName, bucketKey, bucketId, ex);
+                            log.warn()
+                                    .attr("dispatcher", dispatcherName)
+                                    .attr("bucketKey", bucketKey)
+                                    .attr("bucketId", bucketId)
+                                    .exception(ex)
+                                    .log("Failed to get bucket snapshot metadata");
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(snapshotMetadata -> {
-                        List<SnapshotSegmentMetadata> metadataList =
-                                snapshotMetadata.getMetadataListList();
+                        int metadataListSize = snapshotMetadata.getMetadataListCount();
 
                         // Skip all already reach schedule time snapshot segments
                         int nextSnapshotEntryIndex = 0;
-                        while (nextSnapshotEntryIndex < metadataList.size()
-                                && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
+                        while (nextSnapshotEntryIndex < metadataListSize
+                                && snapshotMetadata.getMetadataAt(nextSnapshotEntryIndex)
+                                        .getMaxScheduleTimestamp() <= cutoffTime) {
                             nextSnapshotEntryIndex++;
                         }
 
-                        this.setLastSegmentEntryId(metadataList.size());
-                        this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
-                        List<Long> firstScheduleTimestamps = metadataList.stream().map(
-                                SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
+                        this.setLastSegmentEntryId(metadataListSize);
+                        this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, snapshotMetadata);
+                        List<Long> firstScheduleTimestamps = new ArrayList<>();
+                        for (int i = 0; i < metadataListSize; i++) {
+                            firstScheduleTimestamps.add(
+                                    snapshotMetadata.getMetadataAt(i).getMinScheduleTimestamp());
+                        }
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
                         return nextSnapshotEntryIndex + 1;
@@ -115,9 +122,13 @@ class ImmutableBucket extends Bucket {
                     () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
                             nextSegmentEntryId).whenComplete((___, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {},"
-                                            + " bucketId: {}, segmentEntryId: {}", dispatcherName, bucketKey(),
-                                    bucketId, nextSegmentEntryId, ex);
+                            log.warn()
+                                    .attr("dispatcher", dispatcherName)
+                                    .attr("bucketKey", bucketKey())
+                                    .attr("bucketId", bucketId)
+                                    .attr("segmentEntryId", nextSegmentEntryId)
+                                    .exception(ex)
+                                    .log("Failed to get bucket snapshot segment");
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(bucketSnapshotSegments -> {
@@ -139,35 +150,30 @@ class ImmutableBucket extends Bucket {
 
     /**
      * Recover delayed index bit map and message numbers.
-     * @throws InvalidRoaringFormat invalid bitmap serialization format
      */
     private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
-                                                    List<SnapshotSegmentMetadata> segmentMetaList) {
+                                                    SnapshotMetadata snapshotMetadata) {
         delayedIndexBitMap.clear(); // cleanup dirty bm
         final var numberMessages = new MutableLong(0);
-        for (int i = startSnapshotIndex; i < segmentMetaList.size(); i++) {
-            for (final var entry : segmentMetaList.get(i).getDelayedIndexBitMapMap().entrySet()) {
-                final var ledgerId = entry.getKey();
-                final var bs = entry.getValue();
-                final var sbm = new RoaringBitmap();
+        for (int i = startSnapshotIndex; i < snapshotMetadata.getMetadataListCount(); i++) {
+            snapshotMetadata.getMetadataAt(i).forEachDelayedIndexBitMap((ledgerId, bs) -> {
+                final ByteBuf buf = Unpooled.wrappedBuffer(bs);
                 try {
-                    sbm.deserialize(bs.asReadOnlyByteBuffer());
-                } catch (IOException e) {
-                    throw new InvalidRoaringFormat(e.getMessage());
+                    final LongBitmap sbm = LongBitmaps.deserialize(buf);
+                    numberMessages.add(sbm.cardinality());
+                    delayedIndexBitMap.compute(ledgerId, (lId, bm) -> {
+                        if (bm == null) {
+                            return sbm;
+                        }
+                        bm.or(sbm);
+                        return bm;
+                    });
+                } finally {
+                    buf.release();
                 }
-                numberMessages.add(sbm.getCardinality());
-                delayedIndexBitMap.compute(ledgerId, (lId, bm) -> {
-                    if (bm == null) {
-                        return sbm;
-                    }
-                    bm.or(sbm);
-                    return bm;
-                });
-            }
+            });
         }
-        // optimize bm
-        delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
-        setNumberBucketDelayedMessages(numberMessages.getValue());
+        setNumberBucketDelayedMessages(numberMessages.longValue());
     }
 
     CompletableFuture<List<SnapshotSegment>> getRemainSnapshotSegment() {
@@ -179,10 +185,13 @@ class ImmutableBucket extends Bucket {
             return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
                     lastSegmentEntryId).whenComplete((__, ex) -> {
                 if (ex != null) {
-                    log.warn(
-                            "[{}] Failed to get remain bucket snapshot segment, bucketKey: {},"
-                                    + " nextSegmentEntryId: {}, lastSegmentEntryId: {}",
-                            dispatcherName, bucketKey(), nextSegmentEntryId, lastSegmentEntryId, ex);
+                    log.warn()
+                            .attr("dispatcher", dispatcherName)
+                            .attr("bucketKey", bucketKey())
+                            .attr("nextSegmentEntryId", nextSegmentEntryId)
+                            .attr("lastSegmentEntryId", lastSegmentEntryId)
+                            .exception(ex)
+                            .log("Failed to get remain bucket snapshot segment");
                 }
             });
         }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
@@ -198,13 +207,20 @@ class ImmutableBucket extends Bucket {
                 BucketSnapshotPersistenceException.class, MaxRetryTimes)
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey, ex);
+                        log.error()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketId", bucketId)
+                                .attr("bucketKey", bucketKey)
+                                .exception(ex)
+                                .log("Failed to delete bucket snapshot");
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
                     } else {
-                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey);
+                        log.info()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketId", bucketId)
+                                .attr("bucketKey", bucketKey)
+                                .log("Delete bucket snapshot finish");
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                 System.currentTimeMillis() - deleteStartTime);
@@ -223,8 +239,12 @@ class ImmutableBucket extends Bucket {
         long bucketId = getAndUpdateBucketId();
         return bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
-                log.error("[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
-                        dispatcherName, bucketId, bucketKey(), ex);
+                log.error()
+                        .attr("dispatcher", dispatcherName)
+                        .attr("bucketId", bucketId)
+                        .attr("bucketKey", bucketKey())
+                        .exception(ex)
+                        .log("Failed to get snapshot length");
             } else {
                 setSnapshotLength(length);
             }

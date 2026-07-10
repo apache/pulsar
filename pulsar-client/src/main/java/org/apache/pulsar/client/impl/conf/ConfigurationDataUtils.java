@@ -36,7 +36,7 @@ public final class ConfigurationDataUtils {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
-        mapper.setSerializationInclusion(Include.NON_NULL);
+        mapper.setDefaultPropertyInclusion(Include.NON_NULL);
         return mapper;
     }
 
@@ -44,6 +44,7 @@ public final class ConfigurationDataUtils {
 
     private ConfigurationDataUtils() {}
 
+    @SuppressWarnings("unchecked")
     public static <T> T loadData(Map<String, Object> config,
                                  T existingData,
                                  Class<T> dataCls) {

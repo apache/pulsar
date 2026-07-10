@@ -601,25 +601,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoPartitionedTopicNameWithClusterName() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        pulsar.getConfiguration().setDefaultNumPartitions(3);
-
-        final String topicString = "persistent://prop/ns-abc/testTopic/1";
-        // When allowAutoTopicCreationWithLegacyNamingScheme as the default value is false,
-        // four-paragraph topic cannot be created.
-        pulsar.getConfiguration().setAllowAutoTopicCreationWithLegacyNamingScheme(false);
-        Assert.assertThrows(PulsarClientException.NotFoundException.class,
-                () -> pulsarClient.newProducer().topic(topicString).create());
-
-        pulsar.getConfiguration().setAllowAutoTopicCreationWithLegacyNamingScheme(true);
-        Producer producer = pulsarClient.newProducer().topic(topicString).create();
-        Assert.assertEquals(producer.getTopic(), topicString);
-        producer.close();
-    }
-
-    @Test
     public void testCreateTopicAfterGC() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
         final String topicP0 = TopicName.get(topic).getPartition(0).toString();

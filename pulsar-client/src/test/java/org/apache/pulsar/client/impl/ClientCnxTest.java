@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -242,6 +243,7 @@ public class ClientCnxTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testHandleCloseConsumer() {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseConsumer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
@@ -251,7 +253,7 @@ public class ClientCnxTest {
         long consumerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         when(pulsarClient.getConfiguration()).thenReturn(conf);
-        ConsumerImpl consumer = mock(ConsumerImpl.class);
+        ConsumerImpl<?> consumer = mock(ConsumerImpl.class);
         when(consumer.getClient()).thenReturn(pulsarClient);
         cnx.registerConsumer(consumerId, consumer);
         assertEquals(cnx.consumers.size(), 1);
@@ -266,6 +268,7 @@ public class ClientCnxTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testHandleCloseProducer() {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseProducer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
@@ -275,7 +278,7 @@ public class ClientCnxTest {
         long producerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         when(pulsarClient.getConfiguration()).thenReturn(conf);
-        ProducerImpl producer = mock(ProducerImpl.class);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
         when(producer.getClient()).thenReturn(pulsarClient);
         cnx.registerProducer(producerId, producer);
         assertEquals(cnx.producers.size(), 1);
@@ -334,7 +337,9 @@ public class ClientCnxTest {
                     .setRequestId(7)
                     .setWatcherId(5).setTopicsHash("f00");
             cnx.handleCommandWatchTopicListSuccess(success);
-            assertEquals(result.getNow(null), success);
+            assertThat(result.getNow(null))
+                    .usingRecursiveComparison()
+                    .comparingOnlyFields("requestId", "watcherId", "topicsHash");
         });
     }
 

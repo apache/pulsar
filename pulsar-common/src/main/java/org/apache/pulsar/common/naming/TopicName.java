@@ -24,8 +24,10 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.util.Codec;
 
 /**
@@ -42,13 +44,16 @@ public class TopicName implements ServiceUnitId {
 
     private final TopicDomain domain;
     private final String tenant;
-    private final String cluster;
     private final String namespacePortion;
     private final String localName;
 
     private final NamespaceName namespaceName;
 
     private final int partitionIndex;
+
+    // segment:// fields (null for non-segment domains)
+    private final HashRange segmentRange;
+    private final long segmentId;
 
     private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
 
@@ -72,18 +77,17 @@ public class TopicName implements ServiceUnitId {
         return TopicName.get(name);
     }
 
-    public static TopicName get(String domain, String tenant, String cluster, String namespace,
-                                String topic) {
-        String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
-        return TopicName.get(name);
-    }
-
     public static TopicName get(String topic) {
+        // Fast path: already cached — single volatile read, no lock.
         TopicName tp = cache.get(topic);
         if (tp != null) {
             return tp;
         }
-        return cache.computeIfAbsent(topic, k -> new TopicName(k));
+        // Use get()+put() instead of computeIfAbsent() to keep construction outside the bin-lock.
+        // Duplicate instances from racing threads are safe to discard since TopicName is immutable.
+        TopicName newTp = new TopicName(topic);
+        TopicName existing = cache.put(topic, newTp);
+        return existing != null ? existing : newTp;
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
@@ -116,87 +120,141 @@ public class TopicName implements ServiceUnitId {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
             // the other one is short topic name
-            if (!completeTopicName.contains("://")) {
+            int index = completeTopicName.indexOf("://");
+            if (index < 0) {
                 // The short topic name can be:
                 // - <topic>
-                // - <property>/<namespace>/<topic>
-                String[] parts = StringUtils.split(completeTopicName, '/');
-                if (parts.length == 3) {
-                    completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
-                } else if (parts.length == 1) {
-                    completeTopicName = TopicDomain.persistent.name() + "://"
-                        + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                // - <tenant>/<namespace>/<topic>
+                List<String> parts = splitBySlash(completeTopicName, 0);
+                this.domain = TopicDomain.persistent;
+                if (parts.size() == 3) {
+                    this.tenant = parts.get(0);
+                    this.namespacePortion = parts.get(1);
+                    this.localName = parts.get(2);
+                } else if (parts.size() == 1) {
+                    this.tenant = PUBLIC_TENANT;
+                    this.namespacePortion = DEFAULT_NAMESPACE;
+                    this.localName = parts.get(0);
                 } else {
                     throw new IllegalArgumentException(
                         "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
                         + "<tenant>/<namespace>/<topic> or <topic>");
                 }
-            }
-
-            // The fully qualified topic name can be in two different forms:
-            // new:    persistent://tenant/namespace/topic
-            // legacy: persistent://tenant/cluster/namespace/topic
-
-            List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
-            this.domain = TopicDomain.getEnum(parts.get(0));
-
-            String rest = parts.get(1);
-
-            // The rest of the name can be in different forms:
-            // new:    tenant/namespace/<localName>
-            // legacy: tenant/cluster/namespace/<localName>
-            // Examples of localName:
-            // 1. some, name, xyz
-            // 2. xyz-123, feeder-2
-
-
-            parts = Splitter.on("/").limit(4).splitToList(rest);
-            if (parts.size() == 3) {
-                // New topic name without cluster name
-                this.tenant = parts.get(0);
-                this.cluster = null;
-                this.namespacePortion = parts.get(1);
-                this.localName = parts.get(2);
-                this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(tenant, namespacePortion);
-            } else if (parts.size() == 4) {
-                // Legacy topic name that includes cluster name
-                this.tenant = parts.get(0);
-                this.cluster = parts.get(1);
-                this.namespacePortion = parts.get(2);
-                this.localName = parts.get(3);
-                this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
+                this.segmentRange = null;
+                this.segmentId = -1;
+                this.completeTopicName = domain.name() + "://" + tenant + "/" + namespacePortion + "/" + localName;
             } else {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+                this.domain = TopicDomain.getEnum(completeTopicName.substring(0, index));
+                // Scalable topic domains (topic://, segment://) only support the new format
+                // and local names may contain '/', so use limit(3) to keep the rest as localName.
+                boolean isScalableDomain = this.domain == TopicDomain.topic
+                        || this.domain == TopicDomain.segment;
+                int splitLimit = isScalableDomain ? 3 : 4;
+                List<String> parts = splitBySlash(completeTopicName.substring(index + "://".length()),
+                        splitLimit);
+                if (parts.size() == 4) {
+                    throw new IllegalArgumentException(
+                            "V1 topic names (with cluster component) are no longer supported. "
+                                    + "Please use the V2 format: '<domain>://tenant/namespace/topic'. Got: "
+                                    + completeTopicName);
+                } else if (parts.size() != 3) {
+                    throw new IllegalArgumentException("Invalid topic name " + completeTopicName);
+                }
+                this.tenant = parts.get(0);
+                this.namespacePortion = parts.get(1);
+                String rawLocalName = parts.get(2);
+
+                // For segment:// domains, split local name into parent topic name + descriptor
+                if (this.domain == TopicDomain.segment) {
+                    int lastSlash = rawLocalName.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        throw new IllegalArgumentException(
+                                "Invalid segment topic name: local name must contain"
+                                        + " '<parent-topic>/<hashStart>-<hashEnd>-<segmentId>'. Got: "
+                                        + completeTopicName);
+                    }
+                    this.localName = rawLocalName.substring(0, lastSlash);
+                    String descriptor = rawLocalName.substring(lastSlash + 1);
+                    String[] descParts = descriptor.split("-");
+                    if (descParts.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Invalid segment descriptor: expected '<hexStart>-<hexEnd>-<segmentId>',"
+                                        + " got: '" + descriptor + "'");
+                    }
+                    this.segmentRange = HashRange.of(
+                            Integer.parseInt(descParts[0], 16),
+                            Integer.parseInt(descParts[1], 16));
+                    this.segmentId = Long.parseLong(descParts[2]);
+                } else {
+                    this.localName = rawLocalName;
+                    this.segmentRange = null;
+                    this.segmentId = -1;
+                }
+
+                if (this.domain == TopicDomain.segment) {
+                    this.completeTopicName = String.format("%s://%s/%s/%s/%s",
+                            domain, tenant, namespacePortion, localName,
+                            String.format("%04x-%04x-%d", segmentRange.start(), segmentRange.end(), segmentId));
+                } else {
+                    this.completeTopicName = completeTopicName;
+                }
             }
 
             if (StringUtils.isBlank(localName)) {
                 throw new IllegalArgumentException(String.format("Invalid topic name: %s. Topic local name must not"
                         + " be blank.", completeTopicName));
             }
-
+            this.partitionIndex = getPartitionIndex(localName);
+            this.namespaceName = NamespaceName.get(tenant, namespacePortion);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
-        }
-        if (isV2()) {
-            this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, localName);
-        } else {
-            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
-                                                   domain, tenant, cluster,
-                                                   namespacePortion, localName);
         }
     }
 
     public boolean isPersistent() {
-        return TopicDomain.persistent == domain;
+        return TopicDomain.persistent == domain || TopicDomain.topic == domain || TopicDomain.segment == domain;
+    }
+
+    public boolean isScalable() {
+        return TopicDomain.topic == domain;
+    }
+
+    public boolean isSegment() {
+        return TopicDomain.segment == domain;
+    }
+
+    /**
+     * Get the segment hash range for segment:// topics.
+     *
+     * @return the hash range, or empty for non-segment domains
+     */
+    public Optional<HashRange> getSegmentRange() {
+        return Optional.ofNullable(segmentRange);
+    }
+
+    /**
+     * Get the segment ID for segment:// topics.
+     *
+     * @return the segment ID, or -1 for non-segment domains
+     */
+    public long getSegmentId() {
+        return segmentId;
+    }
+
+    /**
+     * Get the segment descriptor string (e.g. "0000-7fff-1") for segment:// topics.
+     *
+     * @return the descriptor, or null for non-segment domains
+     */
+    public String getSegmentDescriptor() {
+        if (segmentRange == null) {
+            return null;
+        }
+        return String.format("%04x-%04x-%d", segmentRange.start(), segmentRange.end(), segmentId);
     }
 
     /**
      * Extract the namespace portion out of a completeTopicName name.
-     *
-     * <p>Works both with old & new convention.
      *
      * @return the namespace
      */
@@ -222,11 +280,6 @@ public class TopicName implements ServiceUnitId {
         return tenant;
     }
 
-    @Deprecated
-    public String getCluster() {
-        return cluster;
-    }
-
     public String getNamespacePortion() {
         return namespacePortion;
     }
@@ -248,6 +301,25 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
+     * Returns this topic re-expressed in the scalable {@code topic://...} domain,
+     * regardless of the original input domain. Used to derive the canonical
+     * scalable-topic identity for a name the user may have spelled as
+     * {@code persistent://...} or short-form.
+     *
+     * <p>Any {@code -partition-K} suffix is stripped, so a partition name like
+     * {@code persistent://t/n/x-partition-3} resolves to the base topic's scalable
+     * identity {@code topic://t/n/x}, not {@code topic://t/n/x-partition-3}.
+     */
+    public TopicName toScalableTopic() {
+        if (domain == TopicDomain.topic) {
+            return this;
+        }
+        TopicName base = isPartitioned() ? get(getPartitionedTopicName()) : this;
+        return get(TopicDomain.topic.value() + "://" + base.getNamespace()
+                + "/" + base.getEncodedLocalName());
+    }
+
+    /**
      * @return partition index of the completeTopicName.
      * It returns -1 if the completeTopicName (topic) is not partitioned.
      */
@@ -263,9 +335,9 @@ public class TopicName implements ServiceUnitId {
      * For partitions in a topic, return the base partitioned topic name.
      * Eg:
      * <ul>
-     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> -->
-     *  <code>persistent://prop/cluster/ns/my-topic</code>
-     *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
+     *  <li><code>persistent://prop/ns/my-topic-partition-1</code> -->
+     *  <code>persistent://prop/ns/my-topic</code>
+     *  <li><code>persistent://prop/ns/my-topic</code> --> <code>persistent://prop/ns/my-topic</code>
      * </ul>
      */
     public String getPartitionedTopicName() {
@@ -323,11 +395,7 @@ public class TopicName implements ServiceUnitId {
 
     public String getRestPath(boolean includeDomain) {
         String domainName = includeDomain ? domain + "/" : "";
-        if (isV2()) {
-            return String.format("%s%s/%s/%s", domainName, tenant, namespacePortion, getEncodedLocalName());
-        } else {
-            return String.format("%s%s/%s/%s/%s", domainName, tenant, cluster, namespacePortion, getEncodedLocalName());
-        }
+        return String.format("%s%s/%s/%s", domainName, tenant, namespacePortion, getEncodedLocalName());
     }
 
     /**
@@ -338,18 +406,19 @@ public class TopicName implements ServiceUnitId {
     public String getPersistenceNamingEncoding() {
         // The convention is: domain://tenant/namespace/topic
         // We want to persist in the order: tenant/namespace/domain/topic
-
-        // For legacy naming scheme, the convention is: domain://tenant/cluster/namespace/topic
-        // We want to persist in the order: tenant/cluster/namespace/domain/topic
-        if (isV2()) {
-            return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
-        } else {
-            return String.format("%s/%s/%s/%s/%s", tenant, cluster, namespacePortion, domain, getEncodedLocalName());
+        // For segment topics, include the segment descriptor: tenant/namespace/segment/topic/descriptor
+        if (domain == TopicDomain.segment && segmentRange != null) {
+            return String.format("%s/%s/%s/%s/%04x-%04x-%d", tenant, namespacePortion, domain,
+                    getEncodedLocalName(), segmentRange.start(), segmentRange.end(), segmentId);
         }
+        if (domain == TopicDomain.topic) {
+            return String.format("%s/%s/%s", tenant, namespacePortion, getEncodedLocalName());
+        }
+        return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
     }
 
     /**
-     * get topic full name from managedLedgerName.
+     * Get topic full name from managedLedgerName.
      *
      * @return the topic full name, format -> domain://tenant/namespace/topic
      */
@@ -361,7 +430,6 @@ public class TopicName implements ServiceUnitId {
         }
         List<String> parts = Splitter.on("/").splitToList(mlName);
         String tenant;
-        String cluster;
         String namespacePortion;
         String domain;
         String localName;
@@ -372,12 +440,21 @@ public class TopicName implements ServiceUnitId {
             localName = Codec.decode(parts.get(3));
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else if (parts.size() == 5) {
+            if ("segment".equals(parts.get(2))) {
+                // Segment topic ML name: tenant/namespace/segment/topic/descriptor
+                tenant = parts.get(0);
+                namespacePortion = parts.get(1);
+                localName = Codec.decode(parts.get(3));
+                return String.format("segment://%s/%s/%s/%s", tenant, namespacePortion, localName, parts.get(4));
+            }
+            // Legacy V1 managed ledger name: tenant/cluster/namespace/domain/topic
+            // Convert to V2 format, dropping the cluster component
             tenant = parts.get(0);
-            cluster = parts.get(1);
+            // parts.get(1) is the cluster, which we drop
             namespacePortion = parts.get(2);
             domain = parts.get(3);
             localName = Codec.decode(parts.get(4));
-            return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
+            return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else {
             throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);
         }
@@ -388,21 +465,13 @@ public class TopicName implements ServiceUnitId {
      *
      * <p>Example:
      *
-     * <p>persistent://tenant/cluster/namespace/completeTopicName ->
-     *   persistent/tenant/cluster/namespace/completeTopicName
+     * <p>persistent://tenant/namespace/completeTopicName ->
+     *   persistent/tenant/namespace/completeTopicName
      *
      * @return
      */
     public String getLookupName() {
-        if (isV2()) {
-            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
-        } else {
-            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
-        }
-    }
-
-    public boolean isGlobal() {
-        return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
+        return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
     }
 
     public String getSchemaName() {
@@ -437,20 +506,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Returns true if this a V2 topic name prop/ns/topic-name.
-     * @return true if V2
-     */
-    public boolean isV2() {
-        return cluster == null;
-    }
-
-    /**
      * Convert a topic name to a full topic name.
-     * In Pulsar, a full topic name is "<domain>://<tenant>/<namespace>/<local-topic>" (v2) or
-     * "<domain>://<tenant>/<cluster>/<namespace>/<local-topic>" (v1). However, for convenient, it's allowed for clients
-     * to pass a short topic name with v2 format:
+     * In Pulsar, a full topic name is "<domain>://<tenant>/<namespace>/<local-topic>".
+     * For convenience, clients can pass a short topic name:
      * - "<local-topic>", which represents "persistent://public/default/<local-topic>"
-     * - "<tenant>/<namespace>/<local-topic>, which represents "persistent://<tenant>/<namespace>/<local-topic>"
+     * - "<tenant>/<namespace>/<local-topic>", which represents "persistent://<tenant>/<namespace>/<local-topic>"
      *
      * @param topic the topic name from client
      * @return the full topic name.
@@ -460,19 +520,18 @@ public class TopicName implements ServiceUnitId {
         if (index >= 0) {
             TopicDomain.getEnum(topic.substring(0, index));
             final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 4);
-            if (parts.size() != 3 && parts.size() != 4) {
-                throw new IllegalArgumentException(topic + " is invalid");
+            if (parts.size() == 4) {
+                throw new IllegalArgumentException(
+                        "V1 topic names (with cluster component) are no longer supported. "
+                        + "Please use the V2 format: '<domain>://tenant/namespace/topic'. Got: " + topic);
             }
-            if (parts.size() == 3) {
-                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
-                if (StringUtils.isBlank(parts.get(2))) {
-                    throw new IllegalArgumentException(topic + " has blank local topic");
-                }
-            } else {
-                NamespaceName.validateNamespaceName(parts.get(0), parts.get(1), parts.get(2));
-                if (StringUtils.isBlank(parts.get(3))) {
-                    throw new IllegalArgumentException(topic + " has blank local topic");
-                }
+            if (parts.size() != 3) {
+                throw new IllegalArgumentException(topic + " is invalid. "
+                    + "Expected format: '<domain>://tenant/namespace/topic'");
+            }
+            NamespaceName.validateNamespaceName(parts.get(0), parts.get(1));
+            if (StringUtils.isBlank(parts.get(2))) {
+                throw new IllegalArgumentException(topic + " has blank local topic");
             }
             return topic; // it's a valid full topic name
         } else {

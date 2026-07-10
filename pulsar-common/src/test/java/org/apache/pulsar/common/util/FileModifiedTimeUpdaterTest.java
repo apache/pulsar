@@ -104,6 +104,7 @@ public class FileModifiedTimeUpdaterTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testNettyClientSslContextRefresher() throws Exception {
         BasicAuthenticationData provider = new BasicAuthenticationData(null);
         String certFile = "/tmp/cert.txt";

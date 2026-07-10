@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.compaction;
 
-import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -34,13 +34,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<MessageId, Long>> {
-
-  private static final Logger log = LoggerFactory.getLogger(EventTimeOrderCompactor.class);
-
   public EventTimeOrderCompactor(ServiceConfiguration conf,
       PulsarClient pulsar,
       BookKeeper bk,
@@ -132,24 +128,21 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
         deletedMessage = true;
       }
     } catch (IOException ioe) {
-      log.info("Error decoding batch for message {}. Whole batch will be included in output",
-          id, ioe);
+      log.info()
+              .attr("message", id)
+              .exception(ioe)
+              .log("Error decoding batch for message . Whole batch will be included in output");
     }
     return deletedMessage;
   }
 
   protected MessageCompactionData extractMessageCompactionData(RawMessage m, MessageMetadata metadata) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
-    if (metadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (metadata.hasUncompressedSize()) {
-        size = metadata.getUncompressedSize();
-      }
-      return new MessageCompactionData(m.getMessageId(), metadata.getPartitionKey(),
-          size, metadata.getEventTime());
-    } else {
+    Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
+    if (keyAndSize == null) {
       return null;
     }
+    return new MessageCompactionData(m.getMessageId(), keyAndSize.getLeft(),
+        keyAndSize.getRight(), metadata.getEventTime());
   }
 
   private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg, MessageMetadata metadata)

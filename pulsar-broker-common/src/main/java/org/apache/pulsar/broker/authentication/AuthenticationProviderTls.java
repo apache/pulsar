@@ -25,6 +25,7 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
+@SuppressWarnings("deprecation")
 public class AuthenticationProviderTls implements AuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;

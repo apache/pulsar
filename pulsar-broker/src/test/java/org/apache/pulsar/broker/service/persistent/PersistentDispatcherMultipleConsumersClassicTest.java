@@ -20,48 +20,38 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.carrotsearch.hppc.ObjectSet;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
-public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30 * 1000)
     public void testTopicDeleteIfConsumerSetMismatchConsumerList() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
@@ -70,8 +60,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         // Make an error that "consumerSet" is mismatch with "consumerList".
-        Dispatcher dispatcher = pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get()
+        Dispatcher dispatcher = getTopic(topicName, false).join().get()
                 .getSubscription(subscription).getDispatcher();
         ObjectSet<org.apache.pulsar.broker.service.Consumer> consumerSet =
                 WhiteboxImpl.getInternalState(dispatcher, "consumerSet");
@@ -89,7 +78,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
 
     @Test(timeOut = 30 * 1000)
     public void testTopicDeleteIfConsumerSetMismatchConsumerList2() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
@@ -98,8 +87,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         // Make an error that "consumerSet" is mismatch with "consumerList".
-        Dispatcher dispatcher = pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get()
+        Dispatcher dispatcher = getTopic(topicName, false).join().get()
                 .getSubscription(subscription).getDispatcher();
         ObjectSet<org.apache.pulsar.broker.service.Consumer> consumerSet =
                 WhiteboxImpl.getInternalState(dispatcher, "consumerSet");
@@ -112,8 +100,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName =
-                BrokerTestUtil.newUniqueName("persistent://public/default/testSkipReadEntriesFromCloseCursor");
+        final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -125,8 +112,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
         producer.close();
 
         // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get();
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
 
         ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
         Mockito.doReturn(subscription).when(cursor).getName();
@@ -171,5 +157,98 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
 
         // Verify: the topic can be deleted successfully.
         admin.topics().delete(topicName, false);
+    }
+
+    @Test
+    public void testRaceConditionInTrackDelayedDelivery() throws Exception {
+        final int numThreads = 16;
+        final int operationsPerThread = 2000;
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        final CountDownLatch doneLatch = new CountDownLatch(numThreads);
+        final AtomicInteger errors = new AtomicInteger(0);
+        final AtomicReference<Exception> firstException = new AtomicReference<>();
+
+        final String topicName = newTopicName();
+        final String subscription = "s1";
+
+        // Needed to create the topic
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subscription)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
+
+        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
+        Mockito.doReturn(subscription).when(cursor).getName();
+
+        Subscription sub = Mockito.mock(PersistentSubscription.class);
+        Mockito.doReturn(topic).when(sub).getTopic();
+
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+            new PersistentDispatcherMultipleConsumersClassic(topic, cursor, sub);
+
+        // Align all writes to the same bucket
+        // This is the key which triggers the race condition
+        long deliverAt = System.currentTimeMillis() + 5000;
+
+        MessageMetadata messageMetadata = new MessageMetadata()
+            .setSequenceId(1)
+            .setProducerName("testProducer")
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis())
+            .setDeliverAtTime(deliverAt);
+
+        @Cleanup("shutdown")
+        ExecutorService executorService = Executors.newFixedThreadPool(32);
+
+        // Start clear message thread
+        for (int i = 0; i < numThreads / 2; i++) {
+            executorService.submit(() -> {
+                try {
+                    startLatch.await();
+                    for (int j = 0; j < operationsPerThread; j++) {
+                        dispatcher.clearDelayedMessages();
+                        Thread.sleep(1);
+                    }
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                    firstException.compareAndSet(null, e);
+                    e.printStackTrace();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        // Start track delayed delivery thread
+        for (int i = numThreads / 2; i < numThreads; i++) {
+            executorService.submit(() -> {
+                try {
+                    startLatch.await();
+                    for (int j = 0; j < operationsPerThread; j++) {
+                        dispatcher.trackDelayedDelivery(1, 1, messageMetadata);
+                        Thread.sleep(1);
+                    }
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                    firstException.compareAndSet(null, e);
+                    e.printStackTrace();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        Assert.assertTrue(doneLatch.await(30, TimeUnit.SECONDS), "Test should complete within 30 seconds");
+
+        if (errors.get() > 0) {
+            Exception exception = firstException.get();
+            if (exception != null) {
+                System.err.println("First exception caught: " + exception.getMessage());
+                exception.printStackTrace();
+            }
+        }
+        Assert.assertEquals(errors.get(), 0, "No exceptions should occur during concurrent operations");
     }
 }

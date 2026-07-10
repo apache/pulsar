@@ -21,8 +21,8 @@ package org.apache.pulsar.utils.auth.tokens;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
@@ -52,6 +52,7 @@ public class TokensCliUtilsTest {
                 {"1y", 31536000}
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCreateToken() {
@@ -73,12 +74,12 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString();
+            String token = baoStream.toString().trim();
 
-            Jwt<?, ?> jwt = Jwts.parserBuilder()
+            Jws<Claims> jwt = Jwts.parser()
                     .setSigningKey(Decoders.BASE64.decode(secretKey))
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
 
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
@@ -91,6 +92,7 @@ public class TokensCliUtilsTest {
             System.setOut(oldStream);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "desiredExpireTime")
     public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,
@@ -108,13 +110,13 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString();
+            String token = baoStream.toString().trim();
 
             Instant start = (new Date().toInstant().plus(expireAsSec - 5, ChronoUnit.SECONDS));
             Instant stop = (new Date().toInstant().plus(expireAsSec + 5, ChronoUnit.SECONDS));
 
             //Act
-            Claims jwt = Jwts.parserBuilder()
+            Claims jwt = Jwts.parser()
                     .setSigningKey(Decoders.BASE64.decode("u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY="))
                     .build()
                     .parseClaimsJws(token)

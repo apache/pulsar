@@ -54,7 +54,6 @@ public class PulsarStandaloneTest {
 
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         standalone.setBkDir(tempDir.getAbsolutePath());
-        standalone.setBkPort(0);
         standalone.setNumOfBk(bookieNum);
 
         standalone.startBookieWithMetadataStore();
@@ -67,10 +66,12 @@ public class PulsarStandaloneTest {
         List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
         Assert.assertEquals(secondBsConfs.size(), bookieNum);
 
+        // Cookies must be preserved across restart (otherwise bookie startup would have failed
+        // with InvalidCookieException). The bookieId is the persistent identity.
         for (int i = 0; i < bookieNum; i++) {
             ServerConfiguration conf1 = firstBsConfs.get(i);
             ServerConfiguration conf2 = secondBsConfs.get(i);
-            Assert.assertEquals(conf1.getBookiePort(), conf2.getBookiePort());
+            Assert.assertEquals(conf1.getBookieId(), conf2.getBookieId());
         }
         standalone.close();
         cleanDirectory(tempDir);
@@ -93,7 +94,6 @@ public class PulsarStandaloneTest {
         }
         final File bkDir = IOUtils.createTempDir("standalone", "bk");
         standalone.setNumOfBk(1);
-        standalone.setBkPort(0);
         standalone.setBkDir(bkDir.getAbsolutePath());
         standalone.start();
 
@@ -148,7 +148,6 @@ public class PulsarStandaloneTest {
                 bkDir.getAbsolutePath()
         });
         standalone.setTestMode(true);
-        standalone.setBkPort(0);
         standalone.start();
         BKCluster bkCluster = standalone.bkCluster;
         standalone.runShutdownHook();

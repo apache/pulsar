@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -38,24 +38,21 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An AVRO schema implementation.
  */
-@Slf4j
+@CustomLog
 public class AvroSchema<T> extends AvroBaseStructSchema<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
     private boolean isCustomReaderAndWriter;
     private ClassLoader pojoClassLoader;
 
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
-        boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+        boolean jsr310ConversionEnabled = getJsr310ConversionEnabled(schemaInfo);
         setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
-                getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
+                getJsr310ConversionEnabled(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 

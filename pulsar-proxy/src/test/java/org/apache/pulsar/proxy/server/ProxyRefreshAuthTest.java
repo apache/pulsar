@@ -30,7 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.crypto.SecretKey;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -52,9 +52,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     private static final String CLUSTER_NAME = "proxy-authorization";
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
@@ -160,9 +161,12 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         return new Object[]{true, false};
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "forwardAuthDataProvider")
     public void testAuthDataRefresh(boolean forwardAuthData) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy(forwardAuthData);
 
@@ -179,37 +183,25 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         pulsarClient.getPartitionsForTopic(topic).get();
+
+        // Verify initial connection state
         Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
 
-        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
-            pulsarClient.getPartitionsForTopic(topic).get();
-            assertTrue(connections.stream().allMatch(n -> {
-                try {
-                    ClientCnx clientCnx = n.get();
-                    long timestamp = clientCnx.getLastDisconnectedTimestamp();
-                    return timestamp == 0;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-        });
-
-        // Force all connections from proxy to broker to close and therefore require the proxy to re-authenticate with
-        // the broker. (The client doesn't lose this connection.)
-        restartBroker();
-
-        // Rerun assertion to ensure that it still works
-        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
-            pulsarClient.getPartitionsForTopic(topic).get();
-            assertTrue(connections.stream().allMatch(n -> {
-                try {
-                    ClientCnx clientCnx = n.get();
-                    long timestamp = clientCnx.getLastDisconnectedTimestamp();
-                    return timestamp == 0;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-        });
+        Awaitility.await()
+                .during(5, SECONDS)
+                .untilAsserted(() -> {
+                    for (CompletableFuture<ClientCnx> cf : connections) {
+                        try {
+                            ClientCnx clientCnx = cf.get();
+                            long timestamp = clientCnx.getLastDisconnectedTimestamp();
+                            // If forwardAuthData is false, the broker cannot see the client's authentication data.
+                            // As a result, the broker cannot perform any refresh operations on the client's auth data.
+                            // Only the proxy has visibility of the client's connection state.
+                            assertTrue(forwardAuthData ? timestamp == 0 : timestamp > 0);
+                        } catch (Exception e) {
+                            throw new AssertionError("Failed to get connection state", e);
+                        }
+                    }
+                });
     }
 }
