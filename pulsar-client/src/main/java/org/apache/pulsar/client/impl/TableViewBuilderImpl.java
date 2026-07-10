@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
@@ -69,6 +70,7 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
     @Override
     public <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
+        checkArgument(mapper != null, "mapper cannot be null");
         try {
             return createMappedAsync(mapper).get();
         } catch (Exception e) {
@@ -78,6 +80,9 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
     @Override
     public <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper) {
+        if (mapper == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("mapper cannot be null"));
+        }
         return new MessageMapperTableViewImpl<>(client, schema, conf, mapper).start();
     }
 

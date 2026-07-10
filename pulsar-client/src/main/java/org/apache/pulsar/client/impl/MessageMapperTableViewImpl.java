@@ -35,19 +35,15 @@ public class MessageMapperTableViewImpl<T, V> extends AbstractTableViewImpl<T, V
 
     MessageMapperTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
                                Function<Message<T>, V> mapper) {
-        super(client, schema, conf);
+        // The message instance is passed to the user-provided mapper function, which may keep a reference
+        // to it (e.g. when Function.identity() is used as the mapper). Pooled messages must not be used
+        // since there is no way to know when the message could be released.
+        super(client, schema, conf, false);
         this.mapper = mapper;
     }
 
     @Override
     protected V getValue(Message<T> msg) {
         return mapper.apply(msg);
-    }
-
-    @Override
-    protected boolean shouldReleasePooledMessage() {
-        // The message instance is passed to the user-provided mapper function, which may keep a reference
-        // to it (e.g. when Function.identity() is used as the mapper), so it must not be released here.
-        return false;
     }
 }

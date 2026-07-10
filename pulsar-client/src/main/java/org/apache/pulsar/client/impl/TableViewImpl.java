@@ -30,17 +30,12 @@ import org.apache.pulsar.client.api.Schema;
 public class TableViewImpl<T> extends AbstractTableViewImpl<T, T> {
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        super(client, schema, conf);
+        // the message is fully consumed while extracting the value, so pooled messages can be used and released
+        super(client, schema, conf, true);
     }
 
     @Override
     protected T getValue(Message<T> msg) {
         return msg.getValue();
-    }
-
-    @Override
-    protected boolean shouldReleasePooledMessage() {
-        // the message is fully consumed while extracting the value, so it is safe to release it
-        return true;
     }
 }

@@ -68,6 +68,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     private final List<BiConsumer<String, V>> listeners;
     private final ReentrantLock listenersMutex;
     private final boolean isPersistentTopic;
+    private final boolean poolMessages;
     private TopicCompactionStrategy<V> compactionStrategy;
 
     /**
@@ -90,9 +91,16 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
      */
     private final ConcurrentHashMap<String, MessageId> lastReadPositions;
 
-    AbstractTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+    /**
+     * @param poolMessages whether the reader should use pooled messages. When enabled, the handled messages
+     *                     are released after they have been processed, so subclasses must not let the
+     *                     message instance escape from {@link #getValue(Message)}.
+     */
+    AbstractTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
+                          boolean poolMessages) {
         this.conf = conf;
         this.log = LOG.with().attr("topic", conf.getTopicName()).build();
+        this.poolMessages = poolMessages;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
@@ -107,7 +115,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
                 .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
-                .poolMessages(true)
+                .poolMessages(poolMessages)
                 .subscriptionName(conf.getSubscriptionName());
         if (isPersistentTopic) {
             readerBuilder.readCompacted(true);
@@ -259,7 +267,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
             }
             checkAllFreshTask(msg);
         } finally {
-            if (shouldReleasePooledMessage()) {
+            if (poolMessages) {
                 msg.release();
             }
         }
@@ -278,14 +286,6 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
      * @return the value to store in the view, or {@code null} to remove the key
      */
     protected abstract V getValue(Message<T> msg);
-
-    /**
-     * Decides whether a possibly pooled message should be released after it has been handled.
-     * Implementations that hand the message instance over to user code must not release it.
-     *
-     * @return true if the message should be released, false otherwise
-     */
-    protected abstract boolean shouldReleasePooledMessage();
 
     @Override
     public CompletableFuture<Void> refreshAsync() {

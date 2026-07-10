@@ -85,7 +85,8 @@ public interface TableViewBuilder<T> {
      * from the message payload, properties, and other metadata into a custom object of type {@code V}.
      *
      * <p>To get a view of the full {@link Message} objects, {@code java.util.function.Function.identity()}
-     * can be used as the mapper.
+     * can be used as the mapper. Message pooling is not used for mapped table views, so it is safe to keep
+     * a reference to the {@link Message} instance passed to the mapper.
      *
      * <p>If the {@code mapper} function returns {@code null}, it is treated as a tombstone message, and the
      * corresponding key will be removed from the {@link TableView}.
@@ -106,7 +107,8 @@ public interface TableViewBuilder<T> {
      * from the message payload, properties, and other metadata into a custom object of type {@code V}.
      *
      * <p>To get a view of the full {@link Message} objects, {@code java.util.function.Function.identity()}
-     * can be used as the mapper.
+     * can be used as the mapper. Message pooling is not used for mapped table views, so it is safe to keep
+     * a reference to the {@link Message} instance passed to the mapper.
      *
      * <p>If the {@code mapper} function returns {@code null}, it is treated as a tombstone message, and the
      * corresponding key will be removed from the {@link TableView}.
