@@ -110,8 +110,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     @VisibleForTesting
     private final RangeMap<Long, ImmutableBucket> immutableBuckets;
 
+    @Getter
+    @VisibleForTesting
     private final AtomicLong bucketsCount = new AtomicLong(0);
 
+    @Getter
+    @VisibleForTesting
     private final AtomicLong totalSnapshotLengthBytes = new AtomicLong(0);
 
     private final ConcurrentHashMap<SnapshotKey, ImmutableBucket> snapshotSegmentLastIndexMap;
@@ -947,6 +951,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private void updateBucketSnapshotLength(ImmutableBucket bucket, long newLength) {
+        if (!immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+            return;
+        }
         long oldLength = bucket.getSnapshotLength();
         bucket.setSnapshotLength(newLength);
         totalSnapshotLengthBytes.addAndGet(newLength - oldLength);

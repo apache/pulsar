@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -888,5 +889,136 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         } finally {
             storage.clean();
         }
+    }
+
+    @Test
+    public void testLateSnapshotLengthUpdateAfterClearDoesNotInflateCounter() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+        MockBucketSnapshotStorage spyStorage = spy(storage);
+
+        CompletableFuture<Long> blockedLength = new CompletableFuture<>();
+        when(spyStorage.getBucketSnapshotLength(anyLong())).thenReturn(blockedLength);
+
+        ManagedCursor cursor = new MockManagedCursor("test_late_update_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testLateUpdate / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, spyStorage,
+                    3, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(tracker.getBucketsCount().get() >= 1,
+                            "Should have created at least one immutable bucket"));
+            assertCountersConsistent(tracker);
+
+            tracker.clear();
+
+            assertEquals(tracker.getBucketsCount().get(), 0, "All buckets should be removed");
+            assertCountersConsistent(tracker);
+
+            blockedLength.complete(999_999L);
+
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(tracker.getTotalSnapshotLengthBytes().get(), 0,
+                        "Late length update inflated totalSnapshotLengthBytes after clear");
+            });
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
+
+    @Test
+    public void testLateSnapshotLengthUpdateAfterTrimDoesNotInflateCounter() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+        MockBucketSnapshotStorage spyStorage = spy(storage);
+
+        CompletableFuture<Long> blockedLength = new CompletableFuture<>();
+        when(spyStorage.getBucketSnapshotLength(anyLong())).thenReturn(blockedLength);
+
+        ManagedCursor spyCursor = spy(new MockManagedCursor("test_late_trim_cursor"));
+        AtomicLong markDeletedLedger = new AtomicLong(0);
+        when(spyCursor.getMarkDeletedPosition()).thenAnswer(inv ->
+                PositionFactory.create(markDeletedLedger.get(), 0));
+        ManagedLedger mockLedger = mock(ManagedLedger.class);
+        when(mockLedger.getName()).thenReturn("test_ledger");
+        when(spyCursor.getManagedLedger()).thenReturn(mockLedger);
+
+        doReturn(spyCursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testLateTrim / " + spyCursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, spyStorage,
+                    3, TimeUnit.MILLISECONDS.toMillis(10), -1, 3);
+
+            for (int i = 1; i <= 12; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(tracker.getBucketsCount().get() >= 3,
+                            "Should have created at least 3 immutable buckets"));
+            assertCountersConsistent(tracker);
+
+            markDeletedLedger.set(5);
+
+            for (int i = 13; i <= 15; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+
+            Awaitility.await().untilAsserted(() -> {
+                boolean hasOldBucket = tracker.getImmutableBuckets().asMapOfRanges().keySet().stream()
+                        .anyMatch(r -> r.upperEndpoint() < 5);
+                Assert.assertFalse(hasOldBucket, "Buckets with endLedgerId < 5 should be trimmed");
+            });
+            assertCountersConsistent(tracker);
+
+            blockedLength.complete(999_999L);
+
+            Awaitility.await().untilAsserted(() ->
+                    assertCountersConsistent(tracker));
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
+
+    private static void assertCountersConsistent(BucketDelayedDeliveryTracker tracker) {
+        int liveBucketCount = tracker.getImmutableBuckets().asMapOfRanges().size();
+        long liveSnapshotLength = tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                .mapToLong(ImmutableBucket::getSnapshotLength)
+                .sum();
+
+        assertEquals(tracker.getBucketsCount().get(), liveBucketCount,
+                String.format("bucketsCount drift: cached=%d live=%d",
+                        tracker.getBucketsCount().get(), liveBucketCount));
+        assertEquals(tracker.getTotalSnapshotLengthBytes().get(), liveSnapshotLength,
+                String.format("totalSnapshotLengthBytes drift: cached=%d live=%d",
+                        tracker.getTotalSnapshotLengthBytes().get(), liveSnapshotLength));
     }
 }
