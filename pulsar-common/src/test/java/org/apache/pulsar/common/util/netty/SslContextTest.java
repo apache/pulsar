@@ -81,6 +81,7 @@ public class SslContextTest {
     }
 
     @Test(dataProvider = "cipherDataProvider")
+    @SuppressWarnings("try")
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
         PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
                 .tlsEnabledWithKeystore(true)
@@ -108,6 +109,7 @@ public class SslContextTest {
     }
 
     @Test(dataProvider = "cipherDataProvider")
+    @SuppressWarnings("try")
     public void testClientKeyStoreSSLContext(Set<String> cipher) throws Exception {
         PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
                 .allowInsecureConnection(false)
@@ -125,6 +127,7 @@ public class SslContextTest {
     }
 
     @Test(dataProvider = "caCertSslContextDataProvider")
+    @SuppressWarnings("try")
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws Exception {
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
@@ -151,6 +154,7 @@ public class SslContextTest {
     }
 
     @Test(dataProvider = "caCertSslContextDataProvider")
+    @SuppressWarnings("try")
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws Exception {
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {

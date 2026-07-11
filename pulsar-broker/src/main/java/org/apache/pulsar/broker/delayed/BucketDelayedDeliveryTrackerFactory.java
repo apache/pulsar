@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -38,12 +39,9 @@ import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerExce
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
-    private static final Logger log = LoggerFactory.getLogger(BucketDelayedDeliveryTrackerFactory.class);
-
     BucketSnapshotStorage bucketSnapshotStorage;
 
     private Timer timer;
@@ -87,8 +85,12 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         try {
             tracker = newTracker0(dispatcher);
         } catch (RecoverDelayedDeliveryTrackerException ex) {
-            log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker."
-                    + " topic {}, subscription {}", topicName, subscriptionName, ex);
+            log.warn()
+                    .attr("topic", topicName)
+                    .attr("subscription", subscriptionName)
+                    .exception(ex)
+                    .log("Failed to recover BucketDelayedDeliveryTracker, fallback to"
+                            + " InMemoryDelayedDeliveryTracker. topic , subscription");
             // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
             brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
             tracker = brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);

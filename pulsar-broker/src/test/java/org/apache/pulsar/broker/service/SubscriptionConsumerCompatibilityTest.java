@@ -49,7 +49,7 @@ public class SubscriptionConsumerCompatibilityTest {
     private PulsarTestContext pulsarTestContext;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
-    private final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    private final String successTopicName = "persistent://prop/ns-abc/successTopic";
     private final String subName = "subscriptionName";
 
     @BeforeMethod

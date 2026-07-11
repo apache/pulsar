@@ -164,8 +164,7 @@ CLOSE:
 		case cm := <-channel:
 			msgInput := cm.Message
 			atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-			atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-			autoAck := gi.context.instanceConf.funcDetails.AutoAck
+			autoAck := gi.context.instanceConf.funcDetails.AutoAck //nolint:staticcheck
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
@@ -177,12 +176,8 @@ CLOSE:
 
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
-				log.Errorf("handler message error:%v", err)
-				if autoAck && atLeastOnce {
-					gi.nackInputMessage(msgInput)
-				}
-				gi.stats.incrTotalUserExceptions(err)
-				return err
+				gi.handleUserError(msgInput, err)
+				continue
 			}
 
 			gi.stats.processTimeEnd()
@@ -391,6 +386,29 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	return channel, nil
 }
 
+func (gi *goInstance) shouldNackInputOnFailure() bool {
+	guarantee := gi.context.instanceConf.funcDetails.ProcessingGuarantees
+	return guarantee == pb.ProcessingGuarantees_ATLEAST_ONCE ||
+		guarantee == pb.ProcessingGuarantees_MANUAL
+}
+
+func (gi *goInstance) handleUserError(msgInput pulsar.Message, err error) {
+	log.Errorf("handler message error:%v", err)
+	if gi.shouldNackInputOnFailure() {
+		gi.nackInputMessage(msgInput)
+	}
+	gi.stats.incrTotalUserExceptions(err)
+	gi.stats.processTimeEnd()
+}
+
+func (gi *goInstance) handlePublishError(msgInput pulsar.Message, err error) {
+	if gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE {
+		gi.nackInputMessage(msgInput)
+	}
+	gi.stats.incrTotalSysExceptions(err)
+	log.Errorf("failed to publish output message: %v", err)
+}
+
 func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -404,7 +422,7 @@ func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 
 func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-	autoAck := gi.context.instanceConf.funcDetails.AutoAck
+	autoAck := gi.context.instanceConf.funcDetails.AutoAck //nolint:staticcheck
 
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
 	// assigned output topic.
@@ -420,11 +438,8 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				// semantics, ensure we nack so someone else can get it, in case we are the only handler. Then mark
 				// exception and fail out.
 				if err != nil {
-					if autoAck && atLeastOnce {
-						gi.nackInputMessage(msgInput)
-					}
-					gi.stats.incrTotalSysExceptions(err)
-					log.Fatal(err)
+					gi.handlePublishError(msgInput, err)
+					return
 				}
 				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are using
 				// atLeastOnce delivery semantics, ack the message.
@@ -437,7 +452,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		return
 	}
 
-	// No output from the function or no output topic. Ack if we need to and mark the success before rturning.
+	// No output from the function or no output topic. Ack if we need to and mark the success before returning.
 	if autoAck && atLeastOnce {
 		gi.ackInputMessage(msgInput)
 	}
@@ -646,7 +661,7 @@ func (gi *goInstance) getFilteredMetricFamilies(metricName string) []*prometheus
 	filteredMetricFamilies := filter(metricFamilies, matchFamilyFunc)
 	if len(filteredMetricFamilies) > 1 {
 		// handle this.
-		log.Errorf("Too many metric families for metricName: %s " + metricName)
+		log.Errorf("Too many metric families for metricName: %s ", metricName)
 	}
 	return filteredMetricFamilies
 }

@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -246,6 +247,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder enableTls(boolean useTls) {
         conf.setUseTls(useTls);
@@ -342,6 +344,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
@@ -469,6 +472,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope) {
+        conf.setSocks5ProxyScope(socks5ProxyScope);
         return this;
     }
 

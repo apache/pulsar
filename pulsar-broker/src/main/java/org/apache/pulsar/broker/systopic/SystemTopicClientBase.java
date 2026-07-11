@@ -22,13 +22,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     protected final TopicName topicName;
@@ -113,6 +113,4 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
     public List<Writer<T>> getWriters() {
         return writers;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SystemTopicClientBase.class);
 }

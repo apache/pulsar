@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -32,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -65,8 +65,10 @@ import org.jctools.queues.SpscArrayQueue;
 /**
  * Transaction buffer based on normal persistent topic.
  */
-@Slf4j
 public class TopicTransactionBuffer extends TopicTransactionBufferState implements TransactionBuffer, TimerTask {
+
+    private static final Logger LOG = Logger.get(TopicTransactionBuffer.class);
+    private final Logger log;
 
     private final PersistentTopic topic;
 
@@ -89,7 +91,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final int takeSnapshotIntervalNumber;
 
     private final int takeSnapshotIntervalTime;
-
 
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
 
@@ -130,6 +131,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                            AbortedTxnProcessor.SnapshotType snapshotType) {
         super(State.None);
         this.topic = topic;
+        this.log = LOG.with()
+                .attr("topic", topic.getName())
+                .attr("state", () -> getState())
+                .build();
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
@@ -153,8 +158,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
                             }
                             if (!changeToReadyState()) {
-                                log.error("[{}]Transaction buffer recover fail, current state: {}",
-                                        topic.getName(), getState());
+                                log.error("Transaction buffer recover fail");
                                 getTransactionBufferFuture().completeExceptionally
                                         (new BrokerServiceException.ServiceUnitNotReadyException(
                                                 "Transaction buffer recover failed to change the status to Ready,"
@@ -173,7 +177,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         synchronized (TopicTransactionBuffer.this) {
                             maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
                             if (!changeToNoSnapshotState()) {
-                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                                log.error().log("Transaction buffer recover fail");
                             } else {
                                 getTransactionBufferFuture().complete(null);
                                 recoverTime.setRecoverEndTime(System.currentTimeMillis());
@@ -208,8 +212,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void recoverExceptionally(Throwable e) {
 
-                        log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
-                                + "transaction buffer throw exception", topic.getName(), e);
+                        log.warn()
+                                .exception(e)
+                                .log("Closing topic due to read transaction buffer snapshot while recovering the"
+                                        + " transaction buffer throw exception");
                         // when create reader or writer fail throw PulsarClientException,
                         // should close this topic and then reinit this topic
                         if (e instanceof PulsarClientException) {
@@ -280,8 +286,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             // `publishFuture` will be completed after transaction buffer recover completely
             // during initializing, so this case should not happen.
             if (!checkIfReady() && !checkIfNoSnapshot() && !checkIfFirstSnapshotting() && !checkIfInitializing()) {
-                log.error("[{}] unexpected state: {} when try to take the first transaction buffer snapshot",
-                        topic.getName(), getState());
+                log.error("Unexpected state when trying to take the first transaction buffer snapshot");
                 return FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
                         "Transaction Buffer recover failed, the current state is: " + getState()));
             }
@@ -327,9 +332,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     }
                 } catch (Exception e) {
                     // If there are some error when adding entries or caching entries, this log will be printed.
-                    log.error("[{}] Failed to flush pending publishing requests after taking the first"
-                                    + " snapshot.",
-                            topic.getName(), e);
+                    log.error()
+                            .exception(e)
+                            .log("Failed to flush pending publishing requests after taking the first snapshot.");
                     if (pendingTask != null) {
                         pendingTask.fail(e);
                     }
@@ -340,31 +345,33 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             // Trigger the first snapshot.
             transactionBufferFuture.whenComplete((ignore1, ex1) -> {
                 if (ex1 != null) {
-                    log.error("[{}] Transaction buffer recover failed", topic.getName(), ex1);
+                    log.error().exception(ex1).log("Transaction buffer recover failed");
                     failPendingTasks.accept(ex1);
                     return;
                 }
                 if (changeToFirstSnapshotting()) {
-                    log.info("[{}] Start to take the first snapshot", topic.getName());
+                    log.info().log("Start to take the first snapshot");
                     // Flush pending publishing after the first snapshot finished.
                     takeFirstSnapshot().whenComplete((ignore2, ex2) -> {
                         if (ex2 != null) {
-                            log.error("[{}] Failed to take the first snapshot, flushing failed publishing requests",
-                                    topic.getName(), ex2);
+                            log.error()
+                                    .exception(ex2)
+                                    .log("Failed to take the first snapshot, flushing failed publishing requests");
                             failPendingTasks.accept(ex2);
                             return;
                         }
-                        log.info("[{}] Finished to take the first snapshot, flushing publishing {} requests",
-                                topic.getName(), pendingAppendingTxnBufferTasks.size());
+                        log.info()
+                                .attr("publishing", pendingAppendingTxnBufferTasks.size())
+                                .log("Finished to take the first snapshot, flushing publishing requests");
                         flushPendingTasks.run();
                     });
                 } else if (checkIfReady()) {
-                    log.info("[{}] No need to take the first snapshot, flushing publishing {} requests",
-                            topic.getName(), pendingAppendingTxnBufferTasks.size());
+                    log.info()
+                            .attr("publishing", pendingAppendingTxnBufferTasks.size())
+                            .log("No need to take the first snapshot, flushing publishing requests");
                     flushPendingTasks.run();
                 } else {
-                    log.error("[{}] Transaction buffer recover failed, current state is {}", topic.getName(),
-                            getState());
+                    log.error("Transaction buffer recover failed");
                     failPendingTasks.accept(new BrokerServiceException.ServiceUnitNotReadyException(
                             "Transaction Buffer recover failed, the current state is: " + getState()));
                 }
@@ -381,14 +388,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                 firstSnapshottingFuture.complete(null);
             } else {
-                log.error("[{}]Failed to change state of transaction buffer to Ready from NoSnapshot",
-                        topic.getName());
+                log.error()
+                        .log("Failed to change state of transaction buffer to Ready from NoSnapshot");
                 firstSnapshottingFuture.completeExceptionally(new BrokerServiceException
                         .ServiceUnitNotReadyException(
                         "Transaction Buffer take first snapshot failed, the current state is: " + getState()));
             }
         }).exceptionally(exception -> {
-            log.error("Topic {} failed to take snapshot", this.topic.getName());
+            log.error().attr("topic", this.topic.getName()).log("Topic failed to take snapshot");
             firstSnapshottingFuture.completeExceptionally(exception);
             return null;
         });
@@ -416,7 +423,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Failed to append buffer to txn {}", txnId, exception);
+                log.error().attr("txn", txnId).exception(exception).log("Failed to append buffer to txn");
                 completableFuture.completeExceptionally(exception);
             }
         }, null);
@@ -446,10 +453,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
-        }
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            log.debug()
+                    .attr("transaction", txnID.toString())
+                    .log("Transaction commit on topic .");
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         //Wait TB recover completely.
         getTransactionBufferFuture().thenRun(() -> {
             ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
@@ -470,7 +477,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Failed to commit for txn {}", txnID, exception);
+                        log.error().attr("txn", txnID).exception(exception).log("Failed to commit for txn");
                         checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
@@ -479,7 +486,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 commitMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
+            log.error()
+                    .attr("transaction", txnID.toString())
+                    .exception(exception.getCause())
+                    .log("Transaction commit on topic .");
             completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
@@ -488,10 +498,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
-        }
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            log.debug()
+                    .attr("transaction", txnID.toString())
+                    .log("Transaction abort on topic .");
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         //Wait TB recover completely.
         getTransactionBufferFuture().thenRun(() -> {
             //no message sent, need not to add abort mark by txn timeout.
@@ -517,7 +527,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Failed to abort for txn {}", txnID, exception);
+                        log.error().attr("txn", txnID).exception(exception).log("Failed to abort for txn");
                         checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
@@ -526,7 +536,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 abortMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
+            log.error()
+                    .attr("transaction", txnID.toString())
+                    .exception(exception.getCause())
+                    .log("Transaction abort on topic .");
             completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
@@ -555,14 +568,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
                     abortTxn(firstTxn, lowWaterMarkOfFirstTxnId)
                             .thenRun(() -> {
-                                log.warn("Successes to abort low water mark for txn [{}], topic [{}],"
-                                        + " lowWaterMark [{}]", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId);
+                                log.warn()
+                                        .attr("txn", firstTxn)
+                                        .attr("lowWatermark", lowWaterMarkOfFirstTxnId)
+                                        .log("Successfully aborted low water mark for txn");
                                 handleLowWaterMark.release();
                             })
                             .exceptionally(ex -> {
-                                log.warn("Failed to abort low water mark for txn {}, topic [{}], "
-                                        + "lowWaterMark [{}], ", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId,
-                                        ex);
+                                log.warn()
+                                        .attr("txn", firstTxn)
+                                        .attr("lowWatermark", lowWaterMarkOfFirstTxnId)
+                                        .exception(ex)
+                                        .log("Failed to abort low water mark for txn");
                                 handleLowWaterMark.release();
                                 return null;
                             });
@@ -785,8 +802,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         @Override
         public void run() {
             if (!this.topicTransactionBuffer.changeToInitializingState()) {
-                log.warn("TransactionBuffer {} of topic {} can not change state to Initializing",
-                        this, topic.getName());
+                topicTransactionBuffer.log.warn()
+                        .attr("transactionBuffer", this)
+                        .log("TransactionBuffer of topic can not change state to Initializing");
                 return;
             }
             abortedTxnProcessor.recoverFromSnapshot().thenAccept(startReadCursorPosition -> {
@@ -803,7 +821,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             .newNonDurableCursor(this.startReadCursorPosition, SUBSCRIPTION_NAME);
                 } catch (ManagedLedgerException e) {
                     callBack.recoverExceptionally(e);
-                    log.error("[{}]Transaction buffer recover fail when open cursor!", topic.getName(), e);
+                    topicTransactionBuffer.log.error()
+                            .exception(e)
+                            .log("Transaction buffer recover fail when open cursor!");
                     return;
                 }
                 Position lastConfirmedEntry =
@@ -837,7 +857,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 callBack.recoverComplete();
             }).exceptionally(e -> {
                 callBack.recoverExceptionally(e.getCause());
-                log.error("[{}]Transaction buffer failed to recover snapshot!", topic.getName(), e);
+                topicTransactionBuffer.log.error()
+                        .exception(e)
+                        .log("Transaction buffer failed to recover snapshot");
                 return null;
             });
         }
@@ -847,25 +869,26 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     new AsyncCallbacks.DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
-                    log.info("[{}]Transaction buffer snapshot recover cursor close complete.", topic.getName());
+                    topicTransactionBuffer.log.info("Transaction buffer snapshot recover cursor close complete");
                 }
 
                 @Override
                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}]Transaction buffer snapshot recover cursor close fail.", topic.getName());
+                    topicTransactionBuffer.log.error("Transaction buffer snapshot recover cursor close fail");
                 }
 
             }, null);
         }
 
         private void callBackException(ManagedLedgerException e) {
-            log.error("Transaction buffer recover fail when recover transaction entry!", e);
+            topicTransactionBuffer.log.error().exception(e)
+                    .log("Transaction buffer recover fail when recovering transaction entry");
             this.exceptionNumber.getAndIncrement();
         }
 
         private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
             reader.closeAsync().exceptionally(e -> {
-                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                topicTransactionBuffer.log.error().exception(e).log("Transaction buffer reader close error");
                 return null;
             });
         }

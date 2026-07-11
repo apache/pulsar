@@ -28,7 +28,7 @@ import java.util.Map;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.MessagePayloadProcessorSpec;
 
 public class MessagePayloadProcessorUtils {
     public static MessagePayloadProcessor getMessagePayloadProcessorInstance(String className,
@@ -61,7 +61,7 @@ public class MessagePayloadProcessorUtils {
         }
     }
 
-    public static MessagePayloadProcessorConfig convertFromSpec(Function.MessagePayloadProcessorSpec spec) {
+    public static MessagePayloadProcessorConfig convertFromSpec(MessagePayloadProcessorSpec spec) {
         if (spec == null || isEmpty(spec.getClassName())) {
             return null;
         }
@@ -78,17 +78,17 @@ public class MessagePayloadProcessorUtils {
         return bldr.build();
     }
 
-    public static Function.MessagePayloadProcessorSpec convert(MessagePayloadProcessorConfig config) {
-        Function.MessagePayloadProcessorSpec.Builder bldr = Function.MessagePayloadProcessorSpec.newBuilder()
+    public static MessagePayloadProcessorSpec convert(MessagePayloadProcessorConfig config) {
+        MessagePayloadProcessorSpec spec = new MessagePayloadProcessorSpec()
                 .setClassName(config.getClassName());
 
         if (config.getConfig() != null) {
             Type type = new TypeToken<Map<String, Object>>() {
             }.getType();
             String readerConfigString = new Gson().toJson(config.getConfig(), type);
-            bldr.setConfigs(readerConfigString);
+            spec.setConfigs(readerConfigString);
         }
 
-        return bldr.build();
+        return spec;
     }
 }

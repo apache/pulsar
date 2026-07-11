@@ -125,7 +125,7 @@ public class PackagesManagementImplTest {
             .contact("test@apache.org")
             .description("A mocked test package")
             .createTime(System.currentTimeMillis()).build();
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata, true))) {
             packagesManagement.upload(packageName, metadata, inputStream).get();
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -142,7 +142,7 @@ public class PackagesManagementImplTest {
         // download an existent package should succeed
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             packagesManagement.download(packageName, outputStream).get();
-            PackageMetadata getPackage = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
+            PackageMetadata getPackage = PackageMetadataUtil.fromBytes(outputStream.toByteArray(), true);
             Assert.assertEquals(metadata, getPackage);
         } catch (Exception e) {
             Assert.fail("should not throw any exception");

@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.ServerErrorException;
+import jakarta.ws.rs.ServiceUnavailableException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -27,17 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-import javax.ws.rs.ServiceUnavailableException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation.Builder;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
@@ -52,14 +53,12 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for all admin resources.
  */
+@CustomLog
 public abstract class BaseResource {
-    private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
     protected final Authentication auth;
     protected final long requestTimeoutMs;
@@ -93,8 +92,9 @@ public abstract class BaseResource {
             // auth complete, return a new Builder
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(),
-                        ex.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(ex)
+                            .log("Failed to perform http request at auth stage");
                     builderFuture.completeExceptionally(new PulsarClientException(ex));
                     return;
                 }
@@ -132,7 +132,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http put request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http put request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
@@ -164,7 +166,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http post request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http post request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
@@ -241,7 +245,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http delete request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http delete request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
             });

@@ -26,6 +26,7 @@ import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslCloseCompletionEvent;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -71,6 +72,12 @@ import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribe;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSendError;
@@ -88,8 +95,6 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Basic implementation of the channel handler to process inbound Pulsar data.
@@ -100,6 +105,7 @@ import org.slf4j.LoggerFactory;
  * after the method returns.</b> If you need to pass an instance of the command instance to another thread or retain a
  * reference to it after the handle* method completes, you must make a deep copy of the command instance.
  */
+@CustomLog
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     // From the proxy protocol. If present, it means the client is connected via a reverse proxy.
@@ -123,9 +129,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             int cmdSize = (int) buffer.readUnsignedInt();
             cmd.parseFrom(buffer, cmdSize);
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
-            }
+            log.debug().attr("channel", ctx.channel()).attr("cmdType", cmd.getType()).log("Received cmd");
             messageReceived(cmd);
 
             switch (cmd.getType()) {
@@ -480,6 +484,66 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
                 break;
 
+            case SCALABLE_TOPIC_LOOKUP:
+                checkArgument(cmd.hasScalableTopicLookup());
+                handleCommandScalableTopicLookup(cmd.getScalableTopicLookup());
+                break;
+
+            case SCALABLE_TOPIC_UPDATE:
+                checkArgument(cmd.hasScalableTopicUpdate());
+                handleCommandScalableTopicUpdate(cmd.getScalableTopicUpdate());
+                break;
+
+            case SCALABLE_TOPIC_CLOSE:
+                checkArgument(cmd.hasScalableTopicClose());
+                handleCommandScalableTopicClose(cmd.getScalableTopicClose());
+                break;
+
+            case SCALABLE_TOPIC_SUBSCRIBE:
+                checkArgument(cmd.hasScalableTopicSubscribe());
+                handleCommandScalableTopicSubscribe(cmd.getScalableTopicSubscribe());
+                break;
+
+            case SCALABLE_TOPIC_SUBSCRIBE_RESPONSE:
+                checkArgument(cmd.hasScalableTopicSubscribeResponse());
+                handleCommandScalableTopicSubscribeResponse(cmd.getScalableTopicSubscribeResponse());
+                break;
+
+            case SCALABLE_TOPIC_ASSIGNMENT_UPDATE:
+                checkArgument(cmd.hasScalableTopicAssignmentUpdate());
+                handleCommandScalableTopicAssignmentUpdate(cmd.getScalableTopicAssignmentUpdate());
+                break;
+
+            case WATCH_SCALABLE_TOPICS:
+                checkArgument(cmd.hasWatchScalableTopics());
+                handleCommandWatchScalableTopics(cmd.getWatchScalableTopics());
+                break;
+
+            case WATCH_SCALABLE_TOPICS_UPDATE:
+                checkArgument(cmd.hasWatchScalableTopicsUpdate());
+                handleCommandWatchScalableTopicsUpdate(cmd.getWatchScalableTopicsUpdate());
+                break;
+
+            case WATCH_SCALABLE_TOPICS_CLOSE:
+                checkArgument(cmd.hasWatchScalableTopicsClose());
+                handleCommandWatchScalableTopicsClose(cmd.getWatchScalableTopicsClose());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS:
+                checkArgument(cmd.hasWatchTcAssignments());
+                handleCommandWatchTcAssignments(cmd.getWatchTcAssignments());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS_UPDATE:
+                checkArgument(cmd.hasWatchTcAssignmentsUpdate());
+                handleCommandWatchTcAssignmentsUpdate(cmd.getWatchTcAssignmentsUpdate());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS_CLOSE:
+                checkArgument(cmd.hasWatchTcAssignmentsClose());
+                handleCommandWatchTcAssignmentsClose(cmd.getWatchTcAssignmentsClose());
+                break;
+
             default:
                 break;
             }
@@ -746,7 +810,66 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
+    protected void handleCommandScalableTopicLookup(CommandScalableTopicLookup commandScalableTopicLookup) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicUpdate(CommandScalableTopicUpdate commandScalableTopicUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicClose(CommandScalableTopicClose commandScalableTopicClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicSubscribe(
+            CommandScalableTopicSubscribe commandScalableTopicSubscribe) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicSubscribeResponse(
+            CommandScalableTopicSubscribeResponse commandScalableTopicSubscribeResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicAssignmentUpdate(
+            CommandScalableTopicAssignmentUpdate commandScalableTopicAssignmentUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchScalableTopics(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopics commandWatchScalableTopics) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchScalableTopicsUpdate(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsUpdate
+                    commandWatchScalableTopicsUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchScalableTopicsClose(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsClose
+                    commandWatchScalableTopicsClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignments(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignments commandWatchTcAssignments) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignmentsUpdate(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsUpdate
+                    commandWatchTcAssignmentsUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignmentsClose(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsClose
+                    commandWatchTcAssignmentsClose) {
+        throw new UnsupportedOperationException();
+    }
 
     private void writeAndFlush(ChannelOutboundInvoker ctx, ByteBuf cmd) {
         NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
@@ -757,7 +880,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             // log handshake failures
             SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
             if (!sslHandshakeCompletionEvent.isSuccess()) {
-                log.warn("[{}] TLS handshake failed. {}", ctx.channel(), sslHandshakeCompletionEvent);
+                log.warn().attr("channel", ctx.channel()).attr("event", sslHandshakeCompletionEvent)
+                        .log("TLS handshake failed");
             }
         } else if (evt instanceof SslCloseCompletionEvent) {
             // handle TLS close_notify event and immediately close the channel
@@ -765,9 +889,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             // See https://datatracker.ietf.org/doc/html/rfc8446#section-6.1 for more details
             SslCloseCompletionEvent sslCloseCompletionEvent = (SslCloseCompletionEvent) evt;
             if (sslCloseCompletionEvent.isSuccess() && ctx.channel().isActive()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Received a TLS close_notify, closing the channel.", ctx.channel());
-                }
+                log.debug().attr("channel", ctx.channel()).log("Received a TLS close_notify, closing the channel");
                 ctx.close();
             }
         }

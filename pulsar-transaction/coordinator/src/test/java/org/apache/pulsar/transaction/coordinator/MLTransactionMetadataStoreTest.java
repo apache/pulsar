@@ -489,6 +489,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     }
 
     @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    @SuppressWarnings("unchecked")
     public void testManageLedgerWriteFailState(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);

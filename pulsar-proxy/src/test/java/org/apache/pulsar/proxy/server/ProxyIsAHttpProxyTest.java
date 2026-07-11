@@ -19,21 +19,22 @@
 package org.apache.pulsar.proxy.server;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BooleanSupplier;
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -43,11 +44,8 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.Result;
-import org.eclipse.jetty.ee8.nested.AbstractHandler;
-import org.eclipse.jetty.ee8.nested.ContextHandler;
-import org.eclipse.jetty.ee8.nested.Request;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
@@ -58,16 +56,13 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyIsAHttpProxyTest.class);
 
     private Server backingServer1;
     private Server backingServer2;
@@ -104,20 +99,20 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     private static Handler newHandler(String text) {
-        AbstractHandler handler = new AbstractHandler() {
+        ServletContextHandler context = new ServletContextHandler();
+        context.setContextPath("/");
+        context.addServlet(new ServletHolder(new HttpServlet() {
             @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request,
-                               HttpServletResponse response)
-                    throws IOException, ServletException {
+            protected void service(HttpServletRequest request, HttpServletResponse response)
+                    throws IOException {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
-                baseRequest.setHandled(true);
                 String uri = request.getRequestURI();
                 response.getWriter().println(String.format("%s,%s", text,
                         uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
             }
-        };
-        return new ContextHandler("/", handler).get();
+        }), "/");
+        return context;
     }
 
     private static ServletContextHandler newStreamingHandler(LinkedBlockingQueue<String> dataQueue) {
@@ -149,7 +144,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                                 log.error("Async handler interrupted");
                                 ctx.complete();
                             } catch (Exception e) {
-                                log.error("Unexpected error in async handler", e);
+                                log.error().exception(e).log("Unexpected error in async handler");
                                 ctx.complete();
                             }
                         });
@@ -497,7 +492,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                             try {
                                 responses.put(content.get());
                             } catch (Exception e) {
-                                log.error("Error reading response", e);
+                                log.error().exception(e).log("Error reading response");
                                 promise.completeExceptionally(e);
                             }
                         }

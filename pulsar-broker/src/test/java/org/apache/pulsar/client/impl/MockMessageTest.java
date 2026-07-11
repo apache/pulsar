@@ -27,49 +27,34 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
-public class MockMessageTest extends ProducerConsumerBase {
+public class MockMessageTest extends SharedPulsarBaseTest {
 
     private final Map<Thread, List<Throwable>> threadFailures = new ConcurrentHashMap<>();
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @Test
     public void testMessageWithWrongEpoch() throws Exception {
         threadFailures.clear();
         final var conf = new ClientConfigurationData();
-        conf.setServiceUrl(pulsar.getBrokerServiceUrl());
+        conf.setServiceUrl(getBrokerServiceUrl());
         @Cleanup final var client = PulsarClientImpl.builder().conf(conf)
                 .internalExecutorProvider(new ExecutorProvider(1, "internal", false,
                         this::newThreadFactory))
                 .externalExecutorProvider(new ExecutorProvider(1, "external", false))
                 .build();
 
-        final var topic = "test-message-with-wrong-epoch";
+        final var topic = newTopicName();
         @Cleanup final var consumer = (ConsumerImpl<byte[]>) client.newConsumer()
                 .topic(topic).subscriptionName("sub").poolMessages(true).subscribe();
 
@@ -103,7 +88,7 @@ public class MockMessageTest extends ProducerConsumerBase {
             public Thread newThread(Runnable r) {
                 final var thread = super.newThread(r);
                 thread.setUncaughtExceptionHandler((t, e) -> {
-                    log.error("Unexpected exception in {}", t.getName(), e);
+                    log.error().attr("exception", t.getName()).exception(e).log("Unexpected exception in");
                     threadFailures.computeIfAbsent(t, __ -> new CopyOnWriteArrayList<>()).add(e);
                 });
                 return thread;

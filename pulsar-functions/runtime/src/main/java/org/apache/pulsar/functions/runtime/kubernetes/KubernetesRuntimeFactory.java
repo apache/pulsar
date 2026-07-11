@@ -34,17 +34,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -56,7 +56,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 /**
  * Kubernetes based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @Data
 public class KubernetesRuntimeFactory implements RuntimeFactory {
 
@@ -101,6 +101,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String functionInstanceClassPath;
     private String downloadDirectory;
     private int gracePeriodSeconds;
+    private String kubernetesServiceDomainSuffix;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -178,7 +179,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         if (!Paths.get(this.downloadDirectory).isAbsolute()) {
             this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
-
+        this.kubernetesServiceDomainSuffix = factoryConfig.getKubernetesServiceDomainSuffix();
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
         this.installUserCodeDependencies = factoryConfig.getInstallUserCodeDependencies();
         this.pythonDependencyRepository = factoryConfig.getPythonDependencyRepository();
@@ -222,7 +223,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         try {
             setupClient();
         } catch (Exception e) {
-            log.error("Failed to setup client", e);
+            log.error().exception(e).log("Failed to setup client");
             throw new RuntimeException(e);
         }
         // make sure the provided class is a kubernetes auth provider, this needs to run before the authProvider!
@@ -318,6 +319,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             // get the namespace for this function
             overriddenNamespace,
             overriddenName,
+            kubernetesServiceDomainSuffix,
             customLabels,
             installUserCodeDependencies,
             pythonDependencyRepository,
@@ -358,7 +360,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void doAdmissionChecks(Function.FunctionDetails functionDetails){
+    public void doAdmissionChecks(FunctionDetails functionDetails){
         final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
@@ -385,7 +387,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 appsClient = new AppsV1Api();
                 coreClient = new CoreV1Api();
             } else {
-                log.info("Setting up k8Client using uri " + k8Uri);
+                log.info().attr("k8Uri", k8Uri).log("Setting up k8Client");
                 final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
                 appsClient = new AppsV1Api(apiClient);
                 coreClient = new CoreV1Api(apiClient);
@@ -416,8 +418,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);
             }
         } catch (Exception e) {
-            log.error("Error while trying to fetch configmap {} at namespace {}", changeConfigMap,
-                    changeConfigMapNamespace, e);
+            log.error().attr("configMap", changeConfigMap)
+                    .attr("namespace", changeConfigMapNamespace)
+                    .exception(e).log("Error while trying to fetch configmap");
         }
     }
 
@@ -427,20 +430,22 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             field.setAccessible(true);
             if (data.containsKey(field.getName()) && !data.get(field.getName())
                     .equals(field.get(kubernetesRuntimeFactory))) {
-                log.info("Kubernetes Config {} changed from {} to {}", field.getName(),
-                        field.get(kubernetesRuntimeFactory), data.get(field.getName()));
+                log.info().attr("field", field.getName())
+                        .attr("oldValue", field.get(kubernetesRuntimeFactory))
+                        .attr("newValue", data.get(field.getName()))
+                        .log("Kubernetes Config changed");
                 field.set(kubernetesRuntimeFactory, data.get(field.getName()));
             }
         }
     }
 
-    void validateMinResourcesRequired(Function.FunctionDetails functionDetails) {
+    void validateMinResourcesRequired(FunctionDetails functionDetails) {
         if (functionInstanceMinResources != null) {
             Double minCpu = functionInstanceMinResources.getCpu();
             Long minRam = functionInstanceMinResources.getRam();
 
             if (minCpu != null) {
-                if (functionDetails.getResources() == null) {
+                if (!functionDetails.hasResources()) {
                     throw new IllegalArgumentException(
                             String.format("Per instance CPU requested is not specified. "
                                     + "Must specify CPU requested for function to be at least %s", minCpu));
@@ -453,7 +458,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             }
 
             if (minRam != null) {
-                if (functionDetails.getResources() == null) {
+                if (!functionDetails.hasResources()) {
                     throw new IllegalArgumentException(
                             String.format("Per instance RAM requested is not specified. "
                                     + "Must specify RAM requested for function to be at least %s", minRam));
@@ -467,7 +472,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
-    void validateMaxResourcesRequired(Function.FunctionDetails functionDetails) {
+    void validateMaxResourcesRequired(FunctionDetails functionDetails) {
         if (functionInstanceMaxResources != null) {
             Double maxCpu = functionInstanceMaxResources.getCpu();
             Long maxRam = functionInstanceMaxResources.getRam();
@@ -488,7 +493,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
-    void validateResourcesGranularityAndProportion(Function.FunctionDetails functionDetails) {
+    void validateResourcesGranularityAndProportion(FunctionDetails functionDetails) {
         final long baseMillis = 1000;
         long multiples = 0L;
         if (functionInstanceResourceGranularities != null) {
@@ -543,13 +548,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         return manifestCustomizer;
     }
 
-    private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
+    private String getOverriddenNamespace(FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map(customizer -> customizer.customizeNamespace(funcDetails, jobNamespace))
                 .orElse(jobNamespace);
     }
 
-    private String getOverriddenName(Function.FunctionDetails funcDetails) {
+    private String getOverriddenName(FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map(customizer -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
     }

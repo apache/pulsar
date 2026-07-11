@@ -164,7 +164,7 @@ public class CmdSchemas extends CmdBase {
 
             File file  = new File(jarFilePath);
             ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
-            Class cls = cl.loadClass(className);
+            Class<?> cls = cl.loadClass(className);
 
             PostSchemaPayload input = new PostSchemaPayload();
             SchemaDefinition<Object> schemaDefinition =

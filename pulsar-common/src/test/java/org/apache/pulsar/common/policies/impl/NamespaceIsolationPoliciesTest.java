@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class NamespaceIsolationPoliciesTest {
 
-    private final String defaultJson = "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],"
+    private final String defaultJson = "{\"policy1\":{\"namespaces\":[\"pulsar/test.*\"],"
             + "\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],"
             + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
             + "\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},"
@@ -80,7 +80,7 @@ public class NamespaceIsolationPoliciesTest {
         parameters.put("usage_threshold", "100");
 
         NamespaceIsolationData nsPolicyData = NamespaceIsolationData.builder()
-                .namespaces(Collections.singletonList("pulsar/use/other.*"))
+                .namespaces(Collections.singletonList("pulsar/other.*"))
                 .primary(Collections.singletonList("prod1-broker[4-6].messaging.use.example.com"))
                 .secondary(Collections.singletonList("prod1-broker.*.messaging.use.example.com"))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
@@ -129,9 +129,9 @@ public class NamespaceIsolationPoliciesTest {
     @Test
     public void testGetNamespaceIsolationPolicyByNamespace() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
-        NamespaceIsolationPolicy nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("no/such/namespace"));
+        NamespaceIsolationPolicy nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("no/namespace"));
         assertNull(nsPolicy);
-        nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/testns-1"));
+        nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("pulsar/testns-1"));
         assertNotNull(nsPolicy);
         assertEquals(new NamespaceIsolationPolicyImpl(policies.getPolicies().get("policy1")), nsPolicy);
     }
@@ -140,7 +140,7 @@ public class NamespaceIsolationPoliciesTest {
     public void testSetPolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         // set a new policy
-        String newPolicyJson = "{\"namespaces\":[\"pulsar/use/TESTNS.*\"],"
+        String newPolicyJson = "{\"namespaces\":[\"pulsar/TESTNS.*\"],"
                 + "\"primary\":[\"prod1-broker[45].messaging.use.example.com\"],"
                 + "\"secondary\":[\"prod1-broker.*.use.example.com\"],"
                 + "\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":2,"
@@ -154,7 +154,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(policies.getPolicies().size(), 2);
         assertEquals(policies.getPolicyByName(newPolicyName), new NamespaceIsolationPolicyImpl(nsPolicyData));
         assertNotEquals(policies.getPolicyByName("policy1"), policies.getPolicyByName(newPolicyName));
-        assertEquals(policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/TESTNS.1")),
+        assertEquals(policies.getPolicyByNamespace(NamespaceName.get("pulsar/TESTNS.1")),
                 new NamespaceIsolationPolicyImpl(nsPolicyData));
     }
 
@@ -169,7 +169,7 @@ public class NamespaceIsolationPoliciesTest {
     @Test
     public void testBrokerAssignment() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
-        NamespaceName ns = NamespaceName.get("pulsar/use/testns-1");
+        NamespaceName ns = NamespaceName.get("pulsar/testns-1");
         SortedSet<BrokerStatus> primaryCandidates = new TreeSet<>();
         BrokerStatus primary = BrokerStatus.builder()
                 .brokerAddress("prod1-broker1.messaging.use.example.com")
@@ -198,7 +198,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(secondaryCandidates.size(), 1);
         assertEquals(sharedCandidates.size(), 0);
         assertEquals(secondary, secondaryCandidates.first());
-        policies.assignBroker(NamespaceName.get("pulsar/use1/testns-1"), shared, primaryCandidates, secondaryCandidates,
+        policies.assignBroker(NamespaceName.get("pulsar/other-ns"), shared, primaryCandidates, secondaryCandidates,
                 sharedCandidates);
         assertEquals(primaryCandidates.size(), 1);
         assertEquals(secondaryCandidates.size(), 1);

@@ -23,21 +23,20 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TopicListWatcher;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -45,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extends MockedPulsarServiceBaseTest {
 
@@ -72,8 +71,8 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-
     @Test(timeOut = 60 * 1000)
+    @SuppressWarnings({"deprecation", "unchecked"})
     public void testPatternConsumerWithLargeAmountOfConcurrentClientConnections()
             throws PulsarAdminException, InterruptedException, IOException, ExecutionException, TimeoutException {
         // create a new namespace for this test
@@ -106,7 +105,7 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
                     try {
                         client.close();
                     } catch (PulsarClientException e) {
-                        log.error("Failed to close client {}", client, e);
+                        log.error().attr("closeClient", client).exception(e).log("Failed to close client");
                     }
                 }
             };
@@ -129,7 +128,8 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
                                 .subscribeAsync();
                 consumerFutures.add(consumerFuture);
                 consumerFuture.exceptionally(throwable -> {
-                    log.error("Failed to subscribe to pattern {}", topicsPattern, throwable);
+                    log.error().attr("toPattern", topicsPattern).exception(throwable)
+                            .log("Failed to subscribe to pattern");
                     return null;
                 });
             }
@@ -138,15 +138,11 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
 
             List<Consumer<String>> consumers = consumerFutures.stream().map(CompletableFuture::join).toList();
 
-            List<? extends CompletableFuture<?>> watcherFutures = consumers.stream().map(consumer -> {
-                try {
-                    CompletableFuture<?> watcherFuture = consumer instanceof PatternMultiTopicsConsumerImpl
-                            ? (CompletableFuture<?>) FieldUtils.readField(consumer, "watcherFuture", true) : null;
-                    return watcherFuture;
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                }
-            }).filter(Objects::nonNull).toList();
+            List<CompletableFuture<TopicListWatcher>> watcherFutures =
+                    consumers.stream().filter(PatternMultiTopicsConsumerImpl.class::isInstance)
+                            .map(PatternMultiTopicsConsumerImpl.class::cast)
+                            .map(c -> (CompletableFuture<TopicListWatcher>) c.getWatcherFuture())
+                            .toList();
 
             // wait for all watcher futures to complete
             FutureUtil.waitForAll(watcherFutures).get(60, TimeUnit.SECONDS);

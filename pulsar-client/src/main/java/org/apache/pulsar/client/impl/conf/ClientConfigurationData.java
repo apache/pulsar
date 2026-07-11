@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.OpenTelemetry;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -42,6 +42,7 @@ import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
@@ -57,379 +58,397 @@ import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrl",
-            required = true,
-            value = "Pulsar cluster HTTP URL to connect to a broker."
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description = "Pulsar cluster HTTP URL to connect to a broker."
     )
     private String serviceUrl;
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrlProvider",
-            value = "The implementation class of ServiceUrlProvider used to generate ServiceUrl."
+            description = "The implementation class of ServiceUrlProvider used to generate ServiceUrl."
     )
     @JsonIgnore
     private transient ServiceUrlProvider serviceUrlProvider;
 
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrlQuarantineInitDurationMs",
-            value = "The initial duration (in milliseconds) to quarantine endpoints that fail to connect."
-                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+            description = "The initial duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + " A value of 0 means don't quarantine any endpoints even if they fail."
     )
     private long serviceUrlQuarantineInitDurationMs = 60000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrlQuarantineMaxDurationMs",
-            value = "The max duration (in milliseconds) to quarantine endpoints that fail to connect."
-                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+            description = "The max duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + " A value of 0 means don't quarantine any endpoints even if they fail."
     )
     private long serviceUrlQuarantineMaxDurationMs = TimeUnit.DAYS.toMillis(1);
 
-    @ApiModelProperty(
+    // Internal: set by the v5 SDK (PulsarClientBuilderV5), not exposed on the public ClientBuilder.
+    // When true, transactions use the metadata-driven (PIP-473) coordinator; when false (v4 SDK),
+    // they use the legacy coordinator. Routes coexistence at the TC layer by client/SDK kind rather
+    // than broker capability, so a v4 client keeps using the legacy TC even on a v5-enabled cluster.
+    @JsonIgnore
+    private boolean scalableTransactions = false;
+
+    @Schema(
             name = "authentication",
-            value = "Authentication settings of the client."
+            description = "Authentication settings of the client."
     )
     @JsonIgnore
     private Authentication authentication;
 
-    @ApiModelProperty(
+    @Schema(
             name = "authPluginClassName",
-            value = "Class name of authentication plugin of the client."
+            description = "Class name of authentication plugin of the client."
     )
     private String authPluginClassName;
 
-    @ApiModelProperty(
+    @Schema(
             name = "authParams",
-            value = "Authentication parameter of the client."
+            description = "Authentication parameter of the client."
     )
     @Secret
     private String authParams;
 
-    @ApiModelProperty(
+    @Schema(
             name = "authParamMap",
-            value = "Authentication map of the client."
+            description = "Authentication map of the client."
     )
     @Secret
     private Map<String, String> authParamMap;
 
-    @ApiModelProperty(
+    @Schema(
             name = "originalPrincipal",
-            value = "Original principal for proxy authentication scenarios."
+            description = "Original principal for proxy authentication scenarios."
     )
     private String originalPrincipal;
 
-    @ApiModelProperty(
+    @Schema(
             name = "operationTimeoutMs",
-            value = "Client operation timeout (in milliseconds)."
+            description = "Client operation timeout (in milliseconds)."
     )
     private long operationTimeoutMs = 30000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "lookupTimeoutMs",
-            value = "Client lookup timeout (in milliseconds)."
+            description = "Client lookup timeout (in milliseconds)."
     )
     private long lookupTimeoutMs = -1;
 
-    @ApiModelProperty(
+    @Schema(
             name = "statsIntervalSeconds",
-            value = "Interval to print client stats (in seconds)."
+            description = "Interval to print client stats (in seconds)."
     )
     private long statsIntervalSeconds = 60;
 
-    @ApiModelProperty(
+    @Schema(
             name = "numIoThreads",
-            value = "Number of IO threads."
+            description = "Number of IO threads."
     )
     private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
-    @ApiModelProperty(
+    @Schema(
             name = "numListenerThreads",
-            value = "Number of consumer listener threads."
+            description = "Number of consumer listener threads."
     )
     private int numListenerThreads = Runtime.getRuntime().availableProcessors();
 
-    @ApiModelProperty(
+    @Schema(
             name = "connectionsPerBroker",
-            value = "Number of connections established between the client and each Broker."
+            description = "Number of connections established between the client and each Broker."
                     + " A value of 0 means to disable connection pooling."
     )
     private int connectionsPerBroker = 1;
 
-    @ApiModelProperty(
+    @Schema(
             name = "connectionMaxIdleSeconds",
-            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
-                    + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
+            description = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
+                    + "If [connectionMaxIdleSeconds] < 0, disables the feature that auto-releases the idle connections"
     )
     private int connectionMaxIdleSeconds = 60;
 
-    @ApiModelProperty(
+    @Schema(
             name = "useTcpNoDelay",
-            value = "Whether to use TCP NoDelay option."
+            description = "Whether to use TCP NoDelay option."
     )
     private boolean useTcpNoDelay = true;
 
-    @ApiModelProperty(
+    @Schema(
             name = "useTls",
-            value = "Whether to use TLS."
+            description = "Whether to use TLS."
     )
     private boolean useTls = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyFilePath",
-            value = "Path to the TLS key file."
+            description = "Path to the TLS key file."
     )
     private String tlsKeyFilePath = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsCertificateFilePath",
-            value = "Path to the TLS certificate file."
+            description = "Path to the TLS certificate file."
     )
     private String tlsCertificateFilePath = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustCertsFilePath",
-            value = "Path to the trusted TLS certificate file."
+            description = "Path to the trusted TLS certificate file."
     )
     private String tlsTrustCertsFilePath = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsAllowInsecureConnection",
-            value = "Whether the client accepts untrusted TLS certificates from the broker."
+            description = "Whether the client accepts untrusted TLS certificates from the broker."
     )
     private boolean tlsAllowInsecureConnection = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsHostnameVerificationEnable",
-            value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
+            description = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "sslFactoryPlugin",
-            value = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
-                    + " class used is DefaultPulsarSslFactory.")
+            description = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + "class used is DefaultPulsarSslFactory.")
     private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
 
-    @ApiModelProperty(
+    @Schema(
             name = "sslFactoryPluginParams",
-            value = "SSL Factory plugin configuration parameters.")
+            description = "SSL Factory plugin configuration parameters.")
     private String sslFactoryPluginParams = "";
 
-    @ApiModelProperty(
+    @Schema(
             name = "concurrentLookupRequest",
-            value = "The number of concurrent lookup requests that can be sent on each broker connection. "
+            description = "The number of concurrent lookup requests that can be sent on each broker connection. "
                     + "Setting a maximum prevents overloading a broker."
     )
     private int concurrentLookupRequest = 5000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxLookupRequest",
-            value = "Maximum number of lookup requests allowed on "
+            description = "Maximum number of lookup requests allowed on "
                     + "each broker connection to prevent overloading a broker."
     )
     private int maxLookupRequest = 50000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxLookupRedirects",
-            value = "Maximum times of redirected lookup requests."
+            description = "Maximum times of redirected lookup requests."
     )
     private int maxLookupRedirects = 20;
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxNumberOfRejectedRequestPerConnection",
-            value = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
+            description = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
                     + "after the current connection is closed and the client "
                     + "creating a new connection to connect to a different broker."
     )
     private int maxNumberOfRejectedRequestPerConnection = 50;
 
-    @ApiModelProperty(
+    @Schema(
             name = "keepAliveIntervalSeconds",
-            value = "Seconds of keeping alive interval for each client broker connection."
+            description = "Seconds of keeping alive interval for each client broker connection."
     )
     private int keepAliveIntervalSeconds = 30;
 
-    @ApiModelProperty(
+    @Schema(
             name = "connectionTimeoutMs",
-            value = "Duration of waiting for a connection to a broker to be established."
-                    + "If the duration passes without a response from a broker, the connection attempt is dropped."
+            description = "Duration of waiting for a connection to a broker to be established."
+                    + " If the duration passes without a response from a broker, the connection attempt is dropped."
     )
     private int connectionTimeoutMs = 10000;
-    @ApiModelProperty(
+    @Schema(
             name = "requestTimeoutMs",
-            value = "Maximum duration for completing a request."
+            description = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "readTimeoutMs",
-            value = "Maximum read time of a request."
+            description = "Maximum read time of a request."
     )
     private int readTimeoutMs = 60000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "autoCertRefreshSeconds",
-            value = "Seconds of auto refreshing certificate."
+            description = "Seconds of auto refreshing certificate."
     )
     private int autoCertRefreshSeconds = 300;
 
-    @ApiModelProperty(
+    @Schema(
             name = "initialBackoffIntervalNanos",
-            value = "Initial backoff interval (in nanosecond)."
+            description = "Initial backoff interval (in nanosecond)."
     )
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
 
-    @ApiModelProperty(
+    @Schema(
             name = "maxBackoffIntervalNanos",
-            value = "Max backoff interval (in nanosecond)."
+            description = "Max backoff interval (in nanosecond)."
     )
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
 
-    @ApiModelProperty(
+    @Schema(
             name = "enableBusyWait",
-            value = "Whether to enable BusyWait for EpollEventLoopGroup."
+            description = "Whether to enable BusyWait for EpollEventLoopGroup."
     )
     private boolean enableBusyWait = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "listenerName",
-            value = "Listener name for lookup. Clients can use listenerName to choose one of the listeners "
+            description = "Listener name for lookup. Clients can use listenerName to choose one of the listeners "
                     + "as the service URL to create a connection to the broker as long as the network is accessible."
-                    + "\"advertisedListeners\" must enabled in broker side."
+                    + " \"advertisedListeners\" must be enabled on the broker side."
     )
     private String listenerName;
 
-    @ApiModelProperty(
+    @Schema(
             name = "useKeyStoreTls",
-            value = "Set TLS using KeyStore way."
+            description = "Set TLS using KeyStore way."
     )
     private boolean useKeyStoreTls = false;
-    @ApiModelProperty(
+    @Schema(
             name = "sslProvider",
-            value = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
+            description = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStoreType",
-            value = "TLS KeyStore type configuration."
+            description = "TLS KeyStore type configuration."
     )
     private String tlsKeyStoreType = "JKS";
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStorePath",
-            value = "Path of TLS KeyStore."
+            description = "Path of TLS KeyStore."
     )
     private String tlsKeyStorePath = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsKeyStorePassword",
-            value = "Password of TLS KeyStore."
+            description = "Password of TLS KeyStore."
     )
     @Secret
     private String tlsKeyStorePassword = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication"
-                    + " is required."
+            description = "TLS TrustStore type configuration. You need to set this configuration when client "
+                    + "authentication is required."
     )
     private String tlsTrustStoreType = "JKS";
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStorePath",
-            value = "Path of TLS TrustStore."
+            description = "Path of TLS TrustStore."
     )
     private String tlsTrustStorePath = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsTrustStorePassword",
-            value = "Password of TLS TrustStore."
+            description = "Password of TLS TrustStore."
     )
     @Secret
     private String tlsTrustStorePassword = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsCiphers",
-            value = "Set of TLS Ciphers."
+            description = "Set of TLS Ciphers."
     )
     private Set<String> tlsCiphers = new TreeSet<>();
 
-    @ApiModelProperty(
+    @Schema(
             name = "tlsProtocols",
-            value = "Protocols of TLS."
+            description = "Protocols of TLS."
     )
     private Set<String> tlsProtocols = new TreeSet<>();
 
-    @ApiModelProperty(
+    @Schema(
             name = "memoryLimitBytes",
-            value = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer throughput."
+            description = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer "
+                    + "throughput."
     )
     private long memoryLimitBytes = 64 * 1024 * 1024;
 
-    @ApiModelProperty(
+    @Schema(
             name = "proxyServiceUrl",
-            value = "URL of proxy service. proxyServiceUrl and proxyProtocol must be mutually inclusive."
+            description = "URL of proxy service. proxyServiceUrl and proxyProtocol must be mutually inclusive."
     )
     private String proxyServiceUrl;
 
-    @ApiModelProperty(
+    @Schema(
             name = "proxyProtocol",
-            value = "Protocol of proxy service. proxyServiceUrl and proxyProtocol must be mutually inclusive."
+            description = "Protocol of proxy service. proxyServiceUrl and proxyProtocol must be mutually inclusive."
     )
     private ProxyProtocol proxyProtocol;
 
-    @ApiModelProperty(
+    @Schema(
             name = "enableTransaction",
-            value = "Whether to enable transaction."
+            description = "Whether to enable transaction."
     )
     private boolean enableTransaction = false;
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
-    @ApiModelProperty(
+    @Schema(
             name = "dnsLookupBindAddress",
-            value = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
+            description = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
     )
     private String dnsLookupBindAddress = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "dnsLookupBindPort",
-            value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured,"
-                    + " default value is 0."
+            description = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is "
+                    + "configured, default value is 0."
     )
     private int dnsLookupBindPort = 0;
 
-    @ApiModelProperty(
+    @Schema(
             name = "dnsServerAddresses",
-            value = "The Pulsar client dns lookup server address"
+            description = "The Pulsar client dns lookup server address"
     )
     @SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
     private List<InetSocketAddress> dnsServerAddresses = new ArrayList<>();
 
     // socks5
-    @ApiModelProperty(
+    @Schema(
             name = "socks5ProxyAddress",
-            value = "Address of SOCKS5 proxy."
+            description = "Address of SOCKS5 proxy."
     )
     private InetSocketAddress socks5ProxyAddress;
 
-    @ApiModelProperty(
+    @Schema(
             name = "socks5ProxyUsername",
-            value = "User name of SOCKS5 proxy."
+            description = "User name of SOCKS5 proxy."
     )
     private String socks5ProxyUsername;
 
-    @ApiModelProperty(
+    @Schema(
             name = "socks5ProxyPassword",
-            value = "Password of SOCKS5 proxy."
+            description = "Password of SOCKS5 proxy."
     )
     @Secret
     private String socks5ProxyPassword;
 
-    @ApiModelProperty(
+    @Schema(
+            name = "socks5ProxyScope",
+            description = "Selector that controls which connections go through the SOCKS5 proxy. "
+                    + "BINARY_ONLY (default for PulsarClient) only routes Pulsar binary protocol connections; "
+                    + "HTTP_ONLY only routes HTTP/HTTPS traffic (HTTP lookups, failover HTTP clients, admin REST); "
+                    + "BOTH routes both. This preserves backward compatibility with the pre-existing behavior "
+                    + "where the SOCKS5 proxy on PulsarClient only applied to the binary protocol."
+    )
+    private Socks5ProxyScope socks5ProxyScope = Socks5ProxyScope.BINARY_ONLY;
+
+    @Schema(
             name = "description",
-            value = "The extra description of the client version. The length cannot exceed 64."
+            description = "The extra description of the client version. The length cannot exceed 64."
     )
     private String description;
 
@@ -437,9 +456,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     private transient OpenTelemetry openTelemetry;
 
-    @ApiModelProperty(
+    @Schema(
             name = "tracingEnabled",
-            value = "Whether to enable OpenTelemetry distributed tracing. When enabled, "
+            description = "Whether to enable OpenTelemetry distributed tracing. When enabled, "
                     + "tracing interceptors are automatically added to producers and consumers."
     )
     private boolean tracingEnabled = false;

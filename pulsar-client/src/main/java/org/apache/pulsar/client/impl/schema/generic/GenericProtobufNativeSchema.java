@@ -22,7 +22,7 @@ import static org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericPr
 import com.google.protobuf.Descriptors;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -31,7 +31,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * Generic ProtobufNative schema.
  */
-@Slf4j
+@CustomLog
 public class GenericProtobufNativeSchema extends AbstractGenericSchema {
 
     Descriptors.Descriptor descriptor;

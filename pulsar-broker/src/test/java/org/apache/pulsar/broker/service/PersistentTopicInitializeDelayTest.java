@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -40,7 +40,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -80,6 +80,7 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
 
     public static class MyTopicFactory implements TopicFactory {
         @Override
+        @SuppressWarnings("unchecked")
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                                           Class<T> topicClazz) {
             try {
@@ -126,7 +127,9 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
         public CompletableFuture<Void> checkReplication() {
             if (TopicName.get(topic).getLocalName().equalsIgnoreCase("testTopicInitializeDelay")) {
                 checkReplicationInvocationCount.incrementAndGet();
-                log.info("checkReplication, count = {}", checkReplicationInvocationCount.get());
+                log.info()
+                        .attr("count", checkReplicationInvocationCount.get())
+                        .log("checkReplication");
                 List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
                 if (!(configuredClusters.size() == 1
                         && configuredClusters.contains(brokerService.pulsar().getConfiguration().getClusterName()))) {

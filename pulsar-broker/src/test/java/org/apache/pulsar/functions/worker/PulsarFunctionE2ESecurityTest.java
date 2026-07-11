@@ -41,6 +41,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -69,16 +70,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.io.PulsarFunctionE2ETest;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "functions-worker")
+@CustomLog
 public class PulsarFunctionE2ESecurityTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -104,8 +103,6 @@ public class PulsarFunctionE2ESecurityTest {
     private static final String SUBJECT = "my-test-subject";
     private static final String ADMIN_SUBJECT = "superUser";
     private static final String ANONYMOUS_ROLE = "anonymousUser";
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
     private String adminToken;
     private String brokerServiceUrl;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
@@ -114,14 +111,15 @@ public class PulsarFunctionE2ESecurityTest {
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
 
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -198,7 +196,7 @@ public class PulsarFunctionE2ESecurityTest {
         final String replNamespace = TENANT + "/" + NAMESPACE;
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create another test tenant and namespace
         propAdmin = TenantInfo.builder()
@@ -243,6 +241,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
@@ -291,6 +290,7 @@ public class PulsarFunctionE2ESecurityTest {
         PulsarWorkerService workerService = new PulsarWorkerService();
         return workerService;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
@@ -567,7 +567,7 @@ public class PulsarFunctionE2ESecurityTest {
                         TopicStats stats = admin1.topics().getStats(sourceTopic);
                         boolean done = stats.getSubscriptions().size() == 0;
                         if (!done) {
-                            log.info("Topic subscription is not cleaned up yet : {}", stats);
+                            log.info().attr("yet", stats).log("Topic subscription is not cleaned up yet");
                         }
                         return done;
                     } catch (PulsarAdminException e) {
@@ -846,7 +846,7 @@ public class PulsarFunctionE2ESecurityTest {
                     TopicStats stats = admin1.topics().getStats(sourceTopic);
                     boolean done = stats.getSubscriptions().size() == 0;
                     if (!done) {
-                        log.info("Topic subscription is not cleaned up yet : {}", stats);
+                        log.info().attr("yet", stats).log("Topic subscription is not cleaned up yet");
                     }
                     return done;
                 } catch (PulsarAdminException e) {

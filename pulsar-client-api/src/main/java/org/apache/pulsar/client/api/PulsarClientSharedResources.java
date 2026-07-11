@@ -71,7 +71,12 @@ public interface PulsarClientSharedResources extends AutoCloseable {
         // pulsar-lookup threadpool
         LookupExecutor(SharedResourceType.ThreadPool),
         // DNS resolver and cache that must be shared together with eventLoopGroup
-        DnsResolver(SharedResourceType.DnsResolver);
+        DnsResolver(SharedResourceType.DnsResolver),
+        // pulsar client global memory limit controller
+        MemoryLimitController(SharedResourceType.MemoryLimitController),
+        // pulsar client global open telemetry instance
+        OpenTelemetry(SharedResourceType.OpenTelemetry)
+        ;
 
         private final SharedResourceType type;
 
@@ -88,7 +93,9 @@ public interface PulsarClientSharedResources extends AutoCloseable {
         EventLoopGroup,
         ThreadPool,
         Timer,
-        DnsResolver;
+        DnsResolver,
+        MemoryLimitController,
+        OpenTelemetry;
     }
 
     /**

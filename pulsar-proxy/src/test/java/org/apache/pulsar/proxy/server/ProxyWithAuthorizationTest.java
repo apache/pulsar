@@ -31,6 +31,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -54,8 +55,6 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -63,9 +62,10 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+@CustomLog
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization";
+@SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
@@ -283,7 +283,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      */
     @Test
     public void testProxyAuthorization() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         // Skip hostname verification because the certs intentionally do not have a hostname
@@ -314,7 +316,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -323,12 +327,16 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         // Testing client to proxy hostname verification, so use the dataProvider's value here
@@ -368,7 +376,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     /**
@@ -385,7 +395,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
@@ -427,7 +439,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
         // reset
         proxyConfig.setTlsHostnameVerificationEnabled(false);
     }
@@ -439,7 +453,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     @Test(dataProvider = "protocolsCiphersProvider", timeOut = 5000)
     public void tlsCiphersAndProtocols(Set<String> tlsCiphers, Set<String> tlsProtocols, boolean expectFailure)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
         String namespaceName = "my-tenant/my-ns";
         createBrokerAdminClient();
 
@@ -520,7 +536,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
         admin.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     private final Authentication tlsAuth = new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH);
@@ -534,9 +552,12 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "tlsTransportWithAuth")
     public void testProxyTlsTransportWithAuth(Authentication auth) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         // Skip hostname verification because the certs intentionally do not have a hostname
@@ -575,7 +596,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -584,7 +607,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     private void initializeCluster(PulsarAdmin adminClient, String namespaceName) throws Exception {

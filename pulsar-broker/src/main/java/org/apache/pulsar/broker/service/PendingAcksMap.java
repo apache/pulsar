@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.longs.Long2LongMap;
+import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2LongSortedMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
-import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -41,6 +42,8 @@ import java.util.function.Supplier;
  * running.
  */
 public class PendingAcksMap {
+    static final int PENDING_ACK_NOT_FOUND = PendingAckValues.NOT_FOUND;
+
     /**
      * Callback interface for handling the addition of pending acknowledgments.
      */
@@ -89,21 +92,28 @@ public class PendingAcksMap {
         /**
          * Accept a pending acknowledgment.
          *
-         * @param ledgerId      the ledger ID
-         * @param entryId       the entry ID
-         * @param batchSize     the batch size
-         * @param stickyKeyHash the sticky key hash
+         * @param ledgerId          the ledger ID
+         * @param entryId           the entry ID
+         * @param remainingUnacked  the number of remaining unacked messages in this entry
+         *                          (accounts for batch index level acknowledgments)
+         * @param stickyKeyHash     the sticky key hash
          */
-        void accept(long ledgerId, long entryId, int batchSize, int stickyKeyHash);
+        void accept(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash);
     }
 
     private final Consumer consumer;
-    private final Long2ObjectSortedMap<Long2ObjectSortedMap<IntIntPair>> pendingAcks;
+
+    /**
+     * Pending acknowledgments grouped by ledger id. The outer map key is ledgerId and each inner map key is entryId.
+     * The inner map value is packed by {@link PendingAckValues} with the remaining unacked count and sticky key hash.
+     */
+    private final Long2ObjectSortedMap<Long2LongSortedMap> pendingAcks;
     private final Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier;
     private final Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier;
     private final Lock readLock;
     private final Lock writeLock;
     private boolean closed = false;
+    private volatile long size;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
                    Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
@@ -124,11 +134,12 @@ public class PendingAcksMap {
      *
      * @param ledgerId the ledger ID
      * @param entryId the entry ID
-     * @param batchSize the batch size
+     * @param remainingUnacked the number of remaining unacked messages in this entry
+     *                         (for batch entries with some indexes already acked, this may be less than batchSize)
      * @param stickyKeyHash the sticky key hash
      * @return true if the pending ack was added, and it's allowed to send a message, false otherwise
      */
-    public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
+    public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash) {
         try {
             writeLock.lock();
             // prevent adding sticky hash to pending acks if the PendingAcksMap has already been closed
@@ -143,9 +154,13 @@ public class PendingAcksMap {
                     && !pendingAcksAddHandler.handleAdding(consumer, ledgerId, entryId, stickyKeyHash)) {
                 return false;
             }
-            Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks =
-                    pendingAcks.computeIfAbsent(ledgerId, k -> new Long2ObjectRBTreeMap<>());
-            ledgerPendingAcks.put(entryId, IntIntPair.of(batchSize, stickyKeyHash));
+            Long2LongSortedMap ledgerPendingAcks =
+                    pendingAcks.computeIfAbsent(ledgerId, k -> newLedgerPendingAcks());
+            long packedValue = PendingAckValues.pack(remainingUnacked, stickyKeyHash);
+            long previous = ledgerPendingAcks.put(entryId, packedValue);
+            if (PendingAckValues.isNotFound(previous)) {
+                size++;
+            }
             return true;
         } finally {
             writeLock.unlock();
@@ -158,12 +173,7 @@ public class PendingAcksMap {
      * @return the size of the pending acks map
      */
     public long size() {
-        try {
-            readLock.lock();
-            return pendingAcks.values().stream().mapToInt(Long2ObjectSortedMap::size).sum();
-        } finally {
-            readLock.unlock();
-        }
+        return size;
     }
 
     /**
@@ -180,19 +190,14 @@ public class PendingAcksMap {
         }
     }
 
-    // iterate all pending acks and process them
+    // this code uses for loops intentionally, don't refactor to use forEach
     private void processPendingAcks(PendingAcksConsumer processor) {
-        // this code uses for loops intentionally, don't refactor to use forEach
-        // iterate the outer map
-        for (Map.Entry<Long, Long2ObjectSortedMap<IntIntPair>> entry : pendingAcks.entrySet()) {
-            Long ledgerId = entry.getKey();
-            Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks = entry.getValue();
-            // iterate the inner map
-            for (Map.Entry<Long, IntIntPair> e : ledgerPendingAcks.entrySet()) {
-                Long entryId = e.getKey();
-                IntIntPair batchSizeAndStickyKeyHash = e.getValue();
-                processor.accept(ledgerId, entryId, batchSizeAndStickyKeyHash.leftInt(),
-                        batchSizeAndStickyKeyHash.rightInt());
+        for (Long2ObjectMap.Entry<Long2LongSortedMap> entry : pendingAcks.long2ObjectEntrySet()) {
+            long ledgerId = entry.getLongKey();
+            for (Long2LongMap.Entry pendingAckEntry : entry.getValue().long2LongEntrySet()) {
+                long packedValue = pendingAckEntry.getLongValue();
+                processor.accept(ledgerId, pendingAckEntry.getLongKey(),
+                        PendingAckValues.remainingUnacked(packedValue), PendingAckValues.stickyKeyHash(packedValue));
             }
         }
     }
@@ -204,9 +209,26 @@ public class PendingAcksMap {
      * @param processor the processor to handle each pending ack
      */
     public void forEachAndClose(PendingAcksConsumer processor) {
+        internalForEachAndClear(processor, true);
+    }
+
+    /**
+     * Iterate over all the pending acks and clear the map.
+     * Unlike {@link #forEachAndClose(PendingAcksConsumer)}, this method does not close the map,
+     * so new entries can still be added after this method returns.
+     *
+     * @param processor the processor to handle each pending ack
+     */
+    public void forEachAndClear(PendingAcksConsumer processor) {
+        internalForEachAndClear(processor, false);
+    }
+
+    private void internalForEachAndClear(PendingAcksConsumer processor, boolean close) {
         try {
             writeLock.lock();
-            closed = true;
+            if (close) {
+                closed = true;
+            }
             PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
             if (pendingAcksRemoveHandler != null) {
                 try {
@@ -222,6 +244,7 @@ public class PendingAcksMap {
                 processPendingAcks(processor);
             }
             pendingAcks.clear();
+            size = 0;
         } finally {
             writeLock.unlock();
         }
@@ -237,7 +260,7 @@ public class PendingAcksMap {
     public boolean contains(long ledgerId, long entryId) {
         try {
             readLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
@@ -248,20 +271,20 @@ public class PendingAcksMap {
     }
 
     /**
-     * Get the pending ack for the given ledger ID and entry ID.
+     * Get the remaining unacked count for the given ledger ID and entry ID.
      *
-     * @param ledgerId the ledger ID
-     * @param entryId the entry ID
-     * @return the pending ack, or null if not found
+     * @return the remaining unacked count, or {@link #PENDING_ACK_NOT_FOUND} if not found
      */
-    public IntIntPair get(long ledgerId, long entryId) {
+    int getRemainingUnacked(long ledgerId, long entryId) {
         try {
             readLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
-                return null;
+                return PENDING_ACK_NOT_FOUND;
             }
-            return ledgerMap.get(entryId);
+            long packedValue = ledgerMap.get(entryId);
+            return PendingAckValues.isNotFound(packedValue)
+                    ? PENDING_ACK_NOT_FOUND : PendingAckValues.remainingUnacked(packedValue);
         } finally {
             readLock.unlock();
         }
@@ -279,18 +302,52 @@ public class PendingAcksMap {
     public boolean remove(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
         try {
             writeLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
+            if (batchSize < 0) {
+                return false;
+            }
+            long expectedValue = PendingAckValues.pack(batchSize, stickyKeyHash);
+            if (ledgerMap == null || ledgerMap.get(entryId) != expectedValue) {
+                return false;
+            }
+            ledgerMap.remove(entryId);
+            size--;
+            handleRemovePendingAck(ledgerId, entryId, stickyKeyHash);
+            if (ledgerMap.isEmpty()) {
+                pendingAcks.remove(ledgerId);
+            }
+            return true;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Atomically update the remaining unacked count for a pending ack entry by subtracting the given delta.
+     * Called from the ack handler after computing the number of batch indexes acknowledged in a partial ack.
+     *
+     * @param ledgerId the ledger ID
+     * @param entryId the entry ID
+     * @param ackedDelta the number of batch indexes that were just acknowledged
+     * @return true if the entry was found and updated, false otherwise
+     */
+    public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta) {
+        try {
+            writeLock.lock();
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
-            boolean removed = ledgerMap.remove(entryId, IntIntPair.of(batchSize, stickyKeyHash));
-            if (removed) {
-                handleRemovePendingAck(ledgerId, entryId, stickyKeyHash);
+            long packedValue = ledgerMap.get(entryId);
+            if (PendingAckValues.isNotFound(packedValue)) {
+                return false;
             }
-            if (removed && ledgerMap.isEmpty()) {
-                pendingAcks.remove(ledgerId);
+            int newRemaining = PendingAckValues.remainingUnacked(packedValue) - ackedDelta;
+            if (newRemaining < 0) {
+                return false;
             }
-            return removed;
+            ledgerMap.put(entryId, PendingAckValues.pack(newRemaining, PendingAckValues.stickyKeyHash(packedValue)));
+            return true;
         } finally {
             writeLock.unlock();
         }
@@ -306,33 +363,63 @@ public class PendingAcksMap {
     public boolean remove(long ledgerId, long entryId) {
         try {
             writeLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
-            IntIntPair removedEntry = ledgerMap.remove(entryId);
-            boolean removed = removedEntry != null;
-            if (removed) {
-                int stickyKeyHash = removedEntry.rightInt();
-                handleRemovePendingAck(ledgerId, entryId, stickyKeyHash);
+            long removedEntry = ledgerMap.remove(entryId);
+            if (PendingAckValues.isNotFound(removedEntry)) {
+                return false;
             }
-            if (removed && ledgerMap.isEmpty()) {
+            size--;
+            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
+            if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
             }
-            return removed;
+            return true;
         } finally {
             writeLock.unlock();
         }
     }
 
     /**
-     * Remove all pending acks up to the given ledger ID and entry ID.
+     * Atomically remove and return the remaining unacked count for the given ledger ID and entry ID.
+     *
+     * @return the remaining unacked count, or {@link #PENDING_ACK_NOT_FOUND} if not found
+     */
+    int removeAndGetRemainingUnacked(long ledgerId, long entryId) {
+        try {
+            writeLock.lock();
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return PENDING_ACK_NOT_FOUND;
+            }
+            long removedEntry = ledgerMap.remove(entryId);
+            if (PendingAckValues.isNotFound(removedEntry)) {
+                return PENDING_ACK_NOT_FOUND;
+            }
+            size--;
+            handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
+            if (ledgerMap.isEmpty()) {
+                pendingAcks.remove(ledgerId);
+            }
+            return PendingAckValues.remainingUnacked(removedEntry);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Remove all pending acks up to the given ledger ID and entry ID, invoking a callback for each removed entry.
      *
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     * @param removedEntryCallback optional callback invoked for each removed entry (within the write lock),
+     *                             receiving ledgerId, entryId, batchSize, and stickyKeyHash
      */
-    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false);
+    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId,
+                             PendingAcksConsumer removedEntryCallback) {
+        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false, removedEntryCallback);
     }
 
     /**
@@ -345,8 +432,10 @@ public class PendingAcksMap {
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      * @param useWriteLock true if the method should use a write lock, false otherwise
+     * @param removedEntryCallback optional callback invoked for each removed entry (within the write lock)
      */
-    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock) {
+    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock,
+                                      PendingAcksConsumer removedEntryCallback) {
         PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
         // track if the write lock was acquired
         boolean acquiredWriteLock = false;
@@ -361,36 +450,42 @@ public class PendingAcksMap {
             } else {
                 readLock.lock();
             }
-            ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>>> ledgerMapIterator =
+            ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2LongSortedMap>> ledgerMapIterator =
                     pendingAcks.headMap(markDeleteLedgerId + 1).long2ObjectEntrySet().iterator();
             while (ledgerMapIterator.hasNext()) {
-                Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>> entry = ledgerMapIterator.next();
+                Long2ObjectMap.Entry<Long2LongSortedMap> entry = ledgerMapIterator.next();
                 long ledgerId = entry.getLongKey();
-                Long2ObjectSortedMap<IntIntPair> ledgerMap = entry.getValue();
-                Long2ObjectSortedMap<IntIntPair> ledgerMapHead;
+                Long2LongSortedMap ledgerMap = entry.getValue();
+                Long2LongSortedMap ledgerMapHead;
                 if (ledgerId == markDeleteLedgerId) {
                     ledgerMapHead = ledgerMap.headMap(markDeleteEntryId + 1);
                 } else {
                     ledgerMapHead = ledgerMap;
                 }
-                ObjectBidirectionalIterator<Long2ObjectMap.Entry<IntIntPair>> entryMapIterator =
-                        ledgerMapHead.long2ObjectEntrySet().iterator();
+                ObjectBidirectionalIterator<Long2LongMap.Entry> entryMapIterator =
+                        ledgerMapHead.long2LongEntrySet().iterator();
                 while (entryMapIterator.hasNext()) {
-                    Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
-                    long entryId = intIntPairEntry.getLongKey();
+                    Long2LongMap.Entry pendingAckEntry = entryMapIterator.next();
+                    long entryId = pendingAckEntry.getLongKey();
                     if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
                         return;
                     }
+                    long packedValue = pendingAckEntry.getLongValue();
+                    int batchSize = PendingAckValues.remainingUnacked(packedValue);
+                    int stickyKeyHash = PendingAckValues.stickyKeyHash(packedValue);
                     if (pendingAcksRemoveHandler != null) {
                         if (!batchStarted) {
                             pendingAcksRemoveHandler.startBatch();
                             batchStarted = true;
                         }
-                        int stickyKeyHash = intIntPairEntry.getValue().rightInt();
                         pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
                     }
+                    if (removedEntryCallback != null) {
+                        removedEntryCallback.accept(ledgerId, entryId, batchSize, stickyKeyHash);
+                    }
                     entryMapIterator.remove();
+                    size--;
                 }
                 if (ledgerMap.isEmpty()) {
                     if (!acquiredWriteLock) {
@@ -409,10 +504,16 @@ public class PendingAcksMap {
             } else {
                 readLock.unlock();
                 if (retryWithWriteLock) {
-                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true);
+                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true, removedEntryCallback);
                 }
             }
         }
+    }
+
+    private static Long2LongSortedMap newLedgerPendingAcks() {
+        Long2LongRBTreeMap ledgerPendingAcks = new Long2LongRBTreeMap();
+        ledgerPendingAcks.defaultReturnValue(PendingAckValues.PACKED_NOT_FOUND);
+        return ledgerPendingAcks;
     }
 
     private void handleRemovePendingAck(long ledgerId, long entryId, int stickyKeyHash) {

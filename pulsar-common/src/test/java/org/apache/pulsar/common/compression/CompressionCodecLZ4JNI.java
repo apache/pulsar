@@ -21,7 +21,7 @@ package org.apache.pulsar.common.compression;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;
@@ -30,7 +30,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 /**
  * LZ4 Compression.
  */
-@Slf4j
+@CustomLog
 public class CompressionCodecLZ4JNI implements CompressionCodec {
 
     static {
@@ -38,7 +38,7 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
             // Force the attempt to load LZ4 JNI
             net.jpountz.util.Native.load();
         } catch (Throwable th) {
-            log.warn("Failed to load native LZ4 implementation: {}", th.getMessage());
+            log.warn().attr("message", th.getMessage()).log("Failed to load native LZ4 implementation");
         }
     }
 

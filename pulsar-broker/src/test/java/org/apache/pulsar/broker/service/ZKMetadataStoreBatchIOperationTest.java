@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
@@ -31,7 +31,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPulsarServiceBaseTest {
 
@@ -66,7 +66,7 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
         admin.topics().createNonPartitionedTopic(defaultTp);
 
         int nsCount = (maxPacketLen / 834) + 1;
-        log.info("Try to create {} namespaces", nsCount);
+        log.info().attr("toCreate", nsCount).log("Try to create namespaces");
         String[] nsArray = new String[nsCount];
         String[] tpArray = new String[nsCount];
         for (int i = 0; i < nsCount; i++) {
@@ -80,7 +80,7 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
 
         int len = pulsar.getLocalMetadataStore().getChildren("/managed-ledgers/" + nsArray[0] + "/persistent").join()
                 .stream().mapToInt(str -> str.length()).sum();
-        log.info("Packet len of list topics of per namespace: {}", len);
+        log.info().attr("perNamespace", len).log("Packet len of list topics of per namespace");
 
         long start = System.currentTimeMillis();
         CompletableFuture<Void> createSubscriptionFuture = admin.topics()
@@ -88,8 +88,8 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
         for (int i = 0; i < nsCount; i++) {
             pulsar.getLocalMetadataStore().getChildren("/managed-ledgers/" + nsArray[i] + "/persistent");
         }
-        log.info("Send multi ZK operations in {} ms. If it is larger than 20, may can not reproduce the issue",
-                (System.currentTimeMillis() - start));
+        log.info().attr("operationsIn", (System.currentTimeMillis() - start))
+                .log("Send multi ZK operations in ms. If it is larger than 20, may can not reproduce the issue");
         client.newConsumer().topic(defaultTp).subscriptionName("s1").subscribe().close();
         createSubscriptionFuture.get(10, TimeUnit.SECONDS);
 

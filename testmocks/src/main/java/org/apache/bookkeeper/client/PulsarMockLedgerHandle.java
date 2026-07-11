@@ -28,9 +28,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -46,12 +48,11 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mock BK {@link LedgerHandle}. Used by {@link PulsarMockBookKeeper}.
  */
+@CustomLog
 public class PulsarMockLedgerHandle extends LedgerHandle {
 
     final List<LedgerEntryImpl> entries = Collections.synchronizedList(new ArrayList<>());
@@ -69,7 +70,14 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
+        this(bk, id, digest, passwd, Collections.emptyMap());
+    }
+
+    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
+                           DigestType digest, byte[] passwd,
+                           Map<String, byte[]> customMetadata) throws GeneralSecurityException {
+        super(bk.getClientCtx(), id,
+              new Versioned<>(createMetadata(id, digest, passwd, customMetadata), new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
@@ -105,18 +113,15 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncReadEntries(final long firstEntry, final long lastEntry, final ReadCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
-                }
+                log.debug().attr("first", firstEntry).attr("last", lastEntry)
+                        .attr("total", entries.size()).log("readEntries");
                 final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
                 long entryId = firstEntry;
                 while (entryId <= lastEntry && entryId < entries.size()) {
                     seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Entries read: {}", seq);
-                }
+                log.debug().attr("entries", seq).log("Entries read");
 
                 long readEntriesDelay = bk.getReadEntriesDelayMillis();
                 if (readEntriesDelay > 0) {
@@ -274,16 +279,17 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
+                                                   Map<String, byte[]> customMetadata) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
-        return LedgerMetadataBuilder.create()
+        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
             .withId(id)
-            .newEnsembleEntry(0L, ensemble)
-            .build();
+            .newEnsembleEntry(0L, ensemble);
+        if (customMetadata != null && !customMetadata.isEmpty()) {
+            builder.withCustomMetadata(customMetadata);
+        }
+        return builder.build();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarMockLedgerHandle.class);
-
 }

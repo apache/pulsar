@@ -23,9 +23,9 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 /**
  * A protocol handler with its classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 class ProtocolHandlerWithClassLoader implements ProtocolHandler {
@@ -119,7 +119,7 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the protocol handler class loader", e);
+            log.warn().exception(e).log("Failed to close the protocol handler class loader");
         }
     }
 }

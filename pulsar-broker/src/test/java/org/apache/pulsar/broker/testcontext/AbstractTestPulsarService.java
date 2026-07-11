@@ -24,7 +24,7 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -43,7 +43,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * Please see {@link PulsarTestContext} for more details.
  */
 
-@Slf4j
+@CustomLog
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
 
@@ -56,7 +56,7 @@ abstract class AbstractTestPulsarService extends PulsarService {
                                      Consumer<AutoConfiguredOpenTelemetrySdkBuilder>
                                              openTelemetrySdkBuilderCustomizer) {
         super(config, new WorkerConfig(), Optional.empty(),
-                exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
+                exitCode -> log.info().attr("exitCode", exitCode).log("Pulsar process termination requested"),
                 openTelemetrySdkBuilderCustomizer);
 
         this.spyConfig = spyConfig;

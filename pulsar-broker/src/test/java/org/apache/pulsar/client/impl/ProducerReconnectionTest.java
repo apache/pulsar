@@ -29,37 +29,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
-public class ProducerReconnectionTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerReconnectionTest extends SharedPulsarBaseTest {
 
     @Test
     public void testConcurrencyReconnectAndClose() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
 
@@ -95,7 +79,7 @@ public class ProducerReconnectionTest extends ProducerConsumerBase {
 
         // Reconnect.
         log.info("[testConcurrencyReconnectAndClose] trigger a reconnection");
-        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(topicName, false).join()
+        ServerCnx serverCnx = (ServerCnx) getTopic(topicName, false).join()
                 .get().getProducers().values().iterator().next().getCnx();
         reconnectionStartTrigger.set(true);
         serverCnx.ctx().close();
@@ -119,12 +103,11 @@ public class ProducerReconnectionTest extends ProducerConsumerBase {
         Thread.sleep(3000);
 
         HandlerState.State state2 = producer.getState();
-        log.info("producer state: {}", state2);
+        log.info().attr("state", state2).log("producer state");
         assertTrue(state2 == HandlerState.State.Closed || state2 == HandlerState.State.Closing);
         assertEquals(producer.getPendingQueueSize(), 0);
 
         // Verify: ref is expected.
         producer.close();
-        admin.topics().delete(topicName);
     }
 }

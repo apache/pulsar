@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.websocket;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -64,6 +64,7 @@ public class WebSocketHttpServletRequestWrapperTest {
                 BEARER_TOKEN);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void mockRequestTest() throws Exception {
         WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(

@@ -52,7 +52,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
@@ -67,7 +66,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
@@ -75,7 +74,7 @@ import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 /**
  * Helper class for the security domain.
  */
-@Slf4j
+@CustomLog
 public class SecurityUtility {
 
     public static final Provider BC_PROVIDER = getProvider();
@@ -83,10 +82,7 @@ public class SecurityUtility {
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
     public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
-    private static final List<KeyFactory> KEY_FACTORIES = Arrays.asList(
-            createKeyFactory("RSA"),
-            createKeyFactory("EC")
-    );
+    private static final List<String> KEY_FACTORY_ALGORITHMS = List.of("RSA", "EC");
 
     // Security.getProvider("BC") / Security.getProvider("BCFIPS").
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
@@ -110,9 +106,7 @@ public class SecurityUtility {
             Provider provider = Security.getProvider(BC) != null
                     ? Security.getProvider(BC)
                     : Security.getProvider(BC_FIPS);
-            if (log.isDebugEnabled()) {
-                log.debug("Already instantiated Bouncy Castle provider {}", provider.getName());
-            }
+            log.debug().attr("provider", provider.getName()).log("Already instantiated Bouncy Castle provider");
             return provider;
         }
 
@@ -120,7 +114,8 @@ public class SecurityUtility {
         try {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
-            log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
+            log.warn().exception(e)
+                    .log("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path");
             throw new RuntimeException(e);
         }
     }
@@ -135,11 +130,11 @@ public class SecurityUtility {
             if (e instanceof ClassNotFoundException) {
                 log.debug("Conscrypt isn't available in the classpath. Using JDK default security provider.");
             } else if (e.getCause() instanceof UnsatisfiedLinkError) {
-                log.debug("Conscrypt isn't available for {} {}. Using JDK default security provider.",
-                        System.getProperty("os.name"), System.getProperty("os.arch"));
+                log.debug().attr("os", System.getProperty("os.name")).attr("arch", System.getProperty("os.arch"))
+                        .log("Conscrypt isn't available. Using JDK default security provider");
             } else {
-                log.debug("Conscrypt isn't available. Using JDK default security provider."
-                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
+                log.debug().attr("cause", e.getCause()).attr("reason", e.getMessage())
+                        .log("Conscrypt isn't available. Using JDK default security provider");
             }
             return null;
         }
@@ -148,7 +143,8 @@ public class SecurityUtility {
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            log.debug("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            log.debug().attr("class", CONSCRYPT_PROVIDER_CLASS).exception(e)
+                    .log("Unable to get security provider");
             return null;
         }
 
@@ -173,20 +169,19 @@ public class SecurityUtility {
             HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
             Object wrappedHostnameVerifier = conscryptClazz
                     .getMethod("wrapHostnameVerifier",
-                            new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
+                            new Class<?>[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
             Method setDefaultHostnameVerifierMethod =
                     conscryptClazz
                             .getMethod("setDefaultHostnameVerifier",
-                                    new Class[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
+                                    new Class<?>[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
             setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
         } catch (Exception e) {
-            log.warn("Unable to set default hostname verifier for Conscrypt", e);
+            log.warn().exception(e).log("Unable to set default hostname verifier for Conscrypt");
         }
 
         Security.addProvider(provider);
-        if (log.isDebugEnabled()) {
-            log.debug("Added security provider '{}' from class {}", provider.getName(), CONSCRYPT_PROVIDER_CLASS);
-        }
+        log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)
+                .log("Added security provider");
         return provider;
     }
 
@@ -195,22 +190,21 @@ public class SecurityUtility {
      * Throw Exception if failed.
      */
     public static Provider getBCProviderFromClassPath() throws Exception {
-        Class clazz;
+        Class<?> clazz;
         try {
             // prefer non FIPS, for backward compatibility concern.
             clazz = Class.forName(BC_NON_FIPS_PROVIDER_CLASS);
         } catch (ClassNotFoundException cnf) {
-            log.warn("Not able to get Bouncy Castle provider: {}, try to get FIPS provider {}",
-                    BC_NON_FIPS_PROVIDER_CLASS, BC_FIPS_PROVIDER_CLASS);
+            log.warn().attr("nonFipsClass", BC_NON_FIPS_PROVIDER_CLASS).attr("fipsClass", BC_FIPS_PROVIDER_CLASS)
+                    .log("Not able to get Bouncy Castle provider, try to get FIPS provider");
             // attempt to use the FIPS provider.
             clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
         }
 
         Provider provider = (Provider) clazz.getDeclaredConstructor().newInstance();
         Security.addProvider(provider);
-        if (log.isDebugEnabled()) {
-            log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
-        }
+        log.debug().attr("provider", provider.getName())
+                .log("Found and Instantiated Bouncy Castle provider in classpath");
         return provider;
     }
 
@@ -329,7 +323,7 @@ public class SecurityUtility {
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
         SslContextBuilder builder =
-                SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates).sslProvider(sslProvider);
+                SslContextBuilder.forServer(privateKey, certificates).sslProvider(sslProvider);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
@@ -431,19 +425,20 @@ public class SecurityUtility {
             try {
                 Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
                 Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
-                        new Class[]{TrustManager.class}).invoke(null, trustManager);
+                        new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
                 if (hostnameVerifier == null) {
                     Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
-                            new Class[]{TrustManager.class}).invoke(null, trustManager);
+                            new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
                     if (defaultHostnameVerifier != null) {
-                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
+                        conscryptClazz.getMethod("setHostnameVerifier", new Class<?>[]{
                                 TrustManager.class,
                                 Class.forName("org.conscrypt.ConscryptHostnameVerifier")
                         }).invoke(null, trustManager, defaultHostnameVerifier);
                     }
                 }
             } catch (ReflectiveOperationException e) {
-                log.warn("Unable to set hostname verifier for Conscrypt TrustManager implementation", e);
+                log.warn().exception(e)
+                        .log("Unable to set hostname verifier for Conscrypt TrustManager implementation");
             }
         }
     }
@@ -474,6 +469,7 @@ public class SecurityUtility {
                 inStream.reset();
             }
             cf = CertificateFactory.getInstance("X.509");
+            @SuppressWarnings("unchecked") // CertificateFactory.getInstance("X.509") returns X509Certificate instances
             Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(inStream);
             return collection.toArray(new X509Certificate[collection.size()]);
         } catch (CertificateException | IOException e) {
@@ -521,12 +517,12 @@ public class SecurityUtility {
                 sb.append(currentLine);
             }
             final KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
-            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORIES.size());
-            for (KeyFactory kf : KEY_FACTORIES) {
+            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORY_ALGORITHMS.size());
+            for (String algorithm : KEY_FACTORY_ALGORITHMS) {
                 try {
-                    return kf.generatePrivate(keySpec);
-                } catch (InvalidKeySpecException ex) {
-                    failedAlgorithm.add(kf.getAlgorithm());
+                    return KeyFactory.getInstance(algorithm).generatePrivate(keySpec);
+                } catch (InvalidKeySpecException | NoSuchAlgorithmException ex) {
+                    failedAlgorithm.add(algorithm);
                 }
             }
             throw new KeyManagementException("The private key algorithm is not supported. attempted: "
@@ -552,7 +548,7 @@ public class SecurityUtility {
 
     private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
             X509Certificate[] certificates) {
-        builder.keyManager(privateKey, (X509Certificate[]) certificates);
+        builder.keyManager(privateKey, certificates);
     }
 
     private static void setupCiphers(SslContextBuilder builder, Set<String> ciphers) {
@@ -596,11 +592,4 @@ public class SecurityUtility {
         return provider;
     }
 
-    private static KeyFactory createKeyFactory(String algorithm) {
-        try {
-            return KeyFactory.getInstance(algorithm);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(String.format("Illegal key factory algorithm " + algorithm), e);
-        }
-    }
 }

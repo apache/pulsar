@@ -46,13 +46,13 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
     private String doc;
     private String[] aliases;
 
-    private GenericSchema genericSchema;
+    private GenericSchema<?> genericSchema;
 
     FieldSchemaBuilderImpl(String fieldName) {
         this(fieldName, null);
     }
 
-    FieldSchemaBuilderImpl(String fieldName, GenericSchema genericSchema) {
+    FieldSchemaBuilderImpl(String fieldName, GenericSchema<?> genericSchema) {
         this.fieldName = fieldName;
         this.genericSchema = genericSchema;
     }

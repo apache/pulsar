@@ -19,14 +19,15 @@
 package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-@Slf4j
+@CustomLog
 public class PulsarSinkDisable<T> implements Sink<T> {
 
+    @SuppressWarnings("rawtypes") // singleton instance used for all type parameters
     public static final PulsarSinkDisable INSTANCE = new PulsarSinkDisable();
 
     @Override

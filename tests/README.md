@@ -23,12 +23,11 @@ This directory contains integration tests for Pulsar.
 
 The integration tests use a framework called [Test Containers](https://www.testcontainers.org/) to bring up a bunch of docker containers running Pulsar services. TestNG can then be used to test functionallity against these containers.
 
-The tests require that docker is installed and running. Tests will only run if the integrationTests system property is defined. To run the tests:
+The tests require that docker is installed and running. To run the tests:
 ```shell
 # in the top level directory
-pulsar/ $ mvn install -DskipTests -Pdocker,-main # builds the docker images
-...
-pulsar/ $ mvn -f tests/pom.xml test -DintegrationTests
+pulsar/ $ ./gradlew :tests:latest-version-image:dockerBuild   # builds the docker test image
+pulsar/ $ ./gradlew :tests:integration:integrationTest        # runs the integration tests
 ```
 
 The directories are as follows:

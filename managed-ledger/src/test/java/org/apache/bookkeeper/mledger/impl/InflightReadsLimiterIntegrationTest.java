@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -46,7 +46,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCase {
 
     @DataProvider
@@ -89,7 +89,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         final long totalCapacity = limiter.getRemainingBytes();
         // final ManagedCursorImpl c1 = (ManagedCursorImpl) ml.openCursor("c1");
         for (byte i = 1; i < 127; i++) {
-            log.info("add entry: " + i);
+            log.info().attr("entryIndex", i).log("Add entry");
             ml.addEntry(new byte[]{i});
         }
         // Evict cached entries.
@@ -102,9 +102,9 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         LedgerHandle currentLedger = ml.currentLedger;
         LedgerHandle spyCurrentLedger = Mockito.spy(currentLedger);
         ml.currentLedger = spyCurrentLedger;
-        Answer answer = invocation -> {
+        Answer<?> answer = invocation -> {
             long firstEntry = (long) invocation.getArguments()[0];
-            log.info("reading entry: {}", firstEntry);
+            log.info().attr("firstEntry", firstEntry).log("Reading entry");
             if (firstEntry == start1) {
                 // Wait 3s to make
                 firstReadingStarted.countDown();
@@ -112,10 +112,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 Object res = invocation.callRealMethod();
                 return res;
             } else if (secondReadEntries.contains(firstEntry)) {
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<Object> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         readCompleteSignal2.await();
+                        @SuppressWarnings("unchecked")
                         CompletableFuture<LedgerEntries> future =
                                 (CompletableFuture<LedgerEntries>) invocation.callRealMethod();
                         future.thenAccept(v -> {
@@ -146,7 +147,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             long remainingBytes = limiter.getRemainingBytes();
             Assert.assertEquals(remainingBytes, totalCapacity);
         });
-        log.info("remainingBytes 0: {}", limiter.getRemainingBytes());
+        log.info().attr("remainingBytes", limiter.getRemainingBytes()).log("Remaining bytes after init");
 
         // Concurrency reading.
 
@@ -166,10 +167,12 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
 
         long bytesAcquired1 = calculateBytesSizeBeforeFirstReading(readCount1 + readCount2, sizePerEntry);
         long remainingBytesExpected1 = totalCapacity - bytesAcquired1;
-        log.info("acquired : {}", bytesAcquired1);
-        log.info("remainingBytesExpected 0 : {}", remainingBytesExpected1);
+        log.info().attr("bytesAcquired", bytesAcquired1).log("Acquired bytes before first reading");
+        log.info().attr("remainingBytesExpected", remainingBytesExpected1)
+                .log("Remaining bytes expected before first reading");
         Awaitility.await().untilAsserted(() -> {
-            log.info("remainingBytes 0: {}", limiter.getRemainingBytes());
+            log.info().attr("remainingBytes", limiter.getRemainingBytes())
+                    .log("Remaining bytes before first reading completes");
             Assert.assertEquals(limiter.getRemainingBytes(), remainingBytesExpected1);
         });
 
@@ -179,10 +182,12 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         cb1.entries.join();
         long bytesAcquired2 = calculateBytesSizeBeforeFirstReading(readCount2, sizePerEntry);
         long remainingBytesExpected2 = totalCapacity - bytesAcquired2;
-        log.info("acquired : {}", bytesAcquired2);
-        log.info("remainingBytesExpected 1: {}", remainingBytesExpected2);
+        log.info().attr("bytesAcquired", bytesAcquired2).log("Acquired bytes after first reading");
+        log.info().attr("remainingBytesExpected", remainingBytesExpected2)
+                .log("Remaining bytes expected after first reading");
         Awaitility.await().untilAsserted(() -> {
-            log.info("remainingBytes 1: {}", limiter.getRemainingBytes());
+            log.info().attr("remainingBytes", limiter.getRemainingBytes())
+                    .log("Remaining bytes after first reading completes");
             Assert.assertEquals(limiter.getRemainingBytes(), remainingBytesExpected2);
         });
 
@@ -190,7 +195,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         cb2.entries.join();
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
-            log.info("remainingBytes 2: {}", remainingBytes);
+            log.info().attr("remainingBytes", remainingBytes).log("Remaining bytes after all readings complete");
             Assert.assertEquals(remainingBytes, totalCapacity);
         });
         // cleanup

@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -26,8 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.DispatcherType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
@@ -44,9 +44,9 @@ import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.ee8.servlet.FilterHolder;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
@@ -67,7 +67,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-@Slf4j
+@CustomLog
 public class WorkerServer {
 
     private final WorkerConfig workerConfig;
@@ -96,7 +96,8 @@ public class WorkerServer {
 
     public void start() throws Exception {
         server.start();
-        log.info("Worker Server started at {}", server.getURI());
+        log.info().attr("uri", server.getURI())
+                .log("Worker Server started");
     }
 
     private void init() {
@@ -114,7 +115,8 @@ public class WorkerServer {
 
         List<ServerConnector> connectors = new ArrayList<>();
         if (this.workerConfig.getWorkerPort() != null) {
-            log.info("Configuring http server on port={}", this.workerConfig.getWorkerPort());
+            log.info().attr("port", this.workerConfig.getWorkerPort())
+                    .log("Configuring http server");
             List<ConnectionFactory> connectionFactories = new ArrayList<>();
             if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
                 connectionFactories.add(new ProxyConnectionFactory());
@@ -127,15 +129,15 @@ public class WorkerServer {
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(newServletContextHandler("/admin",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
         handlers.add(newServletContextHandler("/admin/v2",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
         handlers.add(newServletContextHandler("/admin/v3",
-            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer));
         // don't require auth for metrics or config routes
         handlers.add(newServletContextHandler("/",
             new ResourceConfig(Resources.getRootResources()), workerService,
-            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer).get());
+            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer));
 
         boolean showDetailedAddresses = workerConfig.getWebServiceLogDetailedAddresses() != null
                 ? workerConfig.getWebServiceLogDetailedAddresses() :
@@ -166,7 +168,8 @@ public class WorkerServer {
         server.setHandler(serverHandler);
 
         if (this.workerConfig.getTlsEnabled()) {
-            log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
+            log.info().attr("port", this.workerConfig.getWorkerPortTls())
+                    .log("Configuring https server");
             try {
                 PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
                 this.sslFactory = new DefaultPulsarSslFactory();
@@ -262,6 +265,9 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, MATCH_ALL);
+        // Allow %2F-encoded path separators; Jetty 12 ee10 rejects ambiguous URIs at the servlet layer by
+        // default (PIP-472 / Jetty 12).
+        contextHandler.getServletHandler().setDecodeAmbiguousURIs(true);
 
         filterInitializer.addFilters(contextHandler, requireAuthentication);
 
@@ -274,14 +280,15 @@ public class WorkerServer {
                 this.server.stop();
                 this.server.destroy();
             } catch (Exception e) {
-                log.error("Failed to stop function web-server ", e);
+                log.error().exception(e).log("Failed to stop function web-server");
             }
         }
         if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
             try {
                 this.webServerExecutor.stop();
             } catch (Exception e) {
-                log.warn("Error stopping function web-server executor", e);
+                log.warn().exception(e)
+                        .log("Error stopping function web-server executor");
             }
         }
         if (this.scheduledExecutorService != null) {
@@ -309,7 +316,7 @@ public class WorkerServer {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

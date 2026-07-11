@@ -507,11 +507,11 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     }
 
 
-    private KeyValueSchemaImpl getKeyValueSchema() {
+    private KeyValueSchemaImpl<?, ?> getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
+            return (KeyValueSchemaImpl<?, ?>) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
-            return (KeyValueSchemaImpl) schema;
+            return (KeyValueSchemaImpl<?, ?>) schema;
         }
     }
 
@@ -556,12 +556,13 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return this.payload.nioBuffer();
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl<?, ?> kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            org.apache.pulsar.common.schema.KeyValue<?, ?> keyValue =
+                    kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
@@ -573,6 +574,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValueBySchemaId(byte[] schemaId) {
         if (schema instanceof AutoConsumeSchema) {
             throw new UnsupportedOperationException("AutoConsumeSchema is not supported with schemaId");
@@ -587,11 +589,12 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValue() {
-        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl<?, ?> kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+            org.apache.pulsar.common.schema.KeyValue<?, ?> keyValue =
+                    kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);

@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -38,15 +38,12 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An AVRO schema implementation.
  */
-@Slf4j
+@CustomLog
 public class AvroSchema<T> extends AvroBaseStructSchema<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
     private boolean isCustomReaderAndWriter;
     private ClassLoader pojoClassLoader;
 

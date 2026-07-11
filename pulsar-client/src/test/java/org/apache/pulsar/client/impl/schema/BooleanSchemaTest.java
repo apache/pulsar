@@ -41,8 +41,8 @@ public class BooleanSchemaTest {
     @Test
     public void testSchemaEncodeDecodeFidelity() {
         BooleanSchema schema = BooleanSchema.of();
-        Assert.assertEquals(new Boolean(true), schema.decode(schema.encode(true)));
-        Assert.assertEquals(new Boolean(false), schema.decode(schema.encode(false)));
+        Assert.assertEquals(Boolean.valueOf(true), schema.decode(schema.encode(true)));
+        Assert.assertEquals(Boolean.valueOf(false), schema.decode(schema.encode(false)));
     }
 
     @Test
@@ -54,16 +54,16 @@ public class BooleanSchemaTest {
                 0
         };
         BooleanSchema schema = BooleanSchema.of();
-        Assert.assertEquals(new Boolean(true), schema.decode(trueBytes));
-        Assert.assertEquals(new Boolean(false), schema.decode(falseBytes));
+        Assert.assertEquals(Boolean.valueOf(true), schema.decode(trueBytes));
+        Assert.assertEquals(Boolean.valueOf(false), schema.decode(falseBytes));
 
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(1);
         byteBuf.writeBytes(trueBytes);
-        Assert.assertEquals(new Boolean(true), schema.decode(byteBuf));
+        Assert.assertEquals(Boolean.valueOf(true), schema.decode(byteBuf));
         byteBuf.writerIndex(0);
         byteBuf.writeBytes(falseBytes);
 
-        Assert.assertEquals(new Boolean(false), schema.decode(byteBuf));
+        Assert.assertEquals(Boolean.valueOf(false), schema.decode(byteBuf));
     }
 
     @Test

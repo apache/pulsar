@@ -30,9 +30,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -45,7 +45,7 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 /**
  * Abstract Test Container for Pulsar.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> extends ChaosContainer<SelfT> {
 
     public static final int INVALID_PORT = -1;
@@ -57,7 +57,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
-    public static final String ALPINE_IMAGE_NAME = "alpine:3.22";
+    public static final String ALPINE_IMAGE_NAME = "alpine:3.23";
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
     public static final String UPGRADE_TEST_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_UPGRADE_TEST_IMAGE_NAME",
@@ -176,7 +176,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                 execCmd("/usr/bin/pkill", "tail");
             } catch (Exception e) {
                 // will fail if there's no tail running
-                log.debug("Cannot run 'pkill tail'", e);
+                log.debug().exception(e).log("Cannot run 'pkill tail'");
             }
         }
     }
@@ -202,10 +202,12 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                 // use "supervisorctl stop all" for graceful shutdown
                 try {
                     ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
-                    log.info("Stopped supervisor services exit code: {}\nstdout: {}\nstderr: {}", result.getExitCode(),
-                            result.getStdout(), result.getStderr());
+                    log.info().attr("exitCode", result.getExitCode())
+                            .attr("stdout", result.getStdout())
+                            .attr("stderr", result.getStderr())
+                            .log("Stopped supervisor services");
                 } catch (Exception e) {
-                    log.error("Cannot run 'supervisorctl stop all'", e);
+                    log.error().exception(e).log("Cannot run 'supervisorctl stop all'");
                 }
             }
         }
@@ -271,7 +273,10 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         beforeStart();
         super.start();
         afterStart();
-        log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
+        log.info().attr("container", getContainerName())
+                .attr("service", serviceName)
+                .attr("containerId", getContainerId())
+                .log("Start pulsar service");
     }
 
     protected boolean isPassNettyLeakDetectionSystemProperties() {
@@ -300,8 +305,6 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     }
 
     protected void initializePulsarExtraOpts() {
-        appendToEnv("PULSAR_EXTRA_OPTS",
-                "-Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096");
     }
 
     protected boolean isCodeCoverageEnabled() {
@@ -337,7 +340,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                     + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
                     + ",excludes=*.proto.*:*.shade.*:*.shaded.*");
         } else {
-            log.error("Cannot find jacoco agent jar from '" + jacocoAgentJar.getAbsolutePath() + "'");
+            log.error().attr("path", jacocoAgentJar.getAbsolutePath())
+                    .log("Cannot find jacoco agent jar");
         }
     }
 
@@ -394,7 +398,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         sb.append("-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start,");
         sb.append(System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile"));
         sb.append(",file=/profiles/inttest_profile_").append(System.getProperty("git.commit.id.abbrev", ""));
-        sb.append("_").append(System.getProperty("maven.build.timestamp", "").replace(' ', '_'));
+        sb.append("_").append(System.getProperty("build.timestamp", "").replace(' ', '_'));
         sb.append("_").append(getContainerName());
         sb.append("_").append("%p.").append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
         initializePulsarExtraOpts();

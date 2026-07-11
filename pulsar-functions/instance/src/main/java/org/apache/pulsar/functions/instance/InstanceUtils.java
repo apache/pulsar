@@ -26,8 +26,8 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,11 +39,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-@Slf4j
+@CustomLog
 @UtilityClass
 public class InstanceUtils {
     public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
@@ -93,40 +95,40 @@ public class InstanceUtils {
         }
     }
 
-    public Function.FunctionDetails.ComponentType calculateSubjectType(Function.FunctionDetails functionDetails) {
-        if (functionDetails.getComponentType() != Function.FunctionDetails.ComponentType.UNKNOWN) {
+    public FunctionDetails.ComponentType calculateSubjectType(FunctionDetails functionDetails) {
+        if (functionDetails.getComponentType() != FunctionDetails.ComponentType.UNKNOWN) {
             return functionDetails.getComponentType();
         }
-        Function.SourceSpec sourceSpec = functionDetails.getSource();
-        Function.SinkSpec sinkSpec = functionDetails.getSink();
+        SourceSpec sourceSpec = functionDetails.getSource();
+        SinkSpec sinkSpec = functionDetails.getSink();
         if (sourceSpec.getInputSpecsCount() == 0) {
-            return Function.FunctionDetails.ComponentType.SOURCE;
+            return FunctionDetails.ComponentType.SOURCE;
         }
         // Now its between sink and function
 
         if (!isEmpty(sinkSpec.getBuiltin())) {
             // if its built in, its a sink
-            return Function.FunctionDetails.ComponentType.SINK;
+            return FunctionDetails.ComponentType.SINK;
         }
 
         if (isEmpty(sinkSpec.getClassName()) || sinkSpec.getClassName().equals(PulsarSink.class.getName())) {
-            return Function.FunctionDetails.ComponentType.FUNCTION;
+            return FunctionDetails.ComponentType.FUNCTION;
         }
-        return Function.FunctionDetails.ComponentType.SINK;
+        return FunctionDetails.ComponentType.SINK;
     }
 
     public static String getDefaultSubscriptionName(String tenant, String namespace, String name) {
         return FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
     }
 
-    public static String getDefaultSubscriptionName(Function.FunctionDetails functionDetails) {
+    public static String getDefaultSubscriptionName(FunctionDetails functionDetails) {
         return getDefaultSubscriptionName(
                 functionDetails.getTenant(),
                 functionDetails.getNamespace(),
                 functionDetails.getName());
     }
 
-    public static Map<String, String> getProperties(Function.FunctionDetails.ComponentType componentType,
+    public static Map<String, String> getProperties(FunctionDetails.ComponentType componentType,
                                                     String fullyQualifiedName, int instanceId) {
         Map<String, String> properties = new HashMap<>();
         switch (componentType) {
@@ -147,11 +149,16 @@ public class InstanceUtils {
         try {
             properties.put("instance_hostname", InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
-            log.warn("[{}:{}] Failed to get hostname of instance", fullyQualifiedName, instanceId, e);
+            log.warn()
+                    .attr("function", fullyQualifiedName)
+                    .attr("instanceId", instanceId)
+                    .exception(e)
+                    .log("Failed to get hostname of instance");
         }
         return properties;
     }
 
+    @SuppressWarnings("deprecation")
     public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
                                                           AuthenticationConfig authConfig,
                                                           Optional<Long> memoryLimit) throws PulsarClientException {

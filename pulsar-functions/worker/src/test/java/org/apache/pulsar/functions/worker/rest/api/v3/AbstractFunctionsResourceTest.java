@@ -50,7 +50,8 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.LoadedFunctionPackage;
@@ -83,15 +84,16 @@ public abstract class AbstractFunctionsResourceTest {
     protected static final String NAMESPACE = "test-namespace";
     protected static final Map<String, String> TOPICS_TO_SER_DE_CLASS_NAME = new HashMap<>();
     protected static final String SUBSCRIPTION_NAME = "test-subscription";
-    protected static final String CASSANDRA_STRING_SINK = "org.apache.pulsar.io.cassandra.CassandraStringSink";
+    protected static final String DATA_GENERATOR_PRINT_SINK =
+            "org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink";
     protected static final int PARALLELISM = 1;
-    private static final String SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH = "pulsar-io-cassandra.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
-    private static final String SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH = "pulsar-io-netty.nar.path";
+    private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_JAR_FILE_PATH =
+            "pulsar-functions-api-examples.jar.path";
     private static final String SYSTEM_PROPERTY_NAME_INVALID_NAR_FILE_PATH = "pulsar-io-invalid.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
             "pulsar-functions-api-examples.nar.path";
-    protected static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
+    protected static Map<String, MockedStatic<?>> mockStaticContexts = new HashMap<>();
 
     static {
         TOPICS_TO_SER_DE_CLASS_NAME.put("test_src", DEFAULT_SERDE);
@@ -111,18 +113,12 @@ public abstract class AbstractFunctionsResourceTest {
     protected Namespace mockedNamespace;
     protected InputStream mockedInputStream;
     protected FormDataContentDisposition mockedFormData;
-    protected Function.FunctionMetaData mockedFunctionMetaData;
+    protected FunctionMetaData mockedFunctionMetaData;
     protected LeaderService mockedLeaderService;
     protected Packages mockedPackages;
     protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected ConnectorsManager connectorsManager = new ConnectorsManager();
     protected FunctionsManager functionsManager = new FunctionsManager();
-
-    public static File getPulsarIOCassandraNar() {
-        return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH)
-                , "pulsar-io-cassandra.nar file location must be specified with "
-                        + SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH + " system property"));
-    }
 
     public static File getPulsarIODataGenNar() {
         return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH)
@@ -130,10 +126,11 @@ public abstract class AbstractFunctionsResourceTest {
                         + SYSTEM_PROPERTY_NAME_DATAGEN_NAR_FILE_PATH + " system property"));
     }
 
-    public static File getPulsarIONettyNar() {
-        return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH)
-                , "pulsar-io-netty.nar file location must be specified with "
-                        + SYSTEM_PROPERTY_NAME_NETTY_NAR_FILE_PATH + " system property"));
+    public static File getPulsarApiExamplesJar() {
+        return new File(Objects.requireNonNull(
+                System.getProperty(SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_JAR_FILE_PATH)
+                , "pulsar-functions-api-examples.jar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_JAR_FILE_PATH + " system property"));
     }
 
     public static File getPulsarIOInvalidNar() {
@@ -238,8 +235,9 @@ public abstract class AbstractFunctionsResourceTest {
         mockStatic(classStatic, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS), consumer);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <T> void mockStatic(Class<T> classStatic, MockSettings mockSettings, Consumer<MockedStatic<T>> consumer) {
-        final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(),
+        final MockedStatic<T> mockedStatic = (MockedStatic) mockStaticContexts.computeIfAbsent(classStatic.getName(),
                 name -> Mockito.mockStatic(classStatic, mockSettings));
         consumer.accept(mockedStatic);
     }
@@ -273,7 +271,7 @@ public abstract class AbstractFunctionsResourceTest {
         });
     }
 
-    protected abstract Function.FunctionDetails.ComponentType getComponentType();
+    protected abstract FunctionDetails.ComponentType getComponentType();
 
     public static class LoadedConnector extends Connector {
         public LoadedConnector(ConnectorDefinition connectorDefinition) {

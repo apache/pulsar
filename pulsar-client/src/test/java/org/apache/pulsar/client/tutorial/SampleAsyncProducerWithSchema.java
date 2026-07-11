@@ -23,21 +23,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 
-@Slf4j
+@CustomLog
 public class SampleAsyncProducerWithSchema {
 
     public static void main(String[] args) throws IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
         Producer<JsonPojo> producer = pulsarClient.newProducer(JSONSchema.of(SchemaDefinition.<JsonPojo>builder()
-                        .withPojo(JsonPojo.class).build())).topic("persistent://my-property/use/my-ns/my-topic")
+                        .withPojo(JsonPojo.class).build())).topic("persistent://my-property/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
@@ -48,9 +48,9 @@ public class SampleAsyncProducerWithSchema {
 
             future.handle((v, ex) -> {
                 if (ex == null) {
-                    log.info("Message persisted: {}", content);
+                    log.info().attr("content", content).log("Message persisted");
                 } else {
-                    log.error("Error persisting message: {}", content, ex);
+                    log.error().attr("content", content).exception(ex).log("Error persisting message");
                 }
                 return null;
             });

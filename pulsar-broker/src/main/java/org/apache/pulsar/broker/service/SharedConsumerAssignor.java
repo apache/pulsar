@@ -25,15 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
-@Slf4j
+@CustomLog
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
 
@@ -63,8 +63,11 @@ public class SharedConsumerAssignor {
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
             if (subscription != null) {
-                log.info("No consumer found to assign in topic:{}, subscription:{}, redelivering {} messages.",
-                        subscription.getTopic().getName(), subscription.getName(), entryAndMetadataList.size());
+                log.info()
+                        .attr("topic", subscription.getTopic().getName())
+                        .attr("subscription", subscription.getName())
+                        .attr("size", entryAndMetadataList.size())
+                        .log("No consumer found to assign, redelivering messages");
             }
             entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;
@@ -89,7 +92,7 @@ public class SharedConsumerAssignor {
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer, availablePermits);
+                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
@@ -120,9 +123,7 @@ public class SharedConsumerAssignor {
         return null;
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata,
-                                        final Consumer defaultConsumer,
-                                        final int currentAvailablePermits) {
+    private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
@@ -141,7 +142,9 @@ public class SharedConsumerAssignor {
             // The last chunk is received, we should remove the cache
             uuidToConsumer.remove(uuid);
         }
-        consumerToPermits.put(consumer, currentAvailablePermits - 1);
+        // Decrement target consumer's permits, not the loop's local availablePermits — on a cache
+        // redirect those track different consumers.
+        consumerToPermits.put(consumer, permits - 1);
         return consumer;
     }
 }

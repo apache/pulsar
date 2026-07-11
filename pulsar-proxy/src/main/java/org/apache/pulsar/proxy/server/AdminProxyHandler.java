@@ -19,6 +19,9 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -26,15 +29,11 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
@@ -44,26 +43,22 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.eclipse.jetty.client.ContinueProtocolHandler;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
-import org.eclipse.jetty.ee8.proxy.ProxyServlet;
-import org.eclipse.jetty.http.HttpCookieStore;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.QueuedThreadPool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class AdminProxyHandler extends ProxyServlet {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
+    private static final long serialVersionUID = 1L;
 
     private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -112,88 +107,53 @@ class AdminProxyHandler extends ProxyServlet {
                         TimeUnit.SECONDS);
             }
         }
-        super.setTimeout(config.getHttpProxyTimeout());
     }
 
     @Override
     protected HttpClient createHttpClient() throws ServletException {
-        ServletConfig config = getServletConfig();
-
-        HttpClient client = newHttpClient();
-
-        client.setFollowRedirects(true);
-
-        // Must not store cookies, otherwise cookies of different clients will mix.
-        client.setHttpCookieStore(new HttpCookieStore.Empty());
-
-        Executor executor;
-        String value = config.getInitParameter("maxThreads");
-        if (value == null || "-".equals(value)) {
-            executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
-            if (executor == null) {
-                throw new IllegalStateException("No server executor for proxy");
-            }
-        } else {
-            QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
-            String servletName = config.getServletName();
-            int dot = servletName.lastIndexOf('.');
-            if (dot >= 0) {
-                servletName = servletName.substring(dot + 1);
-            }
-            qtp.setName(servletName);
-            executor = qtp;
-        }
-
-        client.setExecutor(executor);
-
-        value = config.getInitParameter("maxConnections");
-        if (value == null) {
-            value = "256";
-        }
-        client.setMaxConnectionsPerDestination(Integer.parseInt(value));
-
-        value = config.getInitParameter("idleTimeout");
-        if (value == null) {
-            value = "30000";
-        }
-        client.setIdleTimeout(Long.parseLong(value));
-
-        value = config.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE);
-        if (value != null) {
-            client.setRequestBufferSize(Integer.parseInt(value));
-        }
-
-        value = config.getInitParameter("responseBufferSize");
-        if (value != null){
-            client.setResponseBufferSize(Integer.parseInt(value));
-        }
-
-        try {
-            client.start();
-
-            // Content must not be decoded, otherwise the client gets confused.
-            // Allow encoded content, such as "Content-Encoding: gzip", to pass through without decoding it.
-            client.getContentDecoderFactories().clear();
-
-            // Pass traffic to the client, only intercept what's necessary.
-            ProtocolHandlers protocolHandlers = client.getProtocolHandlers();
-            protocolHandlers.clear();
-            protocolHandlers.put(new RedirectProtocolHandler(client));
-            protocolHandlers.put(new ProxyContinueProtocolHandler());
-
-            return client;
-        } catch (Exception x) {
-            throw new ServletException(x);
-        }
+        HttpClient httpClient = super.createHttpClient();
+        customizeHttpClient(httpClient);
+        return httpClient;
     }
 
-    class ProxyContinueProtocolHandler extends ContinueProtocolHandler {
+    protected void customizeHttpClient(HttpClient httpClient) {
+        httpClient.setFollowRedirects(true);
+
+        ProtocolHandlers protocolHandlers = httpClient.getProtocolHandlers();
+        if (protocolHandlers != null) {
+            protocolHandlers.put(new NonAbortingRedirectProtocolHandler(httpClient));
+        }
+
+        httpClient.setIdleTimeout(config.getHttpProxyIdleTimeout());
+
+        setTimeout(config.getHttpProxyTimeout());
+    }
+
+    /**
+     * A {@link RedirectProtocolHandler} that does not abort the in-flight request when a redirect
+     * response is received.
+     *
+     * <p>Jetty's default {@link RedirectProtocolHandler#onSuccess(Response)} aborts a request that
+     * still has a body to send when a redirect status is received, raising
+     * {@code HttpRequestException: "Aborting request after receiving a NNN response"}. When a broker
+     * returns a 307 (to redirect an admin request to the bundle-owner broker) before the proxy has
+     * finished streaming the request body, that abort can race ahead of the redirect continuation in
+     * {@link RedirectProtocolHandler#onComplete} and surface to the proxy as a spurious HTTP 502 Bad
+     * Gateway. The redirect itself is driven by {@code onComplete} from the response (its status and
+     * {@code Location} header) and does not depend on the abort, so skipping it lets the redirect
+     * always be followed on a fresh request (with the body replayed by
+     * {@link ReplayableProxyContentProvider}), which is the behavior this proxy needs.
+     */
+    static class NonAbortingRedirectProtocolHandler extends RedirectProtocolHandler {
+        NonAbortingRedirectProtocolHandler(HttpClient client) {
+            super(client);
+        }
 
         @Override
-        protected Runnable onContinue(Request request) {
-            HttpServletRequest clientRequest =
-                    (HttpServletRequest) request.getAttributes().get(CLIENT_REQUEST_ATTRIBUTE);
-            return AdminProxyHandler.this.onContinue(clientRequest, request);
+        public void onSuccess(Response response) {
+            // Intentionally do NOT abort the request here. The redirect is followed in onComplete();
+            // aborting the in-flight request only races a 502 to the proxy when the broker returns a
+            // redirect before the request body has finished sending.
         }
     }
 
@@ -297,7 +257,7 @@ class AdminProxyHandler extends ProxyServlet {
                     }
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
-                    LOG.error("new jetty http client exception ", e);
+                    log.error().exception(e).log("new jetty http client exception");
                     throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
                 }
             }
@@ -340,13 +300,19 @@ class AdminProxyHandler extends ProxyServlet {
         } else {
             try {
                 url.append(getWebServiceUrl());
-                if (LOG.isDebugEnabled() && isBlank(brokerWebServiceUrl)) {
-                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url);
+                if (isBlank(brokerWebServiceUrl)) {
+                    log.debug()
+                            .attr("remoteAddr", request.getRemoteAddr())
+                            .attr("remotePort", request.getRemotePort())
+                            .attr("broker", url)
+                            .log("Selected active broker");
                 }
             } catch (Exception e) {
-                LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
-                        request.getRemotePort(), e.getMessage(), e);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .exception(e)
+                        .log("Failed to get next active broker");
                 return null;
             }
         }
@@ -431,7 +397,7 @@ class AdminProxyHandler extends ProxyServlet {
                 sslFactory.createInternalSslContext();
                 return sslFactory;
             } catch (Exception e) {
-                LOG.error("Failed to create Pulsar SSLFactory ", e);
+                log.error().exception(e).log("Failed to create Pulsar SSLFactory");
                 throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
             }
         } catch (Exception e) {
@@ -443,7 +409,7 @@ class AdminProxyHandler extends ProxyServlet {
         try {
             this.pulsarSslFactory.update();
         } catch (Exception e) {
-            LOG.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

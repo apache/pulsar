@@ -75,6 +75,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Metadata store cache expiry time in seconds.")
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(doc = "Is metadata store read-only operations.")
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @FieldContext(
             deprecated = true,
             doc = "ZooKeeper session timeout in milliseconds. "

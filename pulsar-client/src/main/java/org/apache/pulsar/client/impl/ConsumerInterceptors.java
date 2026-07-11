@@ -22,21 +22,19 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A container that hold the list {@link org.apache.pulsar.client.api.ConsumerInterceptor} and wraps calls to the chain
  * of custom interceptors.
  */
+@CustomLog
 public class ConsumerInterceptors<T> implements Closeable {
-
-    private static final Logger log = LoggerFactory.getLogger(ConsumerInterceptors.class);
 
     private final List<ConsumerInterceptor<T>> interceptors;
 
@@ -66,10 +64,12 @@ public class ConsumerInterceptors<T> implements Closeable {
                 interceptorMessage = interceptors.get(i).onArrival(consumer, interceptorMessage);
             } catch (Throwable e) {
                 if (consumer != null) {
-                    log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}",
-                            consumer.getTopic(), consumer.getConsumerName(), e);
+                    log.warn().attr("topic", consumer.getTopic())
+                            .attr("consumerName", consumer.getConsumerName())
+                            .exception(e)
+                            .log("Error executing interceptor beforeConsume callback topic: consumerName");
                 } else {
-                    log.warn("Error executing interceptor beforeConsume callback", e);
+                    log.warn().exception(e).log("Error executing interceptor beforeConsume callback");
                 }
             }
         }
@@ -100,10 +100,12 @@ public class ConsumerInterceptors<T> implements Closeable {
                 interceptorMessage = interceptors.get(i).beforeConsume(consumer, interceptorMessage);
             } catch (Throwable e) {
                 if (consumer != null) {
-                    log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}",
-                            consumer.getTopic(), consumer.getConsumerName(), e);
+                    log.warn().attr("topic", consumer.getTopic())
+                            .attr("consumerName", consumer.getConsumerName())
+                            .exception(e)
+                            .log("Error executing interceptor beforeConsume callback topic: consumerName");
                 } else {
-                    log.warn("Error executing interceptor beforeConsume callback", e);
+                    log.warn().exception(e).log("Error executing interceptor beforeConsume callback");
                 }
             }
         }
@@ -128,7 +130,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAcknowledge(consumer, messageId, exception);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAcknowledge callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onAcknowledge callback ");
             }
         }
     }
@@ -151,7 +153,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAcknowledgeCumulative(consumer, messageId, exception);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onAcknowledgeCumulative callback ");
             }
         }
     }
@@ -173,7 +175,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onNegativeAcksSend(consumer, messageIds);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onNegativeAcksSend callback", e);
+                log.warn().exception(e).log("Error executing interceptor onNegativeAcksSend callback");
             }
         }
     }
@@ -195,7 +197,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAckTimeoutSend(consumer, messageIds);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAckTimeoutSend callback", e);
+                log.warn().exception(e).log("Error executing interceptor onAckTimeoutSend callback");
             }
         }
     }
@@ -205,7 +207,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onPartitionsChange(topicName, partitions);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onPartitionsChange callback", e);
+                log.warn().exception(e).log("Error executing interceptor onPartitionsChange callback");
             }
         }
     }
@@ -216,7 +218,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).close();
             } catch (Throwable e) {
-                log.error("Fail to close consumer interceptor ", e);
+                log.error().exception(e).log("Fail to close consumer interceptor ");
             }
         }
     }

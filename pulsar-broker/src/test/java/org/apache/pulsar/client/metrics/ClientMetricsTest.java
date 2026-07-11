@@ -32,10 +32,10 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -47,17 +47,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ClientMetricsTest extends ProducerConsumerBase {
+public class ClientMetricsTest extends SharedPulsarBaseTest {
 
     InMemoryMetricReader reader;
     OpenTelemetrySdk otel;
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-
+    @BeforeMethod(alwaysRun = true)
+    public void setupOtel() throws Exception {
         this.reader = InMemoryMetricReader.create();
         SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder()
                 .registerMetricReader(reader)
@@ -66,9 +62,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    public void cleanupOtel() throws Exception {
         if (otel != null) {
             otel.close();
             otel = null;
@@ -136,7 +130,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         String topic = newTopicName();
 
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .build();
 
@@ -148,9 +142,10 @@ public class ClientMetricsTest extends ProducerConsumerBase {
             producer.send("Hello");
         }
 
+        String tenant = getNamespace().split("/")[0];
         Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .build();
         Attributes nsAttrsSuccess = nsAttrs.toBuilder()
                 .put("pulsar.response.status", "success")
@@ -222,7 +217,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(admin.getServiceUrl())
+                .serviceUrl(getWebServiceUrl())
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .openTelemetry(otel)
                 .build();
@@ -246,16 +241,17 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         var metrics = collectMetrics();
 
-        Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+        String tenant = getNamespace().split("/")[0];
+        Attributes nsAttrsF = Attributes.builder()
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .build();
-        Attributes nsAttrsFailure = nsAttrs.toBuilder()
+        Attributes nsAttrsFailure = nsAttrsF.toBuilder()
                 .put("pulsar.response.status", "failed")
                 .build();
 
-        assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.producer.message.pending.size", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrsF);
+        assertCounterValue(metrics, "pulsar.client.producer.message.pending.size", 0, nsAttrsF);
         assertHistoCountValue(metrics, "pulsar.client.producer.message.send.duration", 1, nsAttrsFailure);
         assertHistoCountValue(metrics, "pulsar.client.producer.rpc.send.duration", 1, nsAttrsFailure);
     }
@@ -265,7 +261,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         String topic = newTopicName();
 
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .build();
 
@@ -287,9 +283,10 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         Thread.sleep(1000);
 
+        String tenant = getNamespace().split("/")[0];
         Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .put("pulsar.subscription", "my-sub")
                 .build();
         var metrics = collectMetrics();
@@ -352,7 +349,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         long memoryLimit = 1024 * 1024; // 1MB
 
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .memoryLimit(memoryLimit, org.apache.pulsar.client.api.SizeUnit.BYTES)
                 .build();
@@ -401,7 +398,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
     public void testMemoryBufferMetricsWithNoLimit() throws Exception {
         // Create client without memory limit
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .memoryLimit(0L, SizeUnit.BYTES)
                 .build();

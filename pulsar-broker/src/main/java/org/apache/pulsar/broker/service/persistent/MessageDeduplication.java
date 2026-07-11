@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.openCursor;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Iterator;
 import java.util.List;
@@ -46,13 +47,14 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class that contains all the logic to control and perform the deduplication on the broker side.
  */
 public class MessageDeduplication {
+
+    private static final Logger LOG = Logger.get(MessageDeduplication.class);
+    private final Logger log;
 
     private final PulsarService pulsar;
     private final PersistentTopic topic;
@@ -102,6 +104,7 @@ public class MessageDeduplication {
 
 
     private volatile Status status;
+    private CompletableFuture<Void> statusChangeFuture = CompletableFuture.completedFuture(null);
 
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
@@ -143,6 +146,7 @@ public class MessageDeduplication {
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
         this.replayTask = new ManagedLedgerReplayTask("MessageDeduplication", pulsar.getExecutor(), 100);
+        this.log = LOG.with().attr("topic", topic.getName()).build();
     }
 
     public Status getStatus() {
@@ -156,7 +160,10 @@ public class MessageDeduplication {
     public CompletableFuture<Void> checkStatus() {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
-            if (status == Status.Recovering || status == Status.Removing) {
+            if (status == Status.Recovering) {
+                return statusChangeFuture;
+            }
+            if (status == Status.Removing) {
                 // If there's already a transition happening, check later for status
                 pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                 return CompletableFuture.completedFuture(null);
@@ -168,7 +175,7 @@ public class MessageDeduplication {
                             @Override
                             public void deleteCursorComplete(Object ctx) {
                                 status = Status.Disabled;
-                                log.info("[{}] Deleted deduplication cursor", topic.getName());
+                                log.info("Deleted deduplication cursor");
                             }
 
                             @Override
@@ -176,7 +183,9 @@ public class MessageDeduplication {
                                 if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
                                     status = Status.Disabled;
                                 } else {
-                            log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
+                            log.error()
+                                    .exception(exception)
+                                    .log("Deleted deduplication cursor error");
                         }
                     }
                 }, null);
@@ -196,7 +205,7 @@ public class MessageDeduplication {
                                 highestSequencedPushed.clear();
                                 highestSequencedPersisted.clear();
                                 future.complete(null);
-                                log.info("[{}] Disabled deduplication", topic.getName());
+                                log.info("Disabled deduplication");
                             }
 
                             @Override
@@ -209,8 +218,9 @@ public class MessageDeduplication {
                                     highestSequencedPersisted.clear();
                                     future.complete(null);
                                 } else {
-                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
-                                            exception.getMessage());
+                                    log.warn()
+                                            .exceptionMessage(exception)
+                                            .log("Failed to disable deduplication");
                                     status = Status.Failed;
                                     future.completeExceptionally(exception);
                                 }
@@ -218,17 +228,27 @@ public class MessageDeduplication {
                         }, null);
 
                 return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
+            } else if ((status == Status.Disabled || status == Status.Initialized || status == Status.Failed)
+                    && shouldBeEnabled) {
                 // Enable deduping
-                final var future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
-                        .thenCompose(this::replayCursor);
-                future.exceptionally(e -> {
+                status = Status.Recovering;
+                final CompletableFuture<Void> future;
+                try {
+                    future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                            .thenCompose(this::replayCursor);
+                } catch (Throwable e) {
                     status = Status.Failed;
-                    log.error("[{}] Failed to enable deduplication", topic.getName(), e);
-                    future.completeExceptionally(e);
-                    return null;
+                    statusChangeFuture = CompletableFuture.failedFuture(e);
+                    log.error().exception(e).log("Failed to enable deduplication");
+                    return statusChangeFuture;
+                }
+                statusChangeFuture = future.whenComplete((__, e) -> {
+                    if (e != null) {
+                        status = Status.Failed;
+                        log.error().exception(e).log("Failed to enable deduplication");
+                    }
                 });
-                return future;
+                return statusChangeFuture;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
@@ -238,6 +258,11 @@ public class MessageDeduplication {
 
     private CompletableFuture<Void> replayCursor(ManagedCursor cursor) {
         managedCursor = cursor;
+        cursor.rewind();
+        snapshotCounter = 0;
+        highestSequencedPushed.clear();
+        highestSequencedPersisted.clear();
+        inactiveProducers.clear();
         // Load the sequence ids from the snapshot in the cursor properties
         managedCursor.getProperties().forEach((k, v) -> {
             producerRemoved(k);
@@ -245,8 +270,9 @@ public class MessageDeduplication {
             highestSequencedPersisted.put(k, v);
         });
         // Replay all the entries and apply all the sequence ids updates
-        log.info("[{}] Replaying {} entries for deduplication", topic.getName(),
-                managedCursor.getNumberOfEntries());
+        log.info()
+                .attr("numberOfEntries", managedCursor.getNumberOfEntries())
+                .log("Replaying entries for deduplication");
         return replayTask.replay(cursor, (__, buffer) -> {
             final var metadata = Commands.parseMessageMetadata(buffer);
             final var producerName = metadata.getProducerName();
@@ -266,7 +292,7 @@ public class MessageDeduplication {
             }
         }).thenRun(() -> {
             status = Status.Enabled;
-            log.info("[{}] Enabled deduplication", topic.getName());
+            log.info("Enabled deduplication");
         });
     }
 
@@ -334,17 +360,21 @@ public class MessageDeduplication {
             for (KeyValue kvPair : kvPairList) {
                 if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
                     if (!kvPair.getValue().contains(":")) {
-                        log.warn("[{}] Unexpected {}: {}", publishContext.getProducerName(),
-                                MSG_PROP_REPL_SOURCE_POSITION,
-                                kvPair.getValue());
+                        log.warn()
+                                .attr("producerName", publishContext.getProducerName())
+                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                                .attr("value", kvPair.getValue())
+                                .log("Unexpected");
                         break;
                     }
                     String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
                     if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
                             || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
-                        log.warn("[{}] Unexpected {}: {}", publishContext.getProducerName(),
-                                MSG_PROP_REPL_SOURCE_POSITION,
-                                kvPair.getValue());
+                        log.warn()
+                                .attr("producerName", publishContext.getProducerName())
+                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                                .attr("value", kvPair.getValue())
+                                .log("Unexpected");
                         break;
                     }
                     long[] positionPair = new long[]{Long.valueOf(ledgerIdAndEntryId[0]).longValue(),
@@ -359,12 +389,13 @@ public class MessageDeduplication {
     public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
         Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
         if (positionPairObj == null || !(positionPairObj instanceof long[])) {
-            log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
-                            + " props were are invalid. producer={}. supportsReplDedupByLidAndEid: {}, sequence-id {},"
-                            + " prop-{}: not in expected format",
-                    topic.getName(), publishContext.getProducerName(),
-                    publishContext.supportsReplDedupByLidAndEid(), publishContext.getSequenceId(),
-                    MSG_PROP_REPL_SOURCE_POSITION);
+            log.error()
+                    .attr("producerName", publishContext.getProducerName())
+                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
+                    .attr("sequenceId", publishContext.getSequenceId())
+                    .attr("propKey", MSG_PROP_REPL_SOURCE_POSITION)
+                    .log("Message cannot determine whether it is duplicated due to the acquired message "
+                            + "props being invalid, prop not in expected format");
             return MessageDupStatus.Unknown;
         }
 
@@ -381,12 +412,13 @@ public class MessageDeduplication {
                 && (replSequenceLId < lastSequenceLIdPushed.longValue()
                         || (replSequenceLId == lastSequenceLIdPushed.longValue()
                         && replSequenceEId <= lastSequenceEIdPushed.longValue()))) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message identified as duplicated producer={}. publishing {}:{}, latest publishing"
-                            + " in-progress {}:{}",
-                            topic.getName(), publishContext.getProducerName(), lastSequenceLIdPushed,
-                            lastSequenceEIdPushed, lastSequenceLIdPushed, lastSequenceEIdPushed);
-                }
+                log.debug()
+                        .attr("producerName", publishContext.getProducerName())
+                        .attr("replSequenceLId", replSequenceLId)
+                        .attr("replSequenceEId", replSequenceEId)
+                        .attr("lastSequenceLIdPushed", lastSequenceLIdPushed)
+                        .attr("lastSequenceEIdPushed", lastSequenceEIdPushed)
+                        .log("Message identified as duplicated");
 
                 // Also need to check sequence ids that has been persisted.
                 // If current message's seq id is smaller or equals to the
@@ -397,12 +429,13 @@ public class MessageDeduplication {
                 // at a future time
                 Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
                 Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message identified as duplicated producer={}. publishing {}:{}, latest"
-                                    + " persisted {}:{}",
-                            topic.getName(), publishContext.getProducerName(), replSequenceLId,
-                            replSequenceEId, lastSequenceLIdPersisted, lastSequenceEIdPersisted);
-                }
+                log.debug()
+                        .attr("producerName", publishContext.getProducerName())
+                        .attr("replSequenceLId", replSequenceLId)
+                        .attr("replSequenceEId", replSequenceEId)
+                        .attr("lastSequenceLIdPersisted", lastSequenceLIdPersisted)
+                        .attr("lastSequenceEIdPersisted", lastSequenceEIdPersisted)
+                        .log("Message identified as duplicated producer=. publishing:, latest" + "persisted");
                 if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null
                     && (replSequenceLId < lastSequenceLIdPersisted.longValue()
                         || (replSequenceLId == lastSequenceLIdPersisted.longValue()
@@ -415,10 +448,11 @@ public class MessageDeduplication {
             highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
             highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
         }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Message identified as non-duplicated producer={}. publishing {}:{}",
-                    topic.getName(), publishContext.getProducerName(), replSequenceLId, replSequenceEId);
-        }
+        log.debug()
+                .attr("producerName", publishContext.getProducerName())
+                .attr("replSequenceLId", replSequenceLId)
+                .attr("replSequenceEId", replSequenceEId)
+                .log("Message identified as non-duplicated producer=. publishing");
         return MessageDupStatus.NotDup;
     }
 
@@ -450,10 +484,11 @@ public class MessageDeduplication {
         synchronized (highestSequencedPushed) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
-                            topic.getName(), producerName, sequenceId, lastSequenceIdPushed);
-                }
+                log.debug()
+                        .attr("producerName", producerName)
+                        .attr("sequenceId", sequenceId)
+                        .attr("lastSequenceIdPushed", lastSequenceIdPushed)
+                        .log("Message identified as duplicated");
 
                 // Also need to check sequence ids that has been persisted.
                 // If current message's seq id is smaller or equals to the
@@ -496,12 +531,14 @@ public class MessageDeduplication {
     public void recordMessagePersistedRepl(PublishContext publishContext, Position position) {
         Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
         if (positionPairObj == null || !(positionPairObj instanceof long[])) {
-            log.error("[{}] Can not persist highest sequence-id due to the acquired messages"
-                            + " props are invalid. producer={}. supportsReplDedupByLidAndEid: {}, sequence-id {},"
-                            + " prop-{}: not in expected format",
-                    topic.getName(), publishContext.getProducerName(),
-                    publishContext.supportsReplDedupByLidAndEid(), publishContext.getSequenceId(),
-                    MSG_PROP_REPL_SOURCE_POSITION);
+            log.error()
+                    .attr("producerName", publishContext.getProducerName())
+                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
+                    .attr("sequenceId", publishContext.getSequenceId())
+                    .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                    .log("Can not persist highest sequence-id due to the acquired messages"
+                            + "props are invalid. producer=. supportsReplDedupByLidAndEid:, sequence-id,"
+                            + "prop-: not in expected format");
             recordMessagePersistedNormal(publishContext, position);
             return;
         }
@@ -537,10 +574,10 @@ public class MessageDeduplication {
             snapshotCounter = 0;
             takeSnapshot(position);
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Waiting for sequence-id snapshot {}/{}", topic.getName(), snapshotCounter,
-                        snapshotInterval);
-            }
+            log.debug()
+                    .attr("snapshotCounter", snapshotCounter)
+                    .attr("snapshotInterval", snapshotInterval)
+                    .log("Waiting for sequence-id snapshot");
         }
     }
 
@@ -556,12 +593,12 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
-        }
+        log.debug("Taking snapshot of sequence ids map");
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            log.warn("[{}] There is a pending snapshot when taking snapshot for {}", topic.getName(), position);
+            log.warn()
+                    .attr("position", position)
+                    .log("There is a pending snapshot when taking snapshot for");
             return CompletableFuture.completedFuture(null);
         }
 
@@ -574,18 +611,23 @@ public class MessageDeduplication {
 
         final var cursor = managedCursor;
         if (cursor == null) {
-            log.warn("[{}] Cursor is null when taking snapshot for {}", topic.getName(), position);
+            log.warn()
+                    .attr("position", position)
+                    .log("Cursor is null when taking snapshot for");
             return CompletableFuture.completedFuture(null);
         }
         final var future = markDelete(cursor, position, snapshot).thenRun(() -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
-            }
+            log.debug()
+                    .attr("position", position)
+                    .log("Stored new deduplication snapshot at");
             lastSnapshotTimestamp = System.currentTimeMillis();
             snapshotTaking.set(false);
         });
         future.exceptionally(e -> {
-            log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position, e);
+            log.warn()
+                    .attr("position", position)
+                    .exception(e)
+                    .log("Failed to store new deduplication snapshot at");
             snapshotTaking.set(false);
             return null;
         });
@@ -639,7 +681,9 @@ public class MessageDeduplication {
             long lastActiveTimestamp = entry.getValue();
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
-                log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
+                log.info()
+                        .attr("producerName", producerName)
+                        .log("Purging dedup information for producer");
                 mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
@@ -687,6 +731,4 @@ public class MessageDeduplication {
     Map<String, Long> getInactiveProducers() {
         return inactiveProducers;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);
 }

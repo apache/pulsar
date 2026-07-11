@@ -27,25 +27,26 @@ import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslHandler;
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
-@Slf4j
+@CustomLog
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
@@ -57,6 +58,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final InetSocketAddress socks5ProxyAddress;
     private final String socks5ProxyUsername;
     private final String socks5ProxyPassword;
+    private final Socks5ProxyScope socks5ProxyScope;
     private final ClientConfigurationData conf;
     private final Map<String, PulsarSslFactory> pulsarSslFactoryMap;
 
@@ -71,6 +73,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
         this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
         this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
+        this.socks5ProxyScope = conf.getSocks5ProxyScope();
         this.conf = conf.clone();
         if (tlsEnabled) {
             this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
@@ -106,10 +109,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
      * @return a {@link CompletableFuture} that completes when the TLS is set up.
      */
     CompletableFuture<Channel> initTls(Channel ch, InetSocketAddress sniHost) {
-        Objects.requireNonNull(ch, "A channel is required");
-        Objects.requireNonNull(sniHost, "A sniHost is required");
+        if (ch == null) {
+            return FutureUtil.failedFuture(new NullPointerException("A channel is required"));
+        }
+        if (sniHost == null) {
+            return FutureUtil.failedFuture(new NullPointerException("A sniHost is required"));
+        }
         if (!tlsEnabled) {
-            throw new IllegalStateException("TLS is not enabled in client configuration");
+            return FutureUtil.failedFuture(new IllegalStateException("TLS is not enabled in client configuration"));
         }
         CompletableFuture<Channel> initTlsFuture = new CompletableFuture<>();
         ch.eventLoop().execute(() -> {
@@ -123,7 +130,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                         factory.createInternalSslContext();
                         return factory;
                     } catch (Exception e) {
-                        log.error("Unable to initialize and create the ssl context", e);
+                        log.error().exception(e).log("Unable to initialize and create the ssl context");
                         initTlsFuture.completeExceptionally(e);
                         return null;
                     }
@@ -150,7 +157,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     CompletableFuture<Channel> initSocks5IfConfig(Channel ch) {
         CompletableFuture<Channel> initSocks5Future = new CompletableFuture<>();
-        if (socks5ProxyAddress != null) {
+        // Only apply SOCKS5 to the binary protocol path when the scope includes binary connections.
+        if (socks5ProxyAddress != null && socks5ProxyScope.appliesToBinary()) {
             ch.eventLoop().execute(() -> {
                 try {
                     Socks5ProxyHandler socks5ProxyHandler =
@@ -168,6 +176,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         return initSocks5Future;
     }
 
+    /**
+     * Sentinel logical address marking a connection that the proxy should pair to any broker it
+     * selects (the client sends an empty proxyToBrokerUrl). It is never resolved or dialed — only
+     * the physical address (the proxy) is — and is matched by identity.
+     */
+    static final InetSocketAddress PROXY_TO_ANY_BROKER =
+            InetSocketAddress.createUnresolved("proxy-to-any-broker.pulsar.invalid", 0);
+
     CompletableFuture<Channel> initializeClientCnx(Channel ch,
                                                    InetSocketAddress logicalAddress,
                                                    InetSocketAddress unresolvedPhysicalAddress) {
@@ -178,7 +194,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 throw new IllegalStateException("Missing ClientCnx. This should not happen.");
             }
 
-            if (!logicalAddress.equals(unresolvedPhysicalAddress)) {
+            if (logicalAddress == PROXY_TO_ANY_BROKER) {
+                // Pair through the proxy to any broker: send an empty proxyToBrokerUrl so the proxy
+                // selects a broker and bridges this connection to it.
+                cnx.setProxyToAnyBroker();
+            } else if (!logicalAddress.equals(unresolvedPhysicalAddress)) {
                 // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
                 // it can be specified when sending the CommandConnect.
                 cnx.setTargetBroker(logicalAddress);
@@ -225,13 +245,13 @@ protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData c
                         pulsarSslFactory.getInternalNettySslContext();
                     }
                 } catch (Exception e) {
-                    log.error("SSL Context is not initialized", e);
+                    log.error().exception(e).log("SSL Context is not initialized");
                     PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf, key);
                     pulsarSslFactory.initialize(sslConfiguration);
                 }
                 pulsarSslFactory.update();
             } catch (Exception e) {
-                log.error("Failed to refresh SSL context", e);
+                log.error().exception(e).log("Failed to refresh SSL context");
             }
         });
     }

@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -67,7 +68,8 @@ public interface PulsarCommandSender {
 
     void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
-    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers);
+    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                               boolean supportsScalableTopics);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
                             CommandLookupTopicResponse.LookupType response, long requestId,
@@ -107,4 +109,21 @@ public interface PulsarCommandSender {
                                   List<String> newTopics, List<String> deletedTopics, String topicsHash,
                                   Function<Throwable, CompletableFuture<Void>>
                                                              permitAcquireErrorHandler);
+
+    /**
+     * Send the response to a scalable-topic subscribe request on success. The caller is
+     * responsible for building the {@link ScalableConsumerAssignment}.
+     */
+    void sendScalableTopicSubscribeResponse(long requestId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Send an error response to a scalable-topic subscribe request.
+     */
+    void sendScalableTopicSubscribeError(long requestId, ServerError error, String message);
+
+    /**
+     * Push a segment-assignment update to a previously-subscribed scalable consumer after
+     * a rebalance (peer added/removed, split, merge).
+     */
+    void sendScalableTopicAssignmentUpdate(long consumerId, ScalableConsumerAssignment assignment);
 }

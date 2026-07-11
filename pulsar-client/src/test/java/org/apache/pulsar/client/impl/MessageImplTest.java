@@ -105,6 +105,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -121,7 +122,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // // Check kv.encoding.type default, not set value
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -133,6 +134,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineGetProducerDataAssigned() {
 
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -150,7 +152,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // Check kv.encoding.type INLINE
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("inline");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -162,6 +164,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -178,7 +181,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // Check kv.encoding.type SPRAERATE
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
@@ -192,6 +195,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -212,7 +216,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -228,6 +232,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -248,7 +253,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
@@ -266,6 +271,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -286,7 +292,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -302,6 +308,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -322,7 +329,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
@@ -340,6 +347,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -360,7 +368,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -376,6 +384,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -396,7 +405,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);

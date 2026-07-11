@@ -19,13 +19,13 @@
 package org.apache.pulsar.compaction;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -61,14 +61,18 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
 
     @Override
     public CompletableFuture<Void> initialize(@NonNull PulsarService pulsarService) {
-        Objects.requireNonNull(pulsarService);
+        if (pulsarService == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected pulsarService should not be null"));
+        }
         this.pulsarService = pulsarService;
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<TopicCompactionService> newTopicCompactionService(@NonNull String topic) {
-        Objects.requireNonNull(topic);
+        if (topic == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected topic should not be null"));
+        }
         PulsarTopicCompactionService pulsarTopicCompactionService =
                 new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
                     try {

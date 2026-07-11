@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
@@ -54,7 +54,7 @@ import org.apache.pulsar.io.core.SourceContext;
  * intermediate topic. All the instances consume tasks from this intermediate topic using a shared subscription.
  */
 
-@Slf4j
+@CustomLog
 public class BatchSourceExecutor<T> implements Source<T> {
 
   private Map<String, Object> config;
@@ -100,8 +100,10 @@ public class BatchSourceExecutor<T> implements Source<T> {
       if (retval == null) {
         // signals end if this batch
         intermediateTopicConsumer.acknowledgeAsync(currentTask.getMessageId()).exceptionally(throwable -> {
-          log.error("Encountered error when "
-                  + "acknowledging completed task with id {}", currentTask.getMessageId(), throwable);
+          log.error()
+                  .attr("messageId", currentTask.getMessageId())
+                  .exception(throwable)
+                  .log("Encountered error when acknowledging completed task");
           setCurrentError(throwable);
           return null;
         });
@@ -130,7 +132,9 @@ public class BatchSourceExecutor<T> implements Source<T> {
       batchSourceClassName,
       clsLoader);
     if (userClassObject instanceof BatchSource) {
-      batchSource = (BatchSource) userClassObject;
+      @SuppressWarnings("unchecked") // type parameter is erased at runtime
+      BatchSource<T> typedBatchSource = (BatchSource<T>) userClassObject;
+      batchSource = typedBatchSource;
     } else {
       throw new IllegalArgumentException("BatchSource does not implement the correct interface");
     }
@@ -172,7 +176,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
         batchSource.discover(task -> taskEater(discoveredEvent, task));
       } catch (Exception e) {
         if (isRunning || !(e instanceof InterruptedException)) {
-          log.error("Encountered error during task discovery", e);
+          log.error().exception(e).log("Encountered error during task discovery");
           setCurrentError(e);
         }
       } finally {
@@ -192,7 +196,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       // the connector so that errors can be handled by the connector
       message.send();
     } catch (Exception e) {
-      log.error("error writing discovered task to intermediate topic", e);
+      log.error().exception(e).log("Error writing discovered task to intermediate topic");
       throw new RuntimeException("error writing discovered task to intermediate topic");
     }
   }
@@ -201,7 +205,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
     try {
       batchSource.prepare(task.getValue());
     } catch (Exception e) {
-      log.error("Error on prepare", e);
+      log.error().exception(e).log("Error on prepare");
       throw new RuntimeException(e);
     }
   }
@@ -218,7 +222,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       try {
         discoveryTriggerer.stop();
       } catch (Exception e) {
-        log.error("Encountered exception when closing Batch Source Triggerer", e);
+        log.error().exception(e).log("Encountered exception when closing Batch Source Triggerer");
         ex = e;
       }
       discoveryTriggerer = null;
@@ -236,7 +240,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       try {
         intermediateTopicConsumer.close();
       } catch (Exception e) {
-        log.error("Encountered exception when closing intermediate topic of Batch Source", e);
+        log.error().exception(e).log("Encountered exception when closing intermediate topic of Batch Source");
         if (ex != null) {
           ex = e;
         }
@@ -247,7 +251,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       try {
         batchSource.close();
       } catch (Exception e) {
-        log.error("Encountered exception when closing Batch Source", e);
+        log.error().exception(e).log("Encountered exception when closing Batch Source");
         if (ex != null) {
           ex = e;
         }
@@ -281,7 +285,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
                   .subscriptionType(SubscriptionType.Shared)
                   .topic(intermediateTopicName)
                   .properties(InstanceUtils.getProperties(
-                    Function.FunctionDetails.ComponentType.SOURCE, fqfn, sourceContext.getInstanceId()))
+                    FunctionDetails.ComponentType.SOURCE, fqfn, sourceContext.getInstanceId()))
                   .subscribeAsync();
                 intermediateTopicConsumer = cf.join();
                 return Actions.ActionResult.builder()
@@ -297,7 +301,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
             .build())
         .run();
     } catch (InterruptedException e) {
-      log.error("Error setting up instance subscription for intermediate topic", e);
+      log.error().exception(e).log("Error setting up instance subscription for intermediate topic");
       throw new RuntimeException(e);
     }
   }

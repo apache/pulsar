@@ -19,11 +19,13 @@
 package org.apache.pulsar.common.configuration;
 
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
+import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.runtimeConfigurationOverrides;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -31,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -228,6 +231,51 @@ public class PulsarConfigurationLoaderTest {
         assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMin()));
         assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMax()));
         assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMix()));
+    }
+
+    @Test
+    public void testRuntimeConfigurationOverrides() {
+        // A fresh configuration has no overrides.
+        assertTrue(runtimeConfigurationOverrides(new ServiceConfiguration()).isEmpty());
+
+        ServiceConfiguration config = new ServiceConfiguration();
+
+        // String override.
+        config.setClusterName("my-cluster");
+        // int override.
+        config.setManagedLedgerDefaultEnsembleSize(5);
+        // long override.
+        config.setMetadataStoreSessionTimeoutMillis(60_000L);
+        // boolean override.
+        config.setBrokerDeleteInactiveTopicsEnabled(false);
+        // double override.
+        config.setManagedLedgerDefaultMarkDeleteRateLimit(5.0);
+        // enum override.
+        config.setManagedLedgerDigestType(DigestType.MAC);
+        // Optional<Integer> override.
+        config.setBrokerServicePort(Optional.of(7777));
+        // Set<String> override.
+        config.setSuperUserRoles(Sets.newHashSet("admin", "ops"));
+        // Setting a field to its default value: should NOT appear in overrides.
+        config.setNumIOThreads(config.getNumIOThreads());
+        // Extra property not backed by a declared FieldContext field.
+        config.getProperties().setProperty("custom.plugin.option", "enabled");
+
+        Map<String, Object> overrides = runtimeConfigurationOverrides(config);
+
+        assertEquals(overrides.get("clusterName"), "my-cluster");
+        assertEquals(overrides.get("managedLedgerDefaultEnsembleSize"), 5);
+        assertEquals(overrides.get("metadataStoreSessionTimeoutMillis"), 60_000L);
+        assertEquals(overrides.get("brokerDeleteInactiveTopicsEnabled"), false);
+        assertEquals(overrides.get("managedLedgerDefaultMarkDeleteRateLimit"), 5.0);
+        assertEquals(overrides.get("managedLedgerDigestType"), DigestType.MAC);
+        assertEquals(overrides.get("brokerServicePort"), Optional.of(7777));
+        assertEquals(overrides.get("superUserRoles"), Sets.newHashSet("admin", "ops"));
+        assertEquals(overrides.get("custom.plugin.option"), "enabled");
+
+        // Unchanged fields must not appear.
+        assertFalse(overrides.containsKey("numIOThreads"));
+        assertFalse(overrides.containsKey("metadataStoreUrl"));
     }
 
     static class TestCompleteObject {

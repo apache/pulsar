@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -184,7 +183,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         for (String ns : namespaceList) {
             admin.namespaces().createNamespace(ns);
-            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"), false);
         }
 
         final String topic = "persistent://prop/ns-abc/testDeletePolicyUpdate";
@@ -259,7 +258,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         for (String ns : namespaceList) {
             admin.namespaces().createNamespace(ns);
-            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"), false);
         }
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptionsWithMultiConfig";
@@ -394,6 +393,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
         super.baseSetup();
@@ -420,6 +420,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 -> assertNull(admin.topics().getInactiveTopicPolicies(topicName)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
@@ -498,6 +499,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
@@ -552,6 +554,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testInactiveTopicApplied() throws Exception {
         super.baseSetup();
@@ -609,29 +612,18 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
         // init topic
-        NamespaceName heartbeatNamespaceV1 = NamespaceService
+        NamespaceName heartbeatNamespace = NamespaceService
                 .getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfig());
-        final String healthCheckTopicV1 = "persistent://" + heartbeatNamespaceV1 + "/healthcheck";
+        final String healthCheckTopic = "persistent://" + heartbeatNamespace + "/healthcheck";
 
-        NamespaceName heartbeatNamespaceV2 = NamespaceService
-                .getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfig());
-        final String healthCheckTopicV2 = "persistent://" + heartbeatNamespaceV2 + "/healthcheck";
+        admin.brokers().healthcheck();
 
-        admin.brokers().healthcheck(TopicVersion.V1);
-        admin.brokers().healthcheck(TopicVersion.V2);
-
-        List<String> v1Partitions = pulsar
+        List<String> partitions = pulsar
                 .getPulsarResources()
                 .getTopicResources()
-                .getExistingPartitions(TopicName.get(healthCheckTopicV1))
+                .getExistingPartitions(TopicName.get(healthCheckTopic))
                 .get(10, TimeUnit.SECONDS);
-        List<String> v2Partitions = pulsar
-                .getPulsarResources()
-                .getTopicResources()
-                .getExistingPartitions(TopicName.get(healthCheckTopicV2))
-                .get(10, TimeUnit.SECONDS);
-        Assert.assertTrue(v1Partitions.contains(healthCheckTopicV1));
-        Assert.assertTrue(v2Partitions.contains(healthCheckTopicV2));
+        Assert.assertTrue(partitions.contains(healthCheckTopic));
     }
 
     @Test

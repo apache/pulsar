@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
@@ -31,6 +32,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -38,17 +43,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -70,6 +80,7 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private void createConsumer(ConsumerConfigurationData consumerConf) {
         executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -108,9 +119,9 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(),
+        Assert.assertEquals(backoff.getMax().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(),
+        Assert.assertEquals(backoff.getInitial().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
@@ -147,8 +158,10 @@ public class ConsumerImplTest {
     }
 
     @Test(invocationTimeOut = 1000)
+    @SuppressWarnings("unchecked")
     public void testNotifyPendingReceivedCallback_InterceptorsWorksWithPrefetchDisabled() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
         MessageImpl message = mock(MessageImpl.class);
         ConsumerImpl<byte[]> spy = spy(consumer);
 
@@ -165,8 +178,10 @@ public class ConsumerImplTest {
     }
 
     @Test(invocationTimeOut = 1000)
+    @SuppressWarnings("unchecked")
     public void testNotifyPendingReceivedCallback_WorkNormally() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
         MessageImpl message = mock(MessageImpl.class);
         ConsumerImpl<byte[]> spy = spy(consumer);
 
@@ -260,11 +275,11 @@ public class ConsumerImplTest {
 
     @Test
     public void testTopicPriorityLevel() {
-        ConsumerConfigurationData<Object> consumerConf = new ConsumerConfigurationData<>();
-        consumerConf.getTopicConfigurations().add(
+        ConsumerConfigurationData<byte[]> consumerConf2 = new ConsumerConfigurationData<>();
+        consumerConf2.getTopicConfigurations().add(
                 TopicConsumerConfigurationData.ofTopicName(topic, 1));
 
-        createConsumer(consumerConf);
+        createConsumer(consumerConf2);
 
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
     }
@@ -303,5 +318,84 @@ public class ConsumerImplTest {
     public void testAutoGenerateConsumerName() {
         Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
         assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
+    }
+
+    @Test(invocationTimeOut = 1000)
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testUpdateAutoScaleReceiverQueueHintRaceWithConcurrentDrain() {
+        // Regression test: ConsumerBase.enqueueMessageAndCheckBatchReceive() calls
+        // updateAutoScaleReceiverQueueHint() after incomingMessages.offer(message) under
+        // incomingQueueLock, but incomingMessages.take()/poll() does NOT acquire that lock.
+        // A consumer thread draining the queue in parallel with the client-IO thread's
+        // enqueue can therefore remove the just-offered message before the hint read of
+        // incomingMessages.size() runs. The hint would then see size() == 0 and be
+        // spuriously cleared, even though the pipeline was full at enqueue time.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        consumer.setCurrentReceiverQueueSize(1);
+
+        // Simulate the race: enqueue a message and drain it before the hint is computed.
+        MessageImpl message = mock(MessageImpl.class);
+        when(message.size()).thenReturn(100);
+        consumer.incomingMessages.offer(message);
+        consumer.incomingMessages.poll();
+
+        Assert.assertEquals(consumer.incomingMessages.size(), 0);
+        Assert.assertEquals(consumer.getAvailablePermits(), 0);
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 1);
+
+        consumer.updateAutoScaleReceiverQueueHint();
+
+        Assert.assertTrue(consumer.scaleReceiverQueueHint.get(),
+                "Hint must reflect the post-enqueue state (pipeline had >=1 message); "
+                        + "a concurrent drain of the just-enqueued message must not clear it.");
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testGetMessageAtSyncsAckSetInMessageIdWithBrokerAckSet() {
+        // Regression test for MessagePayloadContextImpl#getMessageAt: the BatchMessageIdImpl handed
+        // back to the caller carries a shared ackSetInMessageId bitset that must be seeded from the
+        // broker-reported ackSet, not a fresh "all unacked" bitset. Otherwise indices the broker
+        // already knows are acked would be reported as still-outstanding in the returned MessageId,
+        // which is the same root cause that let acked batch messages leak into the DLQ (see
+        // ConsumerImpl#receiveIndividualMessagesFromBatch and its ackSetInMessageId.and(...) fix).
+        final int batchSize = 3;
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setProducerName("test-producer")
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(batchSize);
+
+        // Broker reports index 0 as already acked (bit cleared); indices 1 and 2 are still
+        // outstanding (bits set). This mirrors the ackSet the broker attaches on redelivery.
+        BitSet brokerAckSet = new BitSet(batchSize);
+        brokerAckSet.set(1);
+        brokerAckSet.set(2);
+        List<Long> ackSet = Arrays.stream(brokerAckSet.toLongArray()).boxed().collect(Collectors.toList());
+
+        MessageIdImpl messageId = new MessageIdImpl(1L, 2L, -1);
+        MessagePayloadContextImpl context = MessagePayloadContextImpl.get(
+                null, messageMetadata, messageId, consumer, 0, ackSet, DEFAULT_CONSUMER_EPOCH);
+        MessagePayload payload0 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{0}));
+        MessagePayload payload1 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{1}));
+        try {
+            // Index 0 is already acked per the broker, so it must not be redelivered to the app.
+            Assert.assertNull(context.getMessageAt(0, batchSize, payload0, false, Schema.BYTES));
+
+            Message<byte[]> message1 = context.getMessageAt(1, batchSize, payload1, false, Schema.BYTES);
+            Assert.assertNotNull(message1);
+
+            BitSet ackSetInMessageId = ((MessageIdAdv) message1.getMessageId()).getAckSet();
+            Assert.assertFalse(ackSetInMessageId.get(0),
+                    "index 0 was already acked by the broker, so the returned MessageId's ackSet "
+                            + "must reflect it as acked, not fall back to the default all-unacked state");
+            Assert.assertTrue(ackSetInMessageId.get(1), "index 1 is still outstanding");
+            Assert.assertTrue(ackSetInMessageId.get(2), "index 2 is still outstanding");
+        } finally {
+            payload0.release();
+            payload1.release();
+            context.recycle();
+        }
     }
 }

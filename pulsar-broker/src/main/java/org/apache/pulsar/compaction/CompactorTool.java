@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
@@ -44,14 +45,13 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
 @Command(name = "compact-topic", showDefaultValues = true, scope = ScopeType.INHERIT)
+@CustomLog
 public class CompactorTool {
 
     private static class Arguments {
@@ -147,7 +147,6 @@ public class CompactorTool {
         final ServiceConfiguration brokerConfig =
                 PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
 
-
         if (isBlank(brokerConfig.getMetadataStoreUrl())) {
             final String message = String.format("""
                     Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
@@ -193,8 +192,9 @@ public class CompactorTool {
         }
 
         long ledgerId = compactor.compact(arguments.topic).get();
-        log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
+        log.info()
+                .attr("topic", arguments.topic)
+                .attr("ledgerId", ledgerId)
+                .log("Compaction of topic complete");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(CompactorTool.class);
 }

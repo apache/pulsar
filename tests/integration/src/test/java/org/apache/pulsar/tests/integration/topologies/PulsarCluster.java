@@ -37,8 +37,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
@@ -58,7 +58,7 @@ import org.testcontainers.containers.Network;
 /**
  * Pulsar Cluster in containers.
  */
-@Slf4j
+@CustomLog
 public class PulsarCluster {
 
     public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
@@ -115,6 +115,7 @@ public class PulsarCluster {
     private final String metadataStoreUrl;
     private final String configurationMetadataStoreUrl;
 
+    @SuppressWarnings("deprecation")
     private PulsarCluster(PulsarClusterSpec spec, Network network, CSContainer csContainer, boolean sharedCsContainer) {
         this.spec = spec;
         this.sharedCsContainer = sharedCsContainer;
@@ -406,19 +407,19 @@ public class PulsarCluster {
 
         // start bookies
         bookieContainers.values().forEach(BKContainer::start);
-        log.info("Successfully started {} bookie containers.", bookieContainers.size());
+        log.info().attr("started", bookieContainers.size()).log("Successfully started bookie containers.");
 
         // start brokers
         this.startAllBrokers();
-        log.info("Successfully started {} broker containers.", brokerContainers.size());
+        log.info().attr("started", brokerContainers.size()).log("Successfully started broker containers.");
 
         // create proxy
         proxyContainer.start();
         log.info("Successfully started pulsar proxy.");
 
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        log.info().attr("url", getPlainTextServiceUrl()).log("\tBinary Service Url");
+        log.info().attr("url", getHttpServiceUrl()).log("\tHttp Service Url");
 
         // start external services
         this.externalServices = spec.externalServices;
@@ -435,19 +436,19 @@ public class PulsarCluster {
                 }
                 PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
-                log.info("Successfully started external service {}.", service.getKey());
+                log.info().attr("service", service.getKey()).log("Successfully started external service .");
             });
         }
     }
 
     public void startService(String networkAlias,
                              GenericContainer<?> serviceContainer) {
-        log.info("Starting external service {} ...", networkAlias);
+        log.info().attr("service", networkAlias).log("Starting external service ...");
         serviceContainer.withNetwork(network);
         serviceContainer.withNetworkAliases(networkAlias);
         PulsarContainer.configureLeaveContainerRunning(serviceContainer);
         serviceContainer.start();
-        log.info("Successfully start external service {}", networkAlias);
+        log.info().attr("service", networkAlias).log("Successfully start external service");
     }
 
     public static void stopService(String networkAlias,
@@ -456,9 +457,9 @@ public class PulsarCluster {
             logIgnoringStopDueToLeaveRunning();
             return;
         }
-        log.info("Stopping external service {} ...", networkAlias);
+        log.info().attr("service", networkAlias).log("Stopping external service ...");
         serviceContainer.stop();
-        log.info("Successfully stop external service {}", networkAlias);
+        log.info().attr("service", networkAlias).log("Successfully stop external service");
     }
 
 
@@ -510,7 +511,10 @@ public class PulsarCluster {
             try {
                 network.close();
             } catch (Exception e) {
-                log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
+                log.info()
+                        .attr("cluster", clusterName)
+                        .exception(e)
+                        .log("Failed to shutdown network for pulsar cluster");
             }
         }
     }
@@ -581,7 +585,7 @@ public class PulsarCluster {
     public synchronized void startWorkers() {
         // Start workers that have been initialized
         workerContainers.values().parallelStream().forEach(WorkerContainer::start);
-        log.info("Successfully started {} worker containers.", workerContainers.size());
+        log.info().attr("started", workerContainers.size()).log("Successfully started worker containers.");
     }
 
     public synchronized void stopWorker(String workerName) {
@@ -592,12 +596,12 @@ public class PulsarCluster {
         // Stop the named worker.
         WorkerContainer worker = workerContainers.get(workerName);
         if (worker == null) {
-            log.warn("Failed to find the worker to stop ({})", workerName);
+            log.warn().attr("stop", workerName).log("Failed to find the worker to stop ( )");
             return;
         }
         worker.stop();
         workerContainers.remove(workerName);
-        log.info("Worker {} stopped and removed from the map of worker containers", workerName);
+        log.info().attr("worker", workerName).log("Worker stopped and removed from the map of worker containers");
     }
 
     public synchronized void stopWorkers() {
@@ -617,7 +621,7 @@ public class PulsarCluster {
                     .withNetwork(network)
                     .withNetworkAliases(name)
                     .start();
-            log.info("Successfully start container {}.", name);
+            log.info().attr("container", name).log("Successfully start container .");
         });
     }
 
@@ -627,7 +631,7 @@ public class PulsarCluster {
             return;
         }
         containers.values().parallelStream().forEach(GenericContainer::stop);
-        log.info("Successfully stop containers : {}", containers);
+        log.info().attr("containers", containers).log("Successfully stop containers");
     }
 
     private static void logIgnoringStopDueToLeaveRunning() {
@@ -756,7 +760,10 @@ public class PulsarCluster {
                     return IOUtils.toString(inputStream, "utf-8");
                 }));
             } catch (Exception e) {
-                log.error("Failed to get function logs from container {}", container.getContainerName(), e);
+                log.error()
+                        .attr("container", container.getContainerName())
+                        .exception(e)
+                        .log("Failed to get function logs from container");
             }
         }
         return logs.toString();
@@ -764,18 +771,28 @@ public class PulsarCluster {
 
     public void dumpFunctionLogs(String name) {
         for (WorkerContainer container : getAlWorkers()) {
-            log.info("Trying to get function {} logs from container {}", name, container.getContainerName());
+            log.info()
+                    .attr("function", name)
+                    .attr("container", container.getContainerName())
+                    .log("Trying to get function logs from container");
             try {
                 String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
                 String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
                     return IOUtils.toString(inputStream, "utf-8");
                 });
-                log.info("Function {} logs {}", name, logs);
+                log.info().attr("function", name).attr("logs", logs).log("Function logs");
             } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
-                log.info("Cannot download {} logs from {} not found exception {}", name, container.getContainerName(),
-                        notFound.toString());
+                log.info()
+                        .attr("download", name)
+                        .attr("from", container.getContainerName())
+                        .attr("exception", notFound.toString())
+                        .log("Cannot download logs from not found exception");
             } catch (Throwable err) {
-                log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
+                log.info()
+                        .attr("download", name)
+                        .attr("from", container.getContainerName())
+                        .exception(err)
+                        .log("Cannot download logs from");
             }
         }
     }

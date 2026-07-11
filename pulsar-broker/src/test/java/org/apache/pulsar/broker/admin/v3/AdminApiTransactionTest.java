@@ -708,6 +708,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdateTransactionCoordinatorNumber() throws Exception {
         int coordinatorSize = 3;
         pulsar.getPulsarResources()
@@ -1039,7 +1040,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 4 * n; i++) {
             Message<byte[]> peekMsg = peekMsgs.get(i);
-            MessageImpl peekMsgImpl = (MessageImpl) peekMsg;
+            MessageImpl<?> peekMsgImpl = (MessageImpl<?>) peekMsg;
             MessageMetadata metadata = peekMsgImpl.getMessageBuilder();
             if (metadata.hasMarkerType()) {
                 assertTrue(metadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE

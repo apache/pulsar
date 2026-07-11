@@ -312,6 +312,7 @@ public class PulsarShell {
     }
 
     private static class InterruptShellException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     private static class CommandsInfo {

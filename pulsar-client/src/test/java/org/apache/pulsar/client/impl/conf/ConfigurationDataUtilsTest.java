@@ -77,7 +77,15 @@ public class ConfigurationDataUtilsTest {
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
         assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
         assertEquals(0, confData.getDnsLookupBindPort());
-        assertEquals(dnsServerAddresses, confData.getDnsServerAddresses());
+        // jackson-databind 2.22+ defers DNS resolution when deserializing InetSocketAddress
+        // (CVE-2026-54514 fix), which changes the resolved/unresolved representation. Compare host
+        // and port — the values that must survive the config round-trip — instead of object equality.
+        List<InetSocketAddress> loadedDnsServerAddresses = confData.getDnsServerAddresses();
+        assertEquals(loadedDnsServerAddresses.size(), dnsServerAddresses.size());
+        for (int i = 0; i < dnsServerAddresses.size(); i++) {
+            assertEquals(loadedDnsServerAddresses.get(i).getHostString(), dnsServerAddresses.get(i).getHostString());
+            assertEquals(loadedDnsServerAddresses.get(i).getPort(), dnsServerAddresses.get(i).getPort());
+        }
     }
 
     @Test
@@ -100,7 +108,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConsumerConfigurationData() {
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
+        ConsumerConfigurationData<?> confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
         confData.setConsumerName("unknown-consumer");
@@ -117,7 +125,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadReaderConfigurationData() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -132,7 +140,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConfigurationDataWithUnknownFields() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -166,6 +174,7 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();
