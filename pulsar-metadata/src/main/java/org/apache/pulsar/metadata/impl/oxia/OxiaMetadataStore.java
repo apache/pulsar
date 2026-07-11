@@ -187,7 +187,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                         children -> {
                             if (!children.isEmpty()) {
                                 return CompletableFuture.failedFuture(
-                                        new MetadataStoreException("Key '" + path + "' has children"));
+                                        new MetadataStoreException.NotEmptyException(path));
                             } else {
                                 Set<DeleteOption> delOption = deleteOptions(opts, expectedVersion);
                                 CompletableFuture<Boolean> result = client.delete(path, delOption);

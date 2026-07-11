@@ -44,39 +44,116 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
  * <p>This replaces the previous {@code LinkedTransferQueue} + {@code supplyAsync(take())}
  * approach: {@link #receiveAsync()} parks no thread, is cancelable, and honours timeouts
  * via the client timer instead of blocking a {@code ForkJoinPool.commonPool()} worker.
+ *
+ * <p>Backpressure: {@link #offer} returns a future that completes only when the buffer has
+ * room. Producers gate re-arming on it, so the buffer is bounded by {@code receiverQueueSize}
+ * plus one in-flight message per producer (each producer offers at most one message before
+ * observing the pause) — modelled on v4 {@code MultiTopicsConsumerImpl}'s pause/resume of
+ * sub-consumers, including its fairness rule: once any producer is paused, further offers
+ * pause at the half-way mark too, so active producers can't hold the buffer above the resume
+ * threshold and starve the paused ones.
  */
 final class V5ReceiveQueue<T> {
 
+    /** Shared pre-completed capacity grant for the fast path — no allocation, no executor hop. */
+    private static final CompletableFuture<Void> READY = CompletableFuture.completedFuture(null);
+
     private final ExecutorService executor;
     private final Timer timer;
+    /** Producers pause once the buffer reaches this size, and resume once it drains to half. */
+    private final int highWatermark;
+    private final int lowWatermark;
 
-    // Both touched only on `executor`, so plain (non-concurrent) collections are safe.
+    // All three touched only on `executor`, so plain (non-concurrent) collections are safe.
     private final ArrayDeque<Message<T>> buffer = new ArrayDeque<>();
     private final ArrayDeque<CompletableFuture<Message<T>>> pendingReceives = new ArrayDeque<>();
+    // Capacity futures handed back to producers that were paused because the buffer was full.
+    private final ArrayDeque<CompletableFuture<Void>> capacityWaiters = new ArrayDeque<>();
     private boolean closed = false;
 
-    V5ReceiveQueue(ExecutorService executor, Timer timer) {
+    // Snapshots of executor-confined state, readable from producer threads so the offer()
+    // fast path can decide without a hop. Written only on `executor`; may lag by the offers
+    // still queued, so each producer (one in-flight offer at a time) can overshoot by one.
+    private volatile int approxBufferSize = 0;
+    private volatile boolean producersPaused = false;
+
+    V5ReceiveQueue(ExecutorService executor, Timer timer, int receiverQueueSize) {
         this.executor = executor;
         this.timer = timer;
+        this.highWatermark = Math.max(1, receiverQueueSize);
+        this.lowWatermark = highWatermark / 2;
     }
 
     /**
      * Deposit a freshly-arrived message. Called from the per-segment receive loops (which
      * run on a v4 client executor). Hands the message straight to a waiting receive future
      * if there is one, otherwise buffers it.
+     *
+     * @return a future that completes when the sink is ready for the next message — right
+     *     away unless the buffer is filling up, in which case it defers until the consumer
+     *     drains it below the low watermark (backpressure).
      */
-    void offer(Message<T> msg) {
-        executor.execute(() -> {
-            if (closed) {
-                return;
+    CompletableFuture<Void> offer(Message<T> msg) {
+        // Fast path, decided on the caller thread: while the buffer is comfortably below the
+        // watermarks and nobody is paused, grant capacity with a shared completed future so
+        // the (fast-consumer) hot path pays no allocation and no serialized hop through our
+        // executor before the segment loop re-arms.
+        if (!producersPaused && approxBufferSize < lowWatermark) {
+            executor.execute(() -> doOffer(msg, null));
+            return READY;
+        }
+        CompletableFuture<Void> capacity = new CompletableFuture<>();
+        executor.execute(() -> doOffer(msg, capacity));
+        return capacity;
+    }
+
+    /** Runs on {@code executor}. {@code capacity} is null when the fast path already granted it. */
+    private void doOffer(Message<T> msg, CompletableFuture<Void> capacity) {
+        if (closed) {
+            if (capacity != null) {
+                capacity.complete(null);
             }
-            CompletableFuture<Message<T>> waiter = pollWaiter();
-            if (waiter != null) {
-                waiter.complete(msg);
-            } else {
-                buffer.add(msg);
+            return;
+        }
+        CompletableFuture<Message<T>> waiter = pollWaiter();
+        if (waiter != null) {
+            // Handed straight to a waiting receiver; the buffer didn't grow.
+            waiter.complete(msg);
+            if (capacity != null) {
+                capacity.complete(null);
             }
-        });
+            return;
+        }
+        buffer.add(msg);
+        approxBufferSize = buffer.size();
+        if (capacity == null) {
+            return;
+        }
+        // Pause when full — or, once any producer is paused, already at the half-way mark, so
+        // active producers can't keep the buffer hovering above the resume threshold while the
+        // paused ones starve (v4 MultiTopicsConsumerImpl's fairness clause).
+        if (buffer.size() >= highWatermark
+                || (!capacityWaiters.isEmpty() && buffer.size() > lowWatermark)) {
+            capacityWaiters.add(capacity);
+            producersPaused = true;
+        } else {
+            capacity.complete(null);
+        }
+    }
+
+    /** Resume paused producers once the buffer has drained to the low watermark. */
+    private void maybeResumeProducers() {
+        if (buffer.size() <= lowWatermark && !capacityWaiters.isEmpty()) {
+            CompletableFuture<Void> capacity;
+            while ((capacity = capacityWaiters.poll()) != null) {
+                // Post each completion as its own task (as v4 does) instead of completing
+                // inline: each grant synchronously runs a segment loop's re-arm, and a wide
+                // release would otherwise stall queued user receive completions behind it.
+                CompletableFuture<Void> c = capacity;
+                executor.execute(() -> c.complete(null));
+            }
+            producersPaused = false;
+        }
     }
 
     /** Receive a message, completing as soon as one is available. Never blocks a thread. */
@@ -89,7 +166,9 @@ final class V5ReceiveQueue<T> {
             }
             Message<T> msg = buffer.poll();
             if (msg != null) {
+                approxBufferSize = buffer.size();
                 result.complete(msg);
+                maybeResumeProducers();
             } else {
                 pendingReceives.add(result);
             }
@@ -110,7 +189,9 @@ final class V5ReceiveQueue<T> {
             }
             Message<T> msg = buffer.poll();
             if (msg != null) {
+                approxBufferSize = buffer.size();
                 result.complete(msg);
+                maybeResumeProducers();
                 return;
             }
             long millis = timeout.toMillis();
@@ -174,6 +255,8 @@ final class V5ReceiveQueue<T> {
             while (batch.size() < max && (m = buffer.poll()) != null) {
                 batch.add(m);
             }
+            approxBufferSize = buffer.size();
+            maybeResumeProducers();
             done.complete(null);
         });
         return done;
@@ -224,7 +307,14 @@ final class V5ReceiveQueue<T> {
                     waiter.completeExceptionally(alreadyClosed());
                 }
             }
+            // Release any paused producers so their receive loops re-arm and observe the close.
+            CompletableFuture<Void> capacity;
+            while ((capacity = capacityWaiters.poll()) != null) {
+                capacity.complete(null);
+            }
+            producersPaused = false;
             buffer.clear();
+            approxBufferSize = 0;
         });
     }
 

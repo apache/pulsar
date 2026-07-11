@@ -361,6 +361,11 @@ message KeySharedMeta {
     required KeySharedMode keySharedMode = 1;
     repeated IntRange hashRanges = 3;
     optional bool allowOutOfOrderDelivery = 4 [default = false];
+    // PIP-486: the subscription dispatches whole entries by their producer-stamped entry-bucket
+    // hash range (entry_hash_min) instead of hashing each message's key. Set only by scalable-topic
+    // consumers sharing a segment by entry-bucket; plain Key_Shared subscriptions leave it unset,
+    // so their (possibly stamped) entries keep dispatching by key.
+    optional bool entryBucketDispatch = 5 [default = false];
 }
 
 message CommandSubscribe {
