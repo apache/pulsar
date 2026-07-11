@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
@@ -460,6 +461,9 @@ public class PersistentTopicsBase extends AdminResource {
                                                 // We must not re-create non-durable subscriptions on the new partitions
                                                 .stream().filter(entry -> entry.getValue().isDurable())
                                                 .map(entry -> {
+                                                    Map<String, String> subscriptionProperties =
+                                                            filterSubscriptionPropertiesForPartitionExpansion(
+                                                                    entry.getValue().getSubscriptionProperties());
                                                     final List<CompletableFuture<Void>> innerFutures =
                                                             new ArrayList<>(expectPartitions);
                                                     for (int i = 0; i < expectPartitions; i++) {
@@ -467,7 +471,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                         topicName.getPartition(i).toString(),
                                                                         entry.getKey(), MessageId.earliest,
                                                                         entry.getValue().isReplicated(),
-                                                                        entry.getValue().getSubscriptionProperties())
+                                                                        subscriptionProperties)
                                                                 .exceptionally(ex -> {
                                                                     Throwable rc =
                                                                             FutureUtil.unwrapCompletionException(ex);
@@ -532,6 +536,23 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    /**
+     * Returns the properties that can be applied to a subscription on a newly created partition.
+     *
+     * <p>Cursor internal properties belong to the source partition and must not be copied. Keep all filtering
+     * rules here so partition expansion has a single property-copy boundary.</p>
+     */
+    private static Map<String, String> filterSubscriptionPropertiesForPartitionExpansion(
+            Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null) {
+            return null;
+        }
+
+        Map<String, String> filteredProperties = new HashMap<>(subscriptionProperties);
+        filteredProperties.keySet().removeIf(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX));
+        return filteredProperties;
     }
 
     private CompletableFuture<Set<String>> getReplicationClusters() {
