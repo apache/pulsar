@@ -52,10 +52,6 @@ public class NamespaceBundleStatsComparator implements Comparator<String>, Seria
             result = map.get(a).compareTo(map.get(b));
         }
 
-        if (result > 0) {
-            return -1;
-        } else {
-            return 1;
-        }
+        return result != 0 ? -result : a.compareTo(b);
     }
 }
