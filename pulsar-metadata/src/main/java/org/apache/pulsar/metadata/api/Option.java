@@ -77,7 +77,8 @@ public sealed interface Option {
      * <p>Backends only consult this option when they have a primary key before fetching a record;
      * regular point operations should use {@link PartitionKey}.
      *
-     * @param resolver function mapping primary path to partition key; may return {@code null} if unknown
+     * @param resolver function mapping primary path to its partition key. The function must return a
+     *                 non-null key for every primary path returned by the scan.
      */
     record PartitionKeyResolver(Function<String, String> resolver) implements Option {
         public PartitionKeyResolver {

@@ -72,7 +72,8 @@ public final class OptionsHelper {
             if (o instanceof Option.PartitionKeyResolver resolver) {
                 String partitionKey = resolver.resolver().apply(path);
                 if (partitionKey == null) {
-                    return opts;
+                    throw new IllegalStateException(
+                            "Partition key resolver returned null for primary path " + path);
                 }
                 HashSet<Option> result = new HashSet<>(opts);
                 result.add(new Option.PartitionKey(partitionKey));

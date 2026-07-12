@@ -277,9 +277,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     // (it's the scan-and-filter compat-path predicate).
                     CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
                     for (String key : primaryKeys) {
-                        Set<Option> getOpts = OptionsHelper.withResolvedPartitionKey(opts, key);
                         chain = chain
-                                .thenCompose(__ -> storeGet(key, getOpts))
+                                .thenCompose(__ -> storeGet(key, OptionsHelper.withResolvedPartitionKey(opts, key)))
                                 .thenAccept(opt -> opt.ifPresent(consumer::onNext));
                     }
                     return chain;
