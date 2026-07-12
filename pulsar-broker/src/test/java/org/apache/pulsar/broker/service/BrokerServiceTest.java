@@ -1339,22 +1339,113 @@ public class BrokerServiceTest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
         Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
-        CompletableFuture<Optional<Topic>> oldTopicFuture = brokerService.getTopics().get(topicName);
-        assertNotNull(oldTopicFuture);
+        CompletableFuture<Optional<Topic>> originalTopicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(originalTopicFuture);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        BlockingCompletedFuture<Optional<Topic>> oldTopicFuture =
+                new BlockingCompletedFuture<>(Optional.of(topic));
+        brokerService.getTopics().put(topicName, oldTopicFuture);
+        ((AbstractTopic) topic).isFenced = true;
 
         CompletableFuture<Optional<Topic>> newTopicFuture =
-                CompletableFuture.completedFuture(Optional.of(topic));
-        // Simulate the same topic being reloaded before a stale bundle cleanup callback runs.
-        brokerService.getTopics().put(topicName, newTopicFuture);
+                CompletableFuture.completedFuture(Optional.of(mock(Topic.class)));
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+            }
+        };
+        brokerService.addTopicEventListener(listener);
         try {
-            brokerService.cleanUnloadedTopicFromCache(bundle);
+            CompletableFuture<Void> cleanupFuture = CompletableFuture.runAsync(
+                    () -> brokerService.cleanUnloadedTopicFromCache(bundle));
+            assertTrue(oldTopicFuture.awaitIsDone(5, TimeUnit.SECONDS),
+                    "cleanup should capture the old future before it is replaced");
+
+            // Simulate a reload racing after the bundle cleanup has captured the old future.
+            brokerService.getTopics().put(topicName, newTopicFuture);
+            oldTopicFuture.allowIsDone();
+            cleanupFuture.get(5, TimeUnit.SECONDS);
 
             assertTrue(brokerService.getTopics().get(topicName) == newTopicFuture,
                     "A stale bundle unload cleanup must not remove a newer topic future");
+            assertTrue(unloadEvents.isEmpty(),
+                    "A stale bundle unload cleanup must not dispatch unload events");
         } finally {
-            brokerService.getTopics().put(topicName, oldTopicFuture);
+            oldTopicFuture.allowIsDone();
+            brokerService.removeTopicEventListener(listener);
+            brokerService.getTopics().put(topicName, originalTopicFuture);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testUnloadBeforeDoesNotStartTopicReload() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/unloadBeforeDoesNotStartTopicReload-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(topicFuture);
+
+        AtomicReference<CompletableFuture<Optional<Topic>>> futureAtUnloadBefore = new AtomicReference<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                if (stage == TopicEventsListener.EventStage.BEFORE) {
+                    futureAtUnloadBefore.set(brokerService.getTopic(TopicName.get(topicName), true, null));
+                }
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+        try {
+            topic.close(true, true).get(5, TimeUnit.SECONDS);
+
+            assertTrue(futureAtUnloadBefore.get() == topicFuture,
+                    "UNLOAD BEFORE must return the existing topic future instead of starting a reload");
+            assertNull(brokerService.getTopics().get(topicName),
+                    "UNLOAD SUCCESS must observe the topic cache entry removed");
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+        }
+    }
+
+    @Test
+    public void testRemoveTopicFromCacheIgnoresReentrantUnloadCallback() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/removeTopicFromCacheReentrant-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        AtomicReference<Throwable> reentrantCallbackError = new AtomicReference<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+                if (stage == TopicEventsListener.EventStage.BEFORE) {
+                    try {
+                        brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+                    } catch (Throwable e) {
+                        reentrantCallbackError.set(e);
+                    }
+                }
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+        try {
             brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+
+            assertNull(reentrantCallbackError.get(), "A reentrant cache cleanup should complete without error");
+            assertEquals(unloadEvents, List.of(TopicEventsListener.EventStage.BEFORE,
+                    TopicEventsListener.EventStage.SUCCESS));
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
         }
     }
 
@@ -2139,6 +2230,37 @@ public class BrokerServiceTest extends BrokerTestBase {
         MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
         @Cleanup final var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
         assertFalse(MockTopicPoliciesService.FAILED_TOPICS.contains(topicName));
+    }
+
+    private static class BlockingCompletedFuture<T> extends CompletableFuture<T> {
+        private final CountDownLatch isDoneEntered = new CountDownLatch(1);
+        private final CountDownLatch allowIsDone = new CountDownLatch(1);
+
+        BlockingCompletedFuture(T value) {
+            complete(value);
+        }
+
+        @Override
+        public boolean isDone() {
+            isDoneEntered.countDown();
+            try {
+                if (!allowIsDone.await(10, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Timed out waiting to resume topic-cache cleanup");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("Interrupted while waiting to resume topic-cache cleanup", e);
+            }
+            return super.isDone();
+        }
+
+        boolean awaitIsDone(long timeout, TimeUnit unit) throws InterruptedException {
+            return isDoneEntered.await(timeout, unit);
+        }
+
+        void allowIsDone() {
+            allowIsDone.countDown();
+        }
     }
 
     static class MockTopicPoliciesService extends TopicPoliciesService.TopicPoliciesServiceDisabled {
