@@ -29,9 +29,13 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.testng.annotations.Test;
 
 public class PendingAcksMapTest {
@@ -342,6 +346,35 @@ public class PendingAcksMapTest {
         assertEquals(pendingAcksMap.getRemainingUnacked(1L, 3L), PendingAcksMap.PENDING_ACK_NOT_FOUND);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    public void get_ReturnsCompatibilityPairWithPackedValues() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, Integer.MAX_VALUE, Integer.MIN_VALUE);
+
+        IntIntPair pendingAck = pendingAcksMap.get(1L, 1L);
+
+        assertEquals(pendingAck.leftInt(), Integer.MAX_VALUE);
+        assertEquals(pendingAck.rightInt(), Integer.MIN_VALUE);
+        assertNull(pendingAcksMap.get(1L, 2L));
+        assertNull(pendingAcksMap.get(2L, 1L));
+    }
+
+    @Test
+    public void brokerInterceptorUsingLegacyGet_CanReadPendingAck() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        when(consumer.getPendingAcks()).thenReturn(pendingAcksMap);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 5, -123);
+        BrokerExtensionUsingLegacyPendingAcksApi interceptor = new BrokerExtensionUsingLegacyPendingAcksApi();
+
+        interceptor.messageDispatched(null, consumer, 1L, 1L, null);
+
+        assertEquals(interceptor.pendingAck.leftInt(), 5);
+        assertEquals(interceptor.pendingAck.rightInt(), -123);
+    }
+
     @Test
     public void removeAndGetRemainingUnacked_RemovesAndInvokesRemoveHandler() {
         Consumer consumer = createMockConsumer("consumer1");
@@ -468,5 +501,21 @@ public class PendingAcksMapTest {
                 }));
         assertEquals(pendingAcks.size(), 1);
         assertEquals(pendingAcks.get(0), new long[] {ledgerId, entryId, remainingUnacked, stickyKeyHash});
+    }
+
+    /**
+     * Models the call site in a broker extension compiled against a Pulsar release that exposed
+     * {@link PendingAcksMap#get(long, long)}.
+     */
+    private static final class BrokerExtensionUsingLegacyPendingAcksApi extends MockBrokerInterceptor {
+        private IntIntPair pendingAck;
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId, long entryId,
+                                      ByteBuf headersAndPayload) {
+            pendingAck = consumer.getPendingAcks().get(ledgerId, entryId);
+        }
+
     }
 }

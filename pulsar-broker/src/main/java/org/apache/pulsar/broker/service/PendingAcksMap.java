@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import it.unimi.dsi.fastutil.ints.IntIntPair;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2LongSortedMap;
@@ -265,6 +266,32 @@ public class PendingAcksMap {
                 return false;
             }
             return ledgerMap.containsKey(entryId);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /**
+     * Get the pending ack for the given ledger ID and entry ID.
+     *
+     * @param ledgerId the ledger ID
+     * @param entryId the entry ID
+     * @return the pending ack, or null if not found
+     * @deprecated retained for compatibility with broker extensions compiled against earlier Pulsar releases;
+     *             broker code should use primitive accessors where only the remaining unacked count is required
+     */
+    @Deprecated
+    public IntIntPair get(long ledgerId, long entryId) {
+        try {
+            readLock.lock();
+            Long2LongSortedMap ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return null;
+            }
+            long packedValue = ledgerMap.get(entryId);
+            return PendingAckValues.isNotFound(packedValue) ? null
+                    : IntIntPair.of(PendingAckValues.remainingUnacked(packedValue),
+                            PendingAckValues.stickyKeyHash(packedValue));
         } finally {
             readLock.unlock();
         }
