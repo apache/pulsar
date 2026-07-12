@@ -127,7 +127,8 @@ public class OxiaPartitionKeyTest {
         String parent = "/partition-key-index-scan-" + System.nanoTime();
         String indexName = "idx:partition-key-resolver-" + System.nanoTime();
         String indexKey = "match";
-        RoutedKey routedKey = createIndexedKeyOnlyVisibleWithPartitionKey(store, parent, indexName, indexKey);
+        List<RoutedKey> routedKeys = createIndexedKeysOnlyVisibleWithPartitionKey(
+                store, parent, indexName, indexKey, 2);
 
         List<GetResult> results = new ArrayList<>();
         Set<Option> opts = Set.of(new Option.PartitionKeyResolver(
@@ -135,28 +136,32 @@ public class OxiaPartitionKeyTest {
         store.scanByIndex(parent, indexName, indexKey, indexKey, __ -> true,
                 ScanConsumer.collectInto(results), opts).get();
 
-        assertEquals(results.stream().map(result -> result.getStat().getPath()).toList(),
-                List.of(routedKey.path()),
+        assertEquals(results.stream().map(result -> result.getStat().getPath()).sorted().toList(),
+                routedKeys.stream().map(RoutedKey::path).sorted().toList(),
                 "scanByIndex should use the resolver to route follow-up primary-key reads");
     }
 
-    private RoutedKey createIndexedKeyOnlyVisibleWithPartitionKey(
-            MetadataStore store, String parent, String indexName, String indexKey) throws Exception {
-        for (int i = 0; i < 100; i++) {
+    private List<RoutedKey> createIndexedKeysOnlyVisibleWithPartitionKey(
+            MetadataStore store, String parent, String indexName, String indexKey, int count) throws Exception {
+        List<RoutedKey> routedKeys = new ArrayList<>();
+        for (int i = 0; routedKeys.size() < count && i < 100; i++) {
             String partitionKey = "index-route-" + i + "-" + System.nanoTime();
             String path = parent + "/" + partitionKey + "-record";
             Set<Option> options = Set.of(new Option.PartitionKey(partitionKey),
                     new Option.SecondaryIndex(indexName, indexKey));
             store.put(path, "value".getBytes(StandardCharsets.UTF_8), Optional.empty(), options).get();
             if (store.get(path).get().isEmpty()) {
-                return new RoutedKey(path, options);
+                routedKeys.add(new RoutedKey(path));
+            } else {
+                store.deleteIfExists(path, Optional.empty(), options).get();
             }
-            store.deleteIfExists(path, Optional.empty(), options).get();
         }
-        fail("Could not find an indexed key whose PartitionKey routes to a different shard from its path");
-        return null;
+        if (routedKeys.size() != count) {
+            fail("Could not find enough indexed keys whose PartitionKey routes to a different shard from its path");
+        }
+        return routedKeys;
     }
 
-    private record RoutedKey(String path, Set<Option> options) {
+    private record RoutedKey(String path) {
     }
 }
