@@ -65,7 +65,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -282,7 +281,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 1)
-    public void testCompletedGetOwnerRequestDoesNotRemoveNewRequest() throws Exception {
+    public void testCompletedGetOwnerRequestDoesNotRemoveNewRequest() {
         ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
         String serviceUnit = namespaceName + "/0x10000000_0x10000001";
         var getOwnerRequests = channel.getOwnerRequests();
@@ -290,37 +289,16 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<String> oldRequest = channel.dedupeGetOwnerRequest(serviceUnit);
         assertEquals(getOwnerRequests.get(serviceUnit), oldRequest);
 
-        CountDownLatch staleCallbackRunning = new CountDownLatch(1);
-        CountDownLatch releaseStaleCallback = new CountDownLatch(1);
-        oldRequest.whenComplete((__, ___) -> {
-            staleCallbackRunning.countDown();
-            try {
-                assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new CompletionException(e);
-            }
-        });
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            Future<?> completeOldRequest = executor.submit(() -> oldRequest.complete(brokerId1));
-            assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
-                    "The stale get-owner completion callback did not start");
-            assertTrue(getOwnerRequests.get(serviceUnit) == oldRequest,
-                    "The stale cleanup must not run before the new request is installed");
-
-            // Replace the map entry before releasing the old callback.
             CompletableFuture<String> newRequest = new CompletableFuture<>();
             getOwnerRequests.put(serviceUnit, newRequest);
-            releaseStaleCallback.countDown();
-            completeOldRequest.get(5, TimeUnit.SECONDS);
+
+            // The previous unconditional removal would remove newRequest here.
+            oldRequest.complete(brokerId1);
 
             assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
                     "A stale get-owner cleanup must not remove a newer request future");
         } finally {
-            releaseStaleCallback.countDown();
-            executor.shutdownNow();
             getOwnerRequests.remove(serviceUnit);
         }
     }
@@ -331,43 +309,17 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         String serviceUnit = namespaceName + "/0x10000002_0x10000003";
         var getOwnerRequests = channel.getOwnerRequests();
         CompletableFuture<String> oldRequest = new CompletableFuture<>();
+        CompletableFuture<String> newRequest = new CompletableFuture<>();
         try {
             overrideTableView(channel, serviceUnit, new ServiceUnitStateData(Owned, brokerId1, 1));
             getOwnerRequests.put(serviceUnit, oldRequest);
+            oldRequest.whenComplete((__, ___) -> getOwnerRequests.put(serviceUnit, newRequest));
 
-            CountDownLatch staleCallbackRunning = new CountDownLatch(1);
-            CountDownLatch releaseStaleCallback = new CountDownLatch(1);
-            oldRequest.whenComplete((__, ___) -> {
-                staleCallbackRunning.countDown();
-                try {
-                    assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new CompletionException(e);
-                }
-            });
+            channel.handleSkippedEvent(serviceUnit);
 
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            try {
-                Future<?> handleSkippedEvent = executor.submit(() -> channel.handleSkippedEvent(serviceUnit));
-                assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
-                        "The stale skipped-event callback did not start");
-                assertTrue(getOwnerRequests.get(serviceUnit) == oldRequest,
-                        "The skipped-event cleanup must not run before the new request is installed");
-
-                // Replace the map entry before releasing the old callback.
-                CompletableFuture<String> newRequest = new CompletableFuture<>();
-                getOwnerRequests.put(serviceUnit, newRequest);
-                releaseStaleCallback.countDown();
-                handleSkippedEvent.get(5, TimeUnit.SECONDS);
-
-                assertEquals(oldRequest.getNow(null), brokerId1);
-                assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
-                        "A stale skipped-event cleanup must not remove a newer request future");
-            } finally {
-                releaseStaleCallback.countDown();
-                executor.shutdownNow();
-            }
+            assertEquals(oldRequest.getNow(null), brokerId1);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale skipped-event cleanup must not remove a newer request future");
         } finally {
             getOwnerRequests.remove(serviceUnit);
             oldRequest.cancel(false);
@@ -376,7 +328,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 1)
-    public void testCompletedCleanupJobDoesNotRemoveNewCleanupJob() throws Exception {
+    public void testCompletedCleanupJobDoesNotRemoveNewCleanupJob() {
         ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
         String broker = brokerId3;
         var cleanupJobs = channel.getCleanupJobs();
@@ -385,37 +337,16 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
         assertNotNull(oldJob);
 
-        CountDownLatch staleCallbackRunning = new CountDownLatch(1);
-        CountDownLatch releaseStaleCallback = new CountDownLatch(1);
-        oldJob.whenComplete((__, ___) -> {
-            staleCallbackRunning.countDown();
-            try {
-                assertTrue(releaseStaleCallback.await(5, TimeUnit.SECONDS));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new CompletionException(e);
-            }
-        });
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            Future<?> completeOldJob = executor.submit(() -> oldJob.complete(null));
-            assertTrue(staleCallbackRunning.await(5, TimeUnit.SECONDS),
-                    "The stale cleanup job completion callback did not start");
-            assertTrue(cleanupJobs.get(broker) == oldJob,
-                    "The stale cleanup callback must not run before the new cleanup job is installed");
-
-            // Replace the cleanup job before releasing the old callback.
             CompletableFuture<Void> newJob = new CompletableFuture<>();
             cleanupJobs.put(broker, newJob);
-            releaseStaleCallback.countDown();
-            completeOldJob.get(5, TimeUnit.SECONDS);
+
+            // The previous unconditional removal would remove newJob here.
+            oldJob.complete(null);
 
             assertTrue(cleanupJobs.get(broker) == newJob,
                     "A stale cleanup job completion must not remove a newer cleanup job future");
         } finally {
-            releaseStaleCallback.countDown();
-            executor.shutdownNow();
             cleanupJobs.remove(broker);
             oldJob.cancel(false);
         }
