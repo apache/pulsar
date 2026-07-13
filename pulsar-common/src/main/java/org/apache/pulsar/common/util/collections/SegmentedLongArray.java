@@ -18,75 +18,96 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.List;
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Arrays;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
+/**
+ * A segmented array of {@code long} values backed by the Java heap.
+ *
+ * <p>The array is split into fixed-size {@code long[]} segments of
+ * {@value #SEGMENT_SIZE} elements (16MB). Segment lookup uses
+ * bit-shift and bit-mask operations instead of division, enabling efficient
+ * indexed access with minimal overhead.
+ *
+ * <p>Segmentation allows the array to grow beyond
+ * {@code Integer.MAX_VALUE} elements while keeping individual backing arrays
+ * within the JVM's maximum array size.
+ */
 @NotThreadSafe
 public class SegmentedLongArray implements AutoCloseable {
 
-    private static final int SIZE_OF_LONG = 8;
+    /**
+     * Each segment holds at most 2M longs -> 16 MB. Must be a power of two
+     * so that segment lookup uses bit-shift / bit-mask instead of division.
+     */
+    static final int SEGMENT_SIZE = 2 * 1024 * 1024;
+    private static final int SEGMENT_SHIFT = Integer.numberOfTrailingZeros(SEGMENT_SIZE);
+    private static final int SEGMENT_MASK = SEGMENT_SIZE - 1;
 
-    private static final int MAX_SEGMENT_SIZE = 2 * 1024 * 1024; // 2M longs -> 16 MB
-    private final List<ByteBuf> buffers = new ArrayList<>();
+    static {
+        assert Integer.bitCount(SEGMENT_SIZE) == 1 : "SEGMENT_SIZE must be a power of 2";
+    }
+
+    private long[][] segments;
+    private int segmentCount;
 
     @Getter
     private final long initialCapacity;
 
+    /**
+     * Current capacity measured in number of longs (not bytes).
+     * Use {@link #bytesCapacity()} for the byte equivalent.
+     */
     @Getter
     private long capacity;
 
     public SegmentedLongArray(long initialCapacity) {
-        long remainingToAdd = initialCapacity;
-
-        // Add first segment
-        int sizeToAdd = (int) Math.min(remainingToAdd, MAX_SEGMENT_SIZE);
-        ByteBuf buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(sizeToAdd * SIZE_OF_LONG);
-        buffer.writerIndex(sizeToAdd * SIZE_OF_LONG);
-        buffers.add(buffer);
-        remainingToAdd -= sizeToAdd;
-
-        // Add the remaining segments, all at full segment size, if necessary
-        while (remainingToAdd > 0) {
-            buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
-            buffer.writerIndex(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
-            buffers.add(buffer);
-            remainingToAdd -= MAX_SEGMENT_SIZE;
-        }
-
+        checkArgument(initialCapacity > 0, "initialCapacity must be positive");
         this.initialCapacity = initialCapacity;
-        this.capacity = this.initialCapacity;
+        this.capacity = initialCapacity;
+        allocateSegments(initialCapacity);
+    }
+
+    private void allocateSegments(long longCapacity) {
+        segmentCount = Math.max(1, (int) ((longCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE));
+        segments = new long[segmentCount][];
+        for (int i = 0; i < segmentCount; i++) {
+            int size = (int) Math.min(SEGMENT_SIZE, longCapacity - (long) i * SEGMENT_SIZE);
+            segments[i] = new long[size];
+        }
     }
 
     public void writeLong(long offset, long value) {
-        int bufferIdx = (int) (offset / MAX_SEGMENT_SIZE);
-        int internalIdx = (int) (offset % MAX_SEGMENT_SIZE);
-        buffers.get(bufferIdx).setLong(internalIdx * SIZE_OF_LONG, value);
+        long[] segment = segments[(int) (offset >>> SEGMENT_SHIFT)];
+        segment[(int) (offset & SEGMENT_MASK)] = value;
     }
 
     public long readLong(long offset) {
-        int bufferIdx = (int) (offset / MAX_SEGMENT_SIZE);
-        int internalIdx = (int) (offset % MAX_SEGMENT_SIZE);
-        return buffers.get(bufferIdx).getLong(internalIdx * SIZE_OF_LONG);
+        long[] segment = segments[(int) (offset >>> SEGMENT_SHIFT)];
+        return segment[(int) (offset & SEGMENT_MASK)];
     }
 
     public void increaseCapacity() {
-        if (capacity < MAX_SEGMENT_SIZE) {
-            // Resize the current buffer to bigger capacity
-            capacity += (capacity <= 256 ? capacity : capacity / 2);
-            capacity = Math.min(capacity, MAX_SEGMENT_SIZE);
-            buffers.get(0).capacity((int) this.capacity * SIZE_OF_LONG);
-            buffers.get(0).writerIndex((int) this.capacity * SIZE_OF_LONG);
+        if (capacity < SEGMENT_SIZE) {
+            // Resize the first segment by allocating a larger backing array
+            long grown = capacity + (capacity <= 256 ? capacity : capacity / 2);
+            grown = Math.min(grown, SEGMENT_SIZE);
+            long[] oldSeg = segments[0];
+            long[] newSeg = new long[(int) grown];
+            System.arraycopy(oldSeg, 0, newSeg, 0, (int) capacity);
+            segments[0] = newSeg;
+            capacity = grown;
         } else {
-            // Let's add 1 mode buffer to the list
-            int bufferSize = MAX_SEGMENT_SIZE * SIZE_OF_LONG;
-            ByteBuf buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(bufferSize, bufferSize);
-            buffer.writerIndex(bufferSize);
-            buffers.add(buffer);
-            capacity += MAX_SEGMENT_SIZE;
+            // Add a new full-size segment
+            if (segmentCount == segments.length) {
+                segments = Arrays.copyOf(segments,
+                        Math.max(segmentCount + 1, segments.length + segments.length / 2));
+            }
+            segments[segmentCount] = new long[SEGMENT_SIZE];
+            segmentCount++;
+            capacity += SEGMENT_SIZE;
         }
     }
 
@@ -96,33 +117,35 @@ public class SegmentedLongArray implements AutoCloseable {
         }
 
         long sizeToReduce = capacity - newCapacity;
-        while (sizeToReduce >= MAX_SEGMENT_SIZE && buffers.size() > 1) {
-            ByteBuf b = buffers.remove(buffers.size() - 1);
-            b.release();
-            capacity -= MAX_SEGMENT_SIZE;
-            sizeToReduce -= MAX_SEGMENT_SIZE;
+
+        // Drop whole segments from the end
+        while (sizeToReduce >= SEGMENT_SIZE && segmentCount > 1) {
+            segmentCount--;
+            segments[segmentCount] = null;
+            capacity -= SEGMENT_SIZE;
+            sizeToReduce -= SEGMENT_SIZE;
         }
 
-        if (buffers.size() == 1 && sizeToReduce > 0) {
-            // We should also reduce the capacity of the first buffer
-            capacity -= sizeToReduce;
-            ByteBuf oldBuffer = buffers.get(0);
-            ByteBuf newBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer((int) capacity * SIZE_OF_LONG);
-            oldBuffer.getBytes(0, newBuffer, (int) capacity * SIZE_OF_LONG);
-            oldBuffer.release();
-            buffers.set(0, newBuffer);
+        // Shrink the first segment if needed
+        if (segmentCount == 1 && sizeToReduce > 0) {
+            long newSize = capacity - sizeToReduce;
+            long[] oldSeg = segments[0];
+            long[] newSeg = new long[(int) newSize];
+            System.arraycopy(oldSeg, 0, newSeg, 0, (int) newSize);
+            segments[0] = newSeg;
+            capacity = newSize;
         }
     }
 
     @Override
     public void close() {
-        buffers.forEach(ByteBuf::release);
+        segments = null;
     }
 
     /**
      * The amount of memory used to back the array of longs.
      */
     public long bytesCapacity() {
-        return capacity * SIZE_OF_LONG;
+        return capacity * Long.BYTES;
     }
 }

@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 /**
  * Provides a priority-queue implementation specialized on items composed by 3 longs.
  *
- * <p>This class is not thread safe and the items are stored in direct memory.
+ * <p>This class is not thread safe.
  *
  * <h3>Algorithm</h3>
  *
