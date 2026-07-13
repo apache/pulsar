@@ -1316,12 +1316,12 @@ public class BrokerService implements Closeable {
                     if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latencyMs", context.latencyInMillis())
+                                .attr("latency", context.latencyString())
                                 .log("Failed to load topic");
                     } else {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latencyMs", context.latencyInMillis())
+                                .attr("latency", context.latencyString())
                                 .exception(t)
                                 .log("Failed to load topic");
                     }
@@ -1349,7 +1349,7 @@ public class BrokerService implements Closeable {
                             // actual loading latency that should not be recorded in metrics.
                             log.info()
                                     .attr("topic", topicName)
-                                    .attr("latencyMs", context.latencyInMillis())
+                                    .attr("latency", context.latencyString())
                                     .log("Finished loading from other concurrent loading task");
                             cachedFuture.whenComplete((optTopic, e) -> {
                                 if (e == null) {
