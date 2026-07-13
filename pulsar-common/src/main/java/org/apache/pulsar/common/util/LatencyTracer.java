@@ -18,51 +18,44 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 public class LatencyTracer {
 
+    private static final AtomicLongFieldUpdater<LatencyTracer> END_TIME_UPDATER = AtomicLongFieldUpdater.newUpdater(
+            LatencyTracer.class, "endNs");
+    private final Queue<Timepoint> timepoints;
+    private final NanoTimeSupplier nanoTimeSupplier;
     private final long startNs;
-    private final List<Timepoint> timepoints;
+    private volatile long endNs = -1L;
 
-    public LatencyTracer(int capacity) {
-        this(System.nanoTime(), capacity);
-    }
-
-    @VisibleForTesting
-    LatencyTracer(long startNs, int capacity) {
-        this.startNs = startNs;
-        this.timepoints = new ArrayList<>(capacity);
+    public LatencyTracer(Queue<Timepoint> timepoints, NanoTimeSupplier nanoTimeSupplier) {
+        this.timepoints = timepoints;
+        this.nanoTimeSupplier = nanoTimeSupplier;
+        this.startNs = nanoTimeSupplier.getNanos();
     }
 
     public <T> CompletableFuture<T> trace(String message, CompletableFuture<T> future) {
         if (future.isDone()) {
             return future;
         }
-        return future.whenComplete((__, ___) -> trace(message, System.nanoTime()));
+        return future.whenComplete((__, ___) -> trace(message));
     }
 
     public void trace(String action) {
-       trace(action, System.nanoTime());
-    }
-
-    @VisibleForTesting
-    void trace(String action, long nanos) {
-        timepoints.add(new Timepoint(action, nanos));
+        timepoints.add(new Timepoint(action, nanoTimeSupplier.getNanos()));
     }
 
     public long latencyInMillis() {
-        if (timepoints.isEmpty()) {
-            return 0;
-        }
-        return TimeUnit.NANOSECONDS.toMillis(timepoints.get(timepoints.size() - 1).timeInNanos - startNs);
+        ensureEndTimeSet();
+        return TimeUnit.NANOSECONDS.toMillis(endNs >= 0L ? endNs - startNs : System.nanoTime() - startNs);
     }
 
     public String latencyString() {
+        ensureEndTimeSet();
         StringBuilder sb = new StringBuilder();
         sb.append("total: ").append(latencyInMillis()).append(" ms");
         long prevNs = startNs;
@@ -76,9 +69,33 @@ public class LatencyTracer {
             }
             prevNs = tp.timeInNanos;
         }
+        if (prevNs != startNs) {
+            sb.append(", done: ");
+            final var latencyMs = TimeUnit.NANOSECONDS.toMillis(endNs - prevNs);
+            if (latencyMs > 0) {
+                sb.append(latencyMs).append(" ms");
+            } else {
+                sb.append(TimeUnit.NANOSECONDS.toMicros(endNs - prevNs)).append(" us");
+            }
+        }
         return sb.toString();
     }
 
-    private record Timepoint(String name, long timeInNanos) {
+    private void ensureEndTimeSet() {
+        // An optimized approach to update end time only once:
+        //  -1: the initial invalid value
+        //  -2: only one thread can perform the CAS successfully and modify the end time to -2
+        // Then this thread will use the system call to get timestamp only once.
+        if (END_TIME_UPDATER.compareAndSet(this, -1L, -2L)) {
+            endNs = nanoTimeSupplier.getNanos();
+        }
+    }
+
+    public interface NanoTimeSupplier {
+
+        long getNanos();
+    }
+
+    public record Timepoint(String name, long timeInNanos) {
     }
 }

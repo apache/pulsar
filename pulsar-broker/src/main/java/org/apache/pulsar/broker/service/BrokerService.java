@@ -2052,7 +2052,6 @@ public class BrokerService implements Closeable {
                                         .thenCompose(v -> context.trace("deduplication",
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
-                                            context.trace("done");
                                             log.info()
                                                     .attr("topic", topic)
                                                     .attr("dedupEnabled", persistentTopic.isDeduplicationEnabled())

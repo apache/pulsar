@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.common.naming.TopicName;
@@ -29,7 +30,6 @@ import org.jspecify.annotations.Nullable;
 
 public class TopicLoadingContext extends LatencyTracer {
 
-    private final LatencyTracer latencyTracer = new LatencyTracer(5);
     @Getter
     private final TopicName topicName;
     @Getter
@@ -42,7 +42,8 @@ public class TopicLoadingContext extends LatencyTracer {
 
     public TopicLoadingContext(TopicName topicName, boolean createIfMissing,
                                CompletableFuture<Optional<Topic>> topicFuture) {
-        super(5);
+        // The topic loading could be ended asynchronously by a timeout event, so we need a thread safe queue here
+        super(new ConcurrentLinkedQueue<>(), System::nanoTime);
         this.topicName = topicName;
         this.createIfMissing = createIfMissing;
         this.topicFuture = topicFuture;

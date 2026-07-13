@@ -19,9 +19,11 @@
 package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -31,57 +33,69 @@ import org.testng.annotations.Test;
 @Test(groups = "utils")
 public class LatencyTracerTest {
 
+    private static LatencyTracer.NanoTimeSupplier testNanoTimeSupplier(long... nanoTimes) {
+        return new LatencyTracer.NanoTimeSupplier() {
+            final LinkedList<Long> nanoTimesQueue = new LinkedList<>();
+
+            {
+                for (long nanoTime : nanoTimes) {
+                    nanoTimesQueue.add(nanoTime);
+                }
+            }
+
+            @Override
+            public long getNanos() {
+                final var nanos = nanoTimesQueue.poll();
+                assertNotNull(nanos);
+                return nanos;
+            }
+        };
+    }
+
     @Test
     public void testMulti() {
-        final var tracer = new LatencyTracer(10_000_000, 3);
-        tracer.trace("A", 30_000_000);
-        tracer.trace("B", 70_000_000);
-        tracer.trace("C", 80_000_000);
-        assertEquals(tracer.latencyString(), "total: 70 ms, A: 20 ms, B: 40 ms, C: 10 ms");
+        final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(10_000_000L, 30_000_000L,
+                70_000_000L, 80_000_000L));
+        tracer.trace("A");
+        tracer.trace("B");
+        assertEquals(tracer.latencyString(), "total: 70 ms, A: 20 ms, B: 40 ms, done: 10 ms");
         assertEquals(tracer.latencyInMillis(), 70);
     }
 
     @Test
     public void testEmpty() {
-        final var tracer = new LatencyTracer(10_000_000, 0);
-        assertEquals(tracer.latencyString(), "total: 0 ms");
-        assertEquals(tracer.latencyInMillis(), 0);
-    }
-
-    @Test
-    public void testSingle() {
-        final var tracer = new LatencyTracer(10_000_000, 1);
-        tracer.trace("X", 100_000_000);
-        assertEquals(tracer.latencyString(), "total: 90 ms, X: 90 ms");
-        assertEquals(tracer.latencyInMillis(), 90);
+        final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(0L, 20_000_000L));
+        assertEquals(tracer.latencyString(), "total: 20 ms");
+        assertEquals(tracer.latencyInMillis(), 20);
     }
 
     @Test
     public void testZeroMs() {
-        final var tracer = new LatencyTracer(0, 1);
-        tracer.trace("A", 999_999);
-        tracer.trace("B", 2_000_000);
-        tracer.trace("C", 2_100_000);
-        assertEquals(tracer.latencyString(), "total: 2 ms, A: 999 us, B: 1 ms, C: 100 us");
+        final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(0L, 999_999L, 2_000_000L,
+                2_100_000L));
+        tracer.trace("A");
+        tracer.trace("B");
+        assertEquals(tracer.latencyString(), "total: 2 ms, A: 999 us, B: 1 ms, done: 100 us");
         assertEquals(tracer.latencyInMillis(), 2);
     }
 
     @Test
     public void testTraceFuture() throws Exception {
-        final var tracer = new LatencyTracer(System.nanoTime(), 1);
+        final var tracer = new LatencyTracer(new LinkedList<>(), System::nanoTime);
         final var future = CompletableFuture.completedFuture(100);
         assertSame(tracer.trace("A", future), future);
-        assertEquals(tracer.latencyString(), "total: 0 ms");
+        final var latency = tracer.latencyString();
+        assertTrue(Pattern.compile("total: \\d+ ms").matcher(latency).matches(), latency);
 
+        final var tracer2 = new LatencyTracer(new LinkedList<>(), System::nanoTime);
         final var future2 = new CompletableFuture<Integer>();
         CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS).execute(() -> future2.complete(1));
-        final var tracedFuture = tracer.trace("A", future2);
+        final var tracedFuture = tracer2.trace("A", future2);
         assertNotSame(tracedFuture, future2);
         assertEquals(tracedFuture.get(), 1);
-        String s = tracer.latencyString();
-        Matcher m = Pattern.compile("total: (\\d+) ms, A: (\\d+) ms").matcher(s);
-        assertTrue(m.matches());
-        assertTrue(Long.parseLong(m.group(1)) >= 500);
-        assertEquals(m.group(2), m.group(1));
+        final var latency2 = tracer2.latencyString();
+        Matcher m = Pattern.compile("total: \\d+ ms, A: (\\d+) ms, done: \\d+ [mu]s").matcher(latency2);
+        assertTrue(m.matches(), latency2);
+        assertTrue(Long.parseLong(m.group(1)) >= 500, latency2);
     }
 }
