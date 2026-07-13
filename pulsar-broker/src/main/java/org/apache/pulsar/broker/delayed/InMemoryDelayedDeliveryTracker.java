@@ -72,6 +72,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // Count of delayed messages in the tracker.
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
 
+    // Cached memory usage of the delayed message bitmaps, maintained via delta on each mutation.
+    private final AtomicLong memoryUsage = new AtomicLong(0);
+
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -144,7 +147,11 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
         LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
             .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+
+        long oldSize = bitmap.serializedSize();
         if (bitmap.checkedAdd(entryId)) {
+            long newSize = bitmap.serializedSize();
+            memoryUsage.addAndGet(newSize - oldSize);
             delayedMessagesCount.incrementAndGet();
         }
 
@@ -222,9 +229,12 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 long ledgerId = ledgerEntry.getLongKey();
                 LongBitmap entryIds = ledgerEntry.getValue();
                 long cardinality = entryIds.cardinality();
+                long oldSize = entryIds.serializedSize();
                 long drained = entryIds.drainTo(n, entryId -> {
                     positions.add(PositionFactory.create(ledgerId, entryId));
                 });
+                long newSize = entryIds.serializedSize();
+                memoryUsage.addAndGet(newSize - oldSize);
                 delayedMessagesCount.addAndGet(-drained);
                 n -= drained;
                 if (drained == cardinality) {
@@ -264,6 +274,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     public CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
         this.delayedMessagesCount.set(0);
+        this.memoryUsage.set(0);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -279,8 +290,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public long getBufferMemoryUsage() {
-        return delayedMessageMap.values().stream().mapToLong(
-                ledgerMap -> ledgerMap.values().stream().mapToLong(LongBitmap::serializedSize).sum()).sum();
+        return memoryUsage.get();
     }
 
     @Override

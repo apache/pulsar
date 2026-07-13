@@ -249,17 +249,17 @@ The Apache Software License, Version 2.0
      - info.picocli-picocli-shell-jline3-4.7.7.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.22.jar
-     - com.fasterxml.jackson.core-jackson-core-2.22.0.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.22.0.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.22.0.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.22.0.jar
-     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.22.0.jar
-     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.22.0.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.22.0.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.22.0.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.22.0.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.22.0.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.21.jar
+     - com.fasterxml.jackson.core-jackson-core-2.21.5.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.21.5.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.21.5.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-base-2.21.5.jar
+     - com.fasterxml.jackson.jakarta.rs-jackson-jakarta-rs-json-provider-2.21.5.jar
+     - com.fasterxml.jackson.module-jackson-module-jakarta-xmlbind-annotations-2.21.5.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.21.5.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.21.5.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.21.5.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.21.5.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.4.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
@@ -293,37 +293,37 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.20.0.jar
     - org.apache.commons-commons-text-1.15.0.jar
  * Netty
-    - io.netty-netty-buffer-4.2.15.Final.jar
-    - io.netty-netty-codec-base-4.2.15.Final.jar
-    - io.netty-netty-codec-compression-4.2.15.Final.jar
-    - io.netty-netty-codec-dns-4.2.15.Final.jar
-    - io.netty-netty-codec-http-4.2.15.Final.jar
-    - io.netty-netty-codec-http2-4.2.15.Final.jar
-    - io.netty-netty-codec-socks-4.2.15.Final.jar
-    - io.netty-netty-codec-haproxy-4.2.15.Final.jar
-    - io.netty-netty-common-4.2.15.Final.jar
-    - io.netty-netty-handler-4.2.15.Final.jar
-    - io.netty-netty-handler-proxy-4.2.15.Final.jar
-    - io.netty-netty-resolver-4.2.15.Final.jar
-    - io.netty-netty-resolver-dns-4.2.15.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.2.15.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.2.15.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.2.15.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.2.15.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.2.15.Final.jar
-    - io.netty-netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.2.15.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.77.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.77.Final.jar
-    - io.netty-netty-transport-classes-io_uring-4.2.15.Final.jar
-    - io.netty-netty-transport-native-io_uring-4.2.15.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-io_uring-4.2.15.Final-linux-aarch_64.jar
+    - io.netty-netty-buffer-4.2.16.Final.jar
+    - io.netty-netty-codec-base-4.2.16.Final.jar
+    - io.netty-netty-codec-compression-4.2.16.Final.jar
+    - io.netty-netty-codec-dns-4.2.16.Final.jar
+    - io.netty-netty-codec-http-4.2.16.Final.jar
+    - io.netty-netty-codec-http2-4.2.16.Final.jar
+    - io.netty-netty-codec-socks-4.2.16.Final.jar
+    - io.netty-netty-codec-haproxy-4.2.16.Final.jar
+    - io.netty-netty-common-4.2.16.Final.jar
+    - io.netty-netty-handler-4.2.16.Final.jar
+    - io.netty-netty-handler-proxy-4.2.16.Final.jar
+    - io.netty-netty-resolver-4.2.16.Final.jar
+    - io.netty-netty-resolver-dns-4.2.16.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.2.16.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.2.16.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.2.16.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.2.16.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.2.16.Final.jar
+    - io.netty-netty-transport-native-epoll-4.2.16.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.2.16.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.2.16.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.78.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.78.Final.jar
+    - io.netty-netty-transport-classes-io_uring-4.2.16.Final.jar
+    - io.netty-netty-transport-native-io_uring-4.2.16.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-io_uring-4.2.16.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
