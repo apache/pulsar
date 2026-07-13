@@ -1313,15 +1313,16 @@ public class BrokerService implements Closeable {
                     context.setProperties(properties);
                 }
                 topicFuture.exceptionally(t -> {
+                    final var latency = context.traceAndGetLatency("fail").description();
                     if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latency", context.latencyString())
+                                .attr("latency", latency)
                                 .log("Failed to load topic");
                     } else {
                         log.warn()
                                 .attr("topic", topicName)
-                                .attr("latency", context.latencyString())
+                                .attr("latency", latency)
                                 .exception(t)
                                 .log("Failed to load topic");
                     }
@@ -1349,7 +1350,7 @@ public class BrokerService implements Closeable {
                             // actual loading latency that should not be recorded in metrics.
                             log.info()
                                     .attr("topic", topicName)
-                                    .attr("latency", context.latencyString())
+                                    .attr("latency", context.getLatency().description())
                                     .log("Finished loading from other concurrent loading task");
                             cachedFuture.whenComplete((optTopic, e) -> {
                                 if (e == null) {
@@ -1360,9 +1361,11 @@ public class BrokerService implements Closeable {
                             });
                         }
                     }).exceptionally(e -> {
+                        topicFuture.completeExceptionally(e); // trigger tracing for this failure
                         pulsar.getExecutor().execute(() -> topics.remove(topicName.toString(), topicFuture));
                         final Throwable rc = FutureUtil.unwrapCompletionException(e);
                         log.error().attr("topic", topicName)
+                                .attr("latency", context.getLatency().description())
                                 .exceptionMessage(rc)
                                 .log("Topic creation encountered an exception"
                                         + " by initialize topic policies service");
@@ -2052,12 +2055,13 @@ public class BrokerService implements Closeable {
                                         .thenCompose(v -> context.trace("deduplication",
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
+                                            final var latency = context.traceAndGetLatency("done");
                                             log.info()
                                                     .attr("topic", topic)
                                                     .attr("dedupEnabled", persistentTopic.isDeduplicationEnabled())
-                                                    .attr("latency", context.latencyString())
+                                                    .attr("latency", latency.description())
                                                     .log("Loaded topic");
-                                            pulsarStats.recordTopicLoadTimeValue(topic, context.latencyInMillis());
+                                            pulsarStats.recordTopicLoadTimeValue(topic, latency.elapsedInMillis());
                                             if (!topicFuture.complete(Optional.of(persistentTopic))) {
                                                 // Check create persistent topic timeout.
                                                 if (topicFuture.isCompletedExceptionally()) {

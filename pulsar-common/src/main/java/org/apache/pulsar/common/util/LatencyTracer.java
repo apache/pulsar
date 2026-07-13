@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.util.ArrayList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 public class LatencyTracer {
 
-    private static final AtomicLongFieldUpdater<LatencyTracer> END_TIME_UPDATER = AtomicLongFieldUpdater.newUpdater(
-            LatencyTracer.class, "endNs");
     private final Queue<Timepoint> timepoints;
     private final NanoTimeSupplier nanoTimeSupplier;
     private final long startNs;
-    private volatile long endNs = -1L;
 
     public LatencyTracer(Queue<Timepoint> timepoints, NanoTimeSupplier nanoTimeSupplier) {
         this.timepoints = timepoints;
@@ -49,15 +46,15 @@ public class LatencyTracer {
         timepoints.add(new Timepoint(action, nanoTimeSupplier.getNanos()));
     }
 
-    public long latencyInMillis() {
-        ensureEndTimeSet();
-        return TimeUnit.NANOSECONDS.toMillis(endNs >= 0L ? endNs - startNs : System.nanoTime() - startNs);
-    }
-
-    public String latencyString() {
-        ensureEndTimeSet();
-        StringBuilder sb = new StringBuilder();
-        sb.append("total: ").append(latencyInMillis()).append(" ms");
+    public Snapshot getLatency() {
+        final var timepoints = new ArrayList<>(this.timepoints);
+        if (timepoints.isEmpty()) {
+            return new Snapshot(startNs, 0, "total: 0 ms");
+        }
+        final var sb = new StringBuilder();
+        final var totalLatencyNs = TimeUnit.NANOSECONDS.toMillis(timepoints.get(timepoints.size() - 1).timeInNanos
+                - startNs);
+        sb.append("total: ").append(totalLatencyNs).append(" ms");
         long prevNs = startNs;
         for (final var tp : timepoints) {
             sb.append(", ").append(tp.name).append(": ");
@@ -69,26 +66,12 @@ public class LatencyTracer {
             }
             prevNs = tp.timeInNanos;
         }
-        if (prevNs != startNs) {
-            sb.append(", done: ");
-            final var latencyMs = TimeUnit.NANOSECONDS.toMillis(endNs - prevNs);
-            if (latencyMs > 0) {
-                sb.append(latencyMs).append(" ms");
-            } else {
-                sb.append(TimeUnit.NANOSECONDS.toMicros(endNs - prevNs)).append(" us");
-            }
-        }
-        return sb.toString();
+        return new Snapshot(prevNs, totalLatencyNs, sb.toString());
     }
 
-    private void ensureEndTimeSet() {
-        // An optimized approach to update end time only once:
-        //  -1: the initial invalid value
-        //  -2: only one thread can perform the CAS successfully and modify the end time to -2
-        // Then this thread will use the system call to get timestamp only once.
-        if (END_TIME_UPDATER.compareAndSet(this, -1L, -2L)) {
-            endNs = nanoTimeSupplier.getNanos();
-        }
+    public Snapshot traceAndGetLatency(String action) {
+        trace(action);
+        return getLatency();
     }
 
     public interface NanoTimeSupplier {
@@ -97,5 +80,15 @@ public class LatencyTracer {
     }
 
     public record Timepoint(String name, long timeInNanos) {
+    }
+
+    /**
+     * A snapshot of the latency tracer at a given moment.
+     *
+     * @param endTimeInNanos the latest traced timestamp in nanoseconds
+     * @param elapsedInMillis the elapsed time in milliseconds from when the tracer was created
+     * @param description the detailed description for traced latencies, e.g. "total: 100 ms, A: 60 ms, B: 40 ms"
+     */
+    public record Snapshot(long endTimeInNanos, long elapsedInMillis, String description) {
     }
 }

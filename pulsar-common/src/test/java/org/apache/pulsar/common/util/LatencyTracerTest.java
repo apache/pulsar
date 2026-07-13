@@ -23,8 +23,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,15 +60,22 @@ public class LatencyTracerTest {
                 70_000_000L, 80_000_000L));
         tracer.trace("A");
         tracer.trace("B");
-        assertEquals(tracer.latencyString(), "total: 70 ms, A: 20 ms, B: 40 ms, done: 10 ms");
-        assertEquals(tracer.latencyInMillis(), 70);
+        var snapshot = tracer.getLatency();
+        assertEquals(snapshot.description(), "total: 60 ms, A: 20 ms, B: 40 ms");
+        assertEquals(snapshot.elapsedInMillis(), 60);
+
+        tracer.trace("C");
+        snapshot = tracer.getLatency();
+        assertEquals(snapshot.description(), "total: 70 ms, A: 20 ms, B: 40 ms, C: 10 ms");
+        assertEquals(snapshot.elapsedInMillis(), 70);
     }
 
     @Test
     public void testEmpty() {
         final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(0L, 20_000_000L));
-        assertEquals(tracer.latencyString(), "total: 20 ms");
-        assertEquals(tracer.latencyInMillis(), 20);
+        final var snapshot = tracer.getLatency();
+        assertEquals(snapshot.description(), "total: 0 ms");
+        assertEquals(snapshot.elapsedInMillis(), 0);
     }
 
     @Test
@@ -75,8 +84,10 @@ public class LatencyTracerTest {
                 2_100_000L));
         tracer.trace("A");
         tracer.trace("B");
-        assertEquals(tracer.latencyString(), "total: 2 ms, A: 999 us, B: 1 ms, done: 100 us");
-        assertEquals(tracer.latencyInMillis(), 2);
+        tracer.trace("C");
+        final var snapshot = tracer.getLatency();
+        assertEquals(snapshot.description(), "total: 2 ms, A: 999 us, B: 1 ms, C: 100 us");
+        assertEquals(snapshot.elapsedInMillis(), 2);
     }
 
     @Test
@@ -84,18 +95,35 @@ public class LatencyTracerTest {
         final var tracer = new LatencyTracer(new LinkedList<>(), System::nanoTime);
         final var future = CompletableFuture.completedFuture(100);
         assertSame(tracer.trace("A", future), future);
-        final var latency = tracer.latencyString();
+        final var latency = tracer.getLatency().description();
         assertTrue(Pattern.compile("total: \\d+ ms").matcher(latency).matches(), latency);
 
-        final var tracer2 = new LatencyTracer(new LinkedList<>(), System::nanoTime);
         final var future2 = new CompletableFuture<Integer>();
         CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS).execute(() -> future2.complete(1));
-        final var tracedFuture = tracer2.trace("A", future2);
+        final var tracedFuture = tracer.trace("B", future2);
         assertNotSame(tracedFuture, future2);
         assertEquals(tracedFuture.get(), 1);
-        final var latency2 = tracer2.latencyString();
-        Matcher m = Pattern.compile("total: \\d+ ms, A: (\\d+) ms, done: \\d+ [mu]s").matcher(latency2);
-        assertTrue(m.matches(), latency2);
-        assertTrue(Long.parseLong(m.group(1)) >= 500, latency2);
+        final var snapshot = tracer.getLatency();
+        Matcher m = Pattern.compile("total: \\d+ ms, B: (\\d+) ms").matcher(snapshot.description());
+        assertTrue(m.matches(), snapshot.description());
+        assertEquals(Long.parseLong(m.group(1)), snapshot.elapsedInMillis(), snapshot.description());
+        assertTrue(snapshot.elapsedInMillis() >= 500, snapshot.description());
+    }
+
+    @Test
+    public void testTraceFailedFuture() throws Exception {
+        final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(1L));
+
+        final var future = new CompletableFuture<Void>();
+        CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS).execute(() -> future.completeExceptionally(
+                new RuntimeException("failure")));
+
+        try {
+            tracer.trace("A", future).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertEquals(e.getCause().getMessage(), "failure");
+        }
     }
 }
