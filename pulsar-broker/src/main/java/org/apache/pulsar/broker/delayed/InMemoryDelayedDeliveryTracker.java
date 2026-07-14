@@ -173,6 +173,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * in a loop until the deliverAt time is reached (see issue #25996).
      *
      * In non-strict mode the timestamp is rounded down, since delivering up to tickTimeMillis early is allowed.
+     * Availability checks account for the full bucket width so that the original deliverAt is still within that
+     * allowed window.
      */
     private long roundTimestamp(long deliverAt) {
         if (isDeliverAtTimeStrict()) {
@@ -181,6 +183,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             return trimLowerBit(roundedUp < deliverAt ? Long.MAX_VALUE : roundedUp, timestampPrecisionBitCnt);
         }
         return trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+    }
+
+    private long getBucketCutoffTime() {
+        return isDeliverAtTimeStrict() ? getCutoffTime() : getCutoffTime() - precisionMillis + 1;
     }
 
     /**
@@ -201,7 +207,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public boolean hasMessageAvailable() {
         boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
-                && delayedMessageMap.firstLongKey() <= getCutoffTime();
+                && delayedMessageMap.firstLongKey() <= getBucketCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
@@ -215,7 +221,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     public NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         NavigableSet<Position> positions = new TreeSet<>();
-        long cutoffTime = getCutoffTime();
+        long cutoffTime = getBucketCutoffTime();
 
         while (n > 0 && !delayedMessageMap.isEmpty()) {
             long timestamp = delayedMessageMap.firstLongKey();
