@@ -310,70 +310,72 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * Picocli
-     - picocli-4.7.5.jar
-     - picocli-shell-jline3-4.7.5.jar
+     - picocli-4.7.7.jar
+     - picocli-shell-jline3-4.7.7.jar
  * Jackson
      - jackson-annotations-2.21.jar
-     - jackson-core-2.21.3.jar
-     - jackson-databind-2.21.3.jar
-     - jackson-dataformat-yaml-2.21.3.jar
-     - jackson-jaxrs-base-2.21.3.jar
-     - jackson-jaxrs-json-provider-2.21.3.jar
-     - jackson-module-jaxb-annotations-2.21.3.jar
-     - jackson-module-jsonSchema-2.21.3.jar
-     - jackson-datatype-jdk8-2.21.3.jar
-     - jackson-datatype-jsr310-2.21.3.jar
-     - jackson-module-parameter-names-2.21.3.jar
+     - jackson-core-2.21.5.jar
+     - jackson-databind-2.21.5.jar
+     - jackson-dataformat-yaml-2.21.5.jar
+     - jackson-jakarta-rs-base-2.21.5.jar
+     - jackson-jakarta-rs-json-provider-2.21.5.jar
+     - jackson-module-jakarta-xmlbind-annotations-2.21.5.jar
+     - jackson-module-jsonSchema-2.21.5.jar
+     - jackson-datatype-jdk8-2.21.5.jar
+     - jackson-datatype-jsr310-2.21.5.jar
+     - jackson-module-parameter-names-2.21.5.jar
  * Caffeine -- caffeine-3.2.4.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
     - gson-2.13.2.jar
  * Guava
-    - guava-33.4.8-jre.jar
+    - guava-33.6.0-jre.jar
     - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
- * J2ObjC Annotations -- j2objc-annotations-1.3.jar
+ * J2ObjC Annotations -- j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
- * Swagger -- swagger-annotations-1.6.2.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.50.jar
  * DataSketches
-    - memory-0.8.3.jar
-    - sketches-core-0.8.3.jar
+    - datasketches-java-7.0.1.jar
+    - datasketches-memory-4.1.0.jar
  * Apache Commons
-    - commons-codec-1.20.0.jar
-    - commons-io-2.21.0.jar
+    - commons-codec-1.22.0.jar
+    - commons-io-2.22.0.jar
     - commons-lang3-3.20.0.jar
-    - commons-text-1.14.0.jar
+    - commons-text-1.15.0.jar
     - commons-compress-1.28.0.jar
  * Netty
-    - netty-buffer-4.1.133.Final.jar
-    - netty-codec-4.1.133.Final.jar
-    - netty-codec-dns-4.1.133.Final.jar
-    - netty-codec-http-4.1.133.Final.jar
-    - netty-codec-socks-4.1.133.Final.jar
-    - netty-codec-haproxy-4.1.133.Final.jar
-    - netty-common-4.1.133.Final.jar
-    - netty-handler-4.1.133.Final.jar
-    - netty-handler-proxy-4.1.133.Final.jar
-    - netty-resolver-4.1.133.Final.jar
-    - netty-resolver-dns-4.1.133.Final.jar
-    - netty-transport-4.1.133.Final.jar
-    - netty-transport-classes-epoll-4.1.133.Final.jar
-    - netty-transport-native-epoll-4.1.133.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.133.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.133.Final.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.77.Final.jar
-    - netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
-    - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
-    - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.133.Final.jar
-    - netty-resolver-dns-native-macos-4.1.133.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.133.Final-osx-x86_64.jar
+    - netty-buffer-4.2.16.Final.jar
+    - netty-codec-base-4.2.16.Final.jar
+    - netty-codec-compression-4.2.16.Final.jar
+    - netty-codec-dns-4.2.16.Final.jar
+    - netty-codec-http-4.2.16.Final.jar
+    - netty-codec-http2-4.2.16.Final.jar
+    - netty-codec-socks-4.2.16.Final.jar
+    - netty-codec-haproxy-4.2.16.Final.jar
+    - netty-common-4.2.16.Final.jar
+    - netty-handler-4.2.16.Final.jar
+    - netty-handler-proxy-4.2.16.Final.jar
+    - netty-resolver-4.2.16.Final.jar
+    - netty-resolver-dns-4.2.16.Final.jar
+    - netty-transport-4.2.16.Final.jar
+    - netty-transport-classes-epoll-4.2.16.Final.jar
+    - netty-transport-native-epoll-4.2.16.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.2.16.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.2.16.Final.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.78.Final.jar
+    - netty-transport-classes-io_uring-4.2.16.Final.jar
+    - netty-transport-native-io_uring-4.2.16.Final-linux-aarch_64.jar
+    - netty-transport-native-io_uring-4.2.16.Final-linux-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.2.16.Final.jar
+    - netty-resolver-dns-native-macos-4.2.16.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.2.16.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -381,42 +383,42 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.25.4.jar
-    - log4j-core-2.25.4.jar
-    - log4j-layout-template-json-2.25.4.jar
-    - log4j-slf4j2-impl-2.25.4.jar
-    - log4j-web-2.25.4.jar
+    - log4j-api-2.26.0.jar
+    - log4j-core-2.26.0.jar
+    - log4j-layout-template-json-2.26.0.jar
+    - log4j-slf4j2-impl-2.26.0.jar
+    - log4j-web-2.26.0.jar
  * OpenTelemetry
     - opentelemetry-api-1.62.0.jar
-    - opentelemetry-api-incubator-1.61.0-alpha.jar
+    - opentelemetry-api-incubator-1.62.0-alpha.jar
     - opentelemetry-common-1.62.0.jar
     - opentelemetry-context-1.62.0.jar
   * Slog
-    - slog-0.9.7.jar
+    - slog-0.9.9.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.17.3.jar
-    - cpu-affinity-4.17.3.jar
-    - circe-checksum-4.17.3.jar
+    - bookkeeper-common-allocator-4.18.0.jar
+    - cpu-affinity-4.18.0.jar
+    - circe-checksum-4.18.0.jar
+    - native-library-common-4.18.0.jar
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - async-http-client-2.14.5.jar
-    - async-http-client-netty-utils-2.14.5.jar
+    - async-http-client-3.0.10.jar
  * Jetty
-    - jetty-alpn-client-12.1.9.jar
-    - jetty-client-12.1.9.jar
-    - jetty-compression-common-12.1.9.jar
-    - jetty-compression-gzip-12.1.9.jar
-    - jetty-http-12.1.9.jar
-    - jetty-io-12.1.9.jar
-    - jetty-util-12.1.9.jar
-    - jetty-websocket-core-client-12.1.9.jar
-    - jetty-websocket-core-common-12.1.9.jar
-    - jetty-websocket-jetty-api-12.1.9.jar
-    - jetty-websocket-jetty-client-12.1.9.jar
-    - jetty-websocket-jetty-common-12.1.9.jar
- * SnakeYaml -- snakeyaml-2.0.jar
+    - jetty-alpn-client-12.1.10.jar
+    - jetty-client-12.1.10.jar
+    - jetty-compression-common-12.1.10.jar
+    - jetty-compression-gzip-12.1.10.jar
+    - jetty-http-12.1.10.jar
+    - jetty-io-12.1.10.jar
+    - jetty-util-12.1.10.jar
+    - jetty-websocket-core-client-12.1.10.jar
+    - jetty-websocket-core-common-12.1.10.jar
+    - jetty-websocket-jetty-api-12.1.10.jar
+    - jetty-websocket-jetty-client-12.1.10.jar
+    - jetty-websocket-jetty-common-12.1.10.jar
+ * SnakeYaml -- snakeyaml-2.6.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
@@ -425,44 +427,44 @@ The Apache Software License, Version 2.0
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
  * RoaringBitmap -- RoaringBitmap-1.6.9.jar
+ * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
  * JSpecify -- jspecify-1.0.0.jar
+ * JetBrains Annotations -- annotations-26.1.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
- * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
+ * JLine3 -- jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - slf4j-api-2.0.17.jar
+    - slf4j-api-2.0.18.jar
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
- * Java Annotations API
-    - jakarta.activation-1.2.2.jar
  * HK2 - Dependency Injection Kernel
-    - hk2-api-2.6.1.jar
-    - hk2-locator-2.6.1.jar
-    - hk2-utils-2.6.1.jar
-    - aopalliance-repackaged-2.6.1.jar
+    - hk2-api-3.0.6.jar
+    - hk2-locator-3.0.6.jar
+    - hk2-utils-3.0.6.jar
+    - aopalliance-repackaged-3.0.6.jar
     - osgi-resource-locator-1.0.3.jar
  * Jersey
-    - jersey-client-2.42.jar
-    - jersey-common-2.42.jar
-    - jersey-entity-filtering-2.42.jar
-    - jersey-media-json-jackson-2.42.jar
-    - jersey-media-multipart-2.42.jar
-    - jersey-hk2-2.42.jar
+    - jersey-client-3.1.10.jar
+    - jersey-common-3.1.10.jar
+    - jersey-entity-filtering-3.1.10.jar
+    - jersey-media-json-jackson-3.1.10.jar
+    - jersey-media-multipart-3.1.10.jar
+    - jersey-hk2-3.1.10.jar
  * Mimepull -- mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
-    - jakarta.activation-api-1.2.2.jar
+    - jakarta.activation-api-2.1.3.jar
+    - angus-activation-2.0.2.jar
     - validation-api-1.1.0.Final.jar
- * Jakarta XML Binding -- jakarta.xml.bind-api-2.3.3.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-api-4.0.2.jar
 
 Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
- * Jakarta Annotations API -- jakarta.annotation-api-1.3.5.jar
- * Jakarta RESTful Web Services -- jakarta.ws.rs-api-2.1.6.jar
- * Jakarta Injection -- jakarta.inject-2.6.1.jar
+ * Jakarta Annotations API -- jakarta.annotation-api-2.1.1.jar
+ * Jakarta RESTful Web Services -- jakarta.ws.rs-api-3.1.0.jar
+ * Jakarta Injection -- jakarta.inject-api-2.0.1.jar
 
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- reactive-streams-1.0.4.jar

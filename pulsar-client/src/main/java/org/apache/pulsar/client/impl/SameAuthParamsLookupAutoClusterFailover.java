@@ -19,10 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -35,14 +36,21 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
+/**
+ * A service URL provider that probes multiple Pulsar service URLs with the same authentication
+ * parameters and fails over according to service health.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
 @CustomLog
 @SuppressFBWarnings(value = {"EI_EXPOSE_REP2"})
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
 
     private PulsarClientImpl pulsarClient;
-    private EventLoopGroup executor;
+    private ScheduledExecutorService executor;
     private volatile boolean closed;
     private ScheduledFuture<?> scheduledCheckTask;
     @Getter
@@ -65,12 +73,18 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
     private SameAuthParamsLookupAutoClusterFailover() {}
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.currentPulsarServiceIndex = 0;
         this.pulsarClient = (PulsarClientImpl) client;
-        this.executor = EventLoopUtil.newEventLoopGroup(1, false,
+        this.executor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("broker-service-url-check"));
-        scheduledCheckTask = executor.scheduleAtFixedRate(() -> {
+        // Use fixed-delay (not fixed-rate) scheduling: a probe can block up to its timeout, and with a
+        // plain single-threaded scheduled executor fixed-rate runs would otherwise pile up back-to-back
+        // and monopolize the thread. Fixed-delay leaves a gap after each check completes.
+        scheduledCheckTask = executor.scheduleWithFixedDelay(() -> {
             try {
                 if (closed) {
                     return;
@@ -110,7 +124,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
 
     @SuppressWarnings("deprecation")
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (closed) {
             return;
         }
@@ -267,6 +281,17 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         try {
             pulsarClient.updateServiceUrl(targetUrl);
             pulsarClient.reloadLookUp();
+            // When recovering to a higher-priority service, the check loop will only probe
+            // indices 0..targetIndex going forward. Any transient state (e.g., PreFail from
+            // a single timed-out probe) at higher indices would become stuck because those
+            // indices are no longer probed. Reset them so they start fresh if a future
+            // failover needs to consider them again.
+            if (targetIndex < currentPulsarServiceIndex) {
+                for (int i = targetIndex + 1; i < pulsarServiceStateArray.length; i++) {
+                    pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
+                    checkCounterArray[i].setValue(0);
+                }
+            }
             currentPulsarServiceIndex = targetIndex;
         } catch (Exception e) {
             log.error().attr("logMsg", logMsg).exception(e).log("Failed to");
@@ -366,4 +391,3 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         }
     }
 }
-

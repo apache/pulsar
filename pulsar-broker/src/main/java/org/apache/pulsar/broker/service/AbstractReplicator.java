@@ -86,6 +86,11 @@ public abstract class AbstractReplicator implements Replicator {
     private static final AtomicReferenceFieldUpdater<AbstractReplicator, Attributes> ATTRIBUTES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, Attributes.class, "attributes");
 
+    protected volatile long latestPublishTime = System.currentTimeMillis();
+
+    // The estimated time when the producer connection is successful, "0" means it will be connected immediately.
+    protected volatile long estimatedTimeStampProducerConnected = 0;
+
     public enum State {
         /**
          * This enum has two mean meanings：
@@ -184,7 +189,7 @@ public abstract class AbstractReplicator implements Replicator {
         return CompletableFuture.completedFuture(null);
     }
 
-    public void startProducer() {
+    protected void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
         if (!setStartingRes.getLeft()) {
@@ -212,12 +217,14 @@ public abstract class AbstractReplicator implements Replicator {
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
             builderImpl.getConf().setReplProducer(true);
             return producerBuilder.createAsync().thenAccept(producer -> {
+                estimatedTimeStampProducerConnected = 0;
                 setProducerAndTriggerReadEntries(producer);
             });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next().toMillis();
+                estimatedTimeStampProducerConnected = System.currentTimeMillis() + waitTimeMs;
                 log.warn()
                         .exceptionMessage(ex)
                         .attr("waitTimeSec", waitTimeMs / 1000.0)
@@ -313,10 +320,8 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
-    @Override
-    public CompletableFuture<Void> disconnect() {
-        long backlog = getNumberOfEntriesInBacklog();
-        if (backlog > 0) {
+    protected CompletableFuture<Void> disconnect() {
+        if (hasBacklog()) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             log.debug("Replicator disconnect failed since topic has backlog");
@@ -324,8 +329,7 @@ public abstract class AbstractReplicator implements Replicator {
         }
         log.info()
                 .attr("readPosition", getReplicatorReadPosition())
-                .attr("backlog", backlog)
-                .log("Disconnect replicator at position with backlog");
+                .log("Disconnect replicator at position without backlog");
         return beforeDisconnect()
             .thenCompose(__ -> closeProducerAsync(true))
             .thenApply(__ -> {
@@ -389,8 +393,6 @@ public abstract class AbstractReplicator implements Replicator {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Disconnecting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 this.producer = null;
-                // deactivate further read
-                disableReplicatorRead();
                 return;
             }
             if (setDisconnectedRes.getRight() == State.Terminating

@@ -27,6 +27,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -56,7 +59,7 @@ public class SubscriptionCoordinatorTest {
     @BeforeMethod
     public void setup() {
         topicName = TopicName.get("topic://tenant/ns/my-topic");
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         initialLayout = SegmentLayout.fromMetadata(metadata);
         resources = mock(ScalableTopicResources.class);
         // All persistence ops succeed
@@ -428,6 +431,90 @@ public class SubscriptionCoordinatorTest {
                 .filter(s -> s.getConsumerName().equals("consumer-1"))
                 .findFirst().orElseThrow();
         assertTrue(reconnected.isConnected());
+    }
+
+    // --- PIP-486 entry-bucket assignment ---
+
+    @Test
+    public void testSingleBucketSegmentsHaveNoBucketRanges() throws Exception {
+        // The default 4-segment layout is N=1 per segment: each whole segment is assigned to one
+        // consumer with empty bucketRanges (single-active / Exclusive).
+        Map<ConsumerSession, ConsumerAssignment> result =
+                coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        for (ConsumerAssignment.AssignedSegment seg : findByName(result, "consumer-1").assignedSegments()) {
+            assertTrue(seg.bucketRanges().isEmpty());
+        }
+    }
+
+    @Test
+    public void testLoneConsumerOwnsBucketedSegmentWhole() throws Exception {
+        // One segment with N=4 entry-buckets, one consumer: no surplus, so the segment stays whole
+        // (empty bucketRanges -> Exclusive single-active dispatch).
+        SubscriptionCoordinator c = bucketedCoordinator();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+
+        ConsumerAssignment assignment = findByName(result, "consumer-1");
+        assertEquals(assignment.assignedSegments().size(), 1);
+        assertTrue(assignment.assignedSegments().get(0).bucketRanges().isEmpty());
+    }
+
+    @Test
+    public void testSurplusConsumersFanOutBucketedSegment() throws Exception {
+        // One segment with N=4 entry-buckets, two consumers: the surplus consumer fans the segment
+        // out — each owner takes a contiguous half of the buckets, disjoint and tiling the ring.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+
+        assertEquals(result.size(), 2);
+        List<HashRange> owned = new ArrayList<>();
+        for (ConsumerAssignment assignment : result.values()) {
+            assertEquals(assignment.assignedSegments().size(), 1);
+            ConsumerAssignment.AssignedSegment seg = assignment.assignedSegments().get(0);
+            assertEquals(seg.segmentId(), 0);
+            assertEquals(seg.bucketRanges().size(), 2);
+            owned.addAll(seg.bucketRanges());
+        }
+        owned.sort(Comparator.comparingInt(HashRange::start));
+        assertEquals(owned, List.of(
+                HashRange.of(0x0000, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
+                HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
+    }
+
+    @Test
+    public void testFanOutCapsAtBucketCountAndLeavesRestIdle() throws Exception {
+        // One segment with N=4 entry-buckets, five consumers: four owners with one bucket each; the
+        // fifth consumer exceeds the topic's bucket capacity and stays idle (empty assignment).
+        SubscriptionCoordinator c = bucketedCoordinator();
+        for (int i = 1; i <= 4; i++) {
+            c.registerConsumer("consumer-" + i, i, mock(TransportCnx.class)).get();
+        }
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-5", 5L, mock(TransportCnx.class)).get();
+
+        assertEquals(result.size(), 5);
+        List<HashRange> owned = new ArrayList<>();
+        int idle = 0;
+        for (ConsumerAssignment assignment : result.values()) {
+            if (assignment.assignedSegments().isEmpty()) {
+                idle++;
+                continue;
+            }
+            ConsumerAssignment.AssignedSegment seg = assignment.assignedSegments().get(0);
+            assertEquals(seg.bucketRanges().size(), 1);
+            owned.addAll(seg.bucketRanges());
+        }
+        assertEquals(idle, 1);
+        assertEquals(owned.size(), 4);
+    }
+
+    private SubscriptionCoordinator bucketedCoordinator() {
+        // One segment carrying the whole default budget: N = 4 entry-buckets.
+        return new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createInitialMetadata(1, 4, Map.of())),
+                resources, scheduler, Duration.ofMillis(200));
     }
 
     // --- Helpers ---

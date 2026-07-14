@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 
 /**
@@ -122,6 +123,28 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
     @Override
     public Schema<byte[]> autoProduceBytesSchema() {
         return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES());
+    }
+
+    @Override
+    public Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo) {
+        var v4Info = SchemaAdapter.toV4SchemaInfo(schemaInfo);
+        return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.generic(v4Info));
+    }
+
+    @Override
+    public Schema<byte[]> autoProduceBytesSchema(Schema<?> base) {
+        var v4Base = SchemaAdapter.toV4(base);
+        return SchemaAdapter.toV5(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES(v4Base));
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Schema<GenericRecord> autoConsumeSchema() {
+        // Wrap the genuine v4 AUTO_CONSUME schema so the v5 consumer passes it straight through to
+        // the v4 layer (which special-cases AutoConsumeSchema for runtime schema fetching). The
+        // decoded v4 GenericRecord is converted to a v5 GenericRecord in MessageV5#value().
+        return SchemaAdapter.toV5((org.apache.pulsar.client.api.Schema)
+                org.apache.pulsar.client.api.Schema.AUTO_CONSUME());
     }
 
     // --- Checkpoint ---

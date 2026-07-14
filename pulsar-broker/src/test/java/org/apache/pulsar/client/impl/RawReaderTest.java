@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -622,6 +623,87 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         producer.close();
         reader.closeAsync().get();
         admin.topics().delete(topic, false);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadNextAsyncCompletesAfterConsumerClosed() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        admin.topics().createNonPartitionedTopic(topic);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+
+        // Put the reader's underlying consumer into a terminal state. In production this happens when a
+        // compaction's RawReader hits an unrecoverable error (e.g. the topic/namespace is being deleted).
+        reader.closeAsync().get(5, TimeUnit.SECONDS);
+
+        // A read issued once the consumer has reached a terminal state must complete instead of hanging
+        // forever: a never-completing read keeps the compaction future pending, which blocks forced
+        // topic/namespace deletion (issue #24148).
+        CompletableFuture<RawMessage> readFuture = reader.readNextAsync();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertTrue(readFuture.isDone()));
+        assertTrue(readFuture.isCompletedExceptionally());
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectionFailureTerminatesReadWhenNotRetryingRecoverableErrors() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // A compaction reader is created with retryOnRecoverableErrors=false. When the topic is fenced or deleted,
+        // a reconnect can fail at the lookup/connection stage (handled by ConsumerImpl.connectionFailed) with a
+        // retriable error such as ServiceNotReadyException. The base class would keep reconnecting, leaving the
+        // in-flight read pending forever; for a compaction reader that keeps the compaction future pending and
+        // blocks forced topic/namespace deletion (issue #24148). Such an unrecoverable error must instead
+        // terminate the reader and fail the in-flight read promptly.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.getTopicNames().add(topic);
+        conf.setSubscriptionName(subscription);
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
+        conf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        conf.setReadCompacted(true);
+        CompletableFuture<Consumer<byte[]>> consumerFuture = new CompletableFuture<>();
+        RawReaderImpl.RawConsumerImpl consumer = new RawReaderImpl.RawConsumerImpl(
+                (PulsarClientImpl) pulsarClient, conf, consumerFuture, false, false);
+        consumerFuture.get(10, TimeUnit.SECONDS);
+
+        CompletableFuture<RawMessage> readFuture = consumer.receiveRawAsync();
+        boolean keepReconnecting =
+                consumer.connectionFailed(new PulsarClientException.ServiceNotReadyException("injected"));
+
+        Assert.assertFalse(keepReconnecting);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(readFuture.isDone()));
+        assertTrue(readFuture.isCompletedExceptionally());
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectionFailureBeforeSubscribeFailsReaderCreation() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // Same compaction-reader scenario as the test above, but the unrecoverable error (e.g. a lookup
+        // failure with ServiceNotReadyException) arrives BEFORE the initial subscribe completes. The
+        // subscribe (consumer) future must then be completed exceptionally; otherwise RawReader.create(...)
+        // would stay pending forever, which keeps the compaction future pending and blocks forced
+        // topic/namespace deletion (issue #24148).
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.getTopicNames().add(topic);
+        conf.setSubscriptionName(subscription);
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
+        conf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        conf.setReadCompacted(true);
+        CompletableFuture<Consumer<byte[]>> consumerFuture = new CompletableFuture<>();
+        RawReaderImpl.RawConsumerImpl consumer = new RawReaderImpl.RawConsumerImpl(
+                (PulsarClientImpl) pulsarClient, conf, consumerFuture, false, false);
+        // Inject the failure without waiting for the subscribe to complete, i.e. while the consumer
+        // future is still pending (construction returns before the async subscribe round-trip finishes).
+        boolean keepReconnecting =
+                consumer.connectionFailed(new PulsarClientException.ServiceNotReadyException("injected"));
+
+        Assert.assertFalse(keepReconnecting);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(consumerFuture.isDone()));
+        assertTrue(consumerFuture.isCompletedExceptionally());
     }
 
     @Test(timeOut = 100000)

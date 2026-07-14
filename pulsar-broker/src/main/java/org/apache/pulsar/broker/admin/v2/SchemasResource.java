@@ -19,27 +19,28 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import io.swagger.annotations.Example;
-import io.swagger.annotations.ExampleProperty;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.SchemasResourceBase;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
@@ -54,10 +55,9 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/schemas")
-@Api(
-    value = "/schemas",
-    description = "Schemas related admin APIs",
-    tags = "schemas"
+@Tag(
+    name = "schemas",
+    description = "Schemas related admin APIs"
 )
 @SuppressWarnings("deprecation")
 public class SchemasResource extends SchemasResourceBase {
@@ -70,15 +70,19 @@ public class SchemasResource extends SchemasResourceBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get the schema of a topic", response = GetSchemaResponse.class)
+    @Operation(summary = "Get the schema of a topic")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404,
-                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "Get the schema of a topic",
+                    content = @Content(schema = @Schema(implementation = GetSchemaResponse.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404",
+                    description = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void getSchema(
             @PathParam("tenant") String tenant,
@@ -105,15 +109,19 @@ public class SchemasResource extends SchemasResourceBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schema/{version}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get the schema of a topic at a given version", response = GetSchemaResponse.class)
+    @Operation(summary = "Get the schema of a topic at a given version")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404,
-                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "Get the schema of a topic at a given version",
+                    content = @Content(schema = @Schema(implementation = GetSchemaResponse.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404",
+                    description = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void getSchema(
             @PathParam("tenant") String tenant,
@@ -142,15 +150,19 @@ public class SchemasResource extends SchemasResourceBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schemas")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get the all schemas of a topic", response = GetAllVersionsSchemaResponse.class)
+    @Operation(summary = "Get the all schemas of a topic")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404,
-                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "Get the all schemas of a topic",
+                    content = @Content(schema = @Schema(implementation = GetAllVersionsSchemaResponse.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404",
+                    description = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void getAllSchemas(
             @PathParam("tenant") String tenant,
@@ -177,15 +189,19 @@ public class SchemasResource extends SchemasResourceBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/metadata")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get the schema metadata of a topic", response = GetAllVersionsSchemaResponse.class)
+    @Operation(summary = "Get the schema metadata of a topic")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404,
-                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "Get the schema metadata of a topic",
+                    content = @Content(schema = @Schema(implementation = GetAllVersionsSchemaResponse.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404",
+                    description = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void getSchemaMetadata(
             @PathParam("tenant") String tenant,
@@ -210,14 +226,16 @@ public class SchemasResource extends SchemasResourceBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Delete all versions schema of a topic", response = DeleteSchemaResponse.class)
+    @Operation(summary = "Delete all versions schema of a topic")
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-        @ApiResponse(code = 500, message = "Internal Server Error"),
+        @ApiResponse(responseCode = "200", description = "Delete all versions schema of a topic",
+            content = @Content(schema = @Schema(implementation = DeleteSchemaResponse.class))),
+        @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(responseCode = "401", description = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+        @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+        @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void deleteSchema(
             @PathParam("tenant") String tenant,
@@ -247,25 +265,27 @@ public class SchemasResource extends SchemasResourceBase {
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Update the schema of a topic", response = PostSchemaResponse.class)
+    @Operation(summary = "Update the schema of a topic")
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
-        @ApiResponse(code = 409, message = "Incompatible schema"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-        @ApiResponse(code = 422, message = "Invalid schema data"),
-        @ApiResponse(code = 500, message = "Internal Server Error"),
+        @ApiResponse(responseCode = "200", description = "Update the schema of a topic",
+            content = @Content(schema = @Schema(implementation = PostSchemaResponse.class))),
+        @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(responseCode = "401", description = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+        @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(responseCode = "409", description = "Incompatible schema"),
+        @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+        @ApiResponse(responseCode = "422", description = "Invalid schema data"),
+        @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void postSchema(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema payload."
+            @RequestBody(description = "A JSON value presenting a schema payload."
                     + " An example of the expected schema can be found down here.",
-               examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-               value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }")))
+               content = @Content(mediaType = MediaType.APPLICATION_JSON, examples = @ExampleObject(
+               value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" } }")))
             PostSchemaPayload payload,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response) {
@@ -298,23 +318,27 @@ public class SchemasResource extends SchemasResourceBase {
     @Path("/{tenant}/{namespace}/{topic}/compatibility")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "test the schema compatibility", response = IsCompatibilityResponse.class)
+    @Operation(summary = "test the schema compatibility")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "test the schema compatibility",
+                    content = @Content(schema = @Schema(implementation = IsCompatibilityResponse.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void testCompatibility(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema payload."
+            @RequestBody(description = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
-             examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-             value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))
+             content = @Content(mediaType = MediaType.APPLICATION_JSON, examples = @ExampleObject(
+             value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" } }")))
             PostSchemaPayload payload,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response) {
@@ -340,24 +364,28 @@ public class SchemasResource extends SchemasResourceBase {
     @Path("/{tenant}/{namespace}/{topic}/version")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "get the version of the schema", response = LongSchemaVersion.class)
+    @Operation(summary = "get the version of the schema")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-            @ApiResponse(code = 403, message = "Client is not authenticated"),
-            @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
-            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 422, message = "Invalid schema data"),
-            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(responseCode = "200", description = "get the version of the schema",
+                    content = @Content(schema = @Schema(implementation = LongSchemaVersion.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
+            @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "422", description = "Invalid schema data"),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void getVersionBySchema(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema payload."
+            @RequestBody(description = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
-            examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-            value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))
+            content = @Content(mediaType = MediaType.APPLICATION_JSON, examples = @ExampleObject(
+            value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" } }")))
             PostSchemaPayload payload,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response) {

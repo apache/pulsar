@@ -140,6 +140,7 @@ function test_group_other() {
     -x :tests:pulsar-client-admin-shade-test:test \
     -x :tests:pulsar-client-all-shade-test:test \
     -x :tests:pulsar-client-shade-test:test \
+    -x :tests:pulsar-client-native-image:test \
     test
 
   # Run DnsResolverTest separately since it relies on static field values
@@ -157,16 +158,16 @@ function test_group_pulsar_io() {
     :pulsar-io:pulsar-io-batch-discovery-triggerers:test
 }
 
-function test_group_protobufv4() {
-  # Rebuild and test with protobuf v4 (overriding the default v3 version)
+function test_group_protobufv3() {
+  # Rebuild and test with protobuf v3 (overriding the default v4 version)
   gradle_test \
-    -PprotobufVersion=4.31.1 \
+    -PprotobufVersion=3.25.5 \
     :pulsar-client-original:test \
     --tests "org.apache.pulsar.client.api.ProtobufSchemaApiSignatureTest" \
     --tests "org.apache.pulsar.client.impl.schema.ProtobufSchemaTest" \
     --tests "org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest"
   gradle_test \
-    -PprotobufVersion=4.31.1 \
+    -PprotobufVersion=3.25.5 \
     :pulsar-functions:pulsar-functions-instance:test \
     --tests "org.apache.pulsar.functions.source.TopicSchemaTest" \
     --tests "org.apache.pulsar.functions.instance.JavaInstanceRunnableTest"

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,7 +59,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.IntOpenHashSet;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers implements
         StickyKeyDispatcher {
@@ -69,6 +69,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
     private final boolean drainingHashesRequired;
+    // PIP-486: dispatch whole entries by their producer-stamped entry-bucket hash range instead of
+    // hashing each message's key. Set only by scalable-topic consumers sharing a segment by bucket.
+    private final boolean entryBucketDispatch;
 
     private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
@@ -84,6 +87,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.keySharedMode = ksm.getKeySharedMode();
+        this.entryBucketDispatch = ksm.isEntryBucketDispatch();
         // recent joined consumer tracking is required only for AUTO_SPLIT mode when out-of-order delivery is disabled
         this.drainingHashesRequired =
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
@@ -634,6 +638,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected int getStickyKeyHash(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            // PIP-486: an entry-bucket subscription routes each whole entry by its producer-stamped
+            // entry-bucket hash range, so a batch holding one bucket's keys goes to the bucket's owner
+            // with no per-key hashing. The stamp shares the 16-bit key-hash space, so it feeds the
+            // selector directly. Cached as THE entry's sticky-key hash so pending acks, redelivery and
+            // draining all see the value dispatch used. Unstamped entries (non-batched messages) fall
+            // through to the message's sticky-key hash, which is the same low-16 Murmur value the
+            // producer would have stamped.
+            if (entryBucketDispatch) {
+                var metadata = entryAndMetadata.getMetadata();
+                if (metadata != null && metadata.hasEntryHashMin()) {
+                    return entryAndMetadata.getOrUpdateCachedStickyKeyHash(stickyKey -> {
+                        int bucketHash = metadata.getEntryHashMin();
+                        // 0 is reserved as "hash not set"; nudge to 1, which is still inside bucket 0.
+                        return bucketHash == STICKY_KEY_HASH_NOT_SET ? 1 : bucketHash;
+                    });
+                }
+            }
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
         }

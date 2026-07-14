@@ -91,7 +91,7 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
             return MultiTopicQueueConsumer.createAsync(
                     client, v5Schema, conf, namespaceName, propertyFilters);
         }
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableQueueConsumer.createAsync(
@@ -181,6 +181,12 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     @Override
     public QueueConsumerBuilderV5<T> maxAcknowledgmentGroupSize(int size) {
         conf.setMaxAcknowledgmentGroupSize(size);
+        return this;
+    }
+
+    @Override
+    public QueueConsumerBuilderV5<T> replicateSubscriptionState(boolean replicate) {
+        conf.setReplicateSubscriptionState(replicate);
         return this;
     }
 

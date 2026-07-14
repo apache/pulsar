@@ -24,6 +24,45 @@ plugins {
 
 val catalog = the<VersionCatalogsExtension>().named("libs")
 
+// Versions for dependencies injected by the component-metadata rules below, captured as plain
+// strings so the rule closures stay configuration-cache compatible (and so the injected deps carry
+// explicit versions rather than relying on the alignment platform being on every classpath).
+val jakartaActivationApiVersion = catalog.findVersion("jakarta-activation").get().requiredVersion
+val angusActivationVersion = catalog.findVersion("angus-activation").get().requiredVersion
+
+// Internal version-alignment platform bucket.
+// The enforced platform (:pulsar-dependencies) must align the build's OWN resolution but must NOT
+// leak into the published apiElements/runtimeElements variants: an enforcedPlatform recorded in
+// published Gradle Module Metadata forces Pulsar's internal versions onto downstream Gradle
+// consumers and strips their ability to override (Gradle's platforms docs warn against using
+// enforcedPlatform on a component intended for consumption). Declaring it on a non-consumable,
+// non-resolvable bucket that only the resolvable build classpaths extend keeps full build-time
+// alignment (and feeds versionMapping for POM versions) while leaving it out of publication.
+// Consumers get the separate, non-enforced pulsar-bom for version recommendations instead.
+val internalPlatform = configurations.create("internalPlatform") {
+    isCanBeConsumed = false
+    isCanBeResolved = false
+    description = "Enforced version-alignment platform for build resolution only; never published."
+}
+// Wire the alignment platform onto the build's resolvable classpaths by name. These configurations
+// are created by the Java plugin before this convention's body runs, so the name match reliably
+// fires for them. (Matching on the mutable isCanBeResolved/isCanBeConsumed flags is NOT reliable for
+// configurations created later via `configurations.creating {}` — their flags are set inside the
+// creation block, after a flag-based configureEach predicate has already evaluated the legacy
+// defaults.) The consumable variants apiElements/runtimeElements are intentionally not listed, so
+// the enforced platform stays out of published Gradle Module Metadata. Custom resolvable
+// configurations that collect artifacts and need the same alignment (notably the distributions'
+// `distLib`, which feeds the binary distribution checked by checkBinaryLicense) extend
+// `internalPlatform` explicitly where they are declared.
+val platformAlignedClasspaths = setOf(
+    "compileClasspath", "runtimeClasspath",
+    "testCompileClasspath", "testRuntimeClasspath",
+    "annotationProcessor", "testAnnotationProcessor",
+)
+configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
+    extendsFrom(internalPlatform)
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(17)
@@ -31,11 +70,6 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 configurations.all {
-    // Exclude the old SLF4J 1.x bridge pulled in by bookkeeper-server.
-    // Pulsar uses SLF4J 2.x with log4j-slf4j2-impl; having both causes
-    // NoSuchMethodError in Log4jLoggerFactory at test startup.
-    exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j-impl")
-
     // Force Jackson version to match the version catalog. Transitive dependencies
     // (e.g. from jackson-bom) can pull in newer versions that break API compatibility
     // (EnumResolver.constructUsingToString signature changed in 2.19+).
@@ -50,28 +84,54 @@ configurations.all {
     }
 }
 
-// Exclude bc-fips from modules that don't need it. bc-fips's CryptoServicesRegistrar
-// conflicts with bcprov-jdk18on's version — having both causes NoSuchMethodError.
-// Only the FIPS-specific modules and modules with explicit FIPS tests should have it.
-val modulesUsingBcFips = setOf(
-    "bcfips", "bcfips-include-test",
-    "pulsar-common", "pulsar-broker-common",
-)
-if (project.name !in modulesUsingBcFips) {
-    configurations.all {
-        exclude(group = "org.bouncycastle", module = "bc-fips")
-    }
-}
-
 dependencies {
-    // Exclude all BouncyCastle from bookkeeper-server (matches Maven parent POM exclusion).
-    // BookKeeper's bc-fips transitive dependency contains a CryptoServicesRegistrar that
-    // conflicts with the non-FIPS version in bcprov-jdk18on. Pulsar manages its own BC deps.
+    // Strip conflicting transitive dependencies from bookkeeper-server at the source. Handling them
+    // here (rather than with a build-wide `configurations.all { exclude(...) }`) keeps them off the
+    // classpath without leaking a per-dependency <exclusion> onto every dependency in every
+    // published POM.
+    //   - All BouncyCastle: BookKeeper's transitive bc-fips bundles a CryptoServicesRegistrar that
+    //     conflicts with the non-FIPS bcprov-jdk18on. Pulsar manages its own BC deps; the FIPS
+    //     modules (bcfips, pulsar-common/pulsar-broker-common tests) declare bc-fips directly.
+    //   - log4j-slf4j-impl: the SLF4J 1.x bridge conflicts with Pulsar's SLF4J 2.x setup
+    //     (log4j-slf4j2-impl), causing NoSuchMethodError in Log4jLoggerFactory at startup.
     components {
         withModule("org.apache.bookkeeper:bookkeeper-server") {
             allVariants {
                 withDependencies {
-                    removeAll { it.group == "org.bouncycastle" }
+                    removeAll {
+                        it.group == "org.bouncycastle" ||
+                            (it.group == "org.apache.logging.log4j" && it.name == "log4j-slf4j-impl")
+                    }
+                }
+            }
+        }
+        // com.sun.activation:jakarta.activation bundles the jakarta.activation API classes together
+        // with the implementation and was not republished past 2.0.x, so it conflicts with
+        // jakarta.activation:jakarta.activation-api 2.1.x. Replace it everywhere with the API artifact
+        // plus the Eclipse Angus implementation (the EE10 successor). async-http-client still depends
+        // on it (https://github.com/AsyncHttpClient/async-http-client/issues/2190) and this rule also
+        // guards against any future dependency pulling it in. The replacements carry explicit catalog
+        // versions so they resolve on any classpath without relying on the alignment platform being
+        // present (e.g. the protobuf plugin's *ProtoPath configurations do not extend it).
+        all {
+            allVariants {
+                withDependencies {
+                    if (removeAll { it.group == "com.sun.activation" && it.name == "jakarta.activation" }) {
+                        add("jakarta.activation:jakarta.activation-api:$jakartaActivationApiVersion")
+                        add("org.eclipse.angus:angus-activation:$angusActivationVersion")
+                    }
+                }
+            }
+        }
+        // async-http-client depends on the classic io.netty:netty-codec module, which in Netty 4.2
+        // is an empty backwards-compatibility aggregator that only adds the unused
+        // netty-codec-marshalling and netty-codec-protobuf modules to the classpath. The codec
+        // modules async-http-client actually needs (netty-codec-base, netty-codec-compression)
+        // come in through its netty-codec-http dependency.
+        withModule("org.asynchttpclient:async-http-client") {
+            allVariants {
+                withDependencies {
+                    removeAll { it.group == "io.netty" && it.name == "netty-codec" }
                 }
             }
         }
@@ -93,9 +153,11 @@ dependencies {
         }
     }
 
-    // Enforced platform pins all dependency versions from the version catalog.
-    // This is the Gradle equivalent of Maven's dependencyManagement section.
-    "implementation"(enforcedPlatform(project(":pulsar-dependencies")))
+    // Enforced platform pins all dependency versions from the version catalog (the Gradle
+    // equivalent of Maven's dependencyManagement). Declared on the internal, non-published
+    // `internalPlatform` bucket (see above) so it aligns the build's resolvable classpaths
+    // without leaking the enforced platform into published apiElements/runtimeElements metadata.
+    "internalPlatform"(enforcedPlatform(project(":pulsar-dependencies")))
 
     // Resolve lz4-java capability conflict: at.yawk.lz4:lz4-java (used by Pulsar) and
     // org.lz4:lz4-java (used by kafka-clients) both provide the org.lz4:lz4-java capability.
@@ -171,7 +233,9 @@ tasks.withType<Test>().configureEach {
     maxParallelForks = 4
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
-    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse("1"))
+    val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
+    val defaultTestRetryCount = if (ideaActive) "0" else "1"
+    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
     jvmArgs(
         "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
@@ -191,6 +255,11 @@ tasks.withType<Test>().configureEach {
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
+        // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
+        // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
+        // loopback interface resolves to an IPv6 link-local address (notably macOS) bookies bound to
+        // loopback would otherwise fail to start.
+        "-Djava.net.preferIPv4Stack=true",
     )
 }
 

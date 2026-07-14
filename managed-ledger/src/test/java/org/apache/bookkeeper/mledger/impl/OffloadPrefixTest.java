@@ -1184,6 +1184,130 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    public void automaticOffloadTriggersAreCoalescedWhileOffloadInProgress() throws Exception {
+        CompletableFuture<Void> slowOffload = new CompletableFuture<>();
+        CountDownLatch offloadRunning = new CountDownLatch(1);
+        AtomicInteger offloadPolicyCalls = new AtomicInteger();
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadRunning.countDown();
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                }
+
+                @Override
+                public OffloadPoliciesImpl getOffloadPolicies() {
+                    offloadPolicyCalls.incrementAndGet();
+                    return super.getOffloadPolicies();
+                }
+            };
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertTrue(offloadRunning.await(5, TimeUnit.SECONDS));
+
+        // Repeated automatic triggers should stop at the controller and avoid another policy lookup.
+        int callsBeforeRepeatedTriggers = offloadPolicyCalls.get();
+        for (int i = 0; i < 20; i++) {
+            ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        }
+
+        assertEquals(offloadPolicyCalls.get(), callsBeforeRepeatedTriggers);
+
+        slowOffload.complete(null);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+    }
+
+    @Test
+    public void automaticOffloadRunsAgainForCoalescedTrigger() throws Exception {
+        CompletableFuture<Void> slowOffload = new CompletableFuture<>();
+        CountDownLatch offloadRunning = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadRunning.countDown();
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                }
+            };
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 11; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertTrue(offloadRunning.await(5, TimeUnit.SECONDS));
+
+        // The next ledger closes after the first automatic scan, so it depends on the coalesced rerun.
+        for (int i = 11; i < 21; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        slowOffload.complete(null);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+    }
+
+    @Test
+    public void automaticOffloadWithoutThresholdDoesNotBlockLaterTriggers() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(-1L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        // A disabled automatic trigger must complete internally so a later valid trigger can run.
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+    }
+
     @DataProvider(name = "offloadAsSoonAsClosed")
     public Object[][] offloadAsSoonAsClosedProvider() {
         return new Object[][]{
