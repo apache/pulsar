@@ -144,6 +144,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(sourcePartition)
+                .enableBatching(false)
                 .create();
 
         for (int i = 0; i < 1000; i++) {
