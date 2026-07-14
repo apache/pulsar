@@ -44,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -2573,5 +2574,71 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerCompaction(topic);
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin.topics().compactionStatus(topic).status, LongRunningProcessStatus.Status.SUCCESS));
+    }
+
+    /**
+     * Verifies that a continuous readCompacted reader receives tombstones published after the
+     * initial compaction snapshot, even when a second compaction runs before those tombstones
+     * are consumed.
+     */
+    @Test(timeOut = 15000)
+    public void testTableViewMissesDeletesWhenCompactionRunsBeforeTombstonesConsumed() throws Exception {
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
+        final String topic = "persistent://my-tenant/my-ns/tableview-delete-after-compaction";
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscribe().close();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final String keptKey = "key-keep";
+        final List<String> deletedKeys = List.of("key-1", "key-2", "key-3");
+
+        producer.newMessage().key(keptKey).value("value-keep").send();
+        for (String key : deletedKeys) {
+            producer.newMessage().key(key).value("value-" + key).send();
+        }
+        triggerAndWaitCompaction(topic);
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .receiverQueueSize(1)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        Map<String, String> receivedValues = new HashMap<>();
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            receivedValues.put(message.getKey(), message.getValue());
+        }
+        assertEquals(receivedValues, Map.of(
+                keptKey, "value-keep",
+                "key-1", "value-key-1",
+                "key-2", "value-key-2",
+                "key-3", "value-key-3"));
+
+        for (String key : deletedKeys) {
+            producer.newMessage().key(key).send();
+        }
+        triggerAndWaitCompaction(topic);
+
+        final Set<String> receivedTombstones = new HashSet<>();
+        for (int i = 0; i < deletedKeys.size(); i++) {
+            Message<String> message = reader.readNext(1, TimeUnit.SECONDS);
+            assertNotNull(message, "Expected tombstone " + (i + 1) + " of " + deletedKeys.size());
+            assertTrue(message.hasKey());
+            assertNull(message.getValue(), "Expected tombstone for key: " + message.getKey());
+            assertTrue(deletedKeys.contains(message.getKey()),
+                    "Unexpected tombstone key: " + message.getKey());
+            receivedTombstones.add(message.getKey());
+        }
+        assertEquals(receivedTombstones, Set.copyOf(deletedKeys),
+                "Should receive a tombstone for each deleted key");
     }
 }
