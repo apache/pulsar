@@ -74,8 +74,7 @@ public class SegmentedLongArray implements AutoCloseable {
         segmentCount = Math.max(1, (int) ((longCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE));
         segments = new long[segmentCount][];
         for (int i = 0; i < segmentCount; i++) {
-            int size = (int) Math.min(SEGMENT_SIZE, longCapacity - (long) i * SEGMENT_SIZE);
-            segments[i] = new long[size];
+            segments[i] = new long[SEGMENT_SIZE];
         }
     }
 
