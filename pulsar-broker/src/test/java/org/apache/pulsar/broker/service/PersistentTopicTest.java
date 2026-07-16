@@ -2027,6 +2027,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCheckInactiveSubscriptions() throws Exception {
+        pulsarTestContext.getConfig().setAdditionalSystemCursorNames(Set.of("additionalSystemCursor"));
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
         final var subscriptions = new ConcurrentHashMap<String, PersistentSubscription>();
@@ -2045,6 +2046,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic,
                         "nonDeletableSubscription2", cursorMock, true);
         subscriptions.put(nonDeletableSubscription2.getName(), nonDeletableSubscription2);
+        // This subscription is an additional system cursor.
+        PersistentSubscription nonDeletableSubscription3 =
+                spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic,
+                        "additionalSystemCursor", cursorMock, false);
+        subscriptions.put(nonDeletableSubscription3.getName(), nonDeletableSubscription3);
 
         Field field = topic.getClass().getDeclaredField("subscriptions");
         field.setAccessible(true);
@@ -2071,6 +2077,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(nonDeletableSubscription1, times(0)).delete();
         verify(deletableSubscription1, times(1)).delete();
         verify(nonDeletableSubscription2, times(0)).delete();
+        verify(nonDeletableSubscription3, times(0)).delete();
     }
 
     @Test
