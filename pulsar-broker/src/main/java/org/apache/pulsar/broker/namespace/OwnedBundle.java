@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,14 +29,25 @@ import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 
 @EqualsAndHashCode
 @ToString
 @CustomLog
 public class OwnedBundle {
     private final NamespaceBundle bundle;
+
+    /**
+     * The resource lock acquired for this ownership. Ties this instance to a single ownership generation: a
+     * bundle can be re-acquired (new lock, new {@link OwnedBundle}) after this instance's lock expired, and
+     * cleanup done through this instance must never touch the newer generation.
+     */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final ResourceLock<NamespaceEphemeralData> resourceLock;
 
     /**
      * {@link #nsLock} is used to protect read/write access to {@link #isActive} flag and the corresponding code section
@@ -55,9 +68,8 @@ public class OwnedBundle {
      * @param suName
      */
     public OwnedBundle(NamespaceBundle suName) {
-        this.bundle = suName;
-        IS_ACTIVE_UPDATER.set(this, TRUE);
-    };
+        this(suName, true);
+    }
 
     /**
      * Constructor to allow set initial active flag.
@@ -67,7 +79,18 @@ public class OwnedBundle {
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {
         this.bundle = suName;
+        this.resourceLock = null;
         IS_ACTIVE_UPDATER.set(this, active ? TRUE : FALSE);
+    }
+
+    OwnedBundle(NamespaceBundle suName, ResourceLock<NamespaceEphemeralData> resourceLock) {
+        this.bundle = suName;
+        this.resourceLock = resourceLock;
+        IS_ACTIVE_UPDATER.set(this, TRUE);
+    }
+
+    ResourceLock<NamespaceEphemeralData> getResourceLock() {
+        return resourceLock;
     }
 
     /**
@@ -130,11 +153,27 @@ public class OwnedBundle {
         AtomicInteger unloadedTopics = new AtomicInteger();
         log.info().attr("ownership", this.bundle).log("Disabling ownership");
 
+        // Capture the topic futures for this bundle once, before unloading starts, and reuse the same snapshot
+        // both to close the topics below and to clean up afterward: if this generation's lock has already expired
+        // and the bundle is re-acquired while the close futures are still running, the cleanup step must only
+        // touch what this snapshot observed, never a newer generation's topic.
+        //
+        // A straggler topic loaded into BrokerService's topic cache for this bundle *after* the snapshot is
+        // taken is deliberately left alone: neither closed below nor evicted by the cleanup. The alternative —
+        // force-evicting whatever is in the cache at cleanup time regardless of identity — could yank a topic
+        // that was never closed, letting a second, independent instance for the same name be created on the
+        // next load. A straggler surviving the unload does not need this unload to fix it: new connections
+        // converge through the normal lookup path once ownership has actually moved, and BookKeeper's ledger
+        // fencing (see ManagedLedgerImpl#addEntryFailedDueToConcurrentlyModified) is what prevents it from
+        // silently double-writing if a new owner's ManagedLedger instance does start writing the same topic.
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures =
+                pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
+
         // close topics forcefully
-        return pulsar.getNamespaceService().getOwnershipCache()
-                .updateBundleState(this.bundle, false)
-                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(
-                        bundle, true, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
+        // isActive was already flipped to false above; looking the bundle up in the ownership cache here could
+        // deactivate a newer OwnedBundle that re-acquired the bundle after this instance's lock expired.
+        return pulsar.getBrokerService().unloadServiceUnit(
+                        bundle, true, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit, topicFutures)
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle
@@ -146,12 +185,12 @@ public class OwnedBundle {
                         unloadedTopics.set(numUnloadedTopics);
                     }
                     // clean up topics that failed to unload from the broker ownership cache
-                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
                     return null;
                 })
                 .thenCompose(v -> {
-                    // delete ownership node on zk
-                    return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                    // delete ownership node on zk, but only for this instance's ownership generation
+                    return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(this);
                 }).whenComplete((ignored, ex) -> {
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - unloadBundleStartTime));
