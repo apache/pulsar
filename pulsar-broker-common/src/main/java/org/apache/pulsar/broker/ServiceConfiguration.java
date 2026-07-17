@@ -2776,8 +2776,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
-                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
-                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
 
     @FieldContext(
@@ -2800,13 +2799,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If number of unack message range is higher than this limit then broker will persist"
                     + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 200000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
-                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
-                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
-                    + "ranges excluding the acknowledged messages.")
-    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,

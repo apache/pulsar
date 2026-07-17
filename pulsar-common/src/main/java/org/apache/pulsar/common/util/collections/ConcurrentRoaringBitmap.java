@@ -24,7 +24,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongConsumer;
+import org.roaringbitmap.BitSetUtil;
 import org.roaringbitmap.PeekableIntIterator;
+import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
 /**
@@ -160,14 +162,12 @@ class ConcurrentRoaringBitmap implements LongBitmap {
 
     @Override
     public boolean contains(long from, long to) {
-        if (from < 0 || from > MAX_UINT32 || to <= from) {
+        if (from < 0 || from > MAX_UINT32 || to <= from || to > UINT32_SIZE) {
             return false;
         }
         long stamp = lock.readLock();
         try {
-            // Clamp: contains treats out-of-range `to` as a query past the uint32 end, but
-            // RoaringBitmap.contains is unreliable when `to` exceeds UINT32_SIZE.
-            return bitmap.contains(from, Math.min(to, UINT32_SIZE));
+            return bitmap.contains(from, to);
         } finally {
             lock.unlockRead(stamp);
         }
@@ -194,6 +194,17 @@ class ConcurrentRoaringBitmap implements LongBitmap {
     }
 
     @Override
+    public void clear() {
+        long stamp = lock.writeLock();
+        try {
+            bitmap.clear();
+            removesSinceTrim = 0;
+        } finally {
+            lock.unlockWrite(stamp);
+        }
+    }
+
+    @Override
     public long nextAbsentValue(long from) {
         if (from < 0 || from > MAX_UINT32) {
             return -1;
@@ -201,6 +212,72 @@ class ConcurrentRoaringBitmap implements LongBitmap {
         long stamp = lock.readLock();
         try {
             return bitmap.nextAbsentValue((int) from);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    @Override
+    public long nextPresentValue(long from) {
+        if (from < 0 || from > MAX_UINT32) {
+            return -1;
+        }
+        long stamp = lock.readLock();
+        try {
+            return bitmap.nextValue((int) from);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    @Override
+    public long previousAbsentValue(long from) {
+        if (from < 0) {
+            return -1;
+        }
+        // Clamp to MAX_UINT32 instead of returning -1 for out-of-range input.
+        // This allows safe usage in PositionRangeSet.lastRange() where
+        // previousAbsentValue(lastPresentValue()) is called and lastPresentValue
+        // may be MAX_UINT32. Clamping avoids the need for Math.min() guards at call sites.
+        if (from > MAX_UINT32) {
+            from = MAX_UINT32;
+        }
+        long stamp = lock.readLock();
+        try {
+            return bitmap.previousAbsentValue((int) from);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    @Override
+    public long lastPresentValue() {
+        long stamp = lock.readLock();
+        try {
+            if (bitmap.isEmpty()) {
+                return -1;
+            }
+            return bitmap.previousValue(-1);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    @Override
+    public long rank(long value) {
+        if (value <= 0) {
+            return 0;
+        }
+        // Clamp to UINT32_SIZE instead of MAX_UINT32 to allow rank(UINT32_SIZE) to return
+        // the total cardinality. This is needed in PositionRangeSet.cardinality() where
+        // rank(upperValue + 1) is called and upperValue may be MAX_UINT32. The clamping
+        // ensures rank(0x100000000L) counts all values in the uint32 range.
+        if (value > UINT32_SIZE) {
+            value = UINT32_SIZE;
+        }
+        long stamp = lock.readLock();
+        try {
+            return bitmap.rank((int) (value - 1));
         } finally {
             lock.unlockRead(stamp);
         }
@@ -320,6 +397,30 @@ class ConcurrentRoaringBitmap implements LongBitmap {
         byte[] bytes = new byte[copy.serializedSizeInBytes()];
         copy.serialize(ByteBuffer.wrap(bytes));
         return bytes;
+    }
+
+    @Override
+    public long[] serializeToLongArray() {
+        long stamp = lock.readLock();
+        try {
+            RoaringBitmap immutable = bitmap.toRoaringBitmap();
+            return BitSetUtil.toLongArray(immutable);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    @Override
+    public void deserializeFromLongArray(long[] data) {
+        long stamp = lock.writeLock();
+        try {
+            bitmap.clear();
+            RoaringBitmap rb = BitSetUtil.bitmapOf(data);
+            bitmap.or(rb.toMutableRoaringBitmap());
+            removesSinceTrim = 0;
+        } finally {
+            lock.unlockWrite(stamp);
+        }
     }
 
     static ConcurrentRoaringBitmap deserialize(ByteBuf buf) {

@@ -702,62 +702,6 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         Awaitility.await().until(() -> cursorImpl.getCursorLedger() != currentLedgerId);
     }
 
-    @DataProvider(name = "unackedRangesOpenCacheSetEnabledPair")
-    public Object[][] unackedRangesOpenCacheSetEnabledPair() {
-        return new Object[][]{
-            {false, true},
-            {true, false},
-            {true, true},
-            {false, false}
-        };
-    }
-
-    /**
-     * This test validates that cursor serializes and deserializes individual-ack list from the bk-ledger.
-     * @throws Exception
-     */
-    @Test(dataProvider = "unackedRangesOpenCacheSetEnabledPair")
-    public void testUnackmessagesAndRecoveryCompatibility(boolean enabled1, boolean enabled2) throws Exception {
-        final String mlName = "ml" + UUID.randomUUID().toString().replaceAll("-", "");
-        final String cursorName = "c1";
-        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
-        final ManagedLedgerConfig config1 = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
-                .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1)
-                .setUnackedRangesOpenCacheSetEnabled(enabled1);
-        final ManagedLedgerConfig config2 = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
-                .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1)
-                .setUnackedRangesOpenCacheSetEnabled(enabled2);
-
-        ManagedLedger ledger1 = factory.open(mlName, config1);
-        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger1.openCursor(cursorName);
-
-        int totalEntries = 100;
-        for (int i = 0; i < totalEntries; i++) {
-            Position p = ledger1.addEntry("entry".getBytes());
-            if (i % 2 == 0) {
-                cursor1.delete(p);
-            }
-        }
-        log.info().attr("ackRanges", cursor1.getIndividuallyDeletedMessagesSet().size()).log("Ack ranges count");
-
-        // reopen and recover cursor
-        ledger1.close();
-        ManagedLedger ledger2 = factory.open(mlName, config2);
-        ManagedCursorImpl cursor2 = (ManagedCursorImpl) ledger2.openCursor(cursorName);
-
-        log.info().attr("ranges", cursor1.getIndividuallyDeletedMessagesSet().asRanges()).log("Ranges before reopen");
-        log.info().attr("ranges", cursor2.getIndividuallyDeletedMessagesSet().asRanges()).log("Ranges after reopen");
-        assertEquals(cursor1.getIndividuallyDeletedMessagesSet().asRanges(),
-                cursor2.getIndividuallyDeletedMessagesSet().asRanges());
-        assertEquals(cursor1.markDeletePosition, cursor2.markDeletePosition);
-
-        ledger2.close();
-        factory.shutdown();
-    }
-
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][] {
@@ -776,7 +720,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                 .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1)
                 .setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1).setMetadataAckQuorumSize(1)
                 .setMaxUnackedRangesToPersistInMetadataStore(1)
-                .setUnackedRangesOpenCacheSetEnabled(true).setPersistIndividualAckAsLongArray(enable);
+                .setPersistIndividualAckAsLongArray(enable);
 
         ManagedLedger ledger1 = factory.open(mlName, config);
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger1.openCursor(cursorName);
