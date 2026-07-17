@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
@@ -33,14 +34,14 @@ import lombok.Getter;
  *
  * <p>Segment layout invariant:
  * <ul>
- *   <li>Every segment except the last has length {@link #SEGMENT_SIZE}.</li>
+ *   <li>Every segment except the last has length {@code segmentSize}.</li>
  *   <li>The last segment may be partially filled.</li>
  *   <li>{@code capacity} always equals the total number of allocated elements
  *       across all segments.</li>
  * </ul>
  *
- * <p>The segment invariant guarantees that the bit-based address mapping
- * ({@code offset >>> SEGMENT_SHIFT}, {@code offset & SEGMENT_MASK}) remains
+ * <p>The segment invariant guarantees that the bit based address mapping
+ * ({@code offset >>> segmentShift}, {@code offset & segmentMask}) remains
  * valid for every logical offset.
  *
  * <p>Growing and shrinking preserve existing contents while maintaining the
@@ -52,19 +53,20 @@ import lombok.Getter;
 public class SegmentedLongArray implements AutoCloseable {
 
     /**
-     * Number of {@code long} values in a full segment.
-     *
-     * <p>Must be a power of two so segment lookup can use bit operations
-     * instead of division and modulo.
+     * Default number of {@code long} values in a full segment. Production behavior
+     * is fixed by this constant; tests may override it via the
+     * {@link #SegmentedLongArray(long, int) package-private constructor}.
      */
-    static final int SEGMENT_SIZE = 2 * 1024 * 1024;
-
-    private static final int SEGMENT_SHIFT = Integer.numberOfTrailingZeros(SEGMENT_SIZE);
-    private static final int SEGMENT_MASK = SEGMENT_SIZE - 1;
+    static final int DEFAULT_SEGMENT_SIZE = 2 * 1024 * 1024;
 
     static {
-        assert Integer.bitCount(SEGMENT_SIZE) == 1 : "SEGMENT_SIZE must be a power of 2";
+        assert Integer.bitCount(DEFAULT_SEGMENT_SIZE) == 1
+                : "DEFAULT_SEGMENT_SIZE must be a power of 2";
     }
+
+    private final int segmentSize;
+    private final int segmentShift;
+    private final int segmentMask;
 
     private long[][] segments;
     private int segmentCount;
@@ -81,13 +83,37 @@ public class SegmentedLongArray implements AutoCloseable {
     private long allocatedBytes;
 
     /**
-     * Creates a segmented array with the specified initial capacity.
+     * Creates a segmented array with the specified initial capacity and the default
+     * segment size ({@link #DEFAULT_SEGMENT_SIZE}).
      *
      * @param initialCapacity initial capacity in {@code long} elements
      * @throws IllegalArgumentException if {@code initialCapacity <= 0}
      */
     public SegmentedLongArray(long initialCapacity) {
+        this(initialCapacity, DEFAULT_SEGMENT_SIZE);
+    }
+
+    /**
+     * Creates a segmented array with a custom segment size.
+     *
+     * <p>Intended for unit tests that exercise multi-segment grow/shrink behavior
+     * without allocating production-sized (16 MiB) backing arrays. Production
+     * callers should use {@link #SegmentedLongArray(long)}.
+     *
+     * @param initialCapacity initial capacity in {@code long} elements
+     * @param segmentSize     number of {@code long} values per full segment; must be
+     *                        a positive power of two
+     * @throws IllegalArgumentException if {@code initialCapacity <= 0} or
+     *                                  {@code segmentSize} is not a positive power of two
+     */
+    @VisibleForTesting
+    SegmentedLongArray(long initialCapacity, int segmentSize) {
         checkArgument(initialCapacity > 0, "initialCapacity must be positive");
+        checkArgument(segmentSize > 0 && Integer.bitCount(segmentSize) == 1,
+                "segmentSize must be a positive power of two");
+        this.segmentSize = segmentSize;
+        this.segmentShift = Integer.numberOfTrailingZeros(segmentSize);
+        this.segmentMask = segmentSize - 1;
         this.initialCapacity = initialCapacity;
         this.capacity = initialCapacity;
         allocateSegments(initialCapacity);
@@ -97,14 +123,14 @@ public class SegmentedLongArray implements AutoCloseable {
      * Allocates the initial segment layout.
      */
     private void allocateSegments(long longCapacity) {
-        segmentCount = Math.max(1, (int) ((longCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE));
+        segmentCount = Math.max(1, (int) ((longCapacity + segmentSize - 1) / segmentSize));
         segments = new long[segmentCount][];
 
         long remaining = longCapacity;
         long bytes = 0;
 
         for (int i = 0; i < segmentCount; i++) {
-            int size = (int) Math.min(SEGMENT_SIZE, remaining);
+            int size = (int) Math.min(segmentSize, remaining);
             segments[i] = new long[size];
             bytes += (long) size * Long.BYTES;
             remaining -= size;
@@ -114,13 +140,13 @@ public class SegmentedLongArray implements AutoCloseable {
     }
 
     public void writeLong(long offset, long value) {
-        long[] segment = segments[(int) (offset >>> SEGMENT_SHIFT)];
-        segment[(int) (offset & SEGMENT_MASK)] = value;
+        long[] segment = segments[(int) (offset >>> segmentShift)];
+        segment[(int) (offset & segmentMask)] = value;
     }
 
     public long readLong(long offset) {
-        long[] segment = segments[(int) (offset >>> SEGMENT_SHIFT)];
-        return segment[(int) (offset & SEGMENT_MASK)];
+        long[] segment = segments[(int) (offset >>> segmentShift)];
+        return segment[(int) (offset & segmentMask)];
     }
 
     /**
@@ -135,12 +161,12 @@ public class SegmentedLongArray implements AutoCloseable {
         }
 
         long geometric;
-        if (capacity < SEGMENT_SIZE) {
+        if (capacity < segmentSize) {
             geometric = Math.min(
                     capacity + (capacity <= 256 ? capacity : capacity / 2),
-                    SEGMENT_SIZE);
+                    segmentSize);
         } else {
-            geometric = capacity + SEGMENT_SIZE;
+            geometric = capacity + segmentSize;
         }
 
         growTo(Math.max(required, geometric));
@@ -158,7 +184,7 @@ public class SegmentedLongArray implements AutoCloseable {
             return;
         }
 
-        int newSegmentCount = (int) ((newCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE);
+        int newSegmentCount = (int) ((newCapacity + segmentSize - 1) / segmentSize);
 
         if (segments.length < newSegmentCount) {
             segments = Arrays.copyOf(segments, newSegmentCount);
@@ -168,18 +194,18 @@ public class SegmentedLongArray implements AutoCloseable {
         // it must be expanded to preserve the bit-based address mapping.
         if (newSegmentCount > segmentCount && segmentCount >= 1) {
             int oldLastIdx = segmentCount - 1;
-            if (segments[oldLastIdx].length < SEGMENT_SIZE) {
-                resizeLastSegment(oldLastIdx, SEGMENT_SIZE);
+            if (segments[oldLastIdx].length < segmentSize) {
+                resizeLastSegment(oldLastIdx, segmentSize);
             }
         }
 
         for (int i = segmentCount; i < newSegmentCount - 1; i++) {
-            segments[i] = new long[SEGMENT_SIZE];
-            allocatedBytes += (long) SEGMENT_SIZE * Long.BYTES;
+            segments[i] = new long[segmentSize];
+            allocatedBytes += (long) segmentSize * Long.BYTES;
         }
 
         int newLastIdx = newSegmentCount - 1;
-        int newLastSize = (int) (newCapacity - (long) newLastIdx * SEGMENT_SIZE);
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * segmentSize);
 
         if (newLastIdx >= segmentCount) {
             segments[newLastIdx] = new long[newLastSize];
@@ -212,9 +238,9 @@ public class SegmentedLongArray implements AutoCloseable {
             return;
         }
 
-        int newSegmentCount = (int) ((newCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE);
+        int newSegmentCount = (int) ((newCapacity + segmentSize - 1) / segmentSize);
         int newLastIdx = newSegmentCount - 1;
-        int newLastSize = (int) (newCapacity - (long) newLastIdx * SEGMENT_SIZE);
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * segmentSize);
 
         for (int i = newSegmentCount; i < segmentCount; i++) {
             allocatedBytes -= (long) segments[i].length * Long.BYTES;

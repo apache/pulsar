@@ -26,6 +26,9 @@ import org.testng.annotations.Test;
 
 public class SegmentedLongArrayTest {
 
+    /** Small segment size so tests can exercise many-segment behavior without 16 MiB allocations. */
+    private static final int TEST_SEGMENT_SIZE = 1024;
+
     @Test
     public void testArray() {
         @Cleanup
@@ -62,10 +65,10 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testLargeArray() {
-        long initialCap = 3 * 1024 * 1024;
+        long initialCap = TEST_SEGMENT_SIZE + TEST_SEGMENT_SIZE / 2;
 
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(initialCap);
+        SegmentedLongArray a = new SegmentedLongArray(initialCap, TEST_SEGMENT_SIZE);
         assertEquals(a.getCapacity(), initialCap);
         assertEquals(a.bytesCapacity(), initialCap * 8);
         assertEquals(a.getInitialCapacity(), initialCap);
@@ -80,8 +83,9 @@ public class SegmentedLongArrayTest {
 
         a.increaseCapacity();
 
-        assertEquals(a.getCapacity(), 5 * 1024 * 1024);
-        assertEquals(a.bytesCapacity(), 5 * 1024 * 1024 * 8);
+        long expectedCap = initialCap + TEST_SEGMENT_SIZE;
+        assertEquals(a.getCapacity(), expectedCap);
+        assertEquals(a.bytesCapacity(), expectedCap * 8);
         assertEquals(a.getInitialCapacity(), initialCap);
 
         assertEquals(a.readLong(baseOffset), 0);
@@ -111,33 +115,33 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testIncreaseCapacityReachesSegmentBoundary() {
-        long start = SegmentedLongArray.SEGMENT_SIZE - 100;
+        long start = TEST_SEGMENT_SIZE - 100;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(start);
+        SegmentedLongArray a = new SegmentedLongArray(start, TEST_SEGMENT_SIZE);
         assertEquals(a.getCapacity(), start);
 
         a.increaseCapacity();
-        assertEquals(a.getCapacity(), SegmentedLongArray.SEGMENT_SIZE);
+        assertEquals(a.getCapacity(), TEST_SEGMENT_SIZE);
 
         a.increaseCapacity();
-        assertEquals(a.getCapacity(), SegmentedLongArray.SEGMENT_SIZE * 2);
+        assertEquals(a.getCapacity(), TEST_SEGMENT_SIZE * 2L);
     }
 
     @Test
     public void testMultiSegmentIncreaseCapacity() {
-        long initialCap = SegmentedLongArray.SEGMENT_SIZE * 3;
+        long initialCap = TEST_SEGMENT_SIZE * 3;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(initialCap);
+        SegmentedLongArray a = new SegmentedLongArray(initialCap, TEST_SEGMENT_SIZE);
 
         for (int i = 0; i < 20; i++) {
             a.increaseCapacity();
         }
 
-        long expectedCap = SegmentedLongArray.SEGMENT_SIZE * 23L;
+        long expectedCap = TEST_SEGMENT_SIZE * 23L;
         assertEquals(a.getCapacity(), expectedCap);
 
         for (int i = 0; i < 23; i++) {
-            long offset = (long) i * SegmentedLongArray.SEGMENT_SIZE + 42;
+            long offset = (long) i * TEST_SEGMENT_SIZE + 42;
             a.writeLong(offset, i);
             assertEquals(a.readLong(offset), i);
         }
@@ -145,9 +149,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testShrinkDropsWholeSegments() {
-        long segSize = SegmentedLongArray.SEGMENT_SIZE;
+        long segSize = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(segSize);
+        SegmentedLongArray a = new SegmentedLongArray(segSize, TEST_SEGMENT_SIZE);
         for (int i = 0; i < 4; i++) {
             a.increaseCapacity();
         }
@@ -187,9 +191,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testSegmentBoundaryReadWrite() {
-        long segSize = SegmentedLongArray.SEGMENT_SIZE;
+        long segSize = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(segSize * 2);
+        SegmentedLongArray a = new SegmentedLongArray(segSize * 2, TEST_SEGMENT_SIZE);
 
         a.writeLong(segSize - 1, 111L);
         a.writeLong(segSize, 222L);
@@ -240,9 +244,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testGrowAfterShrink() {
-        long segSize = SegmentedLongArray.SEGMENT_SIZE;
+        long segSize = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(segSize);
+        SegmentedLongArray a = new SegmentedLongArray(segSize, TEST_SEGMENT_SIZE);
         a.increaseCapacity();
         a.increaseCapacity();
         a.shrink(segSize);
@@ -285,18 +289,18 @@ public class SegmentedLongArrayTest {
     @Test
     public void testSmallInitialCapacityDoesNotAllocateFullSegment() {
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(48);
+        SegmentedLongArray a = new SegmentedLongArray(48, TEST_SEGMENT_SIZE);
         assertEquals(a.getCapacity(), 48);
         assertEquals(a.bytesCapacity(), 48 * 8);
-        assertTrue(a.bytesCapacity() < SegmentedLongArray.SEGMENT_SIZE * 8);
+        assertTrue(a.bytesCapacity() < TEST_SEGMENT_SIZE * 8);
     }
 
     @Test
     public void testPartialLastSegmentMapping() {
-        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long seg = TEST_SEGMENT_SIZE;
         long cap = seg + 1000;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(cap);
+        SegmentedLongArray a = new SegmentedLongArray(cap, TEST_SEGMENT_SIZE);
         assertEquals(a.getCapacity(), cap);
         assertEquals(a.bytesCapacity(), cap * 8);
         a.writeLong(0, 1L);
@@ -311,9 +315,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testIncreaseCapacityPromotesPartialLastToFull() {
-        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long seg = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(seg * 2 + seg / 2);
+        SegmentedLongArray a = new SegmentedLongArray(seg * 2 + seg / 2, TEST_SEGMENT_SIZE);
         long partialBase = seg * 2;
         a.writeLong(partialBase, 99L);
         a.writeLong(partialBase + seg / 2 - 1, 100L);
@@ -341,9 +345,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testOffsetMappingAndCapacityAcrossOperations() {
-        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long seg = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(50);
+        SegmentedLongArray a = new SegmentedLongArray(50, TEST_SEGMENT_SIZE);
         assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
 
         for (int i = 0; i < 5; i++) {
@@ -373,9 +377,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testAllocatedBytesDeltaAtEveryMutationSite() {
-        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long seg = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(100);
+        SegmentedLongArray a = new SegmentedLongArray(100, TEST_SEGMENT_SIZE);
         assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
 
         for (int i = 0; i < 4; i++) {
@@ -394,9 +398,9 @@ public class SegmentedLongArrayTest {
 
     @Test
     public void testShrinkTrimsOverallocatedContainer() {
-        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long seg = TEST_SEGMENT_SIZE;
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(50);
+        SegmentedLongArray a = new SegmentedLongArray(50, TEST_SEGMENT_SIZE);
         a.ensureCapacity(seg * 30);
         assertTrue(a.getCapacity() >= seg * 30);
         a.shrink(seg / 2);
@@ -405,5 +409,29 @@ public class SegmentedLongArrayTest {
         a.writeLong(a.getCapacity() - 1, 2L);
         assertEquals(a.readLong(0), 1L);
         assertEquals(a.readLong(a.getCapacity() - 1), 2L);
+    }
+
+    @Test
+    public void testCustomSegmentSizeRejectsNonPowerOfTwo() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            @Cleanup
+            SegmentedLongArray ignored = new SegmentedLongArray(100, 1000);
+        });
+    }
+
+    @Test
+    public void testCustomSegmentSizeRejectsZero() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            @Cleanup
+            SegmentedLongArray ignored = new SegmentedLongArray(100, 0);
+        });
+    }
+
+    @Test
+    public void testCustomSegmentSizeRejectsNegative() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            @Cleanup
+            SegmentedLongArray ignored = new SegmentedLongArray(100, -1024);
+        });
     }
 }
