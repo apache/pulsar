@@ -39,7 +39,7 @@ public class SegmentedLongArrayTest {
         a.writeLong(2, 2);
         a.writeLong(3, Long.MAX_VALUE);
 
-        assertThrows(IndexOutOfBoundsException.class, ()->a.writeLong(4,Long.MIN_VALUE));
+        assertThrows(IndexOutOfBoundsException.class, () -> a.writeLong(4,Long.MIN_VALUE));
 
         a.increaseCapacity();
         a.writeLong(4, Long.MIN_VALUE);
