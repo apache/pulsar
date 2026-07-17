@@ -24,25 +24,41 @@ import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
 
 /**
- * A segmented array of {@code long} values backed by the Java heap.
+ * A growable array of {@code long} values backed by heap-allocated segments.
  *
- * <p>The array is split into fixed-size {@code long[]} segments of
- * {@value #SEGMENT_SIZE} elements (16MB). Segment lookup uses
- * bit-shift and bit-mask operations instead of division, enabling efficient
- * indexed access with minimal overhead.
+ * <p>This class provides a logical contiguous {@code long[]} whose size may exceed
+ * {@link Integer#MAX_VALUE}. Internally, the storage is split into fixed-size
+ * segments, allowing capacities larger than a single Java array while keeping
+ * element access in constant time.
  *
- * <p>Segmentation allows the array to grow beyond
- * {@code Integer.MAX_VALUE} elements while keeping individual backing arrays
- * within the JVM's maximum array size.
+ * <p>Segment layout invariant:
+ * <ul>
+ *   <li>Every segment except the last has length {@link #SEGMENT_SIZE}.</li>
+ *   <li>The last segment may be partially filled.</li>
+ *   <li>{@code capacity} always equals the total number of allocated elements
+ *       across all segments.</li>
+ * </ul>
+ *
+ * <p>The segment invariant guarantees that the bit-based address mapping
+ * ({@code offset >>> SEGMENT_SHIFT}, {@code offset & SEGMENT_MASK}) remains
+ * valid for every logical offset.
+ *
+ * <p>Growing and shrinking preserve existing contents while maintaining the
+ * segment layout invariant.
+ *
+ * <p>This class is not thread-safe.
  */
 @NotThreadSafe
 public class SegmentedLongArray implements AutoCloseable {
 
     /**
-     * Each segment holds at most 2M longs -> 16 MB. Must be a power of two
-     * so that segment lookup uses bit-shift / bit-mask instead of division.
+     * Number of {@code long} values in a full segment.
+     *
+     * <p>Must be a power of two so segment lookup can use bit operations
+     * instead of division and modulo.
      */
     static final int SEGMENT_SIZE = 2 * 1024 * 1024;
+
     private static final int SEGMENT_SHIFT = Integer.numberOfTrailingZeros(SEGMENT_SIZE);
     private static final int SEGMENT_MASK = SEGMENT_SIZE - 1;
 
@@ -53,16 +69,23 @@ public class SegmentedLongArray implements AutoCloseable {
     private long[][] segments;
     private int segmentCount;
 
+    /** Minimum capacity to which this array may be shrunk. */
     @Getter
     private final long initialCapacity;
 
-    /**
-     * Current capacity measured in number of longs (not bytes).
-     * Use {@link #bytesCapacity()} for the byte equivalent.
-     */
+    /** Logical capacity, measured in {@code long} elements. */
     @Getter
     private long capacity;
 
+    /** Total bytes allocated by all live backing segments. */
+    private long allocatedBytes;
+
+    /**
+     * Creates a segmented array with the specified initial capacity.
+     *
+     * @param initialCapacity initial capacity in {@code long} elements
+     * @throws IllegalArgumentException if {@code initialCapacity <= 0}
+     */
     public SegmentedLongArray(long initialCapacity) {
         checkArgument(initialCapacity > 0, "initialCapacity must be positive");
         this.initialCapacity = initialCapacity;
@@ -70,12 +93,24 @@ public class SegmentedLongArray implements AutoCloseable {
         allocateSegments(initialCapacity);
     }
 
+    /**
+     * Allocates the initial segment layout.
+     */
     private void allocateSegments(long longCapacity) {
         segmentCount = Math.max(1, (int) ((longCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE));
         segments = new long[segmentCount][];
+
+        long remaining = longCapacity;
+        long bytes = 0;
+
         for (int i = 0; i < segmentCount; i++) {
-            segments[i] = new long[SEGMENT_SIZE];
+            int size = (int) Math.min(SEGMENT_SIZE, remaining);
+            segments[i] = new long[size];
+            bytes += (long) size * Long.BYTES;
+            remaining -= size;
         }
+
+        allocatedBytes = bytes;
     }
 
     public void writeLong(long offset, long value) {
@@ -88,63 +123,128 @@ public class SegmentedLongArray implements AutoCloseable {
         return segment[(int) (offset & SEGMENT_MASK)];
     }
 
-    public void increaseCapacity() {
-        if (capacity < SEGMENT_SIZE) {
-            // Resize the first segment by allocating a larger backing array
-            long grown = capacity + (capacity <= 256 ? capacity : capacity / 2);
-            grown = Math.min(grown, SEGMENT_SIZE);
-            long[] oldSeg = segments[0];
-            long[] newSeg = new long[(int) grown];
-            System.arraycopy(oldSeg, 0, newSeg, 0, (int) capacity);
-            segments[0] = newSeg;
-            capacity = grown;
-        } else {
-            // Add a new full-size segment
-            if (segmentCount == segments.length) {
-                segments = Arrays.copyOf(segments,
-                        Math.max(segmentCount + 1, segments.length + segments.length / 2));
-            }
-            segments[segmentCount] = new long[SEGMENT_SIZE];
-            segmentCount++;
-            capacity += SEGMENT_SIZE;
+    /**
+     * Ensures that the backing storage can hold at least {@code required}
+     * elements.
+     *
+     * @param required minimum required capacity in {@code long} elements
+     */
+    public void ensureCapacity(long required) {
+        if (required <= capacity) {
+            return;
         }
+
+        long geometric;
+        if (capacity < SEGMENT_SIZE) {
+            geometric = Math.min(
+                    capacity + (capacity <= 256 ? capacity : capacity / 2),
+                    SEGMENT_SIZE);
+        } else {
+            geometric = capacity + SEGMENT_SIZE;
+        }
+
+        growTo(Math.max(required, geometric));
     }
 
+    public void increaseCapacity() {
+        ensureCapacity(capacity + 1);
+    }
+
+    /**
+     * Expands the backing storage to exactly {@code newCapacity}.
+     */
+    private void growTo(long newCapacity) {
+        if (newCapacity <= capacity) {
+            return;
+        }
+
+        int newSegmentCount = (int) ((newCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE);
+
+        if (segments.length < newSegmentCount) {
+            segments = Arrays.copyOf(segments, newSegmentCount);
+        }
+
+        // If the current last segment becomes an interior segment,
+        // it must be expanded to preserve the bit-based address mapping.
+        if (newSegmentCount > segmentCount && segmentCount >= 1) {
+            int oldLastIdx = segmentCount - 1;
+            if (segments[oldLastIdx].length < SEGMENT_SIZE) {
+                resizeLastSegment(oldLastIdx, SEGMENT_SIZE);
+            }
+        }
+
+        for (int i = segmentCount; i < newSegmentCount - 1; i++) {
+            segments[i] = new long[SEGMENT_SIZE];
+            allocatedBytes += (long) SEGMENT_SIZE * Long.BYTES;
+        }
+
+        int newLastIdx = newSegmentCount - 1;
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * SEGMENT_SIZE);
+
+        if (newLastIdx >= segmentCount) {
+            segments[newLastIdx] = new long[newLastSize];
+            allocatedBytes += (long) newLastSize * Long.BYTES;
+        } else {
+            resizeLastSegment(newLastIdx, newLastSize);
+        }
+
+        segmentCount = newSegmentCount;
+        capacity = newCapacity;
+    }
+
+    private void resizeLastSegment(int idx, int newSize) {
+        long[] old = segments[idx];
+        if (old.length == newSize) {
+            return;
+        }
+
+        allocatedBytes += (long) (newSize - old.length) * Long.BYTES;
+        segments[idx] = Arrays.copyOf(old, newSize);
+    }
+
+    /**
+     * Shrinks the backing storage to {@code newCapacity}.
+     *
+     * @param newCapacity target capacity in {@code long} elements
+     */
     public void shrink(long newCapacity) {
         if (newCapacity >= capacity || newCapacity < initialCapacity) {
             return;
         }
 
-        long sizeToReduce = capacity - newCapacity;
+        int newSegmentCount = (int) ((newCapacity + SEGMENT_SIZE - 1) / SEGMENT_SIZE);
+        int newLastIdx = newSegmentCount - 1;
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * SEGMENT_SIZE);
 
-        // Drop whole segments from the end
-        while (sizeToReduce >= SEGMENT_SIZE && segmentCount > 1) {
-            segmentCount--;
-            segments[segmentCount] = null;
-            capacity -= SEGMENT_SIZE;
-            sizeToReduce -= SEGMENT_SIZE;
+        for (int i = newSegmentCount; i < segmentCount; i++) {
+            allocatedBytes -= (long) segments[i].length * Long.BYTES;
+            segments[i] = null;
         }
 
-        // Shrink the first segment if needed
-        if (segmentCount == 1 && sizeToReduce > 0) {
-            long newSize = capacity - sizeToReduce;
-            long[] oldSeg = segments[0];
-            long[] newSeg = new long[(int) newSize];
-            System.arraycopy(oldSeg, 0, newSeg, 0, (int) newSize);
-            segments[0] = newSeg;
-            capacity = newSize;
+        resizeLastSegment(newLastIdx, newLastSize);
+
+        segmentCount = newSegmentCount;
+        capacity = newCapacity;
+
+        if (segments.length > Math.max(segmentCount * 2L, 16)) {
+            segments = Arrays.copyOf(segments, segmentCount);
         }
     }
 
     @Override
     public void close() {
         segments = null;
+        segmentCount = 0;
+        capacity = 0;
+        allocatedBytes = 0;
     }
 
     /**
-     * The amount of memory used to back the array of longs.
+     * Returns the physical heap memory reserved by the backing arrays.
+     *
+     * @return allocated bytes occupied by all backing segments
      */
     public long bytesCapacity() {
-        return capacity * Long.BYTES;
+        return allocatedBytes;
     }
 }

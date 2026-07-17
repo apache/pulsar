@@ -109,9 +109,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      */
     public void add(long n1, long n2, long n3) {
         long arrayIdx = tuplesCount * ITEMS_COUNT;
-        if ((arrayIdx + 2) >= array.getCapacity()) {
-            array.increaseCapacity();
-        }
+        array.ensureCapacity(arrayIdx + ITEMS_COUNT);
 
         siftUp(tuplesCount, n1, n2, n3);
         ++tuplesCount;

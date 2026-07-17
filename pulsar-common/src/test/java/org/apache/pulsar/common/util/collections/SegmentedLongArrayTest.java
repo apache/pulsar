@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import lombok.Cleanup;
 import org.testng.annotations.Test;
 
@@ -30,7 +31,7 @@ public class SegmentedLongArrayTest {
         @Cleanup
         SegmentedLongArray a = new SegmentedLongArray(4);
         assertEquals(a.getCapacity(), 4);
-        assertEquals(a.bytesCapacity(), 4 * Long.BYTES);
+        assertEquals(a.bytesCapacity(), 4 * 8);
         assertEquals(a.getInitialCapacity(), 4);
 
         a.writeLong(0, 0);
@@ -38,11 +39,14 @@ public class SegmentedLongArrayTest {
         a.writeLong(2, 2);
         a.writeLong(3, Long.MAX_VALUE);
 
+        assertThrows(IndexOutOfBoundsException.class, ()->a.writeLong(4,Long.MIN_VALUE));
+
         a.increaseCapacity();
         a.writeLong(4, Long.MIN_VALUE);
 
         assertEquals(a.getCapacity(), 8);
-        assertEquals(a.bytesCapacity(), 8 * Long.BYTES);
+        assertEquals(a.bytesCapacity(), 8 * 8);
+        assertEquals(a.getInitialCapacity(), 4);
 
         assertEquals(a.readLong(0), 0);
         assertEquals(a.readLong(1), 1);
@@ -52,6 +56,7 @@ public class SegmentedLongArrayTest {
 
         a.shrink(5);
         assertEquals(a.getCapacity(), 5);
+        assertEquals(a.bytesCapacity(), 5 * 8);
         assertEquals(a.getInitialCapacity(), 4);
     }
 
@@ -62,7 +67,7 @@ public class SegmentedLongArrayTest {
         @Cleanup
         SegmentedLongArray a = new SegmentedLongArray(initialCap);
         assertEquals(a.getCapacity(), initialCap);
-        assertEquals(a.bytesCapacity(), initialCap * Long.BYTES);
+        assertEquals(a.bytesCapacity(), initialCap * 8);
         assertEquals(a.getInitialCapacity(), initialCap);
 
         long baseOffset = initialCap - 100;
@@ -76,7 +81,7 @@ public class SegmentedLongArrayTest {
         a.increaseCapacity();
 
         assertEquals(a.getCapacity(), 5 * 1024 * 1024);
-        assertEquals(a.bytesCapacity(), 5 * 1024 * 1024 * Long.BYTES);
+        assertEquals(a.bytesCapacity(), 5 * 1024 * 1024 * 8);
         assertEquals(a.getInitialCapacity(), initialCap);
 
         assertEquals(a.readLong(baseOffset), 0);
@@ -87,6 +92,8 @@ public class SegmentedLongArrayTest {
 
         a.shrink(initialCap);
         assertEquals(a.getCapacity(), initialCap);
+        assertEquals(a.bytesCapacity(), initialCap * 8);
+        assertEquals(a.getInitialCapacity(), initialCap);
     }
 
     @Test
@@ -179,24 +186,6 @@ public class SegmentedLongArrayTest {
     }
 
     @Test
-    public void testShrinkNoOpWhenEqual() {
-        @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(100);
-        a.increaseCapacity();
-        a.shrink(200);
-        assertEquals(a.getCapacity(), 200);
-    }
-
-    @Test
-    public void testShrinkNoOpWhenExceeds() {
-        @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(100);
-        a.increaseCapacity();
-        a.shrink(300);
-        assertEquals(a.getCapacity(), 200);
-    }
-
-    @Test
     public void testSegmentBoundaryReadWrite() {
         long segSize = SegmentedLongArray.SEGMENT_SIZE;
         @Cleanup
@@ -269,6 +258,24 @@ public class SegmentedLongArrayTest {
     }
 
     @Test
+    public void testShrinkNoOpWhenEqual() {
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(100);
+        a.increaseCapacity(); // 200
+        a.shrink(200); // newCapacity == capacity, no-op
+        assertEquals(a.getCapacity(), 200);
+    }
+
+    @Test
+    public void testShrinkNoOpWhenExceeds() {
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(100);
+        a.increaseCapacity(); // 200
+        a.shrink(300); // newCapacity > capacity, no-op
+        assertEquals(a.getCapacity(), 200);
+    }
+
+    @Test
     public void testNegativeOffset() {
         @Cleanup
         SegmentedLongArray a = new SegmentedLongArray(10);
@@ -276,41 +283,127 @@ public class SegmentedLongArrayTest {
     }
 
     @Test
-    public void testWriteAcrossSegmentBoundaryAfterGrowth() {
-        long segSize = SegmentedLongArray.SEGMENT_SIZE;
-        long initialCap = segSize * 3 / 2;
-
+    public void testSmallInitialCapacityDoesNotAllocateFullSegment() {
         @Cleanup
-        SegmentedLongArray a = new SegmentedLongArray(initialCap);
-        a.increaseCapacity();
-
-        long testOffset = initialCap;
-        a.writeLong(testOffset, 12345L);
-        assertEquals(a.readLong(testOffset), 12345L);
-
-        long boundaryOffset = segSize * 2 - 1;
-        a.writeLong(boundaryOffset, 67890L);
-        assertEquals(a.readLong(boundaryOffset), 67890L);
-
-        a.writeLong(segSize * 2, 11111L);
-        assertEquals(a.readLong(segSize * 2), 11111L);
+        SegmentedLongArray a = new SegmentedLongArray(48);
+        assertEquals(a.getCapacity(), 48);
+        assertEquals(a.bytesCapacity(), 48 * 8);
+        assertTrue(a.bytesCapacity() < SegmentedLongArray.SEGMENT_SIZE * 8);
     }
 
     @Test
-    public void testNonSegmentMultipleInitialCapacity() {
-        long segSize = SegmentedLongArray.SEGMENT_SIZE;
-        long[] testCaps = {1, 100, segSize - 1, segSize + 1, segSize * 2 + 50};
+    public void testPartialLastSegmentMapping() {
+        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        long cap = seg + 1000;
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(cap);
+        assertEquals(a.getCapacity(), cap);
+        assertEquals(a.bytesCapacity(), cap * 8);
+        a.writeLong(0, 1L);
+        a.writeLong(seg - 1, 2L);
+        a.writeLong(seg, 3L);
+        a.writeLong(cap - 1, 4L);
+        assertEquals(a.readLong(0), 1L);
+        assertEquals(a.readLong(seg - 1), 2L);
+        assertEquals(a.readLong(seg), 3L);
+        assertEquals(a.readLong(cap - 1), 4L);
+    }
 
-        for (long cap : testCaps) {
-            @Cleanup
-            SegmentedLongArray a = new SegmentedLongArray(cap);
-            long limit = Math.min(cap, 1000);
-            for (long i = 0; i < limit; i++) {
-                a.writeLong(i, i * 7);
-            }
-            for (long i = 0; i < limit; i++) {
-                assertEquals(a.readLong(i), i * 7, "Failed at capacity " + cap + " offset " + i);
-            }
+    @Test
+    public void testIncreaseCapacityPromotesPartialLastToFull() {
+        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(seg * 2 + seg / 2);
+        long partialBase = seg * 2;
+        a.writeLong(partialBase, 99L);
+        a.writeLong(partialBase + seg / 2 - 1, 100L);
+        long capacityBefore = a.getCapacity();
+        a.increaseCapacity();
+        assertTrue(a.getCapacity() > capacityBefore);
+        assertEquals(a.readLong(partialBase), 99L);
+        assertEquals(a.readLong(partialBase + seg / 2 - 1), 100L);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+    }
+
+    @Test
+    public void testBytesCapacityTracksPhysicalThroughGrowAndShrink() {
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(1000);
+        assertEquals(a.getCapacity(), 1000L);
+        assertEquals(a.bytesCapacity(), 8000L);
+        for (int i = 0; i < 5; i++) {
+            a.increaseCapacity();
+            assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
         }
+        a.shrink(2000);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+    }
+
+    @Test
+    public void testOffsetMappingAndCapacityAcrossOperations() {
+        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(50);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+
+        for (int i = 0; i < 5; i++) {
+            a.increaseCapacity();
+            assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        }
+        a.ensureCapacity(seg * 3 + 1000);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.writeLong(0, 1L);
+        a.writeLong(seg - 1, 2L);
+        a.writeLong(seg, 3L);
+        a.writeLong(a.getCapacity() - 1, 4L);
+        assertEquals(a.readLong(0), 1L);
+        assertEquals(a.readLong(seg - 1), 2L);
+        assertEquals(a.readLong(seg), 3L);
+        assertEquals(a.readLong(a.getCapacity() - 1), 4L);
+
+        a.shrink(seg * 2 + 500);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.shrink(seg);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.ensureCapacity(seg * 2 + 100);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.writeLong(seg, 7L);
+        assertEquals(a.readLong(seg), 7L);
+    }
+
+    @Test
+    public void testAllocatedBytesDeltaAtEveryMutationSite() {
+        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(100);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+
+        for (int i = 0; i < 4; i++) {
+            a.increaseCapacity();
+            assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        }
+        a.ensureCapacity(seg * 3 + 1000);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.shrink(seg + 500);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.shrink(seg / 2);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.ensureCapacity(seg * 2 + 100);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+    }
+
+    @Test
+    public void testShrinkTrimsOverallocatedContainer() {
+        long seg = SegmentedLongArray.SEGMENT_SIZE;
+        @Cleanup
+        SegmentedLongArray a = new SegmentedLongArray(50);
+        a.ensureCapacity(seg * 30);
+        assertTrue(a.getCapacity() >= seg * 30);
+        a.shrink(seg / 2);
+        assertEquals(a.bytesCapacity(), a.getCapacity() * 8);
+        a.writeLong(0, 1L);
+        a.writeLong(a.getCapacity() - 1, 2L);
+        assertEquals(a.readLong(0), 1L);
+        assertEquals(a.readLong(a.getCapacity() - 1), 2L);
     }
 }
