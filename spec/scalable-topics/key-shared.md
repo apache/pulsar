@@ -159,7 +159,9 @@ payloads are not batched — but still stamps each entry's bucket range.)
 
 What a client must implement follows from what it offers — the deciding fact is that segment sharing is
 **controller-driven**: the registration carries no capability negotiation, so any Stream consumer may be
-handed a shared segment.
+handed a shared segment. (*Informative:* negotiation is deliberately absent — entry-bucketing ships with
+the initial scalable-topics protocol in Pulsar 5.0.0, so no Stream-capable SDK predates it; the consumer
+side is simply part of the Stream consumer contract.)
 
 - **Stream consumer:** a client that offers the Stream consumer MUST implement §4 (mode selection from
   `bucket_ranges`, individual acks on shared segments, drain before mode flips). The client-side surface
