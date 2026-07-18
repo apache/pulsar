@@ -806,7 +806,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
         return (ksm.getKeySharedMode() == this.keySharedMode
-                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
+                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery
+                // PIP-486: entry-bucket subscriptions use PersistentEntryBucketDispatcherMultipleConsumers
+                && !ksm.isEntryBucketDispatch());
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
