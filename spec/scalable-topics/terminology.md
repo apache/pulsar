@@ -35,6 +35,14 @@ key-hash falls in that range. Segments are an implementation and scaling detail;
 of the application-visible model and MUST NOT be surfaced by the API as an application concept. They are
 visible only at the *wire protocol* level and within the *checkpoint* model.
 
+### Entry-bucket
+
+An intra-*segment* routing unit ([Key-Shared](key-shared.md)): a sub-range of the 16-bit entry-bucket
+hash space, defined by a per-segment boundary list that is immutable for the segment's life. A key maps
+to a bucket by the **low** 16 bits of the same raw Murmur3 hash whose **high** 16 bits place it on the
+*hash ring*. Each bucket is owned by exactly one consumer at a time within a subscription, which is what
+lets several ordered consumers share one segment with per-key affinity.
+
 ### Segment state
 
 A segment is **active** (currently accepting writes for its range) or **sealed** (closed by a split or

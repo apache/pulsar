@@ -131,9 +131,10 @@ subscription properties, consumer name, acknowledgment-group time, read-compacte
 - A client SHOULD support a **dead-letter** policy: messages exceeding a redelivery limit are routed to
   a dead-letter topic.
 
-> *Informative:* per-key, single-consumer delivery is a property of the ordered modes only. Scalable
-> per-key affinity for queue-style consumption is the optional **entry-bucketing** capability
-> ([Scalable Key-Shared Consumption](key-shared.md)), specified separately.
+> *Informative:* per-key, single-consumer delivery is a property of the ordered modes only. To scale
+> ordered consumption beyond one consumer per segment — keeping per-key affinity — the *Stream*
+> consumer uses **entry-bucketing** ([Scalable Key-Shared Consumption](key-shared.md)), specified
+> separately; the application simply creates more stream consumers.
 
 ### 4.3 Checkpoint consumer (unmanaged, external position)
 

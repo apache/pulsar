@@ -90,8 +90,10 @@ Spec configuration maps to the `org.apache.pulsar.client.api.v5.config` package:
 `TlsPolicy`, `ProxyProtocol`, `TransactionPolicy`, `ProcessingTimeoutPolicy`, `DeadLetterPolicy`,
 `MemorySize`.
 
-## 8. Entry-bucketing (optional)
+## 8. Entry-bucketing
 
-The Experimental-tier-graduated **entry-bucketing** capability ([Scalable Key-Shared
-Consumption](key-shared.md)) has no distinct application-facing Java surface today — it is an internal
-producer/broker behavior. When the Java client exposes controls for it, this section will map them.
+**Entry-bucketing** ([Scalable Key-Shared Consumption](key-shared.md)) has no application-facing Java
+surface — the producer buckets and stamps internally, and the Stream consumer applies bucket-shared
+assignments (Key_Shared attach, individual acks, drain on mode flips) internally. An application only
+observes that creating more Stream consumers than segments increases parallelism. When the Java client
+exposes controls (e.g. per-topic bucket policy), this section will map them.

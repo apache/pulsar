@@ -49,7 +49,7 @@ satisfy its full specification and gate it on broker support where applicable.
 |------------|----------------------------|------|
 | **Transactions** | NewTransaction, transactional send/ack, atomic commit/abort; TC discovery (watch where supported, else lookup). | [API](client-api.md) §6, [Wire](wire-protocol.md) §8 |
 | **Namespace subscription** (stream) | Live membership via the namespace watch; cross-topic cumulative ack; establishment-error surfacing. | [API](client-api.md) §4.4, [Wire](wire-protocol.md) §7 |
-| **Entry-bucketing / key-shared** | Producer single-bucket batching + metadata stamping; bucket-routed dispatch; rollover handling. Gated on broker support. | [Key-Shared](key-shared.md) |
+| **Entry-bucketing (producer side)** | Single-bucket batching + `entry_hash_min/max` stamping, gated on broker support. A producer that omits it MUST NOT batch on scalable topics. The **consumer side is not optional**: any client offering the Stream consumer MUST implement bucket-shared attach, individual acks, and drain-on-mode-flip ([Key-Shared](key-shared.md) §4, §9). | [Key-Shared](key-shared.md) |
 | **Dead-letter** (queue) | Route messages past the redelivery limit to the dead-letter topic. | [API](client-api.md) §4.2 |
 | **End-to-end encryption** | Producer/consumer encryption per the configured failure action. | [API](client-api.md) §3–§4 |
 | **Chunking / compression / custom batching** | Producer-local policies; no change to delivery semantics. | [API](client-api.md) §3.1 |

@@ -2,85 +2,130 @@
 
 **Status:** Draft (targeting Stable)
 
-> **Normative, optional capability.** This feature is specified by [PIP-486](../../pip/pip-486.md) and is
-> a **normative** part of this specification — not Experimental. Implementing entry-bucketing is an
-> **optional** client capability: a client need not implement it, but a client that does MUST satisfy the
-> requirements here, and MUST gate the behavior on observed broker support (§9). Where this document and
-> PIP-486 differ, PIP-486 is the source of truth until this document is finalized.
+> **Normative.** This feature is specified by [PIP-486](../../pip/pip-486.md) and is a **normative**
+> part of this specification — not Experimental. How much of it a client must implement depends on what
+> the client offers (§9): the consumer side is REQUIRED for Stream consumers (the controller may share a
+> segment at any time), while producer-side bucketing is exchangeable for not batching. Where this
+> document and PIP-486 differ, PIP-486 is the source of truth until this document is finalized.
 
-This document overlays the Stable specification with **entry-bucketing**: the mechanism that lets a
-queue-style subscription deliver messages with **per-key affinity** (one consumer per key) on a scalable
-topic, *without* coupling the producer's batching to the consumer's mode.
+This document overlays the Stable specification with **entry-bucketing**: the mechanism that lets an
+ordered (Stream) subscription scale beyond one consumer per segment with **per-key affinity** (one
+consumer per key), *without* coupling the producer's batching to the consumer's mode.
 
 ## 1. Motivation (informative)
 
-The Stable [Queue consumer](client-api.md#42-queue-consumer-parallel-broker-managed) provides parallel
-delivery with **no** key affinity. Classic Pulsar can provide key affinity (`Key_Shared`) but only by
-constraining producer batching. Entry-bucketing removes that coupling: the producer stamps a small,
-cleartext routing tag per stored entry, and the broker routes whole entries to a single consumer by that
-tag — no per-message hashing, no decompression, no producer/consumer batching coupling.
+The Stable [Stream consumer](client-api.md) scales by segments: each segment has one Exclusive owner, so
+parallelism is capped at the segment count. Classic Pulsar can go finer (`Key_Shared`) but only by
+constraining producer batching, because a batch may mix keys owned by different consumers. Entry-bucketing
+removes that coupling: the producer groups its batches by a small routing tag and stamps it in cleartext
+entry metadata, and the broker routes **whole entries** to a single consumer by that tag — no per-message
+hashing, no decompression, no producer/consumer batching coupling, and no client-side handoff protocol.
 
 ## 2. The bucket
 
 A **bucket** is an *intra-segment* routing unit, independent of the segment hash ring.
 
-- Within a segment, a key maps to a bucket by an **independent** hash `hashB` — a different function (or
-  salt) from the segment-routing hash: `bucket(key) = hashB(key) mod N`. Independence is REQUIRED so the
-  keys a segment actually receives spread evenly across its buckets regardless of the segment's
-  ring-range.
-- `N` (the segment's bucket count) is **chosen per segment** and is **immutable for that segment's
-  life**. Changing a segment's `N` is done by *rebucket rollover* (§5), never by mutating a live segment.
+- A key is hashed **once** with `Murmur3_32` over its UTF-8 bytes; the raw (unmasked) 32-bit hash splits
+  into two independent 16-bit halves: the **high half** routes segments (see
+  [Wire Protocol](wire-protocol.md) §5) and the **low half** is the key's **bucket hash**. Using disjoint
+  bits of one hash is what makes bucket spread independent of the segment's ring-range: the keys a
+  segment receives still cover the full 16-bit bucket-hash space.
+- A segment's buckets are defined by a **boundary list**: ascending, inclusive, contiguous ranges tiling
+  the bucket-hash space `0x0000`–`0xFFFF`. A key belongs to the bucket whose range contains its bucket
+  hash. Ranges need not be equal-width (boundaries MAY be placed to balance buckets by traffic).
+- The boundary list is **chosen per segment** and is **immutable for that segment's life**. Changing it
+  is done by *rebucket rollover* (§5), never by mutating a live segment. It is advertised in the topic
+  layout (`SegmentInfoProto.entry_bucket_splits` — the start hashes of buckets `1..N-1`; an empty list
+  means a single bucket spanning the whole ring).
 - A bucket is owned by **exactly one** consumer at a time within a subscription; this is the source of
   key affinity. A consumer MAY own several buckets.
 
-`N` is bounded by a configurable per-segment maximum (`N_max`). It is decoupled from the topic's segment
-count: segment scaling and bucket scaling are orthogonal axes.
+The bucket count `N` (the boundary-list size) is decoupled from the topic's segment count: segment
+scaling and bucket scaling are orthogonal axes.
 
 ## 3. Producer: entry-bucketing
 
 A producer that implements entry-bucketing MUST:
 
 - Batch such that **every stored entry (batch) belongs to a single bucket** — i.e. group messages by
-  `bucket(key)` within each destination segment.
-- Stamp, in the entry's **cleartext outer metadata**, the bucket count it used and the bucket id: a pair
-  `(bucket_count, bucket_id)` with `bucket_id ∈ [0, bucket_count)`. (Equivalently, the `hashB` sub-range
-  the bucket denotes — the exact wire encoding is in [Wire Protocol](wire-protocol.md).)
-- Use the **broker-advertised** `N` for each segment, discovered from the topic layout. `N` is read once
-  per segment (it is immutable for that segment).
+  bucket within each destination segment, using the segment's advertised boundary list.
+- Stamp, in the entry's **cleartext outer metadata**, the bucket's hash range: `MessageMetadata`
+  `entry_hash_min` / `entry_hash_max` (the bucket's inclusive 16-bit range). A non-batched message is
+  stamped the same way with its own bucket's range.
+- Stamp **always** — including on a single-bucket segment (`N = 1`, where the stamp is the whole ring).
+  The stamp records the entry's *effective* hash range at publish time, so it stays meaningful when the
+  entry is later re-examined under a different layout (geo-replication into a cluster with different
+  segment or bucket boundaries, or a rebucketed successor): if the stamped range falls entirely inside
+  one target bucket, the entry still routes whole.
 
 A producer MUST NOT be required to disable or alter batching to enable key-shared consumption; that is
-the entire point. The batching cost of bucketing scales with `1/N`, so a producer with few consumers
-uses a small `N` (good batching) and a producer feeding many consumers uses a larger `N`.
+the entire point. The batching cost of bucketing scales with `1/N`, so a topic with few consumers uses a
+small `N` (good batching) and one feeding many consumers uses a larger `N`.
+
+A producer that does **not** implement bucketing MUST NOT batch on a scalable topic: a multi-key batch
+that straddles buckets is routed whole to one consumer, silently breaking per-key affinity for every
+other consumer of the topic. Publishing each message as its own (possibly unstamped) entry is always
+safe — the broker routes an unstamped entry by the message key's bucket hash.
 
 ## 4. Consumer: key-shared dispatch
 
-A subscription operating in key-shared mode delivers with **per-key affinity**:
+Entry-bucketing extends the Stream consumer's controller assignment ([Wire Protocol](wire-protocol.md)
+§6.2). Each assigned segment carries a `bucket_ranges` list that selects the **attach mode**:
 
-- The broker routes each entry to the single consumer that currently owns the entry's bucket, by reading
-  the cleartext `bucket_id` — **no per-message key hashing and no payload decompression**. Because each
-  entry belongs to one bucket and each bucket has one owner, an entry is delivered to **exactly one**
-  consumer and is never split.
-- Affinity holds: all messages for a key share one bucket and therefore one consumer.
-- Scaling consumers up or down (within a segment's fixed `N`) reassigns buckets among consumers. During a
-  reassignment handoff the broker MUST preserve per-key order by withholding a moving bucket until the
-  prior owner's in-flight messages for it are drained, then handing it to the new owner. A consumer MUST
-  NOT receive messages for a bucket it does not currently own; **no consumer-side filtering is required
-  in steady state**.
+- **Empty `bucket_ranges`** — the consumer is the segment's **sole owner**: it subscribes **Exclusive**,
+  exactly as in the base protocol. This is the common case and keeps the single-owner fast path (no
+  per-message pending-ack tracking, cumulative acks).
+- **Non-empty `bucket_ranges`** — the segment is **shared by bucket**. The list is the segment's **full
+  boundary list** (§2) — *not* a per-consumer slice — and is **identical for every sharer**. The
+  consumer subscribes `Key_Shared` STICKY with the `entry_bucket_dispatch` flag, declaring exactly this
+  boundary list in the subscribe's `KeySharedMeta.hash_ranges`.
 
-The number of consumers that can share a segment is bounded by that segment's `N`.
+The controller only decides **which consumers share a segment**; the bucket→consumer spread is computed
+**broker-side** from the live membership of the subscription, deterministically (every sharer declares
+the same boundaries, so the broker validates them and rejects a mismatch as a stale-layout error).
 
-## 5. Changing N: rebucket rollover
+**Broker dispatch and handoff (normative for brokers, informative for clients).** The broker routes each
+entry, whole, to the consumer owning its bucket — by the cleartext stamp, with no per-message key hashing
+and no payload decompression. When membership changes (a sharer joins, leaves, or crashes), the broker
+re-spreads buckets and preserves per-key order by **draining**: a moving bucket is withheld from its new
+owner until every message the prior owner has in flight for that bucket is acknowledged, then flows to
+the new owner in order. Consumers keep consuming throughout — they are never rejected, never re-subscribe,
+and implement **no handoff protocol**; a bucket move is observable only as a pause on that bucket.
 
-Because a segment's `N` is immutable, increasing or decreasing the per-segment bucket count is performed
-as a **rebucket rollover**: the controller seals the segment and creates a successor with the **same
-hash range** but a new `N`. The sealed predecessor drains under its old `N`; the successor takes new
-writes under the new `N`. This reuses the seal → successor → producer-redirect flow of an ordinary split
-(with an unchanged range), so per-key order across the change is preserved by the existing mechanism.
+A client that implements entry-bucketing MUST, in addition:
 
-A client therefore never observes two different `N` values for one segment; a new `N` arrives only as a
-new (same-range) successor segment, picked up through the normal layout-change handling.
+- **Acknowledge individually on shared segments.** `Key_Shared` forbids cumulative acknowledgment. A
+  client whose consumer API is cumulative (the Stream consumer's position-vector ack,
+  [Implementation Requirements](client-behavior.md) §6) MUST translate it on shared segments by
+  individually acknowledging every delivered-but-unacknowledged message at or before the acked position,
+  per segment. On Exclusive (sole-owner) segments cumulative acknowledgment is used as normal.
+- **Drain before the mode flip.** The only client-visible transition is a segment's `bucket_ranges`
+  flipping between empty and non-empty (sole owner ⇄ shared). Applying it means closing the per-segment
+  consumer and re-subscribing in the other mode; before closing, the client MUST *drain*: stop delivering
+  new messages from that segment and wait until every already-delivered message of the segment is
+  acknowledged. This makes the flip invisible to per-key order and prevents redelivery of prefetched
+  messages. The same drain applies when a segment leaves the assignment entirely. (Draining is bounded by
+  the application acknowledging what it was delivered; a client MUST NOT acknowledge on the application's
+  behalf to force progress.)
+- **Apply assignments idempotently.** Re-receiving an assignment with an unchanged `bucket_ranges` for a
+  segment MUST NOT re-subscribe or otherwise disturb that segment.
 
-## 6. The segments-vs-N lever (informative)
+The number of consumers that can usefully share a segment is bounded by that segment's bucket count; the
+controller MAY leave surplus consumers idle.
+
+## 5. Changing the boundaries: rebucket rollover
+
+Because a segment's boundary list is immutable, changing it (more buckets, fewer, or re-placed
+boundaries) is performed as a **rebucket rollover**: the controller seals the segment and creates a
+successor with the **same hash range** but a new boundary list. The sealed predecessor drains under its
+old boundaries; the successor takes new writes under the new ones. This reuses the seal → successor →
+producer-redirect flow of an ordinary split (with an unchanged range), so per-key order across the change
+is preserved by the existing mechanism.
+
+A client therefore never observes two different boundary lists for one segment; new boundaries arrive
+only as a new (same-range) successor segment, picked up through the normal layout-change handling.
+
+## 6. The segments-vs-buckets lever (informative)
 
 Total consumer parallelism is `segments × N`, but a lower `N` means fewer, fuller batches.
 Implementations and operators therefore prefer **adding segments** (each at `N = 1`, best batching) and
@@ -91,23 +136,40 @@ allow immediate fan-out before any split.
 
 ## 7. Wire additions
 
-Entry-bucketing adds:
+Entry-bucketing adds no commands; it adds fields to existing structures (see
+[Wire Protocol](wire-protocol.md)):
 
-- Optional `MessageMetadata` fields carrying `(bucket_count, bucket_id)` (or the equivalent `hashB`
-  range) — see [Wire Protocol](wire-protocol.md). They are inert on classic topics and ignored by
-  brokers without the feature.
-- The per-segment bucket count `N` in the topic layout, so producers can bucket and the broker can
-  validate. A producer's stamped `bucket_count` that disagrees with the segment's authoritative `N`
-  indicates a buggy producer; the broker MAY reject such a publish.
+- `MessageMetadata.entry_hash_min` / `entry_hash_max` — the producer's bucket stamp (§3). Optional,
+  inert on classic topics, and ignored by brokers without the feature.
+- `SegmentInfoProto.entry_bucket_splits` — the segment's boundary list in the topic layout (§2), so
+  producers can bucket and the broker can validate.
+- `KeySharedMeta.entry_bucket_dispatch` — the subscribe flag selecting bucket dispatch, with the
+  boundary list carried in the existing `KeySharedMeta.hash_ranges` (§4).
+- `ScalableAssignedSegment.bucket_ranges` — the controller's per-segment mode signal in the Stream
+  assignment (§4).
 
 ## 8. Encryption
 
-Because routing uses only the cleartext `bucket_id` and never reshapes an entry, key-shared consumption
-works for end-to-end-encrypted topics: a single-bucket entry routes to its one owner without the broker
-decrypting or slicing it.
+Because routing uses only the cleartext stamp and never reshapes an entry, key-shared consumption works
+for end-to-end-encrypted topics: a single-bucket entry routes to its one owner without the broker
+decrypting or slicing it. (An encrypting producer publishes each message as its own entry — encrypted
+payloads are not batched — but still stamps each entry's bucket range.)
 
 ## 9. Conformance
 
-Entry-bucketing is a normative but **OPTIONAL** client capability. A client that omits it is conformant.
-A client that implements it MUST satisfy §3–§4 for interoperability, and MUST gate the behavior on
-observed broker support so that it interoperates safely with brokers that lack the feature.
+What a client must implement follows from what it offers — the deciding fact is that segment sharing is
+**controller-driven**: the registration carries no capability negotiation, so any Stream consumer may be
+handed a shared segment.
+
+- **Stream consumer:** a client that offers the Stream consumer MUST implement §4 (mode selection from
+  `bucket_ranges`, individual acks on shared segments, drain before mode flips). The client-side surface
+  is deliberately small — one subscribe flag plus the boundary list, no handoff protocol.
+- **Producer:** a client SHOULD implement §3 (bucketing and stamping). A client that does not MUST NOT
+  batch on scalable topics (§3) — unbatched, unstamped entries remain fully interoperable, at the cost
+  of batching throughput and per-entry key hashing on the broker.
+- **Queue and Checkpoint consumers** are unaffected by entry-bucketing; a client offering only those
+  need implement nothing from this document.
+
+A client MUST gate producer stamping on observed broker support (brokers without the feature ignore the
+fields, so stamping is safe; the gate exists so clients do not bucket-batch — and shrink their batches —
+for brokers that cannot use the stamps).

@@ -81,8 +81,9 @@ any way, including removal.
 On this basis:
 
 - **Scalable key-shared consumption (entry-bucketing, [PIP-486](../../pip/pip-486.md))** is **normative**
-  (ratified via PIP-486). It is an **optional capability** — a client need not implement it, but one that
-  does MUST satisfy [its requirements](key-shared.md). It is not Experimental.
+  (ratified via PIP-486). Its consumer side is REQUIRED for clients offering the Stream consumer;
+  producer-side bucketing is exchangeable for unbatched publishing — see
+  [its conformance section](key-shared.md). It is not Experimental.
 - **Geo-replication of scalable topics** is **out of scope** — its design is not yet settled (not even
   Experimental).
 - No feature is currently in the Experimental tier; the tier remains defined for future use.
@@ -125,7 +126,7 @@ On this basis:
 | Transactions | Draft → targeting Stable | Coordinator discovery via assignment watch. |
 | Namespace subscription | Draft → targeting Stable | |
 | Wire protocol (`CommandScalableTopic*`, watches) | Draft → targeting Stable | |
-| Scalable key-shared consumption (entry-bucketing) | Normative · optional | Ratified via [PIP-486](../../pip/pip-486.md). Optional capability; clients that implement it MUST meet its requirements. |
+| Scalable key-shared consumption (entry-bucketing) | Normative | Ratified via [PIP-486](../../pip/pip-486.md). Consumer side required for Stream consumers; producer side exchangeable for unbatched publishing. |
 | Geo-replication of scalable topics | Out of scope | Design not yet settled. |
 
 While the specification is at `0.x`, all rows are **Draft**; the "targeting" column states the intended

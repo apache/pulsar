@@ -125,8 +125,11 @@ client-side router and produces to it with the standard `CommandProducer`/`Comma
 
 **Routing (client-side — MUST match exactly so all clients route a key identically):**
 
-1. **Keyed:** `hash = Murmur3_32(key_utf8) & 0xFFFF`; select the single `ACTIVE` segment whose
-   `[hash_start, hash_end]` contains `hash`.
+1. **Keyed:** `hash = raw_Murmur3_32(key_utf8) >>> 16` — the **high** 16 bits of the raw (unmasked)
+   32-bit Murmur3 hash; select the single `ACTIVE` segment whose `[hash_start, hash_end]` contains
+   `hash`. (The raw hash is used so the high half is full-range; the **low** 16 bits are reserved as
+   the key's *entry-bucket* hash — [Key-Shared](key-shared.md) §2 — so the two routings are
+   independent.)
 2. **Keyless:** round-robin across the active segments.
 3. **All-legacy (synthetic) layout:** `signSafeMod(Murmur3_32(key_utf8), N)` over the `N` legacy
    segments (identical to v4 partitioned-topic routing, preserving key→partition while migrating).
@@ -191,14 +194,22 @@ CommandScalableTopicSubscribeResponse { request_id, assignment?: ScalableConsume
 CommandScalableTopicAssignmentUpdate  { consumer_id, assignment: ScalableConsumerAssignment }
 
 ScalableConsumerAssignment { uint64 layout_epoch; repeated ScalableAssignedSegment segments }
-ScalableAssignedSegment    { uint64 segment_id; uint32 hash_start, hash_end; string segment_topic }
+ScalableAssignedSegment    { uint64 segment_id; uint32 hash_start, hash_end; string segment_topic;
+                             repeated IntRange bucket_ranges }
 ```
 
 - `consumer_id` is client-chosen and tags every subsequent pushed `CommandScalableTopicAssignmentUpdate`;
   `request_id` matches the subscribe response.
 - The client attaches to exactly the `segment_topic`s in its current assignment — **Stream** via a
-  standard Exclusive `CommandSubscribe`, **grouped Checkpoint** via a Reader — and detaches from segments
+  standard `CommandSubscribe`, **grouped Checkpoint** via a Reader — and detaches from segments
   removed by a later assignment.
+- `bucket_ranges` selects the Stream consumer's attach mode per segment (entry-bucketing,
+  [Key-Shared](key-shared.md) §4): **empty** ⇒ sole owner, subscribe **Exclusive**; **non-empty** ⇒ the
+  segment is shared by entry-bucket, and the list is the segment's full bucket-boundary list — the
+  consumer subscribes `Key_Shared` STICKY with `KeySharedMeta.entry_bucket_dispatch = true` and exactly
+  this list in `KeySharedMeta.hash_ranges`. The controller may share a segment whenever consumers
+  outnumber segments, so a Stream client MUST implement this handling. Before applying a mode flip (or
+  dropping a segment) the client MUST drain the segment — see [Key-Shared](key-shared.md) §4.
 - `layout_epoch` lets the client **reject stale** assignments (apply only if epoch ≥ last applied).
 - Rebalances are pushed when a peer joins/leaves the subscription or on a segment split/merge.
 

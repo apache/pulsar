@@ -35,7 +35,7 @@ must do internally).
 | 8 | [Error Model](error-model.md) | Draft | Error taxonomy, typed errors, retryability, and no-throw rules. |
 | 9 | [Conformance](conformance.md) | Draft | The binary conformance criteria and the per-feature requirements checklist. |
 | 10 | [Compatibility](compatibility.md) | Draft | Interoperability with classic (v4) topics, the migration bridge, and broker version requirements. |
-| 11 | [Scalable Key-Shared Consumption](key-shared.md) | Draft | Entry-bucketing ([PIP-486](../../pip/pip-486.md)): per-key affinity for queue-style consumption. Normative, **optional** capability. |
+| 11 | [Scalable Key-Shared Consumption](key-shared.md) | Draft | Entry-bucketing ([PIP-486](../../pip/pip-486.md)): scaling ordered consumption beyond one consumer per segment, with per-key affinity. Normative; required on the consumer side for Stream consumers. |
 | A | [Java Reference Mapping](java-mapping.md) | Draft | Maps each language-neutral operation/type to the Java V5 client surface. |
 
 > **Status legend:** *Draft* = written, subject to change; *Stable* = ratified and frozen under the
@@ -48,8 +48,8 @@ Scalable topics are designed in the PIP series under [PIP-460](../../pip/pip-460
 ([PIP-468](../../pip/pip-468.md)), auto split/merge ([PIP-483](../../pip/pip-483.md)), and key-shared
 consumption ([PIP-486](../../pip/pip-486.md)). The PIPs are **design rationale**; this specification is
 the **normative client contract**, covering behavior that is implemented or ratified via an accepted
-PIP. Scalable key-shared consumption ([PIP-486](../../pip/pip-486.md), document 11) is **normative** — an
-optional capability, not Experimental. Geo-replication remains out of scope until its design settles. A
+PIP. Scalable key-shared consumption ([PIP-486](../../pip/pip-486.md), document 11) is **normative**, not
+Experimental. Geo-replication remains out of scope until its design settles. A
 design that is documentable but still changing MAY appear marked **Experimental** (none currently). See
 [Stability](stability.md).
 

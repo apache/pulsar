@@ -48,9 +48,10 @@ This bridge exists only for migration. New applications use canonical `topic://`
   `supports_tc_metadata_discovery` feature flag. A client MUST use the TC discovery watch
   ([Wire Protocol](wire-protocol.md) §8) only against a broker that advertises it, and fall back to the
   standard coordinator-lookup path otherwise.
-- **Entry-bucketing** ([Scalable Key-Shared Consumption](key-shared.md)) is an optional capability; a
-  client that implements it MUST gate the behavior on observed broker support and remain interoperable
-  with brokers that lack it.
+- **Entry-bucketing** ([Scalable Key-Shared Consumption](key-shared.md)): a client MUST gate producer
+  stamping/bucketing on observed broker support and remain interoperable with brokers that lack it; the
+  consumer-side handling rides the assignment protocol and needs no separate gate (a broker without the
+  feature never sends `bucket_ranges`).
 
 ## 4. Protocol forward/backward compatibility
 

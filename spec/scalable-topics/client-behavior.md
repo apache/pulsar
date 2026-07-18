@@ -23,9 +23,12 @@ API.
 For each message, a client MUST select the destination segment by this algorithm (so every client —
 including the v4 partitioned-topic compatibility path — routes a key identically):
 
-1. **Keyed:** `hash = Murmur3_32(key_utf8) & 0xFFFF`; select the single `ACTIVE` segment whose
+1. **Keyed:** `hash = raw_Murmur3_32(key_utf8) >>> 16` — the **high** 16 bits of the raw (unmasked)
+   32-bit Murmur3 hash of the key's UTF-8 bytes; select the single `ACTIVE` segment whose
    `[hash_start, hash_end]` contains `hash`. It is an internal error if no active segment covers the
-   hash (the active set MUST always tile the ring).
+   hash (the active set MUST always tile the ring). The **low** 16 bits of the same hash are the key's
+   *entry-bucket* hash ([Key-Shared](key-shared.md) §2); a client computes the hash once per key and
+   splits it.
 2. **Keyless:** round-robin across the active segments.
 3. **Migration (all-legacy layout):** when every active segment is legacy, route a keyed message by
    `signSafeMod(Murmur3_32(key_utf8), N)` over the `N` legacy segments (v4 partitioned-topic routing).
@@ -62,8 +65,10 @@ A client MUST present each consumer as a single logical stream while reading fro
   deliveries into one receive queue; route each individual ack/nack to the correct per-segment consumer
   using the segment id carried in the message identifier; reconcile the per-segment subscription set
   toward the latest layout as it changes.
-- **Stream consumer:** maintain one per-segment subscription (Exclusive) for each **assigned** segment
-  ([Wire Protocol](wire-protocol.md) §6.2); multiplex into one receive queue.
+- **Stream consumer:** maintain one per-segment subscription for each **assigned** segment
+  ([Wire Protocol](wire-protocol.md) §6.2) — Exclusive when the consumer is the segment's sole owner,
+  `Key_Shared`-by-bucket when the assignment shares the segment ([Key-Shared](key-shared.md) §4);
+  multiplex into one receive queue.
 - **Checkpoint consumer:** maintain one per-segment Reader for each segment it reads (all segments when
   ungrouped; assigned segments when grouped); track read positions client-side.
 
@@ -75,7 +80,10 @@ came from. A client MUST:
 - record, for each delivered message, a **position vector** — a snapshot of the latest delivered message
   identifier of every segment at the moment the message was enqueued; and
 - on a cumulative ack, cumulatively acknowledge every segment up to the positions recorded in that
-  message's vector.
+  message's vector. On a segment attached `Key_Shared`-by-bucket (a shared segment,
+  [Key-Shared](key-shared.md) §4) cumulative acknowledgment is forbidden by the broker: the client MUST
+  translate that segment's slice into **individual** acknowledgments of every delivered-but-unacked
+  message at or before the recorded position.
 
 For a **namespace** stream consumer the vector spans topics and segments (`{topic → {segmentId →
 messageId}}`), and the ack fans out to every per-topic consumer accordingly.
@@ -98,9 +106,15 @@ A client MUST:
 
 - discover the controller leader from the layout (`controller_broker_url`) and connect to it directly
   (scalable-topic URIs are not resolvable via standard lookup);
-- register with `CommandScalableTopicSubscribe`, attach to exactly the assigned segments, and on each
-  `CommandScalableTopicAssignmentUpdate` apply the diff (attach added, detach removed) only if its
-  `layout_epoch` is ≥ the last applied;
+- register with `CommandScalableTopicSubscribe`, attach to exactly the assigned segments — in the mode
+  each segment's `bucket_ranges` selects ([Key-Shared](key-shared.md) §4) — and on each
+  `CommandScalableTopicAssignmentUpdate` apply the diff (attach added, detach removed, re-subscribe on
+  a mode flip) only if its `layout_epoch` is ≥ the last applied; applying MUST be idempotent for
+  unchanged segments;
+- before detaching a segment (dropped from the assignment, or re-subscribed on a mode flip), **drain**
+  it: stop delivering from that segment and wait until every already-delivered message of the segment is
+  acknowledged, so the close cannot discard or reorder in-flight messages ([Key-Shared](key-shared.md)
+  §4);
 - on connection loss, re-run lookup → connect → register → subscribe with backoff; within the
   controller grace period the same assignment returns unchanged, past it the client applies the
   rebalanced diff.
