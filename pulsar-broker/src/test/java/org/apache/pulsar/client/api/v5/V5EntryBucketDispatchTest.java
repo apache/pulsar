@@ -180,22 +180,98 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         assertNull(c.receive(Duration.ofSeconds(3)), "acked messages were redelivered");
     }
 
-    /** Drains until idle, recording values per key in arrival order, then acks cumulatively. */
+    @Test
+    public void testConsumerJoiningMidTrafficPreservesPerKeyOrder() throws Exception {
+        String topic = newScalableTopic(1);
+        // Pin the layout so the second consumer is served by entry-bucket fan-out (see above).
+        admin.scalableTopics().setAutoScalePolicy(topic,
+                AutoScalePolicyOverride.builder().enabled(false).build());
+        String subscription = "bucket-handoff";
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        @Cleanup
+        StreamConsumer<String> a = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+
+        // Continuous keyed traffic; consumer B joins mid-stream, forcing a live two-phase handoff:
+        // A pauses, drains what it already handed to the application, shrinks from the whole
+        // segment to half the buckets and confirms; only then is B granted the other half.
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < 16; i++) {
+            keys.add("key-" + i);
+        }
+        int perKey = 40;
+        Map<String, List<String>> sent = new HashMap<>();
+        for (String k : keys) {
+            sent.put(k, new ArrayList<>());
+        }
+
+        Map<String, List<String>> aGot = new ConcurrentHashMap<>();
+        Map<String, List<String>> bGot = new ConcurrentHashMap<>();
+        Thread ta = drainOrdered(a, aGot);
+
+        StreamConsumer<String> b = null;
+        try {
+            for (int i = 0; i < perKey; i++) {
+                if (i == perKey / 3) {
+                    // Mid-traffic join: triggers the handoff while messages flow.
+                    b = v5Client.newStreamConsumer(Schema.string())
+                            .topic(topic)
+                            .subscriptionName(subscription)
+                            .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                            .subscribe();
+                }
+                for (String k : keys) {
+                    String value = k + "-" + i;
+                    producer.newMessage().key(k).value(value).send();
+                    sent.get(k).add(value);
+                }
+            }
+
+            Thread tb = drainOrdered(b, bGot);
+            ta.join();
+            tb.join();
+
+            assertFalse(aGot.isEmpty(), "consumer A received nothing");
+            assertFalse(bGot.isEmpty(), "consumer B received nothing — the handoff did not happen");
+
+            // The handoff contract: for every key, what A processed followed by what B processed
+            // is exactly the sent sequence — no loss, no duplicates (a clean drain leaves nothing
+            // to redeliver), and never a message on B before A finished everything older.
+            for (String k : keys) {
+                List<String> combined = new ArrayList<>(aGot.getOrDefault(k, List.of()));
+                combined.addAll(bGot.getOrDefault(k, List.of()));
+                assertEquals(combined, sent.get(k), "per-key order across the handoff for key=" + k);
+            }
+        } finally {
+            if (b != null) {
+                b.close();
+            }
+        }
+    }
+
+    /**
+     * Drains until idle, recording values per key in arrival order. Acks every message as it is
+     * processed — like an order-sensitive application would — so a release drain during a handoff
+     * can complete promptly.
+     */
     private Thread drainOrdered(StreamConsumer<String> consumer, Map<String, List<String>> into) {
         Thread t = new Thread(() -> {
             try {
-                MessageId last = null;
                 while (true) {
                     Message<String> msg = consumer.receive(Duration.ofSeconds(2));
                     if (msg == null) {
-                        if (last != null) {
-                            consumer.acknowledgeCumulative(last);
-                        }
                         return;
                     }
                     String key = msg.key().orElseThrow(() -> new AssertionError("missing key"));
                     into.computeIfAbsent(key, __ -> new ArrayList<>()).add(msg.value());
-                    last = msg.id();
+                    consumer.acknowledgeCumulative(msg.id());
                 }
             } catch (Exception ignored) {
             }

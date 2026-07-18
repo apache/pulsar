@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -109,6 +110,19 @@ final class ScalableStreamConsumer<T>
      */
     private final ConcurrentHashMap<Long, ConcurrentLinkedQueue<org.apache.pulsar.client.api.MessageId>>
             sharedSegmentUnacked = new ConcurrentHashMap<>();
+
+    /**
+     * PIP-486: per whole-segment (Exclusive) consumer, the highest position the application has
+     * cumulatively acked — the release drain barrier for segments without individual-ack tracking.
+     */
+    private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastCumulativeAcked =
+            new ConcurrentHashMap<>();
+
+    /**
+     * PIP-486: segments paused for a release — their receive loops stop re-arming so what was
+     * already handed to the application can drain before the segment consumer is closed.
+     */
+    private final Set<Long> pausedSegments = ConcurrentHashMap.newKeySet();
 
     /** Latest controller assignment; {@link #reconcile()} converges the segment consumers onto it. */
     private volatile List<ActiveSegment> latestAssignment;
@@ -280,6 +294,8 @@ final class ScalableStreamConsumer<T>
         }
         var unacked = sharedSegmentUnacked.get(segmentId);
         if (unacked == null) {
+            lastCumulativeAcked.merge(segmentId, position,
+                    (a, b) -> a.compareTo(b) >= 0 ? a : b);
             future.thenAccept(c -> {
                 if (v4Txn == null) {
                     c.acknowledgeCumulativeAsync(position);
@@ -361,6 +377,7 @@ final class ScalableStreamConsumer<T>
                 .whenComplete((__, ___) -> {
                     segmentConsumers.clear();
                     sharedSegmentUnacked.clear();
+                    lastCumulativeAcked.clear();
                 });
     }
 
@@ -478,20 +495,25 @@ final class ScalableStreamConsumer<T>
         // consumer): close our v4 consumer so the Exclusive lock is released and
         // the new owner can attach. Sealed-and-drained segments take a different
         // path: the receive loop closes them on TopicTerminated.
+        List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var entry : segmentConsumers.entrySet()) {
             if (!assignedIds.contains(entry.getKey())) {
-                log.info().attr("segmentId", entry.getKey())
-                        .log("Closing consumer for segment removed from assignment");
-                entry.getValue().thenAccept(c -> c.closeAsync());
-                segmentConsumers.remove(entry.getKey());
-                segmentBucketRanges.remove(entry.getKey());
-                sharedSegmentUnacked.remove(entry.getKey());
-                latestDelivered.remove(entry.getKey());
+                long segmentId = entry.getKey();
+                var existing = entry.getValue();
+                log.info().attr("segmentId", segmentId)
+                        .log("Releasing segment removed from assignment");
+                segmentConsumers.remove(segmentId, existing);
+                segmentBucketRanges.remove(segmentId);
+                futures.add(drainAndClose(segmentId, existing)
+                        .whenComplete((__, ___) -> {
+                            sharedSegmentUnacked.remove(segmentId);
+                            lastCumulativeAcked.remove(segmentId);
+                            latestDelivered.remove(segmentId);
+                        }));
             }
         }
 
         // Subscribe to newly-assigned segments.
-        List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var seg : assigned) {
             // PIP-486: if the controller changed which entry-buckets we own on a segment we are
             // already subscribed to (a consumer joined or left), re-subscribe with the new ranges so
@@ -503,12 +525,10 @@ final class ScalableStreamConsumer<T>
                         .log("Re-subscribing segment for changed entry-bucket ownership");
                 segmentConsumers.remove(seg.segmentId(), existing);
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(), id ->
-                        // Await our own close before re-subscribing: the new subscribe (a different
-                        // type, or ranges overlapping the old declaration) is rejected while the old
-                        // consumer is still attached.
-                        existing.handle((c, ex) -> c)
-                                .thenCompose(c -> c != null ? c.closeAsync()
-                                        : CompletableFuture.completedFuture(null))
+                        // Drain what the application already holds, then await our own close before
+                        // re-subscribing with the new mode: the subscription type cannot change
+                        // while the old consumer is still attached.
+                        drainAndClose(seg.segmentId(), existing)
                                 .thenCompose(__ -> createSegmentConsumerAsync(seg))));
             } else {
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(),
@@ -518,6 +538,66 @@ final class ScalableStreamConsumer<T>
 
         log.info().attr("segments", assignedIds).log("Stream consumer assignment applied");
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    }
+
+    /**
+     * PIP-486 release: pause the segment's receive loop (stop handing its messages to the
+     * application), wait until every message already handed out is acked, then close the v4
+     * consumer — anything still prefetched goes back to the broker unread for in-order
+     * redelivery to the next owner. Deliberately unbounded: ownership must not move while the
+     * application still holds unacked messages, so a stalled application stalls the release,
+     * visibly, rather than silently breaking per-key order. Terminates early only when this
+     * consumer closes.
+     */
+    private CompletableFuture<Void> drainAndClose(
+            long segmentId, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>> existing) {
+        pausedSegments.add(segmentId);
+        return awaitReleaseDrained(segmentId, 0)
+                .thenCompose(__ -> existing.handle((c, ex) -> c))
+                .thenCompose(c -> c != null ? c.closeAsync() : CompletableFuture.completedFuture(null))
+                .whenComplete((__, ___) -> pausedSegments.remove(segmentId));
+    }
+
+    /** Poll until the segment's delivered messages are all acked (or this consumer closes). */
+    private CompletableFuture<Void> awaitReleaseDrained(long segmentId, int pollCount) {
+        if (closed || isReleaseDrained(segmentId)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (pollCount > 0 && pollCount % 200 == 0) {
+            // ~every 10s at the 50ms poll interval: make a stalled release observable.
+            log.warn().attr("segmentId", segmentId)
+                    .log("Still waiting for the application to ack the segment's messages "
+                            + "before releasing it");
+        }
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        scheduler().schedule(() -> awaitReleaseDrained(segmentId, pollCount + 1)
+                        .whenComplete((__, ex) -> {
+                            if (ex != null) {
+                                result.completeExceptionally(ex);
+                            } else {
+                                result.complete(null);
+                            }
+                        }),
+                50, TimeUnit.MILLISECONDS);
+        return result;
+    }
+
+    /**
+     * Whether everything this consumer handed to the application for the segment has been acked:
+     * bucket-shared segments track individual ids; whole (Exclusive) segments compare the
+     * cumulative-ack high-water mark against the latest delivered position.
+     */
+    private boolean isReleaseDrained(long segmentId) {
+        var unacked = sharedSegmentUnacked.get(segmentId);
+        if (unacked != null) {
+            return unacked.isEmpty();
+        }
+        org.apache.pulsar.client.api.MessageId delivered = latestDelivered.get(segmentId);
+        if (delivered == null) {
+            return true; // nothing was ever handed to the application
+        }
+        org.apache.pulsar.client.api.MessageId acked = lastCumulativeAcked.get(segmentId);
+        return acked != null && acked.compareTo(delivered) >= 0;
     }
 
     private CompletableFuture<org.apache.pulsar.client.api.Consumer<T>> createSegmentConsumerAsync(
@@ -604,7 +684,9 @@ final class ScalableStreamConsumer<T>
             // Re-arm only once the sink has room, so a slow consumer pauses this segment's
             // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
             messageSink.accept(new MessageV5<>(v4Msg, msgId)).thenRun(() -> {
-                if (!closed) {
+                // A paused segment is being released (PIP-486): stop pulling so the messages
+                // already handed to the application can drain before the close.
+                if (!closed && !pausedSegments.contains(segmentId)) {
                     startReceiveLoop(v4Consumer, segmentId);
                 }
             });
@@ -627,6 +709,7 @@ final class ScalableStreamConsumer<T>
                         .log("Sealed segment drained, closing v4 consumer");
                 segmentConsumers.remove(segmentId);
                 sharedSegmentUnacked.remove(segmentId);
+                lastCumulativeAcked.remove(segmentId);
                 latestDelivered.remove(segmentId);
                 v4Consumer.closeAsync();
                 return null;

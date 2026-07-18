@@ -27,8 +27,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -461,32 +459,30 @@ public class SubscriptionCoordinatorTest {
 
     @Test
     public void testSurplusConsumersFanOutBucketedSegment() throws Exception {
-        // One segment with N=4 entry-buckets, two consumers: the surplus consumer fans the segment
-        // out — each owner takes a contiguous half of the buckets, disjoint and tiling the ring.
+        // One segment with N=4 entry-buckets, two consumers: the surplus consumer shares the
+        // segment. Every sharer carries the segment's FULL bucket boundary list (identical for
+        // all) — which buckets each consumer owns is decided broker-side by the segment
+        // dispatcher, and handoffs drain broker-side.
         SubscriptionCoordinator c = bucketedCoordinator();
         c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         Map<ConsumerSession, ConsumerAssignment> result =
                 c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
         assertEquals(result.size(), 2);
-        List<HashRange> owned = new ArrayList<>();
         for (ConsumerAssignment assignment : result.values()) {
             assertEquals(assignment.assignedSegments().size(), 1);
             ConsumerAssignment.AssignedSegment seg = assignment.assignedSegments().get(0);
             assertEquals(seg.segmentId(), 0);
-            assertEquals(seg.bucketRanges().size(), 2);
-            owned.addAll(seg.bucketRanges());
-        }
-        owned.sort(Comparator.comparingInt(HashRange::start));
-        assertEquals(owned, List.of(
+            assertEquals(seg.bucketRanges(), List.of(
                 HashRange.of(0x0000, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
                 HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
+        }
     }
 
     @Test
     public void testFanOutCapsAtBucketCountAndLeavesRestIdle() throws Exception {
-        // One segment with N=4 entry-buckets, five consumers: four owners with one bucket each; the
-        // fifth consumer exceeds the topic's bucket capacity and stays idle (empty assignment).
+        // One segment with N=4 entry-buckets, five consumers: four sharers (each carrying the full
+        // boundary list); the fifth exceeds the segment's bucket capacity and stays idle.
         SubscriptionCoordinator c = bucketedCoordinator();
         for (int i = 1; i <= 4; i++) {
             c.registerConsumer("consumer-" + i, i, mock(TransportCnx.class)).get();
@@ -495,19 +491,20 @@ public class SubscriptionCoordinatorTest {
                 c.registerConsumer("consumer-5", 5L, mock(TransportCnx.class)).get();
 
         assertEquals(result.size(), 5);
-        List<HashRange> owned = new ArrayList<>();
         int idle = 0;
+        int sharers = 0;
         for (ConsumerAssignment assignment : result.values()) {
             if (assignment.assignedSegments().isEmpty()) {
                 idle++;
                 continue;
             }
-            ConsumerAssignment.AssignedSegment seg = assignment.assignedSegments().get(0);
-            assertEquals(seg.bucketRanges().size(), 1);
-            owned.addAll(seg.bucketRanges());
+            sharers++;
+            assertEquals(assignment.assignedSegments().get(0).bucketRanges(), List.of(
+                HashRange.of(0x0000, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
+                HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
         }
         assertEquals(idle, 1);
-        assertEquals(owned.size(), 4);
+        assertEquals(sharers, 4);
     }
 
     private SubscriptionCoordinator bucketedCoordinator() {
