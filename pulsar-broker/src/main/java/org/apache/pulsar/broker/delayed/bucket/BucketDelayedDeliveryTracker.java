@@ -511,7 +511,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 if (numberMessages <= minNumberMessages) {
                     minNumberMessages = numberMessages;
                     long scheduleTimestamp = immutableBuckets.stream()
-                            .mapToLong(bucket -> bucket.getFirstScheduleTimestamps().get(bucket.getCurrentSegmentEntryId() + 1))
+                            .mapToLong(bucket -> bucket.getFirstScheduleTimestamps()
+                                       .get(bucket.getCurrentSegmentEntryId() + 1))
                             .min().getAsLong();
                     if (scheduleTimestamp < minScheduleTimestamp) {
                         minScheduleTimestamp = scheduleTimestamp;
