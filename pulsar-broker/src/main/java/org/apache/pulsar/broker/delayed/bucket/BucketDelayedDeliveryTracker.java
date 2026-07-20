@@ -349,15 +349,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private void trackInflight(long ledgerId, long entryId) {
-        inflightIndex.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId, entryId + 1);
+        inflightIndex.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId);
     }
 
     private boolean untrackInflight(long ledgerId, long entryId) {
         LongBitmap bitSet = inflightIndex.get(ledgerId);
-        if (bitSet == null || !bitSet.contains(entryId, entryId + 1)) {
+        if (bitSet == null || !bitSet.contains(entryId)) {
             return false;
         }
-        bitSet.remove(entryId, entryId + 1);
+        bitSet.remove(entryId);
         if (bitSet.isEmpty()) {
             inflightIndex.remove(ledgerId);
         }
@@ -366,7 +366,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private boolean inflightContains(long ledgerId, long entryId) {
         LongBitmap bitSet = inflightIndex.get(ledgerId);
-        return bitSet != null && bitSet.contains(entryId, entryId + 1);
+        return bitSet != null && bitSet.contains(entryId);
     }
 
     private void afterCreateImmutableBucket(Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair,
