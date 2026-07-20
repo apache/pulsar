@@ -210,7 +210,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                                         .collect(Collectors.toList())), c, msg);
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
+                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName, e);
                 }
             });
         consumerBuilder.subscribeAsync().thenAccept(consumer -> {
