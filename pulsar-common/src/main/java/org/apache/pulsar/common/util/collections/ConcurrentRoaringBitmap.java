@@ -140,14 +140,14 @@ class ConcurrentRoaringBitmap implements LongBitmap {
         validateRange(to - 1);
         long stamp = lock.writeLock();
         try {
-            long before = bitmap.getLongCardinality();
+            long cardinalityBefore = bitmap.getLongCardinality();
             bitmap.remove(from, to);
-            boolean removed = (before - bitmap.getLongCardinality()) > 0;
-            if (removed) {
-                removesSinceTrim++;
+            long removedCount = cardinalityBefore - bitmap.getLongCardinality();
+            if (removedCount > 0) {
+                removesSinceTrim += removedCount;
                 maybeTrim();
             }
-            return removed;
+            return removedCount > 0;
         } finally {
             lock.unlockWrite(stamp);
         }
