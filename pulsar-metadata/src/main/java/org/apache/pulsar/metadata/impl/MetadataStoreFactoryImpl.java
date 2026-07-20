@@ -23,6 +23,8 @@ import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEM
 import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider.OXIA_SCHEME_IDENTIFIER;
 import com.google.common.base.Splitter;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,7 @@ import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider;
 public class MetadataStoreFactoryImpl {
 
     public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
+    static final String CONFIG_FILE_PATH_METADATA_URL_PARAM = "configFilePath";
 
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws
             MetadataStoreException {
@@ -58,8 +61,11 @@ public class MetadataStoreFactoryImpl {
     private static MetadataStore newInstance(String metadataURL, MetadataStoreConfig metadataStoreConfig,
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
-        MetadataStoreProvider provider = findProvider(metadataURL);
-        return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
+        String metadataURLWithoutConfigFilePath = removeMetadataURLQueryParam(
+                metadataURL, CONFIG_FILE_PATH_METADATA_URL_PARAM);
+        MetadataStoreProvider provider = findProvider(metadataURLWithoutConfigFilePath);
+        MetadataStoreConfig effectiveConfig = applyMetadataURLQueryParams(metadataURL, metadataStoreConfig);
+        return provider.create(metadataURLWithoutConfigFilePath, effectiveConfig, enableSessionWatcher);
     }
 
     @SuppressWarnings("auxiliaryclass")
@@ -111,11 +117,13 @@ public class MetadataStoreFactoryImpl {
      * @return
      */
     public static String removeIdentifierFromMetadataURL(String metadataURL) {
-        MetadataStoreProvider provider = findProvider(metadataURL);
-        if (metadataURL.startsWith(provider.urlScheme() + ":")) {
-            return metadataURL.substring(provider.urlScheme().length() + 1);
+        String metadataURLWithoutConfigFilePath = removeMetadataURLQueryParam(
+                metadataURL, CONFIG_FILE_PATH_METADATA_URL_PARAM);
+        MetadataStoreProvider provider = findProvider(metadataURLWithoutConfigFilePath);
+        if (metadataURLWithoutConfigFilePath.startsWith(provider.urlScheme() + ":")) {
+            return metadataURLWithoutConfigFilePath.substring(provider.urlScheme().length() + 1);
         }
-        return metadataURL;
+        return metadataURLWithoutConfigFilePath;
     }
 
     public static boolean isBasedOnZookeeper(String metadataURL) {
@@ -124,5 +132,102 @@ public class MetadataStoreFactoryImpl {
         }
 
         return metadataURL.startsWith("zk");
+    }
+
+    static String removeMetadataURLQueryParam(String metadataURL, String paramName) {
+        int queryStart = metadataURL.indexOf('?');
+        if (queryStart < 0) {
+            return metadataURL;
+        }
+
+        int fragmentStart = metadataURL.indexOf('#', queryStart);
+        String query = metadataURL.substring(queryStart + 1,
+                fragmentStart >= 0 ? fragmentStart : metadataURL.length());
+        StringBuilder queryBuilder = new StringBuilder();
+        boolean removed = false;
+        for (String param : Splitter.on('&').omitEmptyStrings().split(query)) {
+            int separator = param.indexOf('=');
+            String key = separator >= 0 ? param.substring(0, separator) : param;
+            if (isMetadataURLQueryParam(key, paramName)) {
+                removed = true;
+                continue;
+            }
+            if (queryBuilder.length() > 0) {
+                queryBuilder.append('&');
+            }
+            queryBuilder.append(param);
+        }
+
+        if (!removed) {
+            return metadataURL;
+        }
+
+        String metadataURLWithoutQuery = metadataURL.substring(0, queryStart);
+        String fragment = fragmentStart >= 0 ? metadataURL.substring(fragmentStart) : "";
+        if (queryBuilder.length() == 0) {
+            return metadataURLWithoutQuery + fragment;
+        }
+        return metadataURLWithoutQuery + '?' + queryBuilder + fragment;
+    }
+
+    private static boolean isMetadataURLQueryParam(String key, String paramName) {
+        try {
+            return paramName.equals(URLDecoder.decode(key, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    static MetadataStoreConfig applyMetadataURLQueryParams(
+            String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
+        Map<String, String> params = parseMetadataURLQuery(metadataURL);
+        String configFilePath = params.get(CONFIG_FILE_PATH_METADATA_URL_PARAM);
+        String existingConfigFilePath = metadataStoreConfig.getConfigFilePath();
+        if (configFilePath == null || (existingConfigFilePath != null && !existingConfigFilePath.isEmpty())) {
+            return metadataStoreConfig;
+        }
+
+        return MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(metadataStoreConfig.getSessionTimeoutMillis())
+                .allowReadOnlyOperations(metadataStoreConfig.isAllowReadOnlyOperations())
+                .configFilePath(configFilePath)
+                .batchingEnabled(metadataStoreConfig.isBatchingEnabled())
+                .batchingMaxDelayMillis(metadataStoreConfig.getBatchingMaxDelayMillis())
+                .batchingMaxOperations(metadataStoreConfig.getBatchingMaxOperations())
+                .batchingMaxSizeKb(metadataStoreConfig.getBatchingMaxSizeKb())
+                .metadataStoreName(metadataStoreConfig.getMetadataStoreName())
+                .fsyncEnable(metadataStoreConfig.isFsyncEnable())
+                .synchronizer(metadataStoreConfig.getSynchronizer())
+                .openTelemetry(metadataStoreConfig.getOpenTelemetry())
+                .nodeSizeStats(metadataStoreConfig.getNodeSizeStats())
+                .numSerDesThreads(metadataStoreConfig.getNumSerDesThreads())
+                .build();
+    }
+
+    private static Map<String, String> parseMetadataURLQuery(String metadataURL) throws MetadataStoreException {
+        int queryStart = metadataURL.indexOf('?');
+        if (queryStart < 0 || queryStart == metadataURL.length() - 1) {
+            return Map.of();
+        }
+
+        int fragmentStart = metadataURL.indexOf('#', queryStart);
+        String query = metadataURL.substring(queryStart + 1,
+                fragmentStart >= 0 ? fragmentStart : metadataURL.length());
+        Map<String, String> params = new HashMap<>();
+        for (String param : Splitter.on('&').omitEmptyStrings().split(query)) {
+            int separator = param.indexOf('=');
+            String key = separator >= 0 ? param.substring(0, separator) : param;
+            String value = separator >= 0 ? param.substring(separator + 1) : "";
+            params.put(decodeMetadataURLQueryParam(key), decodeMetadataURLQueryParam(value));
+        }
+        return params;
+    }
+
+    private static String decodeMetadataURLQueryParam(String value) throws MetadataStoreException {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new MetadataStoreException("Invalid metadata URL query parameter", e);
+        }
     }
 }

@@ -61,11 +61,42 @@ public class MetadataStoreFactoryImplTest {
 
     @Test
     public void testCreate() throws Exception{
+        MyMetadataStoreProvider.reset();
         @Cleanup
         MetadataStore instance = MetadataStoreFactoryImpl.create(
                 "custom://localhost",
                 MetadataStoreConfig.builder().build());
         assertTrue(instance instanceof MyMetadataStore);
+    }
+
+    @Test
+    public void testConfigFilePathFromMetadataURLQuery() throws Exception {
+        MyMetadataStoreProvider.reset();
+        @Cleanup
+        MetadataStore instance = MetadataStoreFactoryImpl.create(
+                "custom://localhost/ns?configFilePath=%2Ftmp%2Fmetadata-store.conf&ignored=true",
+                MetadataStoreConfig.builder()
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .sessionTimeoutMillis(1234)
+                        .build());
+        assertTrue(instance instanceof MyMetadataStore);
+        assertEquals(MyMetadataStoreProvider.metadataURL, "custom://localhost/ns?ignored=true");
+        assertEquals(MyMetadataStoreProvider.metadataStoreConfig.getConfigFilePath(), "/tmp/metadata-store.conf");
+        assertEquals(MyMetadataStoreProvider.metadataStoreConfig.getMetadataStoreName(),
+                MetadataStoreConfig.METADATA_STORE);
+        assertEquals(MyMetadataStoreProvider.metadataStoreConfig.getSessionTimeoutMillis(), 1234);
+    }
+
+    @Test
+    public void testExplicitConfigFilePathTakesPrecedenceOverMetadataURLQuery() throws Exception {
+        MyMetadataStoreProvider.reset();
+        @Cleanup
+        MetadataStore instance = MetadataStoreFactoryImpl.create(
+                "custom://localhost/ns?configFilePath=%2Ftmp%2Fmetadata-store.conf",
+                MetadataStoreConfig.builder().configFilePath("/tmp/explicit.conf").build());
+        assertTrue(instance instanceof MyMetadataStore);
+        assertEquals(MyMetadataStoreProvider.metadataURL, "custom://localhost/ns");
+        assertEquals(MyMetadataStoreProvider.metadataStoreConfig.getConfigFilePath(), "/tmp/explicit.conf");
     }
 
 
@@ -77,9 +108,20 @@ public class MetadataStoreFactoryImplTest {
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"),
                 "http://unknown/url/scheme");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("custom:suffix"), "suffix");
+        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("custom:suffix?configFilePath=%2Fx"),
+                "suffix");
+        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL(
+                "custom:suffix?configFilePath=%2Fx&ignored=true"), "suffix?ignored=true");
     }
 
     public static class MyMetadataStoreProvider implements MetadataStoreProvider {
+        private static String metadataURL;
+        private static MetadataStoreConfig metadataStoreConfig;
+
+        static void reset() {
+            metadataURL = null;
+            metadataStoreConfig = null;
+        }
 
         @Override
         public String urlScheme() {
@@ -89,6 +131,8 @@ public class MetadataStoreFactoryImplTest {
         @Override
         public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
                                     boolean enableSessionWatcher) throws MetadataStoreException {
+            MyMetadataStoreProvider.metadataURL = metadataURL;
+            MyMetadataStoreProvider.metadataStoreConfig = metadataStoreConfig;
             return new MyMetadataStore();
         }
     }
