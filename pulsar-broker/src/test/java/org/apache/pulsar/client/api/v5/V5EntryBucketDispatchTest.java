@@ -34,7 +34,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
@@ -432,6 +434,152 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
             List<String> combined = new ArrayList<>(aGot.getOrDefault(k, List.of()));
             combined.addAll(bGot.getOrDefault(k, List.of()));
             assertEquals(combined, sent.get(k), "per-key order across the slow-ack flip for key=" + k);
+        }
+    }
+
+    @Test
+    public void testConsumerRejoiningAfterLeaveDoesNotWedgeRelease() throws Exception {
+        // Second flip cycle: Exclusive (cumulative ack) → shared (individual acks) → Exclusive →
+        // shared again. The release state of the earlier modes (cumulative high-water, delivered
+        // watermark) must not leak into the last flip's drain: with everything acked and nothing
+        // outstanding, a stale delivered-vs-acked pair would make the drain wait forever and the
+        // rejoining consumer could never attach.
+        // A consumer's clean close is a disconnect to the controller, which holds its session for
+        // the grace period before rebalancing. Shrink it (read at coordinator creation, i.e. on
+        // this subscription's first register) so B1's departure hands the segment back promptly.
+        int defaultGrace = getPulsar().getConfiguration()
+                .getScalableTopicConsumerSessionGracePeriodSeconds();
+        getPulsar().getConfiguration().setScalableTopicConsumerSessionGracePeriodSeconds(1);
+        try {
+            runRejoinAfterLeaveScenario();
+        } finally {
+            getPulsar().getConfiguration()
+                    .setScalableTopicConsumerSessionGracePeriodSeconds(defaultGrace);
+        }
+    }
+
+    private void runRejoinAfterLeaveScenario() throws Exception {
+        String topic = newScalableTopic(1);
+        admin.scalableTopics().setAutoScalePolicy(topic,
+                AutoScalePolicyOverride.builder().enabled(false).build());
+        String subscription = "rejoin-release";
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        @Cleanup
+        StreamConsumer<String> a = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < 16; i++) {
+            keys.add("key-" + i);
+        }
+        int perKey = 5;
+        Map<String, List<String>> sent = new HashMap<>();
+        for (String k : keys) {
+            sent.put(k, new ArrayList<>());
+        }
+
+        // Phase 1 — A alone (Exclusive): receive everything, ack cumulatively.
+        sendPhase(producer, keys, sent, 0, perKey);
+        Map<String, List<String>> aGot = new ConcurrentHashMap<>();
+        Message<String> last = null;
+        for (int i = 0; i < keys.size() * perKey; i++) {
+            Message<String> msg = a.receive(Duration.ofSeconds(5));
+            assertNotNull(msg, "missed message #" + i + " in phase 1");
+            aGot.computeIfAbsent(msg.key().orElseThrow(), __ -> new ArrayList<>()).add(msg.value());
+            last = msg;
+        }
+        a.acknowledgeCumulative(last.id());
+
+        // Phase 2 — B1 joins (shared, individual acks), both drain, then B1 leaves. B1 gets its
+        // own client: a departure is only visible to the controller as a connection drop, so
+        // leaving means closing the whole client (the shared client's pooled connection would
+        // keep B1's registration alive indefinitely).
+        PulsarClient b1Client = newV5Client();
+        StreamConsumer<String> b1 = b1Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribeAsync().get(30, TimeUnit.SECONDS);
+        sendPhase(producer, keys, sent, perKey, perKey * 2);
+        Map<String, List<String>> b1Got = new ConcurrentHashMap<>();
+        Thread ta1 = drainOrdered(a, aGot);
+        Thread tb1 = drainOrdered(b1, b1Got);
+        ta1.join();
+        tb1.join();
+        assertFalse(b1Got.isEmpty(), "consumer B1 received nothing — the segment did not fan out");
+        b1.close();
+        b1Client.close();
+        // Wait until the controller has handed the whole segment back to A and A completed the
+        // flip back to Exclusive — the stale-watermark state only matters once that is done.
+        String segmentTopic = admin.scalableTopics().getStats(topic)
+                .getSegments().values().iterator().next().name();
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+            var sub = getTopicReference(segmentTopic).orElseThrow().getSubscription(subscription);
+            assertNotNull(sub, "segment subscription missing");
+            assertEquals(sub.getType(), CommandSubscribe.SubType.Exclusive);
+            assertEquals(sub.getConsumers().size(), 1);
+        });
+
+        // Phase 3 — B2 rejoins. Nothing is unacked anywhere: the flip's drain must complete and
+        // B2 must attach (a stale watermark from phases 1-2 would wedge it here forever).
+        CompletableFuture<StreamConsumer<String>> b2Future = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribeAsync();
+        @Cleanup
+        StreamConsumer<String> b2 = b2Future.get(30, TimeUnit.SECONDS);
+        sendPhase(producer, keys, sent, perKey * 2, perKey * 3);
+        Map<String, List<String>> b2Got = new ConcurrentHashMap<>();
+        Thread ta2 = drainOrdered(a, aGot, Duration.ofSeconds(5));
+        Thread tb2 = drainOrdered(b2, b2Got, Duration.ofSeconds(5));
+        ta2.join();
+        tb2.join();
+        assertFalse(b2Got.isEmpty(), "consumer B2 received nothing after rejoining");
+
+        // Ownership of a key may differ between the two shared phases, so no single concatenation
+        // order holds. The invariants that must: each consumer saw its share of every key in send
+        // order, and the union across consumers is exactly the sent set — no loss, no duplicates.
+        for (String k : keys) {
+            List<String> expected = sent.get(k);
+            int union = 0;
+            for (Map<String, List<String>> got : List.of(aGot, b1Got, b2Got)) {
+                List<String> values = got.getOrDefault(k, List.of());
+                assertOrderedSubsequence(values, expected, k);
+                union += values.size();
+            }
+            assertEquals(union, expected.size(), "loss or duplicates across handoffs for key=" + k);
+        }
+    }
+
+    private void sendPhase(Producer<String> producer, List<String> keys,
+                           Map<String, List<String>> sent, int from, int to) throws Exception {
+        for (int i = from; i < to; i++) {
+            for (String k : keys) {
+                String value = k + "-" + i;
+                producer.newMessage().key(k).value(value).send();
+                sent.get(k).add(value);
+            }
+        }
+    }
+
+    /** Asserts {@code values} appear in {@code expected}'s order (an ordered subsequence). */
+    private static void assertOrderedSubsequence(List<String> values, List<String> expected, String key) {
+        int i = 0;
+        for (String value : values) {
+            while (i < expected.size() && !expected.get(i).equals(value)) {
+                i++;
+            }
+            assertTrue(i < expected.size(),
+                    "value " + value + " out of order (or duplicated) for key=" + key + ": " + values);
+            i++;
         }
     }
 

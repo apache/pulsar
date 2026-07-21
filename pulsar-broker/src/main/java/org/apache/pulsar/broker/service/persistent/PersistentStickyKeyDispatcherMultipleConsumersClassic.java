@@ -641,8 +641,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
+        // PIP-486 entry-bucket subscriptions always use the modern dispatcher: never let an
+        // entryBucketDispatch consumer reuse a (possibly consumer-less) classic dispatcher.
         return (ksm.getKeySharedMode() == this.keySharedMode
-                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
+                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery
+                && !ksm.isEntryBucketDispatch());
     }
 
     public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
