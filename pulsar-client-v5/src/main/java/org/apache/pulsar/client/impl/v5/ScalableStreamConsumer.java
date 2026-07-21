@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -123,6 +124,15 @@ final class ScalableStreamConsumer<T>
      * already handed to the application can drain before the segment consumer is closed.
      */
     private final Set<Long> pausedSegments = ConcurrentHashMap.newKeySet();
+
+    /**
+     * PIP-486: segment consumers currently draining for a release. A drain completes only when the
+     * application acks what it was handed, so the ack path must keep reaching the old consumer after
+     * its {@link #segmentConsumers} slot is vacated (or repopulated with the re-subscribe chain on a
+     * mode flip) — {@link #ackSegmentUpTo} consults this map first.
+     */
+    private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
+            drainingConsumers = new ConcurrentHashMap<>();
 
     /** Latest controller assignment; {@link #reconcile()} converges the segment consumers onto it. */
     private volatile List<ActiveSegment> latestAssignment;
@@ -288,7 +298,11 @@ final class ScalableStreamConsumer<T>
      */
     private void ackSegmentUpTo(long segmentId, org.apache.pulsar.client.api.MessageId position,
                                 org.apache.pulsar.client.api.transaction.Transaction v4Txn) {
-        var future = segmentConsumers.get(segmentId);
+        // A draining consumer takes precedence: during a release the segment's slot in
+        // segmentConsumers is vacated (or already holds the re-subscribe chain), but the acks that
+        // complete the drain must still reach the consumer being drained.
+        var draining = drainingConsumers.get(segmentId);
+        var future = draining != null ? draining : segmentConsumers.get(segmentId);
         if (future == null) {
             return;
         }
@@ -366,16 +380,19 @@ final class ScalableStreamConsumer<T>
         receiveQueue.close();
         session.close();
 
+        // Draining consumers live outside segmentConsumers; their drain loops observe the closed
+        // flag and finish on their own, but they are closed here too (idempotent) so this future
+        // does not complete before they are gone.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (var future : segmentConsumers.values()) {
-            futures.add(future
-                    .handle((consumer, ex) -> consumer)
-                    .thenCompose(consumer -> consumer != null ? consumer.closeAsync()
-                            : CompletableFuture.completedFuture(null)));
-        }
+        Stream.concat(segmentConsumers.values().stream(), drainingConsumers.values().stream())
+                .forEach(future -> futures.add(future
+                        .handle((consumer, ex) -> consumer)
+                        .thenCompose(consumer -> consumer != null ? consumer.closeAsync()
+                                : CompletableFuture.completedFuture(null))));
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                 .whenComplete((__, ___) -> {
                     segmentConsumers.clear();
+                    drainingConsumers.clear();
                     sharedSegmentUnacked.clear();
                     lastCumulativeAcked.clear();
                 });
@@ -502,7 +519,6 @@ final class ScalableStreamConsumer<T>
                 var existing = entry.getValue();
                 log.info().attr("segmentId", segmentId)
                         .log("Releasing segment removed from assignment");
-                segmentConsumers.remove(segmentId, existing);
                 segmentBucketRanges.remove(segmentId);
                 futures.add(drainAndClose(segmentId, existing)
                         .whenComplete((__, ___) -> {
@@ -523,13 +539,14 @@ final class ScalableStreamConsumer<T>
                     && !seg.ownedBucketRanges().equals(segmentBucketRanges.get(seg.segmentId()))) {
                 log.info().attr("segmentId", seg.segmentId())
                         .log("Re-subscribing segment for changed entry-bucket ownership");
-                segmentConsumers.remove(seg.segmentId(), existing);
+                // Drain what the application already holds, then await our own close before
+                // re-subscribing with the new mode: the subscription type cannot change while the
+                // old consumer is still attached. The drain must start outside computeIfAbsent —
+                // it vacates this segment's slot itself, and ConcurrentHashMap forbids mutating
+                // the map from within the mapping function.
+                var drained = drainAndClose(seg.segmentId(), existing);
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(), id ->
-                        // Drain what the application already holds, then await our own close before
-                        // re-subscribing with the new mode: the subscription type cannot change
-                        // while the old consumer is still attached.
-                        drainAndClose(seg.segmentId(), existing)
-                                .thenCompose(__ -> createSegmentConsumerAsync(seg))));
+                        drained.thenCompose(__ -> createSegmentConsumerAsync(seg))));
             } else {
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(),
                         id -> createSegmentConsumerAsync(seg)));
@@ -551,11 +568,19 @@ final class ScalableStreamConsumer<T>
      */
     private CompletableFuture<Void> drainAndClose(
             long segmentId, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>> existing) {
+        // Register as draining before vacating the segmentConsumers slot, so at every instant the
+        // ack path resolves to the consumer being drained — the drain only completes through those
+        // acks. The slot removal lives here (not at the call sites) to keep that ordering.
+        drainingConsumers.put(segmentId, existing);
+        segmentConsumers.remove(segmentId, existing);
         pausedSegments.add(segmentId);
         return awaitReleaseDrained(segmentId, 0)
                 .thenCompose(__ -> existing.handle((c, ex) -> c))
                 .thenCompose(c -> c != null ? c.closeAsync() : CompletableFuture.completedFuture(null))
-                .whenComplete((__, ___) -> pausedSegments.remove(segmentId));
+                .whenComplete((__, ___) -> {
+                    drainingConsumers.remove(segmentId, existing);
+                    pausedSegments.remove(segmentId);
+                });
     }
 
     /** Poll until the segment's delivered messages are all acked (or this consumer closes). */
