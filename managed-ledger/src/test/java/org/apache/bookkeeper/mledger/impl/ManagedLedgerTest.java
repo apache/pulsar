@@ -4822,6 +4822,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.asyncRemoveLedgerProperty(firstLedger, "key1").get();
         ml.asyncRemoveLedgerProperty(lastLedger, "key2").get();
 
+        Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 1);
+        Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 1);
+
+        ml.asyncRemoveLedgerProperty(firstLedger, "key3").get();
+        ml.asyncRemoveLedgerProperty(lastLedger, "key4").get();
         Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 0);
         Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 0);
     }
