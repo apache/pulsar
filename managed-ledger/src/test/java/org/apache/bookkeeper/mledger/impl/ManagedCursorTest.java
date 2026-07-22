@@ -3834,7 +3834,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_empty_current_ledger");
         when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
-        when(ledger.getLogger()).thenReturn(log);
 
         long currentLedgerId = 4;
         Position lastPosition = PositionFactory.create(3, 9);
@@ -3859,7 +3858,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_last_position_ledger_removed");
         when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
-        when(ledger.getLogger()).thenReturn(log);
 
         Position lastPosition = PositionFactory.create(3, 0);
         Position markDeletePosition = PositionFactory.create(4, -1);
@@ -3877,7 +3875,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_unexpected_position");
         when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
-        when(ledger.getLogger()).thenReturn(log);
 
         Position lastPosition = PositionFactory.create(1, 10);
         Position markDeletePosition = PositionFactory.create(2, -1);
