@@ -3878,11 +3878,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         final HashMap<Long, LedgerInfo> newLedgers = new HashMap<>(ledgers);
                         newLedgers.put(ledgerId, newInfo);
                         store.asyncUpdateLedgerIds(name, buildManagedLedgerInfo(newLedgers), ledgersStat,
-                                new MetaStoreCallback<Void>() {
+                                new MetaStoreCallback<>() {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
-                                        ledgers.put(ledgerId, newInfo);
+                                        ledgers.merge(ledgerId, newInfo, (existing, incoming) -> {
+                                            LedgerInfo merged = new LedgerInfo();
+                                            merged.copyFrom(incoming);
+                                            return merged.setEntries(existing.getEntries()).setSize(existing.getSize())
+                                                    .setTimestamp(existing.getTimestamp());
+                                        });
                                         unlockingPromise.complete(null);
                                     }
 
