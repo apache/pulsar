@@ -4788,30 +4788,27 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     private ManagedLedger testSetLedgerProperty0(String name) throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name, config);
         ml.addEntry("entry-1".getBytes());
+        long firstLedger = ml.ledgers.firstKey();
+        ml.asyncAddLedgerProperty(firstLedger, "key1", "value1").join();
         ml.addEntry("entry-2".getBytes());
         ml.addEntry("entry-3".getBytes());
+        long lastLedger = ml.ledgers.lastKey();
+        ml.asyncAddLedgerProperty(lastLedger, "key2", "value2").join();
 
-        Assert.assertEquals(ml.getLedgersInfo().size(), 2);
-        long firstLedger = ml.getLedgersInfo().firstKey();
-        LedgerInfo firstLedgerInfo = ml.getLedgersInfo().get(firstLedger);
-        Assert.assertEquals(firstLedgerInfo.getPropertiesCount(), 0);
-        long lastLedger = ml.getLedgersInfo().lastKey();
-        LedgerInfo lastLedgerInfo = ml.getLedgersInfo().get(lastLedger);
-        Assert.assertEquals(lastLedgerInfo.getPropertiesCount(), 0);
+        Assert.assertNotEquals(firstLedger, lastLedger);
+        LedgerInfo firstLedgerInfo = ml.ledgers.get(firstLedger);
+        Assert.assertEquals(firstLedgerInfo.getEntries(), 2);
 
-        ml.asyncAddLedgerProperty(firstLedger, "key1", "value1").get();
-        ml.asyncAddLedgerProperty(lastLedger, "key2", "value2").get();
+        ml.asyncAddLedgerProperty(firstLedger, "key3", "value3").join();
+        ml.asyncAddLedgerProperty(lastLedger, "key4", "value4").join();
 
-        firstLedgerInfo = ml.getLedgersInfo().get(firstLedger);
-        Assert.assertEquals(firstLedgerInfo.getPropertiesCount(), 1);
-        Assert.assertEquals(ml.asyncGetLedgerProperty(firstLedger, "key1").get(), "value1");
-
-        lastLedgerInfo = ml.getLedgersInfo().get(lastLedger);
-        Assert.assertEquals(lastLedgerInfo.getPropertiesCount(), 1);
-        Assert.assertEquals(ml.asyncGetLedgerProperty(lastLedger, "key2").get(), "value2");
-
+        Assert.assertEquals(ml.asyncGetLedgerProperty(firstLedger, "key1").join(), "value1");
+        Assert.assertEquals(ml.asyncGetLedgerProperty(firstLedger, "key3").join(), "value3");
+        Assert.assertEquals(ml.asyncGetLedgerProperty(lastLedger, "key2").join(), "value2");
+        Assert.assertEquals(ml.asyncGetLedgerProperty(lastLedger, "key4").join(), "value4");
         return ml;
     }
 
@@ -4825,6 +4822,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.asyncRemoveLedgerProperty(firstLedger, "key1").get();
         ml.asyncRemoveLedgerProperty(lastLedger, "key2").get();
 
+        Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 1);
+        Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 1);
+
+        ml.asyncRemoveLedgerProperty(firstLedger, "key3").get();
+        ml.asyncRemoveLedgerProperty(lastLedger, "key4").get();
         Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 0);
         Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 0);
     }
