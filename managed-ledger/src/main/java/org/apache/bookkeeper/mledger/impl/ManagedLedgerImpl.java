@@ -1971,9 +1971,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
         if (entriesInLedger > 0) {
-            LedgerInfo info = new LedgerInfo().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(clock.millis());
-            ledgers.put(lh.getId(), info);
+            ledgers.compute(lh.getId(), (ledgerId, oldInfo) -> {
+                LedgerInfo info = new LedgerInfo();
+                if (oldInfo != null) {
+                    info.copyFrom(oldInfo);
+                } else {
+                    info.setLedgerId(ledgerId);
+                }
+                return info.setEntries(entriesInLedger).setSize(lh.getLength()).setTimestamp(clock.millis());
+            });
         } else {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
