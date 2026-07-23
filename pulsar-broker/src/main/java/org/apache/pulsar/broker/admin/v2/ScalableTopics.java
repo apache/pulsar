@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.Encoded;
@@ -51,13 +55,17 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
@@ -75,7 +83,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 @CustomLog
 @Path("/scalable")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/scalable", description = "Scalable topic admin APIs", tags = "scalable topic")
+@Tag(name = "scalable topic", description = "Scalable topic admin APIs")
 public class ScalableTopics extends AdminResource {
 
     private ScalableTopicResources resources() {
@@ -86,20 +94,22 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}")
-    @ApiOperation(value = "Get the list of scalable topics under a namespace.",
-            response = String.class, responseContainer = "List")
+    @Operation(summary = "Get the list of scalable topics under a namespace.")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "200", description = "Get the list of scalable topics under a namespace.",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = String.class)))),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Tenant or namespace doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void getList(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Filter to topics whose properties contain every key=value pair."
+            @Parameter(description = "Filter to topics whose properties contain every key=value pair."
                     + " Each repetition of the parameter adds one filter (AND semantics).")
             @QueryParam("property") List<String> properties) {
         validateNamespaceName(tenant, namespace);
@@ -146,25 +156,26 @@ public class ScalableTopics extends AdminResource {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Create a new scalable topic.")
+    @Operation(summary = "Create a new scalable topic.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Scalable topic created successfully"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 409, message = "Scalable topic already exists"),
-            @ApiResponse(code = 412, message = "Invalid configuration"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Scalable topic created successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "409", description = "Scalable topic already exists"),
+            @ApiResponse(responseCode = "412", description = "Invalid configuration"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createScalableTopic(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Number of initial segments")
+            @Parameter(description = "Number of initial segments")
             @QueryParam("numInitialSegments") @DefaultValue("1") int numInitialSegments,
-            @ApiParam(value = "Key value pair properties for the topic metadata")
+            @RequestBody(description = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -177,7 +188,9 @@ public class ScalableTopics extends AdminResource {
                     }
                     Map<String, String> props = properties != null ? properties : Map.of();
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
-                            numInitialSegments, props);
+                            numInitialSegments,
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            props);
                     return resources().createScalableTopicAsync(tn, metadata)
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
@@ -234,25 +247,26 @@ public class ScalableTopics extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/migrate")
-    @ApiOperation(value = "Migrate an existing regular (partitioned or non-partitioned) topic "
+    @Operation(summary = "Migrate an existing regular (partitioned or non-partitioned) topic "
             + "to a scalable topic.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Topic migrated successfully"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have produce permission on the topic"),
-            @ApiResponse(code = 404, message = "Topic doesn't exist"),
-            @ApiResponse(code = 409, message = "Already a scalable topic, or legacy v4 clients are "
+            @ApiResponse(responseCode = "204", description = "Topic migrated successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have produce permission on the topic"),
+            @ApiResponse(responseCode = "404", description = "Topic doesn't exist"),
+            @ApiResponse(responseCode = "409", description = "Already a scalable topic, or legacy v4 clients are "
                     + "still connected and force was not set"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void migrateToScalable(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Migrate even if legacy v4 clients are still connected to the topic")
+            @Parameter(description = "Migrate even if legacy v4 clients are still connected to the topic")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
         // The scalable topic's canonical identity uses the topic:// domain; the migration
@@ -319,7 +333,8 @@ public class ScalableTopics extends AdminResource {
             return precheck.thenApply(__ -> partitions);
         }).thenCompose(partitions -> {
             ScalableTopicMetadata metadata =
-                    ScalableTopicController.createMigratedMetadata(persistentBase, partitions);
+                    ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget());
             return createMigratedChildTopicsAsync(scalableName, metadata)
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
@@ -431,19 +446,22 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Get scalable topic metadata.", response = ScalableTopicMetadata.class)
+    @Operation(summary = "Get scalable topic metadata.")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "200", description = "Get scalable topic metadata.",
+                    content = @Content(schema = @Schema(implementation = ScalableTopicMetadata.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void getScalableTopicMetadata(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -466,26 +484,174 @@ public class ScalableTopics extends AdminResource {
                 });
     }
 
+    // --- Auto split/merge policy override (PIP-483) ---
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Get the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The per-topic auto split/merge policy override.",
+                    content = @Content(schema = @Schema(implementation = AutoScalePolicyOverride.class))),
+            @ApiResponse(responseCode = "204", description = "No override is set on this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.READ)
+                .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
+                .thenAccept(optMd -> {
+                    if (optMd.isEmpty()) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn));
+                    } else {
+                        asyncResponse.resume(optMd.get().getAutoScalePolicy());
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .exception(ex).log("Failed to get autoScalePolicy for scalable topic");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Set the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Override set successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "412",
+                    description = "The resolved auto split/merge policy violates an invariant"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void setAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @RequestBody(description = "Auto split/merge policy override", required = true)
+            AutoScalePolicyOverride override) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        internalSetAutoScalePolicy(asyncResponse, tn, override);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/autoScalePolicy")
+    @Operation(summary = "Remove the per-topic auto split/merge policy override.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Override removed successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void removeAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        internalSetAutoScalePolicy(asyncResponse, tn, null);
+    }
+
+    private void internalSetAutoScalePolicy(AsyncResponse asyncResponse, TopicName tn,
+                                            AutoScalePolicyOverride override) {
+        validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.WRITE)
+                .thenCompose(__ -> {
+                    if (override == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // Validate the override in combination with the layers it will actually
+                    // be resolved with: the broker defaults AND the current namespace
+                    // override — two layers that are each valid against the defaults can
+                    // still combine into an invalid policy (e.g. the namespace raises a
+                    // merge threshold and the topic lowers the matching split threshold).
+                    // This check is best-effort: the namespace override can still change
+                    // afterwards, and broker defaults can differ across restarts — the
+                    // controller handles a combination that has become invalid by falling
+                    // back to disabled (see ScalableTopicController.resolveAutoScaleConfig).
+                    return pulsar().getPulsarResources().getNamespaceResources()
+                            .getPoliciesAsync(namespaceName)
+                            .thenAccept(optPolicies -> {
+                                AutoScalePolicyOverride nsOverride = optPolicies
+                                        .map(p -> p.scalableTopicAutoScalePolicy)
+                                        .orElse(null);
+                                try {
+                                    AutoScaleConfig.resolve(pulsar().getConfig(), nsOverride, override);
+                                } catch (IllegalArgumentException e) {
+                                    throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                            e.getMessage());
+                                }
+                            });
+                })
+                .thenCompose(__ -> resources().updateScalableTopicAsync(tn, md -> {
+                    md.setAutoScalePolicy(override);
+                    return md;
+                }))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .attr("removed", override == null)
+                            .log("Updated autoScalePolicy on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn));
+                        return null;
+                    }
+                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                            .exception(ex).log("Failed to update autoScalePolicy for scalable topic");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     // --- Delete ---
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Delete a scalable topic and all its segments.")
+    @Operation(summary = "Delete a scalable topic and all its segments.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Scalable topic deleted successfully"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Scalable topic deleted successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteScalableTopic(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Force deletion even if topic has active subscriptions")
+            @Parameter(description = "Force deletion even if topic has active subscriptions")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -518,20 +684,23 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/stats")
-    @ApiOperation(value = "Get aggregated stats for a scalable topic.",
-            response = org.apache.pulsar.common.policies.data.ScalableTopicStats.class)
+    @Operation(summary = "Get aggregated stats for a scalable topic.")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "200", description = "Get aggregated stats for a scalable topic.",
+                    content = @Content(schema = @Schema(
+                            implementation = org.apache.pulsar.common.policies.data.ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void getStats(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -551,24 +720,25 @@ public class ScalableTopics extends AdminResource {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}")
-    @ApiOperation(value = "Create a subscription on a scalable topic.")
+    @Operation(summary = "Create a subscription on a scalable topic.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Subscription created successfully"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Subscription created successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Subscription type: STREAM (controller-managed, ordered) "
+            @Parameter(description = "Subscription type: STREAM (controller-managed, ordered) "
                     + "or QUEUE (direct per-segment attach, no controller coordination)")
             @QueryParam("type") @DefaultValue("STREAM")
                     org.apache.pulsar.broker.resources.SubscriptionType type) {
@@ -595,22 +765,23 @@ public class ScalableTopics extends AdminResource {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}")
-    @ApiOperation(value = "Delete a subscription from a scalable topic.")
+    @Operation(summary = "Delete a subscription from a scalable topic.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Subscription deleted successfully"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Subscription deleted successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -635,26 +806,27 @@ public class ScalableTopics extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/seek")
-    @ApiOperation(value = "Reset a subscription's cursor on every segment to the given"
+    @Operation(summary = "Reset a subscription's cursor on every segment to the given"
             + " wall-clock timestamp. The controller uses each segment's recorded sealed-time"
             + " window to dispatch the cheapest per-segment op.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cursor reset successfully on all segments"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Cursor reset successfully on all segments"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void seekSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Wall-clock millis since the unix epoch", required = true)
+            @Parameter(description = "Wall-clock millis since the unix epoch", required = true)
             @QueryParam("timestamp") long timestampMs) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -680,23 +852,24 @@ public class ScalableTopics extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/skip-all")
-    @ApiOperation(value = "Skip every undelivered message on the subscription, across every"
+    @Operation(summary = "Skip every undelivered message on the subscription, across every"
             + " segment in the DAG (advance each per-segment cursor to the end).")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Backlog cleared successfully on all segments"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
-            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Backlog cleared successfully on all segments"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void clearBacklog(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -723,21 +896,21 @@ public class ScalableTopics extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/split/{segmentId}")
-    @ApiOperation(value = "Split a segment into two halves.")
+    @Operation(summary = "Split a segment into two halves.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Segment split successfully"),
-            @ApiResponse(code = 404, message = "Scalable topic or segment doesn't exist"),
-            @ApiResponse(code = 412, message = "Segment is not active or cannot be split"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Segment split successfully"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Segment is not active or cannot be split"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void splitSegment(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment ID to split", required = true)
+            @Parameter(description = "Segment ID to split", required = true)
             @PathParam("segmentId") long segmentId) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
@@ -761,23 +934,23 @@ public class ScalableTopics extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/merge/{segmentId1}/{segmentId2}")
-    @ApiOperation(value = "Merge two adjacent segments into one.")
+    @Operation(summary = "Merge two adjacent segments into one.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Segments merged successfully"),
-            @ApiResponse(code = 404, message = "Scalable topic or segment doesn't exist"),
-            @ApiResponse(code = 412, message = "Segments are not active or not adjacent"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Segments merged successfully"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Segments are not active or not adjacent"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void mergeSegments(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
+            @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "First segment ID to merge", required = true)
+            @Parameter(description = "First segment ID to merge", required = true)
             @PathParam("segmentId1") long segmentId1,
-            @ApiParam(value = "Second segment ID to merge", required = true)
+            @Parameter(description = "Second segment ID to merge", required = true)
             @PathParam("segmentId2") long segmentId2) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);

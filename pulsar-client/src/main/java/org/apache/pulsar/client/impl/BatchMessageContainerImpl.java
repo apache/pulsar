@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -62,6 +63,31 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
+
+    // PIP-486: when set, createOpSendMsg() stamps entry_hash_min/max on the batch metadata from the
+    // min/max entry-bucket hash of the batch's messages. Null for non-scalable producers (no stamping,
+    // so the path is byte-identical to before).
+    private ToIntFunction<MessageImpl<?>> entryBucketHashFn;
+
+    void setEntryBucketHashFn(ToIntFunction<MessageImpl<?>> entryBucketHashFn) {
+        this.entryBucketHashFn = entryBucketHashFn;
+    }
+
+    /** PIP-486: stamp the effective entry-bucket hash range (min/max over the batch's messages). */
+    private void stampEntryBucketRange() {
+        if (entryBucketHashFn == null || messages.isEmpty()) {
+            return;
+        }
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (int i = 0; i < messages.size(); i++) {
+            int h = entryBucketHashFn.applyAsInt(messages.get(i));
+            min = Math.min(min, h);
+            max = Math.max(max, h);
+        }
+        messageMetadata.setEntryHashMin(min);
+        messageMetadata.setEntryHashMax(max);
+    }
 
     protected final ByteBufAllocator allocator;
     private static final int SHRINK_COOLING_OFF_PERIOD = 10;
@@ -268,6 +294,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (messages.size() == 1) {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
+            stampEntryBucketRange();
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
                     getCompressedBatchMetadataAndPayload());
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
@@ -323,6 +350,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (currentTxnidLeastBits != -1) {
             messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
         }
+        stampEntryBucketRange();
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata, encryptedPayload);
             log.debug(e -> e.attr("topic", topicName)

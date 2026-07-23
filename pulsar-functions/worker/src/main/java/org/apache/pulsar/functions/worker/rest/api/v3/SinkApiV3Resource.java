@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -27,7 +27,7 @@ import jakarta.ws.rs.core.MediaType;
 /**
  * @deprecated in favor of {@link SinksApiV3Resource}
  */
-@Api(value = "/sink", description = "Sink admin apis", tags = "sink")
+@Tag(name = "sink", description = "Sink admin apis")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/sink")

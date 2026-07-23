@@ -30,9 +30,9 @@ dependencies {
     testImplementation(project(":pulsar-client-api"))
     testImplementation(project(":pulsar-client-admin-api"))
     testImplementation(project(":pulsar-client-messagecrypto-bc"))
-    testImplementation(project(":bouncy-castle:bouncy-castle-bc"))
     testImplementation(project(":buildtools"))
     testImplementation(libs.bcprov.jdk18on)
+    testImplementation(libs.bcpkix.jdk18on)
     testImplementation(libs.testcontainers)
     // Runtime deps needed by the client that are not bundled in the shaded JARs
     testRuntimeOnly(libs.opentelemetry.api)

@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -42,24 +45,24 @@ import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @Path("/packages")
-@Api(value = "packages", tags = "packages")
+@Tag(name = "packages")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class Packages extends PackagesBase {
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
-    @ApiOperation(
-        value = "Get the metadata of a package.",
-        response = PackageMetadata.class
+    @Operation(
+        summary = "Get the metadata of a package."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Return the metadata of the specified package."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "200", description = "Return the metadata of the specified package.",
+                content = @Content(schema = @Schema(implementation = PackageMetadata.class))),
+            @ApiResponse(responseCode = "404", description = "The specified package is not existent."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     public void getMeta(
@@ -75,16 +78,17 @@ public class Packages extends PackagesBase {
 
     @PUT
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}/metadata")
-    @ApiOperation(
-        value = "Update the metadata of a package."
+    @Operation(
+        summary = "Update the metadata of a package."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 204, message = "Update the metadata of the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "204", description = "Update the metadata of the specified package "
+                + "successfully."),
+            @ApiResponse(responseCode = "404", description = "The specified package is not existent."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     @Consumes(MediaType.APPLICATION_JSON)
@@ -108,15 +112,15 @@ public class Packages extends PackagesBase {
 
     @POST
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    @ApiOperation(
-        value = "Upload a package."
+    @Operation(
+        summary = "Upload a package."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 204, message = "Upload the specified package successfully."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "204", description = "Upload the specified package successfully."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -142,17 +146,18 @@ public class Packages extends PackagesBase {
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
-    @ApiOperation(
-        value = "Download a package with the package name.",
-        response = StreamingOutput.class
+    @Operation(
+        summary = "Download a package with the package name."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Download the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "200", description = "Download the specified package successfully.",
+                content = @Content(mediaType = "application/octet-stream",
+                    schema = @Schema(type = "string", format = "binary"))),
+            @ApiResponse(responseCode = "404", description = "The specified package is not existent."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     public StreamingOutput download(
@@ -169,14 +174,14 @@ public class Packages extends PackagesBase {
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
     @ApiResponses(
         value = {
-            @ApiResponse(code = 204, message = "Delete the specified package successfully."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "204", description = "Delete the specified package successfully."),
+            @ApiResponse(responseCode = "404", description = "The specified package is not existent."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
-    @ApiOperation(value = "Delete a package with the package name.")
+    @Operation(summary = "Delete a package with the package name.")
     public void delete(
         final @PathParam("type") String type,
         final @PathParam("tenant") String tenant,
@@ -190,18 +195,17 @@ public class Packages extends PackagesBase {
 
     @GET
     @Path("/{type}/{tenant}/{namespace}/{packageName}")
-    @ApiOperation(
-        value = "Get all the versions of a package.",
-        response = String.class,
-        responseContainer = "List"
+    @Operation(
+        summary = "Get all the versions of a package."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Return the package versions of the specified package."),
-            @ApiResponse(code = 404, message = "The specified package is not existent."),
-            @ApiResponse(code = 412, message = "The package name is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "200", description = "Return the package versions of the specified package.",
+                content = @Content(array = @ArraySchema(schema = @Schema(implementation = String.class)))),
+            @ApiResponse(responseCode = "404", description = "The specified package is not existent."),
+            @ApiResponse(responseCode = "412", description = "The package name is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     public void listPackageVersion(
@@ -216,18 +220,17 @@ public class Packages extends PackagesBase {
 
     @GET
     @Path("/{type}/{tenant}/{namespace}")
-    @ApiOperation(
-        value = "Get all the specified type packages in a namespace.",
-        response = PackageMetadata.class,
-        responseContainer = "List"
+    @Operation(
+        summary = "Get all the specified type packages in a namespace."
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message =
-                "Return all the specified type package names in the specified namespace."),
-            @ApiResponse(code = 412, message = "The package type is illegal."),
-            @ApiResponse(code = 500, message = "Internal server error."),
-            @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
+            @ApiResponse(responseCode = "200", description =
+                "Return all the specified type package names in the specified namespace.",
+                content = @Content(array = @ArraySchema(schema = @Schema(implementation = PackageMetadata.class)))),
+            @ApiResponse(responseCode = "412", description = "The package type is illegal."),
+            @ApiResponse(responseCode = "500", description = "Internal server error."),
+            @ApiResponse(responseCode = "503", description = "Package Management Service is not enabled in the broker.")
         }
     )
     public void listPackages(

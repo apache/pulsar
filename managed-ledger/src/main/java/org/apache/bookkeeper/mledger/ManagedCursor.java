@@ -370,6 +370,25 @@ public interface ManagedCursor {
     long getNumberOfEntriesInBacklog(boolean isPrecise);
 
     /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog() {
+        return hasBacklog(true);
+    }
+
+    /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @param isPrecise set to true to get a precise backlog check
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog(boolean isPrecise) {
+        return getNumberOfEntriesInBacklog(isPrecise) > 0;
+    }
+
+    /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
      * trigger a ledger deletion, if all the other cursors are done too with the underlying ledger.
      *

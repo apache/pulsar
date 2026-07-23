@@ -51,10 +51,3 @@ val copyCustomCommandsNar by tasks.registering(Copy::class) {
 tasks.withType<Test> {
     dependsOn(copyCustomCommandsNar)
 }
-
-// checkstyleTest also scans test resources — ensure NAR copy runs first
-plugins.withId("checkstyle") {
-    tasks.named("checkstyleTest") {
-        dependsOn(copyCustomCommandsNar)
-    }
-}

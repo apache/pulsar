@@ -107,6 +107,28 @@ public final class TxnPaths {
         return TXN_TC_SEQ_PREFIX + "/" + tcId;
     }
 
+    /**
+     * Path prefix for the per-partition transaction-coordinator leader-election nodes. Each
+     * partition {@code N} has a {@code LeaderElection} under {@code /txn/tc/leader/<N>} whose
+     * value is the {@link TcLeader} currently coordinating that partition. Replaces the
+     * {@code transaction_coordinator_assign} topic as the v5 TC's election surface — election
+     * rests on the metadata store directly, not on topic/bundle ownership.
+     */
+    public static final String TXN_TC_LEADER_PREFIX = "/txn/tc/leader";
+
+    /** @return {@code /txn/tc/leader/<partition>} — the leader-election node for {@code partition}. */
+    public static String tcLeaderPath(int partition) {
+        return TXN_TC_LEADER_PREFIX + "/" + partition;
+    }
+
+    /**
+     * Cluster-wide record of the scalable-topics TC parallelism, written once by the first broker to
+     * start. Every broker verifies its configured value against this and refuses to start on a
+     * mismatch, so the coordinator-count encoded in transaction ids stays stable for the cluster's
+     * lifetime.
+     */
+    public static final String TXN_TC_PARALLELISM_PATH = "/txn/tc/parallelism";
+
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 

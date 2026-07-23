@@ -19,7 +19,9 @@
 
 plugins {
     id("pulsar.java-conventions")
-    alias(libs.plugins.shadow)
+    // No version: the Shadow plugin is already on the classpath via the build-logic conventions,
+    // so a versioned request cannot be reconciled with it.
+    id("com.gradleup.shadow")
 }
 
 dependencies {

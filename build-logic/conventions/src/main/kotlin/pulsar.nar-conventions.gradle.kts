@@ -38,7 +38,6 @@ val pulsarPlatformModules = setOf(
     "pulsar-client",
     "pulsar-common",
     "pulsar-config-validation",
-    "bouncy-castle-bc",
     "pulsar-functions-api",
     "pulsar-functions-instance",
     "pulsar-functions-proto",

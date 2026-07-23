@@ -112,6 +112,15 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
         // Watch for migration events
         watchForMigrationEvents();
+
+        if (migrationState.getPhase() == MigrationPhase.PREPARATION
+                || migrationState.getPhase() == MigrationPhase.COPYING) {
+            // A migration was already in progress when this store was created, so the PREPARATION
+            // notification was missed. Run the preparation handler now, so that the target store gets
+            // initialized and the participant registered above acknowledges instead of stalling the
+            // migration coordinator.
+            executor.execute(this::handleMigrationStart);
+        }
     }
 
     private void readCurrentState() throws MetadataStoreException {
@@ -212,6 +221,15 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     private void handleMigrationComplete() {
         log.info("=== Metadata Migration Complete ===");
+
+        try {
+            // The target store might not have been initialized yet, if this store was created while
+            // the migration was already in progress
+            initializeTargetStore(migrationState.getTargetUrl());
+        } catch (MetadataStoreException e) {
+            log.error().exception(e).log("Failed to initialize target store on migration completion");
+            return;
+        }
 
         caches.forEach(DualMetadataCache::handleSwitchToTargetStore);
         listeners.forEach(targetStore::registerListener);

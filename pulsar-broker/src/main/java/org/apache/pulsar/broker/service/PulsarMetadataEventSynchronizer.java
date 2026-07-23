@@ -226,7 +226,8 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                                     log.warn()
                                             .attr("messageId", msg.getMessageId())
                                             .attr("topic", topicName)
-                                            .log("Failed to synchronize for");
+                                            .exception(ex)
+                                            .log("Failed to synchronize metadata event");
                                     return null;
                                 });
                     } else {
@@ -237,7 +238,8 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                                     log.warn()
                                             .attr("messageId", msg.getMessageId())
                                             .attr("topic", topicName)
-                                            .log("Failed to synchronize for");
+                                            .exception(ex)
+                                            .log("Failed to synchronize metadata event");
                                     return null;
                                 });
                     }
@@ -245,7 +247,8 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                     log.warn()
                             .attr("messageId", msg.getMessageId())
                             .attr("topic", topicName)
-                            .log("Failed to synchronize for");
+                            .exception(e)
+                            .log("Failed to synchronize metadata event");
                 }
             });
         consumerBuilder.subscribeAsync().thenAccept(consumer -> {

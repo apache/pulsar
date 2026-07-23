@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -28,8 +28,7 @@ import org.apache.pulsar.broker.admin.impl.MetadataMigrationBase;
  * REST API for metadata store migration operations.
  */
 @Path("/metadata/migration")
-@Api(value = "/metadata/migration", description = "Metadata store migration admin APIs", tags = "metadata-migration")
+@Tag(name = "metadata-migration", description = "Metadata store migration admin APIs")
 @Produces(MediaType.APPLICATION_JSON)
-@SuppressWarnings("deprecation")
 public class MetadataMigration extends MetadataMigrationBase {
 }
