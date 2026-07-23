@@ -409,12 +409,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
-        if (containsMessage(ledgerId, entryId)) {
-            return true;
-        }
-
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             return false;
+        }
+
+        if (containsMessage(ledgerId, entryId)) {
+            return true;
         }
 
         boolean existBucket = findImmutableBucket(ledgerId).isPresent();

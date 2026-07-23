@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -159,6 +160,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
             }};
+            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage" -> new Object[][]{{
+                    new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
+            }};
             default -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
@@ -188,6 +193,51 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker.containsMessage(3, 3));
 
         tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testExpiredTrackedMessageReturnsFalse(BucketDelayedDeliveryTracker tracker) {
+        clockTime.set(1000);
+        assertTrue(tracker.addMessage(1, 1, 2000));
+        assertTrue(tracker.containsMessage(1, 1));
+
+        clockTime.set(2500);
+
+        assertFalse(
+                "Expired tracked message should return false so dispatcher delivers immediately",
+                tracker.addMessage(1, 1, 2000));
+
+        tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testRecoverThenExpireAddMessage(BucketDelayedDeliveryTracker tracker) throws Exception {
+        clockTime.set(0);
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 1000);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        clockTime.set(0);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 100000, clock, true,
+                bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+        assertTrue(tracker2.containsMessage(1, 1));
+
+        clockTime.set(10000);
+
+        assertFalse(
+                "Recovered message that is now expired should return false",
+                tracker2.addMessage(1, 1, 1000));
+
+        tracker2.close();
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
