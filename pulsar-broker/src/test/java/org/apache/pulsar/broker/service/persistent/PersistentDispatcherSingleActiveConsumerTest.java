@@ -102,7 +102,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBa
         Mockito.doAnswer(inv -> {
             callReadEntriesFailed.getAndIncrement();
             return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
+        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any(), Mockito.anyLong());
 
         Mockito.doReturn(false).when(cursor).isClosed();
 
