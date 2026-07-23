@@ -119,7 +119,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         Mockito.doAnswer(inv -> {
             callReadEntriesFailed.getAndIncrement();
             return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
+        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any(), Mockito.anyLong());
 
         Mockito.doReturn(false).when(cursor).isClosed();
 

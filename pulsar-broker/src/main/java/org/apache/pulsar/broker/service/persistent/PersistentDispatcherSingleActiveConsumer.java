@@ -71,6 +71,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     protected volatile boolean havePendingRead = false;
+    // Monotonic identity of the read that havePendingRead currently refers to. Bumped under this monitor
+    // whenever readMoreEntries issues a read; a completion mutates dispatcher state only when its captured
+    // epoch still matches, so a completion whose read was disowned by a redeliver-driven rewind + re-arm
+    // is ignored instead of clearing havePendingRead for the newer outstanding read. Guarded by "this".
+    private long readOpEpoch = 0L;
 
     protected volatile int readBatchSize;
     protected final Backoff readFailureBackoff;
@@ -153,7 +158,21 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch) {
+    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
+                                                  long readOpEpoch) {
+        if (readOpEpoch != this.readOpEpoch) {
+            // Stale completion: this read was disowned by a redeliver-driven cursor rewind + re-arm
+            // (internalRedeliverUnacknowledgedMessages) that already issued a newer read. Clearing
+            // havePendingRead or dispatching here would strand the newer armed read and double-deliver;
+            // release the entries (the newer read re-delivers from the rewound position) and do nothing else.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Discarding stale read completion: size={}, staleReadOpEpoch={},"
+                                + " currentReadOpEpoch={}",
+                        name, readConsumer, entries.size(), readOpEpoch, this.readOpEpoch);
+            }
+            entries.forEach(Entry::release);
+            return;
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
@@ -366,6 +385,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
                 }
                 havePendingRead = true;
+                // Tag this read so a completion that has since been superseded by a redeliver-driven re-arm
+                // can be detected as stale (see readEntriesComplete / readEntriesFailed).
+                final long readOpEpoch = ++this.readOpEpoch;
                 // TODO: should we pass the consumer epoch for compacted read path? See
                 //   https://github.com/apache/pulsar/issues/13690
                 final var epoch = consumer.readCompacted() ? DEFAULT_CONSUMER_EPOCH : consumer.getConsumerEpoch();
@@ -382,9 +404,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 entriesFuture.whenCompleteAsync((entries, e) -> {
                     if (e == null) {
-                        readEntriesComplete(entries, consumer, epoch);
+                        readEntriesComplete(entries, consumer, epoch, readOpEpoch);
                     } else {
-                        readEntriesFailed(e, consumer);
+                        readEntriesFailed(e, consumer, readOpEpoch);
                     }
                 }, executor);
             }
@@ -457,7 +479,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @VisibleForTesting
-    public synchronized void readEntriesFailed(Throwable throwable, Consumer consumer) {
+    public synchronized void readEntriesFailed(Throwable throwable, Consumer consumer, long readOpEpoch) {
+        if (readOpEpoch != this.readOpEpoch) {
+            // Stale failure for a read already disowned by a redeliver-driven re-arm; clearing havePendingRead
+            // or rescheduling here would disturb the newer outstanding read. Ignore it.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring stale read failure: staleReadOpEpoch={}, currentReadOpEpoch={}",
+                        name, consumer, readOpEpoch, this.readOpEpoch);
+            }
+            return;
+        }
         havePendingRead = false;
         final var exception = FutureUtil.unwrapCompletionException(throwable);
 
