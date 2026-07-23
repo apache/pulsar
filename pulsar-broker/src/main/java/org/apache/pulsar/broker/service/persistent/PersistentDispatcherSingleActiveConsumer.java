@@ -174,6 +174,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             log.debug()
                     .attr("readConsumer", readConsumer)
                     .attr("size", entries.size())
+                    .attr("staleReadOpEpoch", readOpEpoch)
+                    .attr("currentReadOpEpoch", this.readOpEpoch)
                     .log("Discarding stale read completion");
             entries.forEach(Entry::release);
             return;
@@ -479,6 +481,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             // or rescheduling here would disturb the newer outstanding read. Ignore it.
             log.debug()
                     .attr("consumer", consumer)
+                    .attr("staleReadOpEpoch", readOpEpoch)
+                    .attr("currentReadOpEpoch", this.readOpEpoch)
                     .log("Ignoring stale read failure");
             return;
         }
