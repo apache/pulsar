@@ -393,43 +393,43 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.15.0.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.15.0.jar
  * Jetty
-    - org.eclipse.jetty-jetty-alpn-client-12.1.10.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.10.jar
-    - org.eclipse.jetty-jetty-alpn-server-12.1.10.jar
-    - org.eclipse.jetty-jetty-annotations-12.1.10.jar
-    - org.eclipse.jetty-jetty-client-12.1.10.jar
-    - org.eclipse.jetty-jetty-http-12.1.10.jar
-    - org.eclipse.jetty-jetty-io-12.1.10.jar
-    - org.eclipse.jetty-jetty-jndi-12.1.10.jar
-    - org.eclipse.jetty-jetty-plus-12.1.10.jar
-    - org.eclipse.jetty-jetty-security-12.1.10.jar
-    - org.eclipse.jetty-jetty-server-12.1.10.jar
-    - org.eclipse.jetty-jetty-session-12.1.10.jar
-    - org.eclipse.jetty-jetty-util-12.1.10.jar
-    - org.eclipse.jetty-jetty-xml-12.1.10.jar
-    - org.eclipse.jetty.compression-jetty-compression-common-12.1.10.jar
-    - org.eclipse.jetty.compression-jetty-compression-gzip-12.1.10.jar
-    - org.eclipse.jetty.compression-jetty-compression-server-12.1.10.jar
-    - org.eclipse.jetty.ee-jetty-ee-webapp-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-annotations-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-nested-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-plus-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-proxy-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-security-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-servlet-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-servlets-12.1.10.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-webapp-12.1.10.jar
-    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-api-12.1.10.jar
-    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-common-12.1.10.jar
-    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-server-12.1.10.jar
-    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-servlet-12.1.10.jar
+    - org.eclipse.jetty-jetty-alpn-client-12.1.11.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.11.jar
+    - org.eclipse.jetty-jetty-alpn-server-12.1.11.jar
+    - org.eclipse.jetty-jetty-annotations-12.1.11.jar
+    - org.eclipse.jetty-jetty-client-12.1.11.jar
+    - org.eclipse.jetty-jetty-http-12.1.11.jar
+    - org.eclipse.jetty-jetty-io-12.1.11.jar
+    - org.eclipse.jetty-jetty-jndi-12.1.11.jar
+    - org.eclipse.jetty-jetty-plus-12.1.11.jar
+    - org.eclipse.jetty-jetty-security-12.1.11.jar
+    - org.eclipse.jetty-jetty-server-12.1.11.jar
+    - org.eclipse.jetty-jetty-session-12.1.11.jar
+    - org.eclipse.jetty-jetty-util-12.1.11.jar
+    - org.eclipse.jetty-jetty-xml-12.1.11.jar
+    - org.eclipse.jetty.compression-jetty-compression-common-12.1.11.jar
+    - org.eclipse.jetty.compression-jetty-compression-gzip-12.1.11.jar
+    - org.eclipse.jetty.compression-jetty-compression-server-12.1.11.jar
+    - org.eclipse.jetty.ee-jetty-ee-webapp-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-annotations-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-nested-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-plus-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-proxy-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-security-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-servlet-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-servlets-12.1.11.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-webapp-12.1.11.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-api-12.1.11.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-common-12.1.11.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-jetty-server-12.1.11.jar
+    - org.eclipse.jetty.ee8.websocket-jetty-ee8-websocket-servlet-12.1.11.jar
     - org.eclipse.jetty.toolchain-jetty-servlet-api-4.0.9.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-client-12.1.10.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-common-12.1.10.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-server-12.1.10.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-api-12.1.10.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-client-12.1.10.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-common-12.1.10.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-client-12.1.11.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-common-12.1.11.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-server-12.1.11.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-api-12.1.11.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-client-12.1.11.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-common-12.1.11.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
