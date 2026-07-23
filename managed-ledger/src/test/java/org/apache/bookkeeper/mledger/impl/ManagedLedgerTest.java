@@ -4565,6 +4565,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
     }
 
+    @Test(timeOut = 20000)
+    public void testOffloadContextPreservedWhenClosingLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(
+                "testOffloadContextPreservedWhenClosingLedger", config);
+        ml.addEntry("entry-1".getBytes(Encoding));
+        long firstLedger = ml.ledgers.firstKey();
+        LedgerInfo.Builder info = ml.ledgers.get(firstLedger).toBuilder();
+        info.getOffloadContextBuilder().setUidMsb(11L).setUidLsb(22L).setComplete(true);
+        ml.ledgers.put(firstLedger, info.build());
+
+        ml.addEntry("entry-2".getBytes(Encoding));
+        ml.addEntry("entry-3".getBytes(Encoding));
+
+        Assert.assertNotEquals(firstLedger, ml.ledgers.lastKey().longValue());
+        LedgerInfo closedInfo = ml.ledgers.get(firstLedger);
+        Assert.assertEquals(closedInfo.getEntries(), 2L);
+        Assert.assertEquals(closedInfo.getSize(), (long) "entry-1".getBytes(Encoding).length * 2);
+        Assert.assertEquals(closedInfo.getOffloadContext(), info.getOffloadContext());
+        ml.close();
+    }
+
     /**
      * Verifies that ledger trimming respects the persistent cursor position, not just the in-memory position.
      *
