@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -56,7 +57,10 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -377,6 +381,60 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         tracker2.close();
     }
 
+    @Test
+    public void testMergeSnapshotCreationFailureRetainsSourceBuckets() throws Exception {
+        FailingMergedSnapshotStorage storage = new FailingMergedSnapshotStorage();
+        storage.start();
+        MockManagedCursor cursor = new MockManagedCursor("merge-failure-cursor");
+        AtomicLong now = new AtomicLong();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, mock(Timer.class),
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+        boolean trackerClosed = false;
+        try {
+            for (int ledgerId = 1; ledgerId <= 6; ledgerId++) {
+                tracker.addMessage(ledgerId, 1, ledgerId * 100L);
+                tracker.addMessage(ledgerId, 2, ledgerId * 100L + 20);
+                tracker.addMessage(ledgerId, 3, ledgerId * 100L + 40);
+            }
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(storage.getMergedSnapshotCreateAttempts() > 0);
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(bucket -> bucket.merging));
+            });
+
+            assertEquals(storage.getDeleteCalls(), 0,
+                    "Source snapshots must not be deleted when the replacement snapshot cannot be created");
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 5);
+            assertEquals(cursor.getCursorProperties().keySet().stream()
+                    .filter(key -> key.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX))
+                    .count(), 5L);
+
+            tracker.close();
+            trackerClosed = true;
+            BucketDelayedDeliveryTracker recoveredTracker = new BucketDelayedDeliveryTracker(testDispatcher,
+                    mock(Timer.class), 1, testClock, true, storage, 1,
+                    TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+            try {
+                assertEquals(recoveredTracker.getNumberOfDelayedMessages(), 15L);
+            } finally {
+                recoveredTracker.close();
+            }
+        } finally {
+            if (!trackerClosed) {
+                tracker.close();
+            }
+            storage.close();
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test(dataProvider = "delayedTracker")
     public void testWithBkException(final BucketDelayedDeliveryTracker tracker) throws Exception {
@@ -539,6 +597,38 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         void close() throws Exception {
             tracker.close();
             storage.close();
+        }
+    }
+
+    private static class FailingMergedSnapshotStorage extends MockBucketSnapshotStorage {
+        private final AtomicInteger mergedSnapshotCreateAttempts = new AtomicInteger();
+        private final AtomicInteger deleteCalls = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            String[] keyParts = bucketKey.split(Bucket.DELIMITER);
+            if (!keyParts[keyParts.length - 2].equals(keyParts[keyParts.length - 1])) {
+                mergedSnapshotCreateAttempts.incrementAndGet();
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Merged snapshot failed"));
+            }
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteCalls.incrementAndGet();
+            return super.deleteBucketSnapshot(bucketId);
+        }
+
+        int getMergedSnapshotCreateAttempts() {
+            return mergedSnapshotCreateAttempts.get();
+        }
+
+        int getDeleteCalls() {
+            return deleteCalls.get();
         }
     }
 

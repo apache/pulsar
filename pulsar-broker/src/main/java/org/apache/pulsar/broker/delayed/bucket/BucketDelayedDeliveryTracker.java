@@ -568,17 +568,26 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         return CombinedSegmentDelayedIndexQueue.wrap(
                                 getRemainFutures.stream().map(CompletableFuture::join).toList());
                     })
-                    .thenAccept(combinedDelayedIndexQueue -> {
+                    .thenCompose(combinedDelayedIndexQueue -> {
+                        TripleLongPriorityQueue mergedBucketPriorityQueue = new TripleLongPriorityQueue();
+                        Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair;
+                        long createStartTime = System.currentTimeMillis();
                         synchronized (BucketDelayedDeliveryTracker.this) {
-                            long createStartTime = System.currentTimeMillis();
                             stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
-                            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
+                            immutableBucketDelayedIndexPair =
                                     lastMutableBucket.createImmutableBucketAndAsyncPersistent(
                                             timeStepPerBucketSnapshotSegmentInMillis,
                                             maxIndexesPerBucketSnapshotSegment,
-                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue,
+                                            mergedBucketPriorityQueue, combinedDelayedIndexQueue,
                                             buckets.get(0).startLedgerId,
                                             buckets.get(buckets.size() - 1).endLedgerId);
+
+                            if (immutableBucketDelayedIndexPair == null) {
+                                mergedBucketPriorityQueue.close();
+                                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
+                                return FutureUtil.failedFuture(new IllegalStateException(
+                                        "Can't merge buckets without remaining snapshot segments"));
+                            }
 
                             // Merge bit map to new bucket
                             Map<Long, LongBitmap> delayedIndexBitMap =
@@ -597,22 +606,72 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             }
 
                             immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
-
-                            afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
-
-                            immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
-                                    .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
-                                        List<CompletableFuture<Void>> removeFutures =
-                                                buckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
-                                                        .toList();
-                                        return FutureUtil.waitForAll(removeFutures);
-                                    });
-
-                            for (ImmutableBucket bucket : buckets) {
-                                removeBucket(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                            }
                         }
+                        return asyncCommitMergedBucket(immutableBucketDelayedIndexPair, buckets,
+                                mergedBucketPriorityQueue, createStartTime);
                     });
+        });
+    }
+
+    private CompletableFuture<Void> asyncCommitMergedBucket(
+            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair,
+            List<ImmutableBucket> sourceBuckets, TripleLongPriorityQueue mergedBucketPriorityQueue,
+            long createStartTime) {
+        ImmutableBucket mergedBucket = immutableBucketDelayedIndexPair.getLeft();
+        DelayedIndex lastDelayedIndex = immutableBucketDelayedIndexPair.getRight();
+        CompletableFuture<Long> createFuture = mergedBucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE);
+        return createFuture.<CompletableFuture<Void>>handle((bucketId, ex) -> {
+            if (ex != null) {
+                log.error()
+                        .attr("bucketKey", mergedBucket.bucketKey())
+                        .exception(ex)
+                        .log("Failed to create merged bucket snapshot");
+                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
+                return FutureUtil.<Void>failedFuture(ex);
+            }
+
+            String bucketIdValue = String.valueOf(bucketId);
+            if (!bucketIdValue.equals(mergedBucket.getCursor().getCursorProperties().get(mergedBucket.bucketKey()))) {
+                IllegalStateException exception = new IllegalStateException(
+                        "Merged bucket snapshot is missing its cursor property");
+                log.error()
+                        .attr("bucketKey", mergedBucket.bucketKey())
+                        .attr("bucketId", bucketId)
+                        .log("Merged bucket snapshot is not recoverable");
+                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
+                return FutureUtil.failedFuture(exception);
+            }
+
+            synchronized (BucketDelayedDeliveryTracker.this) {
+                while (!mergedBucketPriorityQueue.isEmpty()) {
+                    sharedBucketPriorityQueue.add(mergedBucketPriorityQueue.peekN1(),
+                            mergedBucketPriorityQueue.peekN2(), mergedBucketPriorityQueue.peekN3());
+                    mergedBucketPriorityQueue.pop();
+                }
+                mergedBucket.setSnapshotSegments(null);
+                putBucket(Range.closed(mergedBucket.startLedgerId, mergedBucket.endLedgerId), mergedBucket);
+                snapshotSegmentLastIndexMap.entrySet().removeIf(entry -> sourceBuckets.contains(entry.getValue()));
+                snapshotSegmentLastIndexMap.put(
+                        new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()), mergedBucket);
+            }
+
+            mergedBucket.asyncUpdateSnapshotLength().thenAccept(newLength -> {
+                synchronized (BucketDelayedDeliveryTracker.this) {
+                    updateBucketSnapshotLength(mergedBucket, newLength);
+                }
+            });
+            log.debug()
+                    .attr("bucketKey", mergedBucket.bucketKey())
+                    .log("Create merged bucket snapshot finish");
+            stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
+                    System.currentTimeMillis() - createStartTime);
+
+            List<CompletableFuture<Void>> removeFutures =
+                    sourceBuckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats)).toList();
+            return FutureUtil.waitForAll(removeFutures);
+        }).thenCompose(future -> future).whenComplete((__, ex) -> {
+            mergedBucket.setSnapshotSegments(null);
+            mergedBucketPriorityQueue.close();
         });
     }
 
