@@ -3715,11 +3715,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         final HashMap<Long, LedgerInfo> newLedgers = new HashMap<>(ledgers);
                         newLedgers.put(ledgerId, newInfo);
                         store.asyncUpdateLedgerIds(name, buildManagedLedgerInfo(newLedgers), ledgersStat,
-                                new MetaStoreCallback<Void>() {
+                                new MetaStoreCallback<>() {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
-                                        ledgers.put(ledgerId, newInfo);
+                                        ledgers.computeIfPresent(ledgerId, (id, existing) -> {
+                                            LedgerInfo.Builder merged = newInfo.toBuilder()
+                                                    .clearEntries().clearSize().clearTimestamp();
+                                            if (existing.hasEntries()) {
+                                                merged.setEntries(existing.getEntries());
+                                            }
+                                            if (existing.hasSize()) {
+                                                merged.setSize(existing.getSize());
+                                            }
+                                            if (existing.hasTimestamp()) {
+                                                merged.setTimestamp(existing.getTimestamp());
+                                            }
+                                            return merged.build();
+                                        });
                                         unlockingPromise.complete(null);
                                     }
 
