@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -57,6 +58,7 @@ import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -524,6 +526,42 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       tracker.close();
     }
 
+    @Test
+    public void testCursorPropertyFailureCleansUpSnapshotAndDowngradesToMemory() throws Exception {
+        FailingPropertyCursor cursor = new FailingPropertyCursor("cursor-property-failure");
+        RecordingDeleteStorage storage = new RecordingDeleteStorage();
+        storage.start();
+        AtomicLong now = new AtomicLong();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, mock(Timer.class),
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            tracker.addMessage(1, 1, 100);
+            tracker.addMessage(2, 1, 200);
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertEquals(storage.getDeleteCalls(), 1,
+                        "A snapshot without a durable cursor pointer must be deleted");
+                assertTrue(cursor.getCursorProperties().isEmpty());
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+            });
+
+            now.set(1_000);
+            NavigableSet<Position> scheduledMessages = tracker.getScheduledMessages(10);
+            assertEquals(scheduledMessages.size(), 2);
+            assertEquals(tracker.getNumberOfDelayedMessages(), 0L);
+        } finally {
+            tracker.close();
+            storage.close();
+        }
+    }
+
     private static class TrackerWithStorage {
         final BucketDelayedDeliveryTracker tracker;
         final MockBucketSnapshotStorage storage;
@@ -552,6 +590,32 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 return firstDeleteFuture;
             }
             return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    private static class RecordingDeleteStorage extends MockBucketSnapshotStorage {
+        private final AtomicInteger deleteCalls = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteCalls.incrementAndGet();
+            return super.deleteBucketSnapshot(bucketId);
+        }
+
+        int getDeleteCalls() {
+            return deleteCalls.get();
+        }
+    }
+
+    private static class FailingPropertyCursor extends MockManagedCursor {
+        FailingPropertyCursor(String name) {
+            super(name);
+        }
+
+        @Override
+        public CompletableFuture<Void> putCursorProperty(String key, String value) {
+            super.putCursorProperty(key, value);
+            return FutureUtil.failedFuture(new IllegalStateException("cursor property persistence failed"));
         }
     }
 

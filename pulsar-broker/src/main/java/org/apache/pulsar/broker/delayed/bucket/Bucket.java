@@ -151,16 +151,37 @@ abstract class Bucket {
                         }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
-                    return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
+                    return putBucketKeyId(bucketKey, newBucketId)
+                            .thenApply(__ -> newBucketId)
+                            .exceptionallyCompose(ex -> {
+                                log.warn()
+                                        .attr("dispatcher", dispatcherName)
+                                        .attr("bucketKey", bucketKey)
+                                        .attr("bucketId", newBucketId)
+                                        .exception(ex)
+                                        .log("Failed to record bucketId to cursor property");
+                                return asyncCleanupBucketSnapshotAfterCursorPropertyFailure(
+                                        bucketKey, newBucketId, ex);
+                            });
+                });
+    }
+
+    private CompletableFuture<Long> asyncCleanupBucketSnapshotAfterCursorPropertyFailure(
+            String bucketKey, long bucketId, Throwable cursorPropertyFailure) {
+        return removeBucketCursorProperty(bucketKey)
+                .thenCompose(__ -> executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                        BucketSnapshotPersistenceException.class, MaxRetryTimes))
+                .handle((__, cleanupFailure) -> {
+                    if (cleanupFailure != null) {
                         log.warn()
                                 .attr("dispatcher", dispatcherName)
                                 .attr("bucketKey", bucketKey)
-                                .attr("bucketId", newBucketId)
-                                .exception(ex)
-                                .log("Failed to record bucketId to cursor property");
-                        return null;
-                    }).thenApply(__ -> newBucketId);
-                });
+                                .attr("bucketId", bucketId)
+                                .exception(cleanupFailure)
+                                .log("Failed to cleanup bucket snapshot after cursor property persistence failure");
+                    }
+                    return FutureUtil.<Long>failedFuture(cursorPropertyFailure);
+                }).thenCompose(future -> future);
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
