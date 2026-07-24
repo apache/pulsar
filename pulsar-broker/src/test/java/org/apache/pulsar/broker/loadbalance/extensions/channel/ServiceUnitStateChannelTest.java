@@ -289,17 +289,30 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<String> oldRequest = channel.dedupeGetOwnerRequest(serviceUnit);
         assertEquals(getOwnerRequests.get(serviceUnit), oldRequest);
 
+        CompletableFuture<String> newRequest = null;
         try {
-            CompletableFuture<String> newRequest = new CompletableFuture<>();
-            getOwnerRequests.put(serviceUnit, newRequest);
+            // State-event handlers remove the current request before completing it, allowing a later lookup
+            // to install a new request generation before the old request's completion cleanup runs.
+            assertTrue(getOwnerRequests.remove(serviceUnit, oldRequest));
+            newRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+            assertTrue(newRequest != oldRequest);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest);
 
             // The previous unconditional removal would remove newRequest here.
-            oldRequest.complete(brokerId1);
+            assertTrue(oldRequest.complete(brokerId1));
 
             assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
                     "A stale get-owner cleanup must not remove a newer request future");
+
+            assertTrue(newRequest.complete(brokerId2));
+            assertFalse(getOwnerRequests.containsKey(serviceUnit),
+                    "The newer request must remove itself after completion");
         } finally {
             getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            if (newRequest != null) {
+                newRequest.cancel(false);
+            }
         }
     }
 
@@ -337,18 +350,31 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
         assertNotNull(oldJob);
 
+        CompletableFuture<Void> newJob = null;
         try {
-            CompletableFuture<Void> newJob = new CompletableFuture<>();
-            cleanupJobs.put(broker, newJob);
+            // Broker-creation handling removes a cleanup job before cancelling it. A later broker-deletion
+            // event can therefore schedule a new job before the old job's completion cleanup runs.
+            assertTrue(cleanupJobs.remove(broker, oldJob));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
 
             // The previous unconditional removal would remove newJob here.
-            oldJob.complete(null);
+            assertTrue(oldJob.cancel(false));
 
             assertTrue(cleanupJobs.get(broker) == newJob,
                     "A stale cleanup job completion must not remove a newer cleanup job future");
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after completion");
         } finally {
             cleanupJobs.remove(broker);
             oldJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
         }
     }
 
@@ -899,32 +925,47 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
         var cleanupJobs = channel.getCleanupJobs();
         String broker = brokerId2;
-        CompletableFuture<Void> oldJob = new CompletableFuture<>();
-        CompletableFuture<Void> newJob = new CompletableFuture<>();
         CompletableFuture<Void> healthCheck = new CompletableFuture<>();
-        cleanupJobs.put(broker, oldJob);
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
 
         reset(brokers);
         doReturn(healthCheck).when(brokers).healthcheckAsync(any());
         doReturn(brokers).when(pulsarAdmin).brokers();
+        CompletableFuture<Void> newJob = null;
         try {
             channel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
             verify(brokers, times(1)).healthcheckAsync(any());
 
-            // Replace the cleanup job before completing the broker health-check callback.
-            cleanupJobs.put(broker, newJob);
+            // The old cleanup can finish while the asynchronous health check is still pending. A later
+            // broker-deletion event can then schedule a new cleanup job for the same broker.
+            assertTrue(oldJob.complete(null));
+            assertFalse(cleanupJobs.containsKey(broker));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
+
             healthCheck.complete(null);
 
+            CompletableFuture<Void> expectedNewJob = newJob;
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                assertTrue(cleanupJobs.get(broker) == newJob,
+                assertTrue(cleanupJobs.get(broker) == expectedNewJob,
                         "A stale broker-creation callback must not remove a newer cleanup job");
-                assertFalse(newJob.isCancelled());
-                assertFalse(oldJob.isCancelled());
+                assertFalse(expectedNewJob.isCancelled());
             });
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after cancellation");
         } finally {
             cleanupJobs.remove(broker);
             oldJob.cancel(false);
-            newJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
             reset(brokers);
             doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
                     .healthcheckAsync(any());
