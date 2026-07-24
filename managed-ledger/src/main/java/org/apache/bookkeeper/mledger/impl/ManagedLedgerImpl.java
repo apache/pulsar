@@ -3882,11 +3882,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
-                                        ledgers.merge(ledgerId, newInfo, (existing, incoming) -> {
+                                        ledgers.computeIfPresent(ledgerId, (id, existing) -> {
                                             LedgerInfo merged = new LedgerInfo();
-                                            merged.copyFrom(incoming);
-                                            return merged.setEntries(existing.getEntries()).setSize(existing.getSize())
-                                                    .setTimestamp(existing.getTimestamp());
+                                            merged.copyFrom(newInfo);
+                                            merged.clearEntries().clearSize().clearTimestamp();
+                                            if (existing.hasEntries()) {
+                                                merged.setEntries(existing.getEntries());
+                                            }
+                                            if (existing.hasSize()) {
+                                                merged.setSize(existing.getSize());
+                                            }
+                                            if (existing.hasTimestamp()) {
+                                                merged.setTimestamp(existing.getTimestamp());
+                                            }
+                                            return merged;
                                         });
                                         unlockingPromise.complete(null);
                                     }
