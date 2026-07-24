@@ -126,6 +126,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private volatile CompletableFuture<Void> trimFuture;
 
+    private boolean closing;
+
+    private CompletableFuture<Void> closeFuture;
+
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -328,7 +332,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     @Override
     public void run(Timeout timeout) throws Exception {
         synchronized (this) {
-            if (timeout == null || timeout.isCancelled()) {
+            if (closing || timeout == null || timeout.isCancelled()) {
                 return;
             }
             lastMutableBucket.moveScheduledMessageToSharedQueue(getCutoffTime(), sharedBucketPriorityQueue);
@@ -409,6 +413,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+        if (closing) {
+            return false;
+        }
+
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             return false;
         }
@@ -531,6 +539,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     immutableBucket.merging = false;
                 }
             }
+            rescheduleTimerIfNotClosing();
             if (ex != null) {
                 log.error()
                         .attr("bucketKeys", bucketsStr)
@@ -620,7 +629,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         ImmutableBucket mergedBucket = immutableBucketDelayedIndexPair.getLeft();
         DelayedIndex lastDelayedIndex = immutableBucketDelayedIndexPair.getRight();
         CompletableFuture<Long> createFuture = mergedBucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE);
-        return createFuture.<CompletableFuture<Void>>handle((bucketId, ex) -> {
+        return createFuture.<CompletableFuture<Void>>handle((__, ex) -> {
             if (ex != null) {
                 log.error()
                         .attr("bucketKey", mergedBucket.bucketKey())
@@ -628,18 +637,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         .log("Failed to create merged bucket snapshot");
                 stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
                 return FutureUtil.<Void>failedFuture(ex);
-            }
-
-            String bucketIdValue = String.valueOf(bucketId);
-            if (!bucketIdValue.equals(mergedBucket.getCursor().getCursorProperties().get(mergedBucket.bucketKey()))) {
-                IllegalStateException exception = new IllegalStateException(
-                        "Merged bucket snapshot is missing its cursor property");
-                log.error()
-                        .attr("bucketKey", mergedBucket.bucketKey())
-                        .attr("bucketId", bucketId)
-                        .log("Merged bucket snapshot is not recoverable");
-                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
-                return FutureUtil.failedFuture(exception);
             }
 
             synchronized (BucketDelayedDeliveryTracker.this) {
@@ -655,28 +652,84 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()), mergedBucket);
             }
 
-            mergedBucket.asyncUpdateSnapshotLength().thenAccept(newLength -> {
-                synchronized (BucketDelayedDeliveryTracker.this) {
-                    updateBucketSnapshotLength(mergedBucket, newLength);
-                }
-            });
+            updateMergedBucketSnapshotLength(mergedBucket);
             log.debug()
                     .attr("bucketKey", mergedBucket.bucketKey())
                     .log("Create merged bucket snapshot finish");
             stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
                     System.currentTimeMillis() - createStartTime);
 
-            List<CompletableFuture<Void>> removeFutures =
-                    sourceBuckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats)).toList();
-            return FutureUtil.waitForAll(removeFutures);
+            cleanupSourceBucketSnapshots(mergedBucket, sourceBuckets);
+            return CompletableFuture.completedFuture(null);
         }).thenCompose(future -> future).whenComplete((__, ex) -> {
             mergedBucket.setSnapshotSegments(null);
-            mergedBucketPriorityQueue.close();
+            try {
+                mergedBucketPriorityQueue.close();
+            } catch (RuntimeException e) {
+                log.warn()
+                        .attr("bucketKey", mergedBucket.bucketKey())
+                        .exception(e)
+                        .log("Failed to close merged bucket staging queue");
+            }
         });
+    }
+
+    private void updateMergedBucketSnapshotLength(ImmutableBucket mergedBucket) {
+        try {
+            mergedBucket.asyncUpdateSnapshotLength().thenAccept(newLength -> {
+                synchronized (BucketDelayedDeliveryTracker.this) {
+                    updateBucketSnapshotLength(mergedBucket, newLength);
+                }
+            }).exceptionally(__ -> null);
+        } catch (RuntimeException e) {
+            log.warn()
+                    .attr("bucketKey", mergedBucket.bucketKey())
+                    .exception(e)
+                    .log("Failed to update merged bucket snapshot length");
+        }
+    }
+
+    private void cleanupSourceBucketSnapshots(ImmutableBucket mergedBucket, List<ImmutableBucket> sourceBuckets) {
+        List<CompletableFuture<Void>> removeFutures = new ArrayList<>(sourceBuckets.size());
+        for (ImmutableBucket sourceBucket : sourceBuckets) {
+            try {
+                removeFutures.add(sourceBucket.asyncDeleteBucketSnapshot(stats));
+            } catch (RuntimeException e) {
+                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                log.warn()
+                        .attr("bucketKey", sourceBucket.bucketKey())
+                        .exception(e)
+                        .log("Failed to start source bucket snapshot cleanup after merge");
+            }
+        }
+        FutureUtil.waitForAll(removeFutures).whenComplete((__, cleanupException) -> {
+            if (cleanupException != null) {
+                log.warn()
+                        .attr("bucketKey", mergedBucket.bucketKey())
+                        .exception(cleanupException)
+                        .log("Failed to cleanup source bucket snapshots after merge");
+            }
+        });
+    }
+
+    private synchronized void rescheduleTimerIfNotClosing() {
+        if (!closing) {
+            try {
+                rescheduleTimer(0);
+            } catch (RuntimeException e) {
+                log.warn()
+                        .exception(e)
+                        .log("Failed to reschedule delayed delivery after bucket operation");
+            }
+        }
     }
 
     @Override
     public synchronized boolean hasMessageAvailable() {
+        if (closing) {
+            return false;
+        }
+
         long cutoffTime = getCutoffTime();
 
         boolean hasMessageAvailable = getNumberOfDelayedMessages() > 0 && nextDeliveryTime() <= cutoffTime;
@@ -715,6 +768,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
+        if (closing) {
+            return Collections.emptyNavigableSet();
+        }
+
         if (!checkPendingLoadDone()) {
             log.debug("Skip getScheduledMessages to wait for bucket snapshot load finish");
             return Collections.emptyNavigableSet();
@@ -813,7 +870,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                 System.currentTimeMillis() - loadStartTime);
                     }
-                    rescheduleTimer(0);
+                    rescheduleTimerIfNotClosing();
                 });
 
                 if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {
@@ -850,6 +907,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized CompletableFuture<Void> clear() {
+        if (closing) {
+            return FutureUtil.failedFuture(new IllegalStateException("Delayed delivery tracker is closing"));
+        }
+
         // Wait for any in-flight trim+merge to settle, then clear.
         // Reuse trimFuture to block new triggers until the clear chain completes.
         CompletableFuture<Void> before = trimFuture != null && !trimFuture.isDone()
@@ -879,20 +940,49 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
-        List<CompletableFuture<Long>> completableFutures;
-        synchronized (this) {
-            super.close();
-            lastMutableBucket.close();
-            sharedBucketPriorityQueue.close();
-            completableFutures = immutableBuckets.asMapOfRanges().values().stream()
-                    .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
+    public synchronized CompletableFuture<Void> closeAsync() {
+        if (closeFuture != null) {
+            return closeFuture;
         }
-        return FutureUtil.waitForAll(completableFutures)
-                .exceptionally(e -> {
-                    log.warn().exception(e).log("Failed wait to snapshot generate");
-                    return null;
-                });
+
+        closing = true;
+        super.close();
+
+        List<CompletableFuture<?>> inFlightFutures = new ArrayList<>();
+        if (trimFuture != null) {
+            inFlightFutures.add(trimFuture);
+        }
+        if (pendingLoad != null) {
+            inFlightFutures.add(pendingLoad);
+        }
+        immutableBuckets.asMapOfRanges().values().stream()
+                .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE))
+                .forEach(inFlightFutures::add);
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        closeFuture = result;
+        FutureUtil.waitForAll(inFlightFutures).whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.warn()
+                        .exception(ex)
+                        .log("Failed to wait for delayed delivery tracker operations during close");
+            }
+            try {
+                closeResources();
+                result.complete(null);
+            } catch (Throwable closeException) {
+                result.completeExceptionally(closeException);
+            }
+        });
+        return result;
+    }
+
+    private synchronized void closeResources() {
+        try {
+            lastMutableBucket.close();
+        } finally {
+            sharedBucketPriorityQueue.close();
+        }
     }
 
     private CompletableFuture<Void> cleanImmutableBuckets() {

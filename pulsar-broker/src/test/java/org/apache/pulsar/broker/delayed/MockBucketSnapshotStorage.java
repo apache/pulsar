@@ -135,8 +135,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
             for (int i = (int) firstSegmentEntryId; i <= lastEntryId; i++) {
                 ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
+                ByteBuf slice = byteBuf.slice();
                 SnapshotSegment snapshotSegment = new SnapshotSegment();
-                snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
+                snapshotSegment.parseFrom(slice, slice.readableBytes());
                 snapshotSegments.add(snapshotSegment);
             }
             return snapshotSegments;

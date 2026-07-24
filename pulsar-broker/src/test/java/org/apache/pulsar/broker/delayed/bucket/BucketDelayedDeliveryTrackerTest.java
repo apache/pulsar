@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -428,11 +430,310 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 recoveredTracker.close();
             }
         } finally {
-            if (!trackerClosed) {
-                tracker.close();
+            try {
+                if (!trackerClosed) {
+                    tracker.close();
+                }
+            } finally {
+                storage.close();
             }
-            storage.close();
         }
+    }
+
+    @Test
+    public void testCloseWaitsForInFlightBucketMerge() throws Exception {
+        BlockingMergedSnapshotStorage storage = new BlockingMergedSnapshotStorage(true);
+        storage.start();
+        MockManagedCursor cursor = new MockManagedCursor("close-during-merge-cursor");
+        AtomicLong now = new AtomicLong();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, mock(Timer.class),
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+        CompletableFuture<Void> closeFuture = null;
+        try {
+            addMessagesAndTriggerMerge(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(storage.getMergedSnapshotCreateAttempts() > 0));
+
+            closeFuture = tracker.closeAsync();
+            assertFalse("closeAsync must wait for the staged merge before closing its queues", closeFuture.isDone());
+            CompletableFuture<Void> repeatedCloseFuture = tracker.closeAsync();
+            assertFalse("Repeated closeAsync calls must wait for the same close operation",
+                    repeatedCloseFuture.isDone());
+
+            storage.completeMergedSnapshotCreation();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(storage.getSourceSnapshotDeleteAttempts() > 0));
+            closeFuture.get(10, TimeUnit.SECONDS);
+            repeatedCloseFuture.get(10, TimeUnit.SECONDS);
+            long delayedMessagesInSnapshots = tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                    .mapToLong(ImmutableBucket::getNumberBucketDelayedMessages)
+                    .sum();
+            assertEquals(delayedMessagesInSnapshots, 11L);
+            assertEquals(cursor.getCursorProperties().keySet().stream()
+                    .filter(key -> key.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX))
+                    .count(), 6L, "Close must not wait for post-commit source cleanup");
+
+            BucketDelayedDeliveryTracker recoveredTracker = new BucketDelayedDeliveryTracker(testDispatcher,
+                    mock(Timer.class), 1, testClock, true, storage, 1,
+                    TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+            try {
+                assertEquals(recoveredTracker.getNumberOfDelayedMessages(), delayedMessagesInSnapshots);
+            } finally {
+                recoveredTracker.close();
+            }
+        } finally {
+            storage.completeMergedSnapshotCreation();
+            try {
+                if (closeFuture == null) {
+                    tracker.close();
+                } else {
+                    closeFuture.get(10, TimeUnit.SECONDS);
+                }
+            } finally {
+                try {
+                    storage.completeSourceSnapshotDeletionAndWait();
+                } finally {
+                    storage.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testMergeCompletionReschedulesBlockedDelivery() throws Exception {
+        BlockingMergedSnapshotStorage storage = new BlockingMergedSnapshotStorage(true);
+        storage.start();
+        MockManagedCursor cursor = new MockManagedCursor("merge-reschedule-cursor");
+        AtomicLong now = new AtomicLong();
+        AtomicInteger triggerCalls = new AtomicInteger();
+        AtomicReference<ScheduledTimer> scheduledTimer = new AtomicReference<>();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        Timer testTimer = createRecordingTimer(scheduledTimer);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+        doAnswer(__ -> {
+            triggerCalls.incrementAndGet();
+            return null;
+        }).when(testDispatcher).readMoreEntriesAsync();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, testTimer,
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+        try {
+            addMessagesAndTriggerMerge(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(storage.getMergedSnapshotCreateAttempts() > 0));
+
+            now.set(10_000);
+            ScheduledTimer initialTimer = scheduledTimer.get();
+            assertTrue(initialTimer != null, "The first delayed message should have an armed timer");
+            initialTimer.task().run(initialTimer.timeout());
+            assertEquals(triggerCalls.get(), 1);
+
+            scheduledTimer.set(null);
+            assertTrue(tracker.getScheduledMessages(100).isEmpty(),
+                    "Delivery should pause at the snapshot segment boundary while its bucket is merging");
+            assertTrue(scheduledTimer.get() == null,
+                    "An already-due blocked message should not leave a timer armed");
+
+            storage.completeMergedSnapshotCreation();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(storage.getSourceSnapshotDeleteAttempts() > 0));
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(scheduledTimer.get() != null,
+                            "Merge commit must schedule another delivery attempt before source cleanup finishes"));
+
+            ScheduledTimer mergeCompletionTimer = scheduledTimer.get();
+            assertEquals(mergeCompletionTimer.delayMillis(), 0L);
+            mergeCompletionTimer.task().run(mergeCompletionTimer.timeout());
+            assertEquals(triggerCalls.get(), 2);
+
+            assertAllMergeMessagesDelivered(tracker);
+            storage.completeSourceSnapshotDeletionAndWait();
+        } finally {
+            storage.completeMergedSnapshotCreation();
+            try {
+                tracker.close();
+            } finally {
+                try {
+                    storage.completeSourceSnapshotDeletionAndWait();
+                } finally {
+                    storage.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testMergeFailureReschedulesBlockedDelivery() throws Exception {
+        BlockingMergedSnapshotStorage storage = new BlockingMergedSnapshotStorage();
+        storage.start();
+        MockManagedCursor cursor = new MockManagedCursor("merge-failure-reschedule-cursor");
+        AtomicLong now = new AtomicLong();
+        AtomicInteger triggerCalls = new AtomicInteger();
+        AtomicReference<ScheduledTimer> scheduledTimer = new AtomicReference<>();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        Timer testTimer = createRecordingTimer(scheduledTimer);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+        doAnswer(__ -> {
+            triggerCalls.incrementAndGet();
+            return null;
+        }).when(testDispatcher).readMoreEntriesAsync();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, testTimer,
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+        try {
+            addMessagesAndTriggerMerge(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(storage.getMergedSnapshotCreateAttempts() > 0));
+
+            now.set(10_000);
+            ScheduledTimer initialTimer = scheduledTimer.get();
+            assertTrue(initialTimer != null, "The first delayed message should have an armed timer");
+            initialTimer.task().run(initialTimer.timeout());
+
+            scheduledTimer.set(null);
+            assertTrue(tracker.getScheduledMessages(100).isEmpty(),
+                    "Delivery should pause at the snapshot segment boundary while its bucket is merging");
+            assertTrue(scheduledTimer.get() == null,
+                    "An already-due blocked message should not leave a timer armed");
+
+            storage.failMergedSnapshotCreation();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(bucket -> bucket.merging));
+                assertTrue(scheduledTimer.get() != null,
+                        "Merge failure must schedule another delivery attempt after retaining source buckets");
+            });
+
+            assertEquals(scheduledTimer.get().delayMillis(), 0L);
+            assertEquals(storage.getSourceSnapshotDeleteAttempts(), 0);
+            ScheduledTimer mergeFailureTimer = scheduledTimer.get();
+            mergeFailureTimer.task().run(mergeFailureTimer.timeout());
+            assertEquals(triggerCalls.get(), 2);
+            assertAllMergeMessagesDelivered(tracker);
+        } finally {
+            storage.completeMergedSnapshotCreation();
+            try {
+                tracker.close();
+            } finally {
+                try {
+                    storage.completeSourceSnapshotDeletionAndWait();
+                } finally {
+                    storage.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testSourceCleanupFailureDoesNotFailCommittedMerge() throws Exception {
+        FailingSourceSnapshotDeleteStorage storage = new FailingSourceSnapshotDeleteStorage();
+        storage.start();
+        MockManagedCursor cursor = new MockManagedCursor("merge-cleanup-failure-cursor");
+        AtomicLong now = new AtomicLong();
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        when(testClock.millis()).then(__ -> now.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testDelay / " + cursor.getName()).when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(testDispatcher, mock(Timer.class),
+                1, testClock, true, storage, 1, TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+        try {
+            addMessagesAndTriggerMerge(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(storage.getSourceSnapshotDeleteAttempts() > 0);
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(bucket -> bucket.merging));
+                assertEquals(getBucketOperationCount(tracker, "succeed", "merge"), 1L);
+                assertEquals(getBucketOperationCount(tracker, "failed", "merge"), 0L);
+            });
+
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 2,
+                    "The committed merged bucket must remain active when source cleanup fails");
+            assertEquals(tracker.getNumberOfDelayedMessages(), 18L);
+
+            BucketDelayedDeliveryTracker recoveredTracker = new BucketDelayedDeliveryTracker(testDispatcher,
+                    mock(Timer.class), 1, testClock, true, storage, 1,
+                    TimeUnit.MILLISECONDS.toMillis(10), -1, 4);
+            try {
+                assertEquals(recoveredTracker.getNumberOfDelayedMessages(), 11L);
+                assertEquals(recoveredTracker.getImmutableBuckets().asMapOfRanges().size(), 2);
+            } finally {
+                recoveredTracker.close();
+            }
+        } finally {
+            try {
+                tracker.close();
+            } finally {
+                storage.close();
+            }
+        }
+    }
+
+    private static void addMessagesAndTriggerMerge(BucketDelayedDeliveryTracker tracker) {
+        for (int ledgerId = 1; ledgerId <= 6; ledgerId++) {
+            tracker.addMessage(ledgerId, 1, ledgerId * 100L);
+            tracker.addMessage(ledgerId, 2, ledgerId * 100L + 20);
+            tracker.addMessage(ledgerId, 3, ledgerId * 100L + 40);
+        }
+    }
+
+    private static void assertAllMergeMessagesDelivered(BucketDelayedDeliveryTracker tracker) {
+        NavigableSet<Position> scheduledMessages = new TreeSet<>();
+        AtomicInteger returnedMessages = new AtomicInteger();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            NavigableSet<Position> batch = tracker.getScheduledMessages(100);
+            returnedMessages.addAndGet(batch.size());
+            scheduledMessages.addAll(batch);
+            assertEquals(scheduledMessages.size(), 18);
+        });
+        assertEquals(returnedMessages.get(), 18, "Merge delivery must not return duplicate positions");
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0L);
+        for (int ledgerId = 1; ledgerId <= 6; ledgerId++) {
+            for (int entryId = 1; entryId <= 3; entryId++) {
+                assertTrue(scheduledMessages.contains(PositionFactory.create(ledgerId, entryId)));
+            }
+        }
+    }
+
+    private record ScheduledTimer(TimerTask task, Timeout timeout, long delayMillis) {}
+
+    private static Timer createRecordingTimer(AtomicReference<ScheduledTimer> scheduledTimer) {
+        Timer timer = mock(Timer.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0, TimerTask.class);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.isCancelled()).thenReturn(false);
+            when(timeout.cancel()).thenReturn(true);
+            long delayMillis = invocation.getArgument(2, TimeUnit.class)
+                    .toMillis(invocation.getArgument(1, Long.class));
+            scheduledTimer.set(new ScheduledTimer(task, timeout, delayMillis));
+            return timeout;
+        });
+        return timer;
+    }
+
+    private static long getBucketOperationCount(BucketDelayedDeliveryTracker tracker, String state, String type) {
+        String key = BucketDelayedMessageIndexStats.OP_COUNT_NAME
+                + BucketDelayedMessageIndexStats.joinKey("state", state, "type", type);
+        var metric = tracker.genTopicMetricMap().get(key);
+        return metric == null ? 0 : (long) metric.value;
     }
 
     @SuppressWarnings("deprecation")
@@ -629,6 +930,86 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         int getDeleteCalls() {
             return deleteCalls.get();
+        }
+    }
+
+    private static class BlockingMergedSnapshotStorage extends MockBucketSnapshotStorage {
+        private final CompletableFuture<Void> allowMergedSnapshotCreation = new CompletableFuture<>();
+        private final CompletableFuture<Void> allowSourceSnapshotDeletion = new CompletableFuture<>();
+        private final AtomicInteger mergedSnapshotCreateAttempts = new AtomicInteger();
+        private final AtomicInteger sourceSnapshotDeleteAttempts = new AtomicInteger();
+        private final AtomicInteger sourceSnapshotDeleteCompletions = new AtomicInteger();
+
+        BlockingMergedSnapshotStorage() {
+            this(false);
+        }
+
+        BlockingMergedSnapshotStorage(boolean blockSourceSnapshotDeletion) {
+            if (!blockSourceSnapshotDeletion) {
+                allowSourceSnapshotDeletion.complete(null);
+            }
+        }
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            String[] keyParts = bucketKey.split(Bucket.DELIMITER);
+            if (!keyParts[keyParts.length - 2].equals(keyParts[keyParts.length - 1])) {
+                mergedSnapshotCreateAttempts.incrementAndGet();
+                return allowMergedSnapshotCreation.thenCompose(__ ->
+                        super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                                cursorName));
+            }
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            sourceSnapshotDeleteAttempts.incrementAndGet();
+            return allowSourceSnapshotDeletion.thenCompose(__ -> super.deleteBucketSnapshot(bucketId))
+                    .whenComplete((__, ___) -> sourceSnapshotDeleteCompletions.incrementAndGet());
+        }
+
+        void completeMergedSnapshotCreation() {
+            allowMergedSnapshotCreation.complete(null);
+        }
+
+        void failMergedSnapshotCreation() {
+            allowMergedSnapshotCreation.completeExceptionally(
+                    new BucketSnapshotPersistenceException("Merged snapshot failed"));
+        }
+
+        void completeSourceSnapshotDeletionAndWait() {
+            int expectedCompletions = sourceSnapshotDeleteAttempts.get();
+            allowSourceSnapshotDeletion.complete(null);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                    () -> assertEquals(sourceSnapshotDeleteCompletions.get(), expectedCompletions));
+        }
+
+        int getMergedSnapshotCreateAttempts() {
+            return mergedSnapshotCreateAttempts.get();
+        }
+
+        int getSourceSnapshotDeleteAttempts() {
+            return sourceSnapshotDeleteAttempts.get();
+        }
+    }
+
+    private static class FailingSourceSnapshotDeleteStorage extends MockBucketSnapshotStorage {
+        private final AtomicInteger sourceSnapshotDeleteAttempts = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (sourceSnapshotDeleteAttempts.incrementAndGet() <= 2) {
+                throw new IllegalStateException("Source snapshot delete failed synchronously");
+            }
+            return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Source snapshot delete failed"));
+        }
+
+        int getSourceSnapshotDeleteAttempts() {
+            return sourceSnapshotDeleteAttempts.get();
         }
     }
 
