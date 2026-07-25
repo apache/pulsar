@@ -555,6 +555,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
+                                                  long endLedgerId, List<Long> firstScheduleTimestamps) {
+        MutableBucket mutableBucket = trackerWithStorage.tracker.getLastMutableBucket();
+        ImmutableBucket bucket = new ImmutableBucket(mutableBucket.dispatcherName, mutableBucket.cursor,
+                mutableBucket.sequencer, mutableBucket.bucketSnapshotStorage, startLedgerId, endLedgerId);
+        bucket.setCurrentSegmentEntryId(1);
+        bucket.setLastSegmentEntryId(firstScheduleTimestamps.size());
+        bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
+        bucket.setNumberBucketDelayedMessages(1);
+        return bucket;
+    }
+
     private TrackerWithStorage createTrackerWithMockLedger(long firstLedgerId, int maxNumBuckets)
             throws Exception {
         return createTrackerWithMockLedger(firstLedgerId, maxNumBuckets, new MockBucketSnapshotStorage());
@@ -625,6 +637,50 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testSelectMergedBucketsSupportsTwoBuckets() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1);
+        try {
+            ImmutableBucket firstBucket = createMergeableBucket(ts, 1L, 1L, List.of(10L, 20L));
+            ImmutableBucket secondBucket = createMergeableBucket(ts, 2L, 2L, List.of(10L, 20L));
+
+            assertEquals(ts.tracker.selectMergedBuckets(List.of(firstBucket, secondBucket), 4),
+                    List.of(firstBucket, secondBucket));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testSelectMergedBucketsHandlesOneUnloadedSegment() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1);
+        try {
+            ImmutableBucket firstBucket = createMergeableBucket(ts, 1L, 1L, List.of(10L, 20L));
+            ImmutableBucket secondBucket = createMergeableBucket(ts, 2L, 2L, List.of(10L, 20L));
+            ImmutableBucket thirdBucket = createMergeableBucket(ts, 3L, 3L, List.of(10L, 20L));
+
+            assertEquals(ts.tracker.selectMergedBuckets(List.of(firstBucket, secondBucket, thirdBucket), 2),
+                    List.of(firstBucket, secondBucket));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testSelectMergedBucketsUsesNextUnloadedSegmentTimestamp() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1);
+        try {
+            ImmutableBucket firstBucket = createMergeableBucket(ts, 1L, 1L, List.of(10L, 100L, 10L));
+            ImmutableBucket secondBucket = createMergeableBucket(ts, 2L, 2L, List.of(10L, 100L, 10L));
+            ImmutableBucket thirdBucket = createMergeableBucket(ts, 3L, 3L, List.of(10L, 50L, 1000L));
+
+            assertEquals(ts.tracker.selectMergedBuckets(List.of(firstBucket, secondBucket, thirdBucket), 2),
+                    List.of(secondBucket, thirdBucket));
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
