@@ -337,7 +337,10 @@ class PythonInstance(object):
         output_object = self.output_serde.serialize(output)
 
       if output_object is not None:
-        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
+        props = {}
+        if self.instance_config.function_details.sink.forwardSourceMessageProperty:
+          props = msg.message.properties()
+        props.update({"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())})
         if self.effectively_once:
           self.producer.send_async(output_object,
                                    partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
