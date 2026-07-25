@@ -703,7 +703,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LoadManager loadManager = pulsar.getLoadManager().get();
         Awaitility.await().untilAsserted(() -> {
             BundleData targetBundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                    .getBundleDataOrDefault(namespace + "/" + bundle);
+                    .getBundleDataOrDefaultAsync(namespace + "/" + bundle).join();
             assertEquals(targetBundleData.getTopics(), 10);
         });
 

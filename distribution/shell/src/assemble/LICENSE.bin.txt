@@ -310,20 +310,20 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * Picocli
-     - picocli-4.7.5.jar
-     - picocli-shell-jline3-4.7.5.jar
+     - picocli-4.7.7.jar
+     - picocli-shell-jline3-4.7.7.jar
  * Jackson
      - jackson-annotations-2.21.jar
-     - jackson-core-2.21.3.jar
-     - jackson-databind-2.21.3.jar
-     - jackson-dataformat-yaml-2.21.3.jar
-     - jackson-jakarta-rs-base-2.21.3.jar
-     - jackson-jakarta-rs-json-provider-2.21.3.jar
-     - jackson-module-jakarta-xmlbind-annotations-2.21.3.jar
-     - jackson-module-jsonSchema-2.21.3.jar
-     - jackson-datatype-jdk8-2.21.3.jar
-     - jackson-datatype-jsr310-2.21.3.jar
-     - jackson-module-parameter-names-2.21.3.jar
+     - jackson-core-2.21.5.jar
+     - jackson-databind-2.21.5.jar
+     - jackson-dataformat-yaml-2.21.5.jar
+     - jackson-jakarta-rs-base-2.21.5.jar
+     - jackson-jakarta-rs-json-provider-2.21.5.jar
+     - jackson-module-jakarta-xmlbind-annotations-2.21.5.jar
+     - jackson-module-jsonSchema-2.21.5.jar
+     - jackson-datatype-jdk8-2.21.5.jar
+     - jackson-datatype-jsr310-2.21.5.jar
+     - jackson-module-parameter-names-2.21.5.jar
  * Caffeine -- caffeine-3.2.4.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
@@ -345,37 +345,37 @@ The Apache Software License, Version 2.0
     - commons-text-1.15.0.jar
     - commons-compress-1.28.0.jar
  * Netty
-    - netty-buffer-4.2.15.Final.jar
-    - netty-codec-base-4.2.15.Final.jar
-    - netty-codec-compression-4.2.15.Final.jar
-    - netty-codec-dns-4.2.15.Final.jar
-    - netty-codec-http-4.2.15.Final.jar
-    - netty-codec-http2-4.2.15.Final.jar
-    - netty-codec-socks-4.2.15.Final.jar
-    - netty-codec-haproxy-4.2.15.Final.jar
-    - netty-common-4.2.15.Final.jar
-    - netty-handler-4.2.15.Final.jar
-    - netty-handler-proxy-4.2.15.Final.jar
-    - netty-resolver-4.2.15.Final.jar
-    - netty-resolver-dns-4.2.15.Final.jar
-    - netty-transport-4.2.15.Final.jar
-    - netty-transport-classes-epoll-4.2.15.Final.jar
-    - netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.2.15.Final.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.77.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.77.Final.jar
-    - netty-transport-classes-io_uring-4.2.15.Final.jar
-    - netty-transport-native-io_uring-4.2.15.Final-linux-aarch_64.jar
-    - netty-transport-native-io_uring-4.2.15.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.2.15.Final.jar
-    - netty-resolver-dns-native-macos-4.2.15.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.2.15.Final-osx-x86_64.jar
+    - netty-buffer-4.2.16.Final.jar
+    - netty-codec-base-4.2.16.Final.jar
+    - netty-codec-compression-4.2.16.Final.jar
+    - netty-codec-dns-4.2.16.Final.jar
+    - netty-codec-http-4.2.16.Final.jar
+    - netty-codec-http2-4.2.16.Final.jar
+    - netty-codec-socks-4.2.16.Final.jar
+    - netty-codec-haproxy-4.2.16.Final.jar
+    - netty-common-4.2.16.Final.jar
+    - netty-handler-4.2.16.Final.jar
+    - netty-handler-proxy-4.2.16.Final.jar
+    - netty-resolver-4.2.16.Final.jar
+    - netty-resolver-dns-4.2.16.Final.jar
+    - netty-transport-4.2.16.Final.jar
+    - netty-transport-classes-epoll-4.2.16.Final.jar
+    - netty-transport-native-epoll-4.2.16.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.2.16.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.2.16.Final.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.78.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.78.Final.jar
+    - netty-transport-classes-io_uring-4.2.16.Final.jar
+    - netty-transport-native-io_uring-4.2.16.Final-linux-aarch_64.jar
+    - netty-transport-native-io_uring-4.2.16.Final-linux-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.2.16.Final.jar
+    - netty-resolver-dns-native-macos-4.2.16.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.2.16.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -394,7 +394,7 @@ The Apache Software License, Version 2.0
     - opentelemetry-common-1.62.0.jar
     - opentelemetry-context-1.62.0.jar
   * Slog
-    - slog-0.9.9.jar
+    - slog-0.10.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.18.0.jar
@@ -406,18 +406,18 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - async-http-client-3.0.10.jar
  * Jetty
-    - jetty-alpn-client-12.1.10.jar
-    - jetty-client-12.1.10.jar
-    - jetty-compression-common-12.1.10.jar
-    - jetty-compression-gzip-12.1.10.jar
-    - jetty-http-12.1.10.jar
-    - jetty-io-12.1.10.jar
-    - jetty-util-12.1.10.jar
-    - jetty-websocket-core-client-12.1.10.jar
-    - jetty-websocket-core-common-12.1.10.jar
-    - jetty-websocket-jetty-api-12.1.10.jar
-    - jetty-websocket-jetty-client-12.1.10.jar
-    - jetty-websocket-jetty-common-12.1.10.jar
+    - jetty-alpn-client-12.1.11.jar
+    - jetty-client-12.1.11.jar
+    - jetty-compression-common-12.1.11.jar
+    - jetty-compression-gzip-12.1.11.jar
+    - jetty-http-12.1.11.jar
+    - jetty-io-12.1.11.jar
+    - jetty-util-12.1.11.jar
+    - jetty-websocket-core-client-12.1.11.jar
+    - jetty-websocket-core-common-12.1.11.jar
+    - jetty-websocket-jetty-api-12.1.11.jar
+    - jetty-websocket-jetty-client-12.1.11.jar
+    - jetty-websocket-jetty-common-12.1.11.jar
  * SnakeYaml -- snakeyaml-2.6.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
@@ -432,7 +432,7 @@ The Apache Software License, Version 2.0
  * JetBrains Annotations -- annotations-26.1.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt

@@ -18,22 +18,22 @@
 #
 [versions]
 # Docker
-docker-jdk = "21"
-pulsar-client-python = "3.12.0"
+docker-jdk = "25"
+pulsar-client-python = "3.13.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
 bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
-netty = "4.2.15.Final"
-jetty = "12.1.10"
+netty = "4.2.16.Final"
+jetty = "12.1.11"
 jersey = "3.1.10"
-jackson = "2.21.3"
+jackson = "2.21.5"
 jackson-annotations = "2.21"
 protobuf = "4.35.0"
 grpc = "1.79.0"
 slf4j = "2.0.18"
-slog = "0.9.9"
+slog = "0.10.0"
 log4j2 = "2.26.0"
 lombok = "1.18.42"
 # OpenTelemetry
@@ -70,7 +70,7 @@ asynchttpclient = "3.0.10"
 conscrypt = "2.5.2"
 okhttp3 = "5.3.2"
 okio = "3.17.0"
-netty-tcnative = "2.0.77.Final"
+netty-tcnative = "2.0.78.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
@@ -101,9 +101,8 @@ nimbus-jose-jwt = "9.37.4"
 auth0-java-jwt = "4.5.2"
 auth0-jwks-rsa = "0.23.1"
 # CLI
-picocli = "4.7.5"
-jline3 = "3.21.0"
-jline2 = "2.14.6"
+picocli = "4.7.7"
+jline3 = "4.2.1"
 javassist = "3.25.0-GA"
 rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
@@ -139,7 +138,7 @@ jakarta-validation = "3.0.2"
 javax-servlet = "3.1.0"
 jakarta-servlet = "6.0.0"
 # Oxia / etcd
-oxia = "0.8.0"
+oxia = "0.9.4"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
@@ -346,7 +345,6 @@ swagger-jaxrs2 = { module = "io.swagger.core.v3:swagger-jaxrs2-jakarta", version
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-shell-jline3 = { module = "info.picocli:picocli-shell-jline3", version.ref = "picocli" }
 jline = { module = "org.jline:jline", version.ref = "jline3" }
-jline2 = { module = "jline:jline", version.ref = "jline2" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 typetools = { module = "net.jodah:typetools", version.ref = "typetools" }

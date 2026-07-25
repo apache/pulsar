@@ -20,7 +20,8 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
-import java.io.IOException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,8 +37,8 @@ import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.roaringbitmap.InvalidRoaringFormat;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
 @CustomLog
 class ImmutableBucket extends Bucket {
@@ -130,9 +131,9 @@ class ImmutableBucket extends Bucket {
                                     .log("Failed to get bucket snapshot segment");
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
-                    .thenApply(bucketSnapshotSegments -> {
+                    .thenCompose(bucketSnapshotSegments -> {
                         if (CollectionUtils.isEmpty(bucketSnapshotSegments)) {
-                            return Collections.emptyList();
+                            return CompletableFuture.completedFuture(Collections.emptyList());
                         }
 
                         SnapshotSegment snapshotSegment =
@@ -140,16 +141,17 @@ class ImmutableBucket extends Bucket {
                         List<DelayedIndex> indexList = snapshotSegment.getIndexesList();
                         this.setCurrentSegmentEntryId(nextSegmentEntryId);
                         if (isRecover) {
-                            this.asyncUpdateSnapshotLength();
+                            return this.asyncUpdateSnapshotLength()
+                                    .thenAccept(this::setSnapshotLength)
+                                    .thenApply(__ -> indexList);
                         }
-                        return indexList;
+                        return CompletableFuture.completedFuture(indexList);
                     });
         });
     }
 
     /**
      * Recover delayed index bit map and message numbers.
-     * @throws InvalidRoaringFormat invalid bitmap serialization format
      */
     private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
                                                     SnapshotMetadata snapshotMetadata) {
@@ -157,24 +159,22 @@ class ImmutableBucket extends Bucket {
         final var numberMessages = new MutableLong(0);
         for (int i = startSnapshotIndex; i < snapshotMetadata.getMetadataListCount(); i++) {
             snapshotMetadata.getMetadataAt(i).forEachDelayedIndexBitMap((ledgerId, bs) -> {
-                final var sbm = new RoaringBitmap();
+                final ByteBuf buf = Unpooled.wrappedBuffer(bs);
                 try {
-                    sbm.deserialize(java.nio.ByteBuffer.wrap(bs));
-                } catch (IOException e) {
-                    throw new InvalidRoaringFormat(e.getMessage());
+                    final LongBitmap sbm = LongBitmaps.deserialize(buf);
+                    numberMessages.add(sbm.cardinality());
+                    delayedIndexBitMap.compute(ledgerId, (lId, bm) -> {
+                        if (bm == null) {
+                            return sbm;
+                        }
+                        bm.or(sbm);
+                        return bm;
+                    });
+                } finally {
+                    buf.release();
                 }
-                numberMessages.add(sbm.getCardinality());
-                delayedIndexBitMap.compute(ledgerId, (lId, bm) -> {
-                    if (bm == null) {
-                        return sbm;
-                    }
-                    bm.or(sbm);
-                    return bm;
-                });
             });
         }
-        // optimize bm
-        delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
         setNumberBucketDelayedMessages(numberMessages.longValue());
     }
 
@@ -247,8 +247,6 @@ class ImmutableBucket extends Bucket {
                         .attr("bucketKey", bucketKey())
                         .exception(ex)
                         .log("Failed to get snapshot length");
-            } else {
-                setSnapshotLength(length);
             }
         });
     }

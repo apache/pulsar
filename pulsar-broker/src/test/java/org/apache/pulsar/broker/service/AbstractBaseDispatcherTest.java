@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -56,6 +57,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AbstractBaseDispatcherTest {
 
+    private static final int MANY_ENTRIES_COUNT = 512;
+
     private AbstractBaseDispatcherTestHelper helper;
 
     private ServiceConfiguration svcConfig;
@@ -80,6 +83,36 @@ public class AbstractBaseDispatcherTest {
 
         int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
+    }
+
+    @Test
+    public void testFilterEntriesForConsumerKeepsNullAckSetAbsentForManyEntries() {
+        when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(false);
+
+        EntriesAndExpectedMetadata entries = createEntriesWithVaryingBatchSizes(MANY_ENTRIES_COUNT);
+
+        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.entries.size());
+        EntryBatchIndexesAcks indexesAcks = EntryBatchIndexesAcks.get(entries.entries.size());
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getDeletedBatchIndexesAsLongArray(any(Position.class))).thenReturn(null);
+        try {
+            int size = this.helper.filterEntriesForConsumer(entries.entries, batchSizes, sendMessageInfo,
+                    indexesAcks, cursor, false, null);
+
+            assertEquals(size, MANY_ENTRIES_COUNT);
+            assertEquals(sendMessageInfo.getTotalMessages(), entries.expectedMessages);
+            assertEquals(sendMessageInfo.getTotalBytes(), entries.expectedBytes);
+            for (int i = 0; i < MANY_ENTRIES_COUNT; i++) {
+                assertEquals(batchSizes.getBatchSize(i), batchSizeForEntry(i));
+                assertNull(indexesAcks.getAckSet(i));
+            }
+            assertEquals(indexesAcks.getTotalAckedIndexCount(), 0);
+        } finally {
+            entries.release();
+            indexesAcks.recycle();
+            batchSizes.recyle();
+        }
     }
 
 
@@ -190,6 +223,53 @@ public class AbstractBaseDispatcherTest {
                 .setPublishTime(System.currentTimeMillis());
         return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
                 Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    }
+
+    private ByteBuf createBatchMessage(String message, int sequenceId, int batchSize) {
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setSequenceId(sequenceId)
+                .setProducerName("testProducer")
+                .setPartitionKeyB64Encoded(false)
+                .setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(batchSize);
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
+                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    }
+
+    private EntriesAndExpectedMetadata createEntriesWithVaryingBatchSizes(int entryCount) {
+        EntriesAndExpectedMetadata entries = new EntriesAndExpectedMetadata(entryCount);
+        for (int i = 0; i < entryCount; i++) {
+            int batchSize = batchSizeForEntry(i);
+            ByteBuf message = createBatchMessage(messagePayload(i), i, batchSize);
+            Entry entry = EntryImpl.create(1, i, message);
+            message.release();
+            entries.entries.add(entry);
+            entries.expectedMessages += batchSize;
+            entries.expectedBytes += entry.getLength();
+        }
+        return entries;
+    }
+
+    private static int batchSizeForEntry(int index) {
+        return 1 + (index % 10);
+    }
+
+    private static String messagePayload(int index) {
+        return "message-" + index + "-" + "x".repeat(1 + (index % 128));
+    }
+
+    private static final class EntriesAndExpectedMetadata {
+        private final List<Entry> entries;
+        private int expectedMessages;
+        private long expectedBytes;
+
+        private EntriesAndExpectedMetadata(int entryCount) {
+            this.entries = new ArrayList<>(entryCount);
+        }
+
+        private void release() {
+            entries.forEach(Entry::release);
+        }
     }
 
     private ByteBuf createTnxMessage(String message, int sequenceId) {

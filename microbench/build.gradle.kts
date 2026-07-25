@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":pulsar-common"))
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
+    implementation(libs.fastutil)
     api(libs.guava)
     api("org.openjdk.jmh:jmh-core:1.37")
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")

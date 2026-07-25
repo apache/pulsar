@@ -77,6 +77,10 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/
 
+# Add the filesystem offloader NAR as an overlay (it is excluded from the base image, but the
+# filesystem offload integration tests require it).
+COPY target/offloaders/ /pulsar/offloaders/
+
 # Fix permissions for filesystem offloader
 RUN mkdir -p pulsar
 RUN chmod g+rwx pulsar

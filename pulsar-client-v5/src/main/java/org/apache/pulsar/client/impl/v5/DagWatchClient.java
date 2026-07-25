@@ -59,6 +59,10 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private final PulsarClientImpl v4Client;
     private final TopicName topicName;
     private final long sessionId;
+    /** When false, the broker must not auto-create the scalable topic if it's missing on lookup.
+     *  Namespace (multi-topic) consumers set this false so a deleted topic isn't resurrected by
+     *  a reconnecting per-topic watch. */
+    private final boolean createIfMissing;
     private final AtomicReference<ClientSegmentLayout> currentLayout = new AtomicReference<>();
     private final CompletableFuture<ClientSegmentLayout> initialLayoutFuture = new CompletableFuture<>();
     private final Backoff reconnectBackoff;
@@ -71,8 +75,13 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private volatile TopicName resolvedTopicName;
 
     DagWatchClient(PulsarClientImpl v4Client, TopicName topicName) {
+        this(v4Client, topicName, true);
+    }
+
+    DagWatchClient(PulsarClientImpl v4Client, TopicName topicName, boolean createIfMissing) {
         this.v4Client = v4Client;
         this.topicName = topicName;
+        this.createIfMissing = createIfMissing;
         this.sessionId = SESSION_ID_GENERATOR.incrementAndGet();
         this.reconnectBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(100))
@@ -122,7 +131,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         this.cnx = newCnx;
         newCnx.registerDagWatchSession(sessionId, this);
         newCnx.ctx().writeAndFlush(
-                        Commands.newScalableTopicLookup(sessionId, topicName.toString()))
+                        Commands.newScalableTopicLookup(sessionId, topicName.toString(), createIfMissing))
                 .addListener(writeFuture -> {
                     if (!writeFuture.isSuccess()) {
                         newCnx.removeDagWatchSession(sessionId);

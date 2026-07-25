@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.impl.EntryBucketBatcherBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
@@ -583,8 +584,29 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     && !producerConf.getProducerName().isEmpty()) {
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
             }
+            applyEntryBucketing(segConf, segment);
             return v4Client.createSegmentProducerAsync(segConf, v4Schema);
         });
+    }
+
+    /**
+     * PIP-486: configure a per-segment producer's batching for entry-bucketing. End-to-end encryption
+     * disables batching (an encrypted batch can't be reshaped if re-routed across a divergent layout);
+     * otherwise, when batching is enabled, group the segment's batches by entry-bucket and stamp each
+     * entry's effective entry-bucket hash range. A segment's bucketing is immutable for its life.
+     *
+     * <p>The stamp is written for every segment, including single-bucket ones (N = 1, e.g. the
+     * legacy/synthetic layouts wrapping a regular {@code persistent://} topic): the effective hash
+     * range is standalone metadata a consumer or a geo-replicator can use to check whether a batch
+     * still lands cleanly in one bucket of a possibly-different target layout, independent of how any
+     * single broker dispatches it.
+     */
+    static void applyEntryBucketing(ProducerConfigurationData segConf, ActiveSegment segment) {
+        if (segConf.isEncryptionEnabled()) {
+            segConf.setBatchingEnabled(false);
+        } else if (segConf.isBatchingEnabled()) {
+            segConf.setBatcherBuilder(new EntryBucketBatcherBuilder(segment.entryBucketSplits()));
+        }
     }
 
     /**
