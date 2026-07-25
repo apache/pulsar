@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -197,25 +198,16 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                         listeners.size());
                 try {
                     if (listeners.size() == 0) {
-                        c.acknowledgeAsync(msg);
+                        acknowledgeAfter(CompletableFuture.completedFuture(null), c, msg);
                         return;
 
                     }
                     if (listeners.size() == 1) {
-                        listeners.get(0).apply(msg.getValue()).thenApply(__ -> c.acknowledgeAsync(msg))
-                                .exceptionally(ex -> {
-                                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName,
-                                            ex.getCause());
-                                    return null;
-                                });
+                        acknowledgeAfter(listeners.get(0).apply(msg.getValue()), c, msg);
                     } else {
-                        FutureUtil
-                                .waitForAll(listeners.stream().map(listener -> listener.apply(msg.getValue()))
-                                        .collect(Collectors.toList()))
-                                .thenApply(__ -> c.acknowledgeAsync(msg)).exceptionally(ex -> {
-                                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
-                                    return null;
-                                });
+                        acknowledgeAfter(
+                                FutureUtil.waitForAll(listeners.stream().map(listener -> listener.apply(msg.getValue()))
+                                        .collect(Collectors.toList())), c, msg);
                     }
                 } catch (Exception e) {
                     log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
@@ -245,6 +237,19 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             brokerService.executor().schedule(this::startConsumer, waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
         });
+    }
+
+    /**
+     * Acknowledge {@code msg} only after {@code processed} completes, and log (rather than silently drop)
+     * an exception from either the processing stage or the acknowledgement itself.
+     */
+    private CompletableFuture<Void> acknowledgeAfter(CompletableFuture<Void> processed, Consumer<MetadataEvent> c,
+                                                      Message<MetadataEvent> msg) {
+        return processed.thenCompose(__ -> c.acknowledgeAsync(msg))
+                .exceptionally(ex -> {
+                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName, ex);
+                    return null;
+                });
     }
 
     public boolean isStarted() {
