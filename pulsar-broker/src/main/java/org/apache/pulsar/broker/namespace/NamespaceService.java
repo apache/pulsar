@@ -455,10 +455,26 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    // The two maps keep authoritative and non-authoritative lookups separate. The key contains every
+    // remaining option that affects the lookup result or its side effects.
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesAuthoritative = new ConcurrentHashMap<>();
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
+
+    /**
+     * Key for coalescing lookup requests handled by this lookup path.
+     *
+     * <p>Lookup properties and the requestHttps flag are intentionally excluded because this lookup path
+     * does not consume them.
+     */
+    private record LookupRequestKey(NamespaceBundle bundle, boolean readOnly, boolean loadTopicsInBundle,
+                                    String advertisedListenerName) {
+        private static LookupRequestKey from(NamespaceBundle bundle, LookupOptions options) {
+            return new LookupRequestKey(bundle, options.isReadOnly(), options.isLoadTopicsInBundle(),
+                    options.hasAdvertisedListenerName() ? options.getAdvertisedListenerName() : null);
+        }
+    }
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -473,18 +489,19 @@ public class NamespaceService implements AutoCloseable {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
         }
 
-        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {
             targetMap = findingBundlesNotAuthoritative;
         }
+        LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(bundle, (k) -> {
+        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
-            ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+            getOwnershipCache().getOwnerAsync(bundle).thenAccept(nsData -> {
                 if (nsData.isEmpty()) {
                     // No one owns this bundle
 
@@ -528,7 +545,7 @@ public class NamespaceService implements AutoCloseable {
             });
 
             future.whenComplete((r, t) -> pulsar.getExecutor().execute(
-                () -> targetMap.remove(bundle)
+                () -> targetMap.remove(lookupRequestKey, future)
             ));
 
             return future;
