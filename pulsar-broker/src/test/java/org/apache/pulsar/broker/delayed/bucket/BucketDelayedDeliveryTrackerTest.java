@@ -546,6 +546,16 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class RecordingDeleteStorage extends MockBucketSnapshotStorage {
+        final AtomicLong deleteCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteCalls.incrementAndGet();
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
     private TrackerWithStorage createTrackerWithMockLedger(long firstLedgerId, int maxNumBuckets)
             throws Exception {
         return createTrackerWithMockLedger(firstLedgerId, maxNumBuckets, new MockBucketSnapshotStorage());
@@ -616,6 +626,38 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimDoesNotDeleteBucketOverlappingFirstActiveLedger() throws Exception {
+        RecordingDeleteStorage storage = new RecordingDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(3L, 4, storage);
+        try {
+            for (long ledgerId = 1; ledgerId <= 6; ledgerId++) {
+                ts.tracker.addMessage(ledgerId, 0L, 1000L);
+            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+                ImmutableBucket bucket = ts.tracker.getImmutableBuckets().asMapOfRanges()
+                        .values().iterator().next();
+                assertTrue(bucket.getSnapshotCreateFuture().orElseThrow().isDone());
+            });
+
+            // The fifth immutable bucket triggers trimming. All buckets have one snapshot segment,
+            // so merging does not remove any snapshots during this test.
+            for (long ledgerId = 7; ledgerId <= 26; ledgerId++) {
+                ts.tracker.addMessage(ledgerId, 0L, 1000L);
+            }
+            Awaitility.await().untilAsserted(
+                    () -> assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 5));
+
+            Awaitility.await().pollDelay(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(
+                    () -> assertEquals(storage.deleteCalls.get(), 0L,
+                            "A bucket overlapping the first active ledger must not be deleted"));
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
