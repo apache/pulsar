@@ -301,9 +301,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
                     }
                 });
