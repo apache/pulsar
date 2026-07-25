@@ -59,7 +59,7 @@ public class BucketDelayedMessageIndexStats {
     public BucketDelayedMessageIndexStats() {
     }
 
-    public Map<String, TopicMetricBean> genTopicMetricMap() {
+    public synchronized Map<String, TopicMetricBean> genTopicMetricMap() {
         Map<String, TopicMetricBean> metrics = new HashMap<>();
 
         metrics.put(BUCKET_TOTAL_NAME,

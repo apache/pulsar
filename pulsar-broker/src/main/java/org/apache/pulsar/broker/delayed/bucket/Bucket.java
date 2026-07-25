@@ -81,20 +81,20 @@ abstract class Bucket {
         if (bitSet == null) {
             return false;
         }
-        return bitSet.contains(entryId, entryId + 1);
+        return bitSet.contains(entryId);
     }
 
     void putIndexBit(long ledgerId, long entryId) {
-        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId, entryId + 1);
+        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId);
     }
 
     boolean removeIndexBit(long ledgerId, long entryId) {
-        boolean contained = false;
         LongBitmap bitSet = delayedIndexBitMap.get(ledgerId);
-        if (bitSet != null && bitSet.contains(entryId, entryId + 1)) {
-            contained = true;
-            bitSet.remove(entryId, entryId + 1);
-
+        if (bitSet == null) {
+            return false;
+        }
+        boolean contained = bitSet.remove(entryId);
+        if (contained) {
             if (bitSet.isEmpty()) {
                 delayedIndexBitMap.remove(ledgerId);
             }

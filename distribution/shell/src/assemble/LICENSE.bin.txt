@@ -394,7 +394,7 @@ The Apache Software License, Version 2.0
     - opentelemetry-common-1.62.0.jar
     - opentelemetry-context-1.62.0.jar
   * Slog
-    - slog-0.9.9.jar
+    - slog-0.10.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.18.0.jar
@@ -406,18 +406,18 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - async-http-client-3.0.10.jar
  * Jetty
-    - jetty-alpn-client-12.1.10.jar
-    - jetty-client-12.1.10.jar
-    - jetty-compression-common-12.1.10.jar
-    - jetty-compression-gzip-12.1.10.jar
-    - jetty-http-12.1.10.jar
-    - jetty-io-12.1.10.jar
-    - jetty-util-12.1.10.jar
-    - jetty-websocket-core-client-12.1.10.jar
-    - jetty-websocket-core-common-12.1.10.jar
-    - jetty-websocket-jetty-api-12.1.10.jar
-    - jetty-websocket-jetty-client-12.1.10.jar
-    - jetty-websocket-jetty-common-12.1.10.jar
+    - jetty-alpn-client-12.1.11.jar
+    - jetty-client-12.1.11.jar
+    - jetty-compression-common-12.1.11.jar
+    - jetty-compression-gzip-12.1.11.jar
+    - jetty-http-12.1.11.jar
+    - jetty-io-12.1.11.jar
+    - jetty-util-12.1.11.jar
+    - jetty-websocket-core-client-12.1.11.jar
+    - jetty-websocket-core-common-12.1.11.jar
+    - jetty-websocket-jetty-api-12.1.11.jar
+    - jetty-websocket-jetty-client-12.1.11.jar
+    - jetty-websocket-jetty-common-12.1.11.jar
  * SnakeYaml -- snakeyaml-2.6.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
