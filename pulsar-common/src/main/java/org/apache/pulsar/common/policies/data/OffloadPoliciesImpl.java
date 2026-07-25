@@ -70,8 +70,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     public static final String DRIVER_FILESYSTEM = "filesystem";
     public static final String DRIVER_AZUREBLOB = "azureblob";
     public static final String DRIVER_ALIYUN_OSS = "aliyun-oss";
-    public static final List<String> INTERNAL_SUPPORTED_DRIVER = Arrays.asList(DRIVER_S3,
-        DRIVER_AWS_S3, DRIVER_GOOGLE_CLOUD_STORAGE, DRIVER_FILESYSTEM, DRIVER_AZUREBLOB, DRIVER_ALIYUN_OSS);
+    public static final List<String> INTERNAL_SUPPORTED_DRIVER = Collections.unmodifiableList(Arrays.asList(DRIVER_S3,
+        DRIVER_AWS_S3, DRIVER_GOOGLE_CLOUD_STORAGE, DRIVER_FILESYSTEM, DRIVER_AZUREBLOB, DRIVER_ALIYUN_OSS));
     public static final List<String> DRIVER_NAMES;
     static {
         String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
