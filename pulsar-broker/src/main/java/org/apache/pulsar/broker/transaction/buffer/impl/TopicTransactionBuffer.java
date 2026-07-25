@@ -155,7 +155,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void recoverComplete() {
                         synchronized (TopicTransactionBuffer.this) {
                             if (ongoingTxns.isEmpty()) {
-                                maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                                updateMaxReadPositionAfterRecovery();
                             }
                             if (!changeToReadyState()) {
                                 log.error("Transaction buffer recover fail");
@@ -175,7 +175,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void noNeedToRecover() {
                         synchronized (TopicTransactionBuffer.this) {
-                            maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                            updateMaxReadPositionAfterRecovery();
                             if (!changeToNoSnapshotState()) {
                                 log.error().log("Transaction buffer recover fail");
                             } else {
@@ -641,6 +641,23 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (!disableCallback) {
                 maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
             }
+        }
+    }
+
+    /**
+     * Advance the max read position to the last confirmed entry when recovery finishes. While the transaction
+     * buffer is recovering, {@link #syncMaxReadPositionForNormalPublish(Position, boolean)} ignores publishes, so
+     * messages published during recovery would otherwise never trigger the maxReadPositionMovedForward callback.
+     * {@link PersistentTopic} uses that callback to maintain lastMaxReadPositionMovedForwardTimestamp, which
+     * ReplicatedSubscriptionsController relies on to detect new data when deciding whether to start a snapshot.
+     * Must be called while synchronized on this transaction buffer.
+     */
+    private void updateMaxReadPositionAfterRecovery() {
+        Position preMaxReadPosition = this.maxReadPosition;
+        this.maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+        if (this.maxReadPosition != null
+                && (preMaxReadPosition == null || preMaxReadPosition.compareTo(this.maxReadPosition) < 0)) {
+            this.maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
         }
     }
 

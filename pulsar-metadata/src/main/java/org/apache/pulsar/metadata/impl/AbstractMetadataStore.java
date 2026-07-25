@@ -294,7 +294,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
         // ignore event if metadata is ephemeral or
         // sequential
-        if (options.contains(CreateOption.Ephemeral) || event.getOptions().contains(CreateOption.Sequential)) {
+        if (options.contains(CreateOption.Ephemeral) || options.contains(CreateOption.Sequential)) {
             return true;
         }
         // ignore the event if event occurred before the
@@ -370,9 +370,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path, opts)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
                     }
                 });

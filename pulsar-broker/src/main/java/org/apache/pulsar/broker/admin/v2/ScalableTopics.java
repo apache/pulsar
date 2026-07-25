@@ -188,7 +188,9 @@ public class ScalableTopics extends AdminResource {
                     }
                     Map<String, String> props = properties != null ? properties : Map.of();
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
-                            numInitialSegments, props);
+                            numInitialSegments,
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            props);
                     return resources().createScalableTopicAsync(tn, metadata)
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
@@ -331,7 +333,8 @@ public class ScalableTopics extends AdminResource {
             return precheck.thenApply(__ -> partitions);
         }).thenCompose(partitions -> {
             ScalableTopicMetadata metadata =
-                    ScalableTopicController.createMigratedMetadata(persistentBase, partitions);
+                    ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget());
             return createMigratedChildTopicsAsync(scalableName, metadata)
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));

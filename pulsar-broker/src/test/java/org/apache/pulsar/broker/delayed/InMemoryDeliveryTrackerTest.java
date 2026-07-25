@@ -111,6 +111,10 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, 0)
             }};
+            case "testNonStrictModeDoesNotReplayPositionRepeatedly" -> new Object[][]{{
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
+                            false, 0)
+            }};
             case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" -> new Object[][]{{
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                             true, 0)
@@ -368,6 +372,41 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         scheduled = tracker.getScheduledMessages(100);
         assertEquals(scheduled, Set.of(PositionFactory.create(2, 2)));
         assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+
+        tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testNonStrictModeDoesNotReplayPositionRepeatedly(InMemoryDelayedDeliveryTracker tracker)
+            throws Exception {
+        clockTime.set(0);
+
+        // tickTimeMillis=1000 uses 512ms buckets. deliverAt=60400 is stored in the bucket starting at 59904.
+        assertTrue(tracker.addMessage(1, 1, 60400));
+
+        // The exact deliverAt is still more than one tick away. Before the fix, each dispatch round popped the
+        // same position from the prematurely eligible bucket, read the entry, and re-added the position because
+        // the original deliverAt was still outside the non-strict early-delivery window.
+        clockTime.set(59000);
+        int replayReads = 0;
+        for (int i = 0; i < 10; i++) {
+            Set<Position> scheduled = tracker.getScheduledMessages(100);
+            replayReads += scheduled.size();
+            for (Position position : scheduled) {
+                assertEquals(position, PositionFactory.create(1, 1));
+                assertTrue(tracker.addMessage(position.getLedgerId(), position.getEntryId(), 60400));
+            }
+        }
+        assertEquals(replayReads, 0, "the position must not be replayed before its early-delivery window");
+
+        // Once the full bucket is inside the non-strict early-delivery window, the position is read exactly once
+        // and cannot be inserted back into the tracker with the original deliverAt.
+        clockTime.set(59415);
+        Set<Position> scheduled = tracker.getScheduledMessages(100);
+        replayReads += scheduled.size();
+        assertEquals(scheduled, Set.of(PositionFactory.create(1, 1)));
+        assertFalse(tracker.addMessage(1, 1, 60400));
+        assertEquals(replayReads, 1);
 
         tracker.close();
     }

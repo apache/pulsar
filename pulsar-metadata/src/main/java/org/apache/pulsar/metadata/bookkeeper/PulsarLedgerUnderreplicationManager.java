@@ -68,6 +68,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
 import org.apache.zookeeper.KeeperException;
 
 @CustomLog
@@ -434,7 +435,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                 if (store instanceof ZKMetadataStore
-                        || store instanceof DualMetadataStore) {
+                        || store instanceof DualMetadataStore
+                        || store instanceof OxiaMetadataStore) {
                     try {
                         // clean up the hierarchy
                         String[] parts = getUrLedgerPath(ledgerId).split("/");
@@ -452,10 +454,14 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                         // It's safe to ignore, it simply means another
                         // ledger in the same hierarchy has been marked as
                         // underreplicated.
-                        if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
-                                instanceof KeeperException.NotEmptyException) {
-                            //do nothing.
-                        } else {
+                        // Oxia raises NotEmptyException directly; ZK wraps
+                        // KeeperException.NotEmptyException inside a MetadataStoreException.
+                        boolean isNotEmpty =
+                                ee.getCause() instanceof MetadataStoreException.NotEmptyException
+                                || (ee.getCause() instanceof MetadataStoreException
+                                        && ee.getCause().getCause()
+                                                instanceof KeeperException.NotEmptyException);
+                        if (!isNotEmpty) {
                             log.warn().exception(ee).log("Error deleting underreplicated ledger parent node");
                         }
                     }

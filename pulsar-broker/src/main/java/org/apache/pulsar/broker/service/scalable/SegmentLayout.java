@@ -176,11 +176,15 @@ public class SegmentLayout {
         long childId1 = nextSegmentId;
         long childId2 = nextSegmentId + 1;
 
+        // PIP-486: a split divides the parent's entry-buckets between its children — N/2 each (at least
+        // 1) — so the topic's total stays ≈ the budget as it fans out into more, narrower segments.
+        List<Integer> childEntryBucketSplits =
+                EntryBucketSplits.equalWidth(Math.max(1, segment.bucketCount() / 2));
         SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(childId1, childId2));
         SegmentInfo child1 = SegmentInfo.active(childId1, splitRanges[0],
-                List.of(segmentId), newEpoch, nowMs);
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(childEntryBucketSplits);
         SegmentInfo child2 = SegmentInfo.active(childId2, splitRanges[1],
-                List.of(segmentId), newEpoch, nowMs);
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(childEntryBucketSplits);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId, sealedParent);
@@ -217,10 +221,15 @@ public class SegmentLayout {
         long mergedId = nextSegmentId;
         HashRange mergedRange = seg1.hashRange().merge(seg2.hashRange());
 
+        // PIP-486: a merge is the inverse of a split — the merged segment recovers both parents' buckets
+        // (N1 + N2), so the topic's total entry-bucket count stays ≈ the budget as segments coalesce.
+        List<Integer> mergedEntryBucketSplits =
+                EntryBucketSplits.equalWidth(seg1.bucketCount() + seg2.bucketCount());
         SegmentInfo sealed1 = seg1.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo sealed2 = seg2.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo merged = SegmentInfo.active(mergedId, mergedRange,
-                List.of(segmentId1, segmentId2), newEpoch, nowMs);
+                List.of(segmentId1, segmentId2), newEpoch, nowMs)
+                .withEntryBucketSplits(mergedEntryBucketSplits);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId1, sealed1);
