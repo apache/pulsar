@@ -20,13 +20,22 @@ package org.apache.pulsar.metadata.impl;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -73,6 +82,28 @@ public class MetadataEventSynchronizerTest {
         Awaitility.await().untilAsserted(() -> {
             assertFalse(store1.exists("/test").join());
         });
+    }
+
+    @Test
+    public void testHandleMetadataEventCompletesWhenGetFails() throws Exception {
+        @Cleanup
+        LocalMemoryMetadataStore store = new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().build()) {
+            @Override
+            public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+                return CompletableFuture.failedFuture(
+                        new MetadataStoreException("injected storeGet failure"));
+            }
+        };
+
+        MetadataEvent event = new MetadataEvent("/test", "value".getBytes(StandardCharsets.UTF_8),
+                new HashSet<>(), null, System.currentTimeMillis(), "test-cluster", NotificationType.Modified);
+
+        CompletableFuture<Void> result = store.handleMetadataEvent(event);
+        // The future must not hang when the initial get() fails: it should complete exceptionally
+        ExecutionException ex = expectThrows(ExecutionException.class, () -> result.get(5, TimeUnit.SECONDS));
+        assertTrue(ex.getCause() instanceof MetadataStoreException,
+                "expected MetadataStoreException cause but got: " + ex.getCause());
     }
 
     @Test

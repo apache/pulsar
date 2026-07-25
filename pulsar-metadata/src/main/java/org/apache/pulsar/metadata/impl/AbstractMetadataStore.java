@@ -167,14 +167,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        get(event.getPath()).thenApply(res -> {
+        get(event.getPath()).thenAccept(res -> {
             Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
                     : Collections.emptySet();
             if (res.isPresent()) {
                 GetResult existingValue = res.get();
                 if (shouldIgnoreEvent(event, existingValue)) {
                     result.complete(null);
-                    return result;
+                    return;
                 }
             }
             // else update the event
@@ -196,7 +196,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 }
                 return false;
             });
-            return result;
+        }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn("Failed to handle metadata event {}", event.getPath(), cause);
+            result.completeExceptionally(cause);
+            return null;
         });
         return result;
     }
