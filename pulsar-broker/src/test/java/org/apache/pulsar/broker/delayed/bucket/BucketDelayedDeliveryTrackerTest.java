@@ -34,6 +34,7 @@ import io.netty.util.TimerTask;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NavigableMap;
@@ -606,6 +607,48 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(disp, mock(Timer.class),
                 100000, mockClock, true, storage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, maxNumBuckets);
         return new TrackerWithStorage(tracker, storage, mockClockTime);
+    }
+
+    @DataProvider(name = "smallMaxNumBuckets")
+    private Object[][] smallMaxNumBuckets() {
+        return new Object[][]{{1}, {2}, {3}};
+    }
+
+    @Test(dataProvider = "smallMaxNumBuckets")
+    public void testMergeSupportsSmallMaxNumBuckets(int maxNumBuckets) throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, maxNumBuckets);
+        int messageCount = (maxNumBuckets + 1) * 5 + 1;
+        NavigableSet<Position> expectedMessages = new TreeSet<>();
+        try {
+            for (int i = 1; i <= messageCount; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, i % 5 == 0 ? 20L : 10L));
+                expectedMessages.add(PositionFactory.create(i, i));
+            }
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    List<ImmutableBucket> buckets = List.copyOf(
+                            ts.tracker.getImmutableBuckets().asMapOfRanges().values());
+                    assertTrue(!buckets.isEmpty());
+                    assertTrue(buckets.size() <= maxNumBuckets);
+                    assertTrue(buckets.stream().noneMatch(bucket -> bucket.merging
+                            || bucket.getSnapshotCreateFuture()
+                                    .map(future -> !future.isDone() || future.isCompletedExceptionally())
+                                    .orElse(true)));
+                }
+            });
+
+            ts.clockTime.set(20L);
+            List<Position> scheduledMessages = new ArrayList<>();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                scheduledMessages.addAll(ts.tracker.getScheduledMessages(expectedMessages.size()));
+                assertEquals(scheduledMessages.size(), expectedMessages.size());
+            });
+            assertEquals(new TreeSet<>(scheduledMessages), expectedMessages);
+            assertEquals(ts.tracker.getNumberOfDelayedMessages(), 0L);
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
