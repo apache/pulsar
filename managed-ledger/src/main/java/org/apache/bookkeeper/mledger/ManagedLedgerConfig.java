@@ -36,7 +36,6 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -76,7 +75,6 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(StandardCharsets.UTF_8);
-    private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
@@ -300,19 +298,6 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(StandardCharsets.UTF_8);
-        return this;
-    }
-
-    /**
-     * should use {@link OpenLongPairRangeSet} to store unacked ranges.
-     * @return
-     */
-    public boolean isUnackedRangesOpenCacheSetEnabled() {
-        return unackedRangesOpenCacheSetEnabled;
-    }
-
-    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
-        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
         return this;
     }
 

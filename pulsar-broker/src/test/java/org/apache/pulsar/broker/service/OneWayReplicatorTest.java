@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -119,6 +120,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -936,7 +938,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             }
             return new ManagedLedgerException.TooManyRequestsException("mocked error");
         };
-        ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot);
+        // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
+        ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
 
         // Verify: the replication will finish even though received ManagedLedgerException.TooManyRequestsException.
         pulsar1.getConfig().setReplicationStartAt("earliest");
@@ -2429,6 +2432,85 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
         ensureNoBacklogByInflightTask(getReplicator(topicName));
+    }
+
+    @DataProvider
+    public Object[][] replicatorDispatchRateLimits() {
+        return new Object[][] {
+                {1, -1L},
+                {-1, 1L}
+        };
+    }
+
+    @Test(timeOut = 90_000, dataProvider = "replicatorDispatchRateLimits")
+    public void testReplicatorContinuesAfterRateLimiterHasNoPermits(int messageRate, long byteRate) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscriptionName = "sub";
+        final List<String> messages = Arrays.asList("msg-0", "msg-1", "msg-2");
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(2)
+                .build();
+        Producer<String> producer = null;
+        Consumer<String> consumer = null;
+        boolean topicCreated = false;
+        boolean dispatchRateConfigured = false;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            topicCreated = true;
+            admin1.topicPolicies().setReplicatorDispatchRate(topicName, dispatchRate);
+            dispatchRateConfigured = true;
+            GeoPersistentReplicator replicator = getReplicator(topicName);
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(replicator.getRateLimiter().isPresent());
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnMsg(), messageRate);
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnByte(), byteRate);
+            });
+            consumer = client2.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            producer = client1.newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .create();
+
+            for (String message : messages) {
+                producer.send(message);
+            }
+
+            Set<String> expected = new HashSet<>(messages);
+            Set<String> received = new HashSet<>();
+            Consumer<String> subscribedConsumer = consumer;
+            Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                Message<String> message = subscribedConsumer.receive(1, TimeUnit.SECONDS);
+                if (message != null) {
+                    received.add(message.getValue());
+                    subscribedConsumer.acknowledge(message);
+                }
+                assertEquals(received, expected);
+            });
+            waitForReplicationTaskFinish(topicName);
+            ensureNoBacklogByInflightTask(replicator);
+        } finally {
+            if (producer != null) {
+                producer.close();
+            }
+            if (consumer != null) {
+                consumer.close();
+            }
+            if (dispatchRateConfigured) {
+                admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+            }
+            if (topicCreated) {
+                admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+                waitReplicatorStopped(topicName, false);
+                admin1.topics().delete(topicName, true);
+                admin2.topics().delete(topicName, true);
+            }
+        }
     }
 
     @DataProvider

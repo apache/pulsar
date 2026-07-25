@@ -19,21 +19,21 @@
 [versions]
 # Docker
 docker-jdk = "25"
-pulsar-client-python = "3.12.0"
+pulsar-client-python = "3.13.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
 bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
-netty = "4.2.15.Final"
-jetty = "12.1.10"
+netty = "4.2.16.Final"
+jetty = "12.1.11"
 jersey = "3.1.10"
-jackson = "2.21.3"
+jackson = "2.21.5"
 jackson-annotations = "2.21"
 protobuf = "4.35.0"
 grpc = "1.79.0"
 slf4j = "2.0.18"
-slog = "0.9.9"
+slog = "0.10.0"
 log4j2 = "2.26.0"
 lombok = "1.18.42"
 # OpenTelemetry
@@ -70,7 +70,7 @@ asynchttpclient = "3.0.10"
 conscrypt = "2.5.2"
 okhttp3 = "5.3.2"
 okio = "3.17.0"
-netty-tcnative = "2.0.77.Final"
+netty-tcnative = "2.0.78.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
@@ -138,7 +138,7 @@ jakarta-validation = "3.0.2"
 javax-servlet = "3.1.0"
 jakarta-servlet = "6.0.0"
 # Oxia / etcd
-oxia = "0.8.0"
+oxia = "0.9.4"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"

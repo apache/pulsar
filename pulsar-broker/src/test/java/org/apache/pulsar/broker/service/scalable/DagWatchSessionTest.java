@@ -32,6 +32,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -440,7 +441,7 @@ public class DagWatchSessionTest {
     public void testOnMetadataChangedAfterCloseIsNoop() {
         session.close();
         // Build a minimal metadata object; close should short-circuit before any work runs.
-        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         session.onMetadataChanged(md);
 
         verify(ctx, never()).writeAndFlush(any());
@@ -465,7 +466,8 @@ public class DagWatchSessionTest {
                 sealedAt,
                 createdAtMs,
                 sealedAtMs,
-                null);
+                null,
+                List.of());
     }
 
     private static java.util.List<Long> toList(long[] arr) {

@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.PendingAcksMap;
@@ -478,6 +479,105 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         allEntries.forEach(Entry::release);
     }
 
+    /**
+     * Reproduces the dispatch stall behind the flaky
+     * KeySharedSubscriptionTest.testContinueDispatchMessagesWhenMessageDelayed (issue #21554).
+     *
+     * When a replay read gets fully discarded (for example because the target consumer ran out of permits while
+     * the read was in flight) and the cursor has no more entries, engaging the "look ahead" mode made the follow-up
+     * read skip the replay queue and issue a normal read that waits at the end of the topic for new entries. Messages
+     * in the replay queue for consumers with available permits were then stuck until an unrelated event, such as a
+     * consumer flow request, triggered another read.
+     */
+    @Test(timeOut = 30000)
+    public void testLookAheadNotEngagedWhenCursorHasNoMoreEntries() throws Exception {
+        persistentDispatcher.close();
+
+        // the mocked executor doesn't support schedule(), so run the rescheduled read directly
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+            @Override
+            protected void reScheduleReadInMs(long readAfterMs) {
+                orderedExecutor.execute(this::readMoreEntries);
+            }
+        };
+
+        // consumer1 has available permits at all times
+        persistentDispatcher.addConsumer(consumerMock).join();
+
+        // the slow consumer initially has 2 permits
+        final Consumer slowConsumerMock = createMockConsumer();
+        doReturn("consumer2").when(slowConsumerMock).consumerName();
+        doReturn(true).when(slowConsumerMock).isWritable();
+        AtomicInteger slowConsumerAvailablePermits = new AtomicInteger(2);
+        doAnswer(invocation -> slowConsumerAvailablePermits.get()).when(slowConsumerMock).getAvailablePermits();
+        persistentDispatcher.addConsumer(slowConsumerMock).join();
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        String keyForConsumer1 = generateKeyForConsumer(selector, consumerMock);
+        String keyForSlowConsumer = generateKeyForConsumer(selector, slowConsumerMock);
+
+        final Entry entry1 = createEntry(1, 1, "message1", 1, keyForSlowConsumer);
+        final Entry entry2 = createEntry(1, 2, "message2", 2, keyForSlowConsumer);
+        final Entry entry3 = createEntry(1, 3, "message3", 3, keyForConsumer1);
+        final List<Entry> allEntries = List.of(entry1, entry2, entry3);
+
+        // the cursor has no more entries; a normal read would wait for new entries without completing
+        doReturn(false).when(cursorMock).hasMoreEntries();
+        doAnswer(invocationOnMock -> null)
+                .when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+
+        // Mock Cursor#asyncReplayEntries. While the first replay read is in flight, the slow consumer runs out of
+        // permits and a message for consumer1 becomes replayable. This mirrors the delayed delivery tracker feeding
+        // messages to the replay queue while dispatching is in progress.
+        doAnswer(invocationOnMock -> {
+            Set<Position> positionsArg = invocationOnMock.getArgument(0);
+            Set<Position> positions = new TreeSet<>(positionsArg);
+            if (!positions.contains(entry3.getPosition())) {
+                slowConsumerAvailablePermits.set(0);
+                // add extra retain since addEntryToReplay will release it
+                ((EntryImpl) entry3).retain();
+                persistentDispatcher.addEntryToReplay(entry3);
+            }
+            List<Entry> entries = allEntries.stream()
+                    .filter(entry -> positions.contains(entry.getPosition()))
+                    .toList();
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(1);
+            Object ctx = invocationOnMock.getArgument(2);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
+            return Collections.emptySet();
+        }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
+
+        CountDownLatch consumer1ReceivedMessage3 = new CountDownLatch(1);
+        mockSendMessages(consumerMock, entries -> {
+            boolean message3Found = entries.stream()
+                    .anyMatch(entry -> entry.getPosition().equals(entry3.getPosition()));
+            if (message3Found) {
+                consumer1ReceivedMessage3.countDown();
+            }
+        });
+        mockSendMessages(slowConsumerMock, entries -> { });
+
+        // seed the replay queue with the slow consumer's entries
+        for (Entry entry : List.of(entry1, entry2)) {
+            // add extra retain since addEntryToReplay will release it
+            ((EntryImpl) entry).retain();
+            persistentDispatcher.addEntryToReplay(entry);
+        }
+
+        // trigger the replay read. The batch gets fully discarded since the slow consumer runs out of permits while
+        // the read is in flight. The message for consumer1 that was added to the replay queue in the meantime must
+        // get dispatched by the follow-up read instead of the dispatcher parking a normal read at the end of the
+        // topic.
+        persistentDispatcher.readMoreEntries();
+
+        assertTrue(consumer1ReceivedMessage3.await(5, TimeUnit.SECONDS),
+                "The replayed message for consumer1 with available permits should have been dispatched");
+
+        allEntries.forEach(Entry::release);
+    }
+
     @Test(timeOut = 30000)
     public void testMessageRedelivery() throws Exception {
         final List<Position> actualEntriesToConsumer1 = new CopyOnWriteArrayList<>();
@@ -845,6 +945,59 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
             assertTrue(readMoreEntriesCalled.get() >= 1);
         });
+    }
+
+    @Test
+    public void testEntryBucketDispatchRoutesByStampedRange() {
+        // PIP-486: with entryBucketDispatch set on the subscription's KeySharedMeta, a stamped entry
+        // routes as a whole by its entry-bucket hash (entry_hash_min), not by the message key.
+        PersistentStickyKeyDispatcherMultipleConsumers bucketDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock,
+                        configMock, new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                                .setEntryBucketDispatch(true));
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, stamped)), 0x1234);
+
+            // entry_hash_min == 0 collides with the reserved "hash not set" sentinel, so it is nudged
+            // to 1, which is still inside bucket 0.
+            MessageMetadata zero = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0).setEntryHashMax(0);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, zero)), 1);
+
+            // Unstamped entries (non-batched messages) fall back to the message's sticky-key hash.
+            MessageMetadata unstamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1).setPartitionKey("some-key");
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, unstamped)),
+                    bucketDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
+    }
+
+    @Test
+    public void testStampedEntryStillRoutesByKeyWithoutEntryBucketDispatch() {
+        // Without the entryBucketDispatch flag (any plain Key_Shared subscription), a stamped entry
+        // keeps dispatching by the message key — the stamp is ignored.
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setPartitionKey("some-key")
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(persistentDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, stamped)),
+                    persistentDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
     }
 
     private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId) {
