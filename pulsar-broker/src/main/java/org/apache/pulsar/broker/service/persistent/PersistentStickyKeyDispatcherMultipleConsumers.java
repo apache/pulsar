@@ -316,13 +316,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger read more messages if necessary
-        if (triggerLookAhead.booleanValue()) {
+        if (triggerLookAhead.booleanValue() && (allowOutOfOrderDelivery || cursor.hasMoreEntries())) {
             // When all messages get filtered and no messages are sent, we should read more entries, "look ahead"
             // so that a possible next batch of messages might contain messages that can be dispatched.
             // This is done only when there's a consumer with available permits, and it's not able to make progress
             // because of blocked hashes. Without this rule we would be looking ahead in the stream while the
             // new consumers are not ready to accept the new messages,
             // therefore would be most likely only increase the distance between read-position and mark-delete position.
+            // When ordered delivery is required, look-ahead is engaged only when the cursor has more entries.
+            // Otherwise the next readMoreEntries call would skip replaying the replay queue and pulling due messages
+            // from the delayed delivery tracker, and instead issue a normal read that waits at the end of the topic
+            // for new entries. That would leave deliverable messages stuck in the replay queue or the delayed
+            // delivery tracker until an unrelated event (such as a consumer flow request) triggers another read,
+            // stalling dispatch (issue #21554).
+            // When out-of-order delivery is allowed, look-ahead is engaged unconditionally, as before. In that mode
+            // the replay queue doesn't track sticky key hashes, so the replay position filter cannot exclude
+            // messages for consumers without available permits, and each replay would re-read and discard the same
+            // undispatchable messages. Ending the cycle with a look-ahead attempt (that waits at the end of the
+            // topic when there is nothing to read) prevents such repeated read-and-discard loops.
             skipNextReplayToTriggerLookAhead = true;
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
             // only skip the delay if there are more entries to read
