@@ -429,6 +429,25 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final CredentialBuilder S3_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        if (config.getCredentials() != null) {
+            return;
+        }
+        // Credentials provided in the tiered storage configuration take
+        // precedence over the environment variables. Offload policies carry
+        // credentials under the s3-prefixed keys for every S3-compatible
+        // driver (see OffloadPoliciesImpl), so those are the keys accepted.
+        String configId = config.getConfigProperty(S3_ID_FIELD);
+        String configSecret = config.getConfigProperty(S3_SECRET_FIELD);
+        if (StringUtils.isNotBlank(configId) || StringUtils.isNotBlank(configSecret)) {
+            if (StringUtils.isBlank(configId) || StringUtils.isBlank(configSecret)) {
+                throw new IllegalArgumentException(
+                        "Both " + S3_ID_FIELD + " and " + S3_SECRET_FIELD
+                                + " must be set when providing offload credentials in the configuration");
+            }
+            Credentials credentials = new Credentials(configId, configSecret);
+            config.setProviderCredentials(() -> credentials);
+            return;
+        }
         String accountName = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
         // For forward compatibility
         if (StringUtils.isEmpty(accountName.trim())) {

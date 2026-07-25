@@ -64,9 +64,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER = ImmutableList.of("S3",
-        "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
-    public static final ImmutableList<String> DRIVER_NAMES;
+    public static final String DRIVER_S3 = "S3";
+    public static final String DRIVER_AWS_S3 = "aws-s3";
+    public static final String DRIVER_GOOGLE_CLOUD_STORAGE = "google-cloud-storage";
+    public static final String DRIVER_FILESYSTEM = "filesystem";
+    public static final String DRIVER_AZUREBLOB = "azureblob";
+    public static final String DRIVER_ALIYUN_OSS = "aliyun-oss";
+    public static final List<String> INTERNAL_SUPPORTED_DRIVER = Arrays.asList(DRIVER_S3,
+        DRIVER_AWS_S3, DRIVER_GOOGLE_CLOUD_STORAGE, DRIVER_FILESYSTEM, DRIVER_AZUREBLOB, DRIVER_ALIYUN_OSS);
+    public static final List<String> DRIVER_NAMES;
     static {
         String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
         if (extraDrivers.trim().isEmpty()) {
@@ -222,7 +228,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 .managedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes)
                 .managedLedgerOffloadedReadPriority(readPriority);
 
-        if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
+        if (driver.equalsIgnoreCase(DRIVER_S3) || driver.equalsIgnoreCase(DRIVER_AWS_S3)
+                || driver.equalsIgnoreCase(DRIVER_ALIYUN_OSS)) {
             if (role != null) {
                 builder.s3ManagedLedgerOffloadRole(role);
             }
@@ -241,7 +248,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     .s3ManagedLedgerOffloadServiceEndpoint(endpoint)
                     .s3ManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
                     .s3ManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
-        } else if (driver.equalsIgnoreCase(DRIVER_NAMES.get(2))) {
+        } else if (driver.equalsIgnoreCase(DRIVER_GOOGLE_CLOUD_STORAGE)) {
             builder.gcsManagedLedgerOffloadRegion(region)
                 .gcsManagedLedgerOffloadBucket(bucket)
                 .gcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
@@ -311,22 +318,23 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(0))
-                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(1));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_S3)
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_AWS_S3)
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_ALIYUN_OSS);
     }
 
     public boolean isGcsDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(2));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_GOOGLE_CLOUD_STORAGE);
     }
 
     public boolean isFileSystemDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(3));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_FILESYSTEM);
     }
 
     public boolean bucketValid() {
