@@ -264,7 +264,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         if (value != null) {
             generator.set(toLong(value));
         } else {
-            db.put(writeOptions, INSTANCE_ID_KEY, toBytes(generator.get()));
+            db.put(writeOptions, SEQUENTIAL_ID_KEY, toBytes(generator.get()));
         }
         return generator;
     }
