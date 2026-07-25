@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
@@ -29,12 +32,15 @@ import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -185,6 +191,53 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         loadDataStore.pushAsync("2", 2).get();
         loadDataStore.removeAsync("2").get();
+    }
+
+    @Test(timeOut = 30_000)
+    @SuppressWarnings("unchecked")
+    public void testShutdownDoesNotDeadlockWithConcurrentStoreAccess() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        var loadDataStore =
+                (TableViewLoadDataStoreImpl<Integer>) LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.start();
+        loadDataStore.closeTableView();
+
+        // Replace the table view with a stub whose close future completes only after another thread has
+        // called a synchronized method of the store. This mirrors the production interleaving where the
+        // reader close future completes on the client's internal executor thread while a channel
+        // StateChangeListener on that same thread is blocked in removeAsync() waiting for the store
+        // monitor held by the closing thread.
+        CompletableFuture<Void> closeSignal = new CompletableFuture<>();
+        CountDownLatch closeStarted = new CountDownLatch(1);
+        TableView<Integer> stubTableView = mock(TableView.class);
+        when(stubTableView.closeAsync()).thenAnswer(invocation -> {
+            closeStarted.countDown();
+            return closeSignal;
+        });
+        doAnswer(invocation -> {
+            closeStarted.countDown();
+            closeSignal.get();
+            return null;
+        }).when(stubTableView).close();
+        loadDataStore.setTableView(stubTableView);
+
+        Thread concurrentAccess = new Thread(() -> {
+            try {
+                closeStarted.await();
+                loadDataStore.removeAsync("key");
+                closeSignal.complete(null);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        concurrentAccess.start();
+        try {
+            loadDataStore.shutdown();
+        } finally {
+            concurrentAccess.join(5000);
+        }
+        assertFalse(concurrentAccess.isAlive());
+        assertTrue(closeSignal.isDone());
     }
 
     @Test

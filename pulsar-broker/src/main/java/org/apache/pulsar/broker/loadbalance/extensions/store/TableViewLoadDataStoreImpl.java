@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -145,7 +146,14 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void closeTableView() throws IOException {
         validateState();
         if (tableView != null) {
-            tableView.close();
+            // Close asynchronously without waiting: the close future may only be able to complete on the
+            // client's internal executor thread, and that thread can be blocked on this store's monitor
+            // (e.g. a ServiceUnitStateChannel StateChangeListener calling pushAsync/removeAsync), so a
+            // blocking close while holding the monitor could deadlock.
+            tableView.closeAsync().exceptionally(e -> {
+                log.warn("Failed to close table view on {}", topic, e);
+                return null;
+            });
             tableView = null;
         }
     }
@@ -160,7 +168,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     private synchronized void closeProducer() throws IOException {
         validateState();
         if (producer != null) {
-            producer.close();
+            // Close asynchronously without waiting; see closeTableView() for the deadlock rationale.
+            producer.closeAsync().exceptionally(e -> {
+                log.warn("Failed to close producer on {}", topic, e);
+                return null;
+            });
             producer = null;
         }
     }
@@ -208,6 +220,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void shutdown() throws IOException {
         close();
         isShutdown = true;
+    }
+
+    @VisibleForTesting
+    synchronized void setTableView(TableView<T> tableView) {
+        this.tableView = tableView;
     }
 
     private String validateProducer() {
