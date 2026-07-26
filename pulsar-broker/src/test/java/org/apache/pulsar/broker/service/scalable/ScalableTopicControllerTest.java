@@ -33,6 +33,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -98,7 +99,7 @@ public class ScalableTopicControllerTest {
 
         // Seed the topic's initial metadata so initialize() has something to load.
         ScalableTopicMetadata metadata =
-                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, Map.of());
+                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, 4, Map.of());
         resources.createScalableTopicAsync(topicName, metadata).get();
 
         // --- Mock the BrokerService / PulsarService / PulsarAdmin chain ---
@@ -119,7 +120,7 @@ public class ScalableTopicControllerTest {
 
         // Default: all admin ops succeed.
         when(topics.getSubscriptionsAsync(anyString()))
-                .thenReturn(CompletableFuture.completedFuture(java.util.List.of()));
+                .thenReturn(CompletableFuture.completedFuture(List.of()));
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.terminateSegmentAsync(anyString()))
@@ -308,7 +309,7 @@ public class ScalableTopicControllerTest {
 
         controller.unregisterConsumer("sub-a", "c1").get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get(),
-                java.util.List.of("c2"));
+                List.of("c2"));
     }
 
     @Test
@@ -477,7 +478,7 @@ public class ScalableTopicControllerTest {
 
     @Test
     public void testCreateInitialMetadataDefaults() {
-        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         assertEquals(md.getEpoch(), 0);
         assertEquals(md.getNextSegmentId(), 4);
         assertEquals(md.getSegments().size(), 4);
@@ -486,7 +487,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testCreateInitialMetadataRejectsZeroSegments() {
         assertThrows(IllegalArgumentException.class,
-                () -> ScalableTopicController.createInitialMetadata(0, Map.of()));
+                () -> ScalableTopicController.createInitialMetadata(0, 4, Map.of()));
     }
 
     // --- close / lifecycle ---
@@ -537,21 +538,21 @@ public class ScalableTopicControllerTest {
                 0L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x0000, 0x3FFF),
                 org.apache.pulsar.common.scalable.SegmentState.SEALED,
-                java.util.List.of(), java.util.List.of(3L),
+                List.of(), List.of(3L),
                 /*createdAtEpoch*/ 0, /*sealedAtEpoch*/ 1,
-                /*createdAtMs*/ t0, /*sealedAtMs*/ t1, null);
+                /*createdAtMs*/ t0, /*sealedAtMs*/ t1, null, /*entryBucketSplits*/ List.of());
         org.apache.pulsar.common.scalable.SegmentInfo seg1 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 1L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x4000, 0x7FFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
-                java.util.List.of(), java.util.List.of(),
-                0, -1, t1, -1, null);
+                List.of(), List.of(),
+                0, -1, t1, -1, null, /*entryBucketSplits*/ List.of());
         org.apache.pulsar.common.scalable.SegmentInfo seg2 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 2L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x8000, 0xFFFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
-                java.util.List.of(), java.util.List.of(),
-                0, -1, t3, -1, null);
+                List.of(), List.of(),
+                0, -1, t3, -1, null, /*entryBucketSplits*/ List.of());
 
         TopicName seekTopic = TopicName.get("topic://tenant/ns/seek-topic");
         ScalableTopicMetadata md = ScalableTopicMetadata.builder()
@@ -693,6 +694,10 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         assertEquals(controller.sealedSegmentCount(), sealedBefore + 1);
 
+        // Give the doomed segment a load record, as the owning broker's reporter would.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new org.apache.pulsar.common.scalable.SegmentLoadStats(1, 1, 1, 1)).get();
+
         // Tick at the seal time — retention not yet elapsed; nothing pruned.
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
@@ -705,6 +710,9 @@ public class ScalableTopicControllerTest {
                 "tick past retention must prune the sealed segment");
         // Backing topic delete was issued via the segment-aware admin call.
         verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+        // The pruned segment's load record is deleted along with it.
+        assertFalse(resources.getSegmentLoadAsync(topicName, 0).get().isPresent(),
+                "prune must delete the segment's load record");
     }
 
     /**
@@ -819,7 +827,7 @@ public class ScalableTopicControllerTest {
         // 3-partition source → 3 sealed legacy parents (ids 0..2, full range, wrapping
         // each -partition-K) + 3 active range-based children (ids 3..5, full fan-in).
         TopicName base = TopicName.get("persistent://tenant/ns/my-topic");
-        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3);
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3, 4);
 
         assertEquals(md.getEpoch(), 0L);
         assertEquals(md.getNextSegmentId(), 6L);
@@ -835,7 +843,7 @@ public class ScalableTopicControllerTest {
             assertEquals(parent.hashRange().start(), 0x0000);
             assertEquals(parent.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
             assertTrue(parent.parentIds().isEmpty());
-            assertEquals(parent.childIds(), java.util.List.of(3L, 4L, 5L));
+            assertEquals(parent.childIds(), List.of(3L, 4L, 5L));
         }
 
         // Children 3..5: active, range-based tiling, parents = [0,1,2], not legacy.
@@ -845,7 +853,7 @@ public class ScalableTopicControllerTest {
             org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(id);
             assertTrue(child.isActive(), "child " + id + " must be active");
             assertFalse(child.isLegacy(), "child " + id + " must be a regular segment");
-            assertEquals(child.parentIds(), java.util.List.of(0L, 1L, 2L));
+            assertEquals(child.parentIds(), List.of(0L, 1L, 2L));
             assertTrue(child.childIds().isEmpty());
             int expectedStart = j * expectedWidth;
             assertEquals(child.hashRange().start(), expectedStart);
@@ -861,7 +869,7 @@ public class ScalableTopicControllerTest {
         // Non-partitioned source (partitions <= 0) → 1 sealed legacy parent wrapping the
         // base persistent:// topic + 1 active child covering the full range.
         TopicName base = TopicName.get("persistent://tenant/ns/np-topic");
-        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0);
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0, 4);
 
         assertEquals(md.getNextSegmentId(), 2L);
         assertEquals(md.getSegments().size(), 2);
@@ -870,12 +878,12 @@ public class ScalableTopicControllerTest {
         assertTrue(parent.isSealed());
         assertTrue(parent.isLegacy());
         assertEquals(parent.legacyTopicName(), "persistent://tenant/ns/np-topic");
-        assertEquals(parent.childIds(), java.util.List.of(1L));
+        assertEquals(parent.childIds(), List.of(1L));
 
         org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(1L);
         assertTrue(child.isActive());
         assertFalse(child.isLegacy());
-        assertEquals(child.parentIds(), java.util.List.of(0L));
+        assertEquals(child.parentIds(), List.of(0L));
         assertEquals(child.hashRange().start(), 0x0000);
         assertEquals(child.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
     }

@@ -85,6 +85,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private long serviceUrlQuarantineMaxDurationMs = TimeUnit.DAYS.toMillis(1);
 
+    // Internal: set by the v5 SDK (PulsarClientBuilderV5), not exposed on the public ClientBuilder.
+    // When true, transactions use the metadata-driven (PIP-473) coordinator; when false (v4 SDK),
+    // they use the legacy coordinator. Routes coexistence at the TC layer by client/SDK kind rather
+    // than broker capability, so a v4 client keeps using the legacy TC even on a v5-enabled cluster.
+    @JsonIgnore
+    private boolean scalableTransactions = false;
+
     @Schema(
             name = "authentication",
             description = "Authentication settings of the client."

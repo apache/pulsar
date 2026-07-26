@@ -621,6 +621,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Amount of seconds to timeout initializing the topic policies cache of a namespace (reading the "
+                    + "namespace's __change_events system topic to the end). Topic loading waits for this "
+                    + "initialization, so if the system-topic reader gets stuck (for example after __change_events is "
+                    + "unloaded and the reconnected reader stops making progress), this bounds the wait: the broker "
+                    + "fails the initialization, closes the stuck reader and clears the cached state so that loading "
+                    + "the namespace's topics can be retried with a fresh reader instead of hanging until the broker "
+                    + "is restarted. Set to 0 or a negative value to disable the timeout (not recommended)."
+    )
+    private long topicPoliciesCacheInitTimeoutSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Whether we should enable metadata operations batching"
     )
     private boolean metadataStoreBatchingEnabled = true;
@@ -811,6 +824,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         + "Topics that are inactive for longer than this value will be deleted"
     )
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Time in seconds that a persistent geo-replication replicator may stay idle before the broker"
+                + " disconnects its replication producer. A replicator is eligible only when it has no backlog and"
+                + " has not read entries for replication processing for longer than this threshold. Disconnecting"
+                + " only releases the idle producer; the replicator and its cursor remain available, and the"
+                + " producer is recreated automatically when new messages need to be replicated. Set this value to"
+                + " 0 or a negative value to disable idle-replicator disconnection. The check runs with the"
+                + " inactive-topic monitor, whose interval is brokerDeleteInactiveTopicsFrequencySeconds, and only"
+                + " when brokerDeleteInactiveTopicsEnabled is true. The default is 86400 seconds (24 hours)."
+    )
+    private int brokerReplicationInactiveThresholdSeconds = 24 * 3600;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1113,7 +1140,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Setting this value to 0 will disable the limit calculated per consumer.",
             dynamic = true
     )
-    private int keySharedLookAheadMsgInReplayThresholdPerConsumer = 2000;
+    private int keySharedLookAheadMsgInReplayThresholdPerConsumer = 4000;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1124,11 +1151,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Formula: threshold = min(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
                     + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
                     + ".\n"
-                    + "This value should be set to a value less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
-                    + "Setting this value to 0 will disable the limit calculated per subscription.\n",
+                    + "Keep this value relatively low to increase the cache hit ratio for Key_Shared replay"
+                    + " queue reads; it should also be less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
+                    + "However, with workloads that have low key cardinality (few distinct keys), a low value"
+                    + " can leave some consumers idle, since the dispatcher pauses once this threshold is"
+                    + " reached and stops reading new messages for the other consumers; increasing the value"
+                    + " allows more messages to be in flight in such cases. Since the effective threshold is the"
+                    + " minimum of the per-consumer and per-subscription limits,"
+                    + " keySharedLookAheadMsgInReplayThresholdPerConsumer should also be increased, or set to 0"
+                    + " (disabled), in that case.\n"
+                    + "Setting this value to 0 will disable the limit calculated per subscription. Disabling"
+                    + " it might result in the number of unacked ranges to persist exceeding"
+                    + " managedLedgerMaxUnackedRangesToPersist, therefore disabling is not recommended.\n",
             dynamic = true
     )
-    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 20000;
+    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 40000;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1355,6 +1392,164 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "reassigning its segments to remaining consumers."
     )
     private int scalableTopicConsumerSessionGracePeriodSeconds = 60;
+
+    /**** --- Scalable topic auto split/merge (PIP-483). --- ****/
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Cluster-wide default for scalable-topic auto split/merge. When true, the controller "
+                    + "leader automatically splits hot segments and merges cold ones, within the caps "
+                    + "below. Can be overridden per-namespace and per-topic."
+    )
+    private boolean scalableTopicAutoScaleEnabled = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Cadence (seconds) of the controller's periodic traffic-driven auto split/merge "
+                    + "evaluation. Consumer-count changes are handled event-driven and are not affected "
+                    + "by this interval. Read when a controller wins leadership; not dynamic."
+    )
+    private int scalableTopicAutoScaleIntervalSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on the number of active segments a scalable topic can be auto-scaled to. "
+                    + "Splits stop firing once this is reached."
+    )
+    private int scalableTopicMaxSegments = 64;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Hard floor on the number of active segments. Merges stop firing once this is reached."
+    )
+    private int scalableTopicMinSegments = 1;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Total entry-bucket budget per scalable topic. Entry-buckets are the unit of key-shared "
+                    + "consumption parallelism within a segment, so this budget is how many consumers can "
+                    + "share a single segment's keys. It is distributed across the topic's segments (each "
+                    + "gets floor(budget / segmentCount), at least 1): a single-segment topic starts with "
+                    + "the whole budget, and as the topic splits into more segments each segment settles "
+                    + "toward 1 bucket (full batching)."
+    )
+    private int scalableTopicEntryBucketBudget = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
+                    + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
+                    + "split/merge flip-flopping."
+    )
+    private int scalableTopicMaxDagDepth = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic splits on a topic. Deliberately short — it "
+                    + "only coalesces a burst of near-simultaneous triggers (e.g. a consumer group "
+                    + "connecting at once)."
+    )
+    private int scalableTopicSplitCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic merges on a topic."
+    )
+    private int scalableTopicMergeCooldownSeconds = 300;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "How long (seconds) a segment must continuously stay below every merge threshold before "
+                    + "it becomes merge-eligible."
+    )
+    private int scalableTopicMergeWindowSeconds = 300;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound messages/second above which a segment is split."
+    )
+    private double scalableTopicSplitMsgRateInThreshold = 10_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound bytes/second above which a segment is split."
+    )
+    private long scalableTopicSplitBytesRateInThreshold = 50_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound (dispatched) messages/second above which a segment is split."
+    )
+    private double scalableTopicSplitMsgRateOutThreshold = 50_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound bytes/second above which a segment is split."
+    )
+    private long scalableTopicSplitBytesRateOutThreshold = 250_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound messages/second below which a segment counts as cold for merging."
+    )
+    private double scalableTopicMergeMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Inbound bytes/second below which a segment counts as cold for merging."
+    )
+    private long scalableTopicMergeBytesRateInThreshold = 5_000_000L;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound messages/second below which a segment counts as cold for merging."
+    )
+    private double scalableTopicMergeMsgRateOutThreshold = 5_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Outbound bytes/second below which a segment counts as cold for merging."
+    )
+    private long scalableTopicMergeBytesRateOutThreshold = 25_000_000L;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Interval (seconds) at which the segment-owning broker samples its segment topics to "
+                    + "report load for auto split/merge. Read at broker start; not dynamic."
+    )
+    private int scalableTopicLoadReportIntervalSeconds = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum relative change in any segment rate (e.g. 0.25 = 25%) since the last write that "
+                    + "triggers a new load record. Keeps metadata write volume bounded; a steady-state "
+                    + "segment writes once and goes quiet.\n"
+                    + "Note: the band is anchored at the last written value, not at the split/merge "
+                    + "thresholds. A rate that settles within the band of the last record is never "
+                    + "re-reported, so a segment can sustain up to this factor beyond a split/merge "
+                    + "threshold without triggering — the cost of bounded write volume. Lower the "
+                    + "threshold for tighter tracking at the price of more metadata writes."
+    )
+    private double scalableTopicLoadReportRateChangeThreshold = 0.25;
 
     @FieldContext(
             dynamic = false,
@@ -1796,6 +1991,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When enabled, all registered topic-policy listeners in a namespace are re-notified with the current"
+                    + " topic policies after the namespace's topic-policy cache finishes its initial load. Topics load"
+                    + " and apply their own policies when they are loaded, so this broadcast is normally redundant; it"
+                    + " is only needed for custom plugins that register TopicPolicyListeners and depend on it for"
+                    + " backwards compatibility. Disabled by default.")
+    private boolean topicPolicyListenerReplayEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2335,10 +2539,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."
-            + " This is the memory retained by data read from storage (or cache) until it has been delivered to the"
-            + " Consumer Netty channel. Use O to disable")
-    private long managedLedgerMaxReadsInFlightSizeInMB = 0;
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
+            + " (or from the cache). This is the memory retained by data read from storage (or cache) until it has"
+            + " been delivered to the Consumer Netty channel. This provides backpressure for BookKeeper and tiered"
+            + " storage reads, preventing the broker from having too many concurrent reads and running into Out of"
+            + " Memory errors when there are multiple concurrent reads to multiple concurrent consumers.\n"
+            + "When left unset (empty), it defaults to the greater of dispatcherMaxReadSizeBytes and 15% of"
+            + " available JVM direct memory; dispatcherMaxReadSizeBytes is the minimum value so the limiter"
+            + " can never block the completion of a single read.\n"
+            + "Set to 0 to disable the feature.\n"
+            + "Set to a value greater than 0 to use that many MB.")
+    private Long managedLedgerMaxReadsInFlightSizeInMB = null;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
@@ -2545,8 +2756,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " messages are acknowledged is persisted by compressing in `ranges` of messages"
             + " that were acknowledged. After the max number of ranges is reached, the information"
             + " will only be tracked in memory and messages will be redelivered in case of"
-            + " crashes.")
-    private int managedLedgerMaxUnackedRangesToPersist = 10000;
+            + " crashes.\n"
+            + "Note: when managedLedgerPersistIndividualAckAsLongArray is enabled (the default), the persisted"
+            + " size is bounded by the backlog size (the range of entries the cursor spans), not by this max"
+            + " number of unacked ranges. For BookKeeper ledger storage, with the default broker maxMessageSize"
+            + " and BookKeeper nettyMaxFrameSizeBytes, the state fits a backlog of about 30M entries (excluding"
+            + " the managedLedgerMaxBatchDeletedIndexToPersist storage, whose size is instead relative to the"
+            + " number of acknowledgment holes).")
+    private int managedLedgerMaxUnackedRangesToPersist = 200000;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Maximum number of partially acknowledged batch messages per subscription that will have their batch "
@@ -2555,12 +2772,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "When this limit is exceeded, remaining batch message containing the batch deleted indexes will "
                 + "only be tracked in memory. In case of broker restarts or load balancing events, the batch "
                 + "deleted indexes will be cleared while redelivering the messages to consumers.")
-    private int managedLedgerMaxBatchDeletedIndexToPersist = 10000;
+    private int managedLedgerMaxBatchDeletedIndexToPersist = 200000;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
-                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
-                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
 
     @FieldContext(
@@ -2582,14 +2798,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
                     + "If number of unack message range is higher than this limit then broker will persist"
                     + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
-    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
-                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
-                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
-                    + "ranges excluding the acknowledged messages.")
-    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
+    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 200000;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
@@ -2661,7 +2870,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
-    private String managedLedgerInfoCompressionType = "NONE";
+    private String managedLedgerInfoCompressionType = "LZ4";
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedLedgerInfo compression size threshold (bytes), "
@@ -2673,7 +2882,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
-    private String managedCursorInfoCompressionType = "NONE";
+    private String managedCursorInfoCompressionType = "LZ4";
 
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
@@ -3798,13 +4007,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Enable the metadata-driven transaction coordinator used by scalable topics."
-                    + " When true, wire commands (NEW_TXN / END_TXN / etc.) are served by the"
-                    + " metadata-store-backed coordinator instead of the legacy"
-                    + " TransactionMetadataStoreService. Requires transactionCoordinatorEnabled"
-                    + " = true, and must be enabled together with the scalable-topic transaction"
-                    + " buffer and pending-ack store providers."
+                    + " When true, transaction wire commands flagged as scalable (sent by v5 SDK"
+                    + " clients) are served by the metadata-store-backed coordinator, while legacy"
+                    + " (v4) clients continue to be served by TransactionMetadataStoreService — the"
+                    + " two coexist on the same cluster. Requires transactionCoordinatorEnabled"
+                    + " = true. Enabled by default together with the dispatching transaction buffer"
+                    + " and pending-ack store providers."
     )
-    private boolean transactionCoordinatorScalableTopicsEnabled = false;
+    private boolean transactionCoordinatorScalableTopicsEnabled = true;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -3859,21 +4069,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction buffer provider. Default routes segment:// topics to the"
-                    + " legacy TopicTransactionBuffer. Set this to"
-                    + " org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider"
-                    + " once the v5 transaction coordinator (PIP-473 P5) is enabled to opt segment topics"
-                    + " into MetadataTransactionBuffer."
+            doc = "Class name for transaction buffer provider. The default DispatchingTransactionBufferProvider"
+                    + " routes segment:// topics to the metadata-driven MetadataTransactionBuffer (PIP-473)"
+                    + " and persistent:// / topic:// topics to the legacy TopicTransactionBuffer. Set this to"
+                    + " org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider to"
+                    + " force the legacy buffer for all topics."
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction pending ack store provider"
+            doc = "Class name for transaction pending ack store provider. The default"
+                    + " DispatchingTransactionPendingAckStoreProvider routes subscriptions on segment:// topics"
+                    + " to the metadata-driven MetadataPendingAckStore (PIP-473) and others to the legacy"
+                    + " MLPendingAckStore. Set this to"
+                    + " org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider to force"
+                    + " the legacy store for all subscriptions."
     )
     private String transactionPendingAckStoreProviderClassName =
-            "org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider";
+            "org.apache.pulsar.broker.transaction.pendingack.impl.DispatchingTransactionPendingAckStoreProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

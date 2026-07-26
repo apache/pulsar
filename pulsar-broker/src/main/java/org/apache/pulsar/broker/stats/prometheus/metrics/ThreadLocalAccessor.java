@@ -19,14 +19,12 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.yahoo.sketches.quantiles.DoublesSketch;
-import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
-import com.yahoo.sketches.quantiles.DoublesUnion;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.datasketches.kll.KllDoublesSketch;
 import org.jspecify.annotations.Nullable;
 
 class ThreadLocalAccessor {
@@ -47,7 +45,7 @@ class ThreadLocalAccessor {
         }
     };
 
-    void record(DoublesUnion aggregateSuccess, @Nullable DoublesUnion aggregateFail) {
+    void record(KllDoublesSketch aggregateSuccess, @Nullable KllDoublesSketch aggregateFail) {
         map.keySet().forEach(key -> {
             key.record(aggregateSuccess, aggregateFail);
             if (key.shouldRemove()) {
@@ -67,8 +65,8 @@ class ThreadLocalAccessor {
 
     static class LocalData {
 
-        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
+        private final KllDoublesSketch successSketch = KllDoublesSketch.newHeapInstance();
+        private final KllDoublesSketch failSketch = KllDoublesSketch.newHeapInstance();
         private final StampedLock lock = new StampedLock();
         // Keep a weak reference to the owner thread so that we can remove the LocalData when the thread
         // is not alive anymore or has been garbage collected.
@@ -100,13 +98,13 @@ class ThreadLocalAccessor {
             }
         }
 
-        void record(DoublesUnion aggregateSuccess, @Nullable DoublesUnion aggregateFail) {
+        void record(KllDoublesSketch aggregateSuccess, @Nullable KllDoublesSketch aggregateFail) {
             long stamp = lock.writeLock();
             try {
-                aggregateSuccess.update(successSketch);
+                aggregateSuccess.merge(successSketch);
                 successSketch.reset();
                 if (aggregateFail != null) {
-                    aggregateFail.update(failSketch);
+                    aggregateFail.merge(failSketch);
                     failSketch.reset();
                 }
             } finally {

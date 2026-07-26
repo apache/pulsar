@@ -30,6 +30,8 @@ dependencies {
     testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-client-original"))
+    testImplementation(project(":pulsar-client-api-v5"))
+    testImplementation(project(":pulsar-client-v5"))
     testImplementation(project(":pulsar-client-admin-original"))
     testImplementation(project(":pulsar-proxy"))
     testImplementation(project(":managed-ledger"))

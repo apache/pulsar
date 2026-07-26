@@ -55,10 +55,14 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarClientException pce) {
                 throw pce;
             }
-            throw new PulsarClientException(e.getCause());
+            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.NotFoundException) {
+                throw new PulsarClientException.NotFoundException(cause.getMessage());
+            }
+            throw new PulsarClientException(cause);
         }
     }
 

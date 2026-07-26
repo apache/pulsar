@@ -47,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -57,6 +58,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -1251,7 +1253,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         // find no of entries in last ledger
                         if (!ledgers.isEmpty()) {
                             final long id = ledgers.lastKey();
-                            AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> {
+                            BiConsumer<Integer, ReadHandle> opencb = (rc, lh) -> {
                                 log.debug().attr("managedLedger", managedLedgerName)
                                         .attr("ledgerId", id)
                                         .attr("result", BKException.getMessage(rc))
@@ -1282,16 +1284,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             log.debug().attr("managedLedger", managedLedgerName)
                                     .attr("ledgerId", id).log("Opening ledger");
                             getBookKeeper()
-                                    .thenAccept(bk -> {
-                                        bk.asyncOpenLedgerNoRecovery(id, digestType, password, opencb, null);
-                                    }).exceptionally(ex -> {
-                                        log.warn().attr("managedLedger", managedLedgerName)
-                                                .attr("ledgerId", id)
-                                                .exception(ex)
-                                                .log("Failed to open ledger");
-                                        opencb.openComplete(-1, null, null);
-                                        mlMetaCounter.countDown();
-                                        return null;
+                                    .thenCompose(bk -> bk.newOpenLedgerOp()
+                                            .withRecovery(false)
+                                            .withLedgerId(id)
+                                            .withDigestType(digestType.toApiDigestType())
+                                            .withPassword(password)
+                                            .withLoggerContext(
+                                                    log.with().attr("managedLedger", managedLedgerName).build())
+                                            .execute())
+                                    .whenComplete((rh, ex) -> {
+                                        if (ex != null) {
+                                            log.warn().attr("managedLedger", managedLedgerName)
+                                                    .attr("ledgerId", id)
+                                                    .exception(ex)
+                                                    .log("Failed to open ledger");
+                                            opencb.accept(BKException.getExceptionCode(ex), null);
+                                        } else {
+                                            opencb.accept(BKException.Code.OK, rh);
+                                        }
                                     });
                         } else {
                             log.warn().attr("managedLedger", managedLedgerName).log("Ledger list empty");
