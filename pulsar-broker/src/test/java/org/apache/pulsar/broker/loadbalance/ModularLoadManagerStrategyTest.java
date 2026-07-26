@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -46,47 +47,59 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
 
-    @SuppressWarnings("unchecked")
-    public void testAvgShedderWithPreassignedBroker() throws Exception {
+    public void testAvgShedderReusesPlannedBroker() {
         ModularLoadManagerStrategy strategy = new AvgShedder();
-        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
-        field.setAccessible(true);
-        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
-        BundleData bundleData = new BundleData();
-        // assign bundle to broker1 in bundleBrokerMap.
-        bundleBrokerMap.put(bundleData, "1");
-        assertEquals(strategy.selectBroker(Set.of("1", "2", "3"), bundleData, null, null), Optional.of("1"));
-        assertEquals(bundleBrokerMap.get(bundleData), "1");
+        String bundle = "bundle-1";
+        assertEquals(strategy.selectBrokerForBundle(Set.of(), bundle, new BundleData(), null, null), Optional.empty());
+        assertEquals(strategy.selectBrokerForBundle(Set.of("1"), bundle, new BundleData(), null, null),
+                Optional.of("1"));
+        BundleData refreshedBundleData = new BundleData();
+        refreshedBundleData.setTopics(1);
+        assertEquals(strategy.selectBrokerForBundle(Set.of("1", "2", "3"), bundle, refreshedBundleData, null,
+                null),
+                Optional.of("1"));
 
         // remove broker1 in candidates, only broker2 is candidate.
-        assertEquals(strategy.selectBroker(Set.of("2"), bundleData, null, null), Optional.of("2"));
-        assertEquals(bundleBrokerMap.get(bundleData), "2");
+        assertEquals(strategy.selectBrokerForBundle(Set.of("2"), bundle, new BundleData(), null, null),
+                Optional.of("2"));
+        assertEquals(strategy.selectBrokerForBundle(Set.of("2", "3"), bundle, new BundleData(), null, null),
+                Optional.of("2"));
     }
 
-    @SuppressWarnings("unchecked")
-    public void testAvgShedderWithoutPreassignedBroker() throws Exception {
-        ModularLoadManagerStrategy strategy = new AvgShedder();
-        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
-        field.setAccessible(true);
-        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
+    public void testSelectBrokerForBundleDelegatesToFourArgumentStrategy() {
+        AtomicInteger invocationCount = new AtomicInteger();
+        Set<String> candidates = Set.of("1");
         BundleData bundleData = new BundleData();
-        Set<String> candidates = new HashSet<>();
-        candidates.add("1");
-        candidates.add("2");
-        candidates.add("3");
+        LoadData loadData = new LoadData();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        ModularLoadManagerStrategy strategy = (actualCandidates, actualBundleData, actualLoadData, actualConf) -> {
+            assertSame(actualCandidates, candidates);
+            assertSame(actualBundleData, bundleData);
+            assertSame(actualLoadData, loadData);
+            assertSame(actualConf, conf);
+            invocationCount.incrementAndGet();
+            return Optional.of("1");
+        };
 
-        // select broker from candidates randomly.
+        assertEquals(strategy.selectBrokerForBundle(candidates, "bundle-1", bundleData, loadData, conf),
+                Optional.of("1"));
+        assertEquals(invocationCount.get(), 1);
+    }
+
+    public void testAvgShedderWithoutBundleName() {
+        ModularLoadManagerStrategy strategy = new AvgShedder();
+        BundleData bundleData = new BundleData();
+        Set<String> candidates = new HashSet<>(Set.of("1", "2", "3"));
+
+        assertEquals(strategy.selectBroker(Set.of(), bundleData, null, null), Optional.empty());
         Optional<String> selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
         assertTrue(selectedBroker.isPresent());
         assertTrue(candidates.contains(selectedBroker.get()));
-        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
 
-        // remove original broker in candidates
         candidates.remove(selectedBroker.get());
         selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
         assertTrue(selectedBroker.isPresent());
         assertTrue(candidates.contains(selectedBroker.get()));
-        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
     }
 
     // Test that least long term message rate works correctly.

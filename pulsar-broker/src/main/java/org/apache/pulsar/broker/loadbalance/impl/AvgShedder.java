@@ -48,8 +48,8 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 @CustomLog
 public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrategy {
-    // map bundle to broker.
-    private final Map<BundleData, String> bundleBrokerMap = new HashMap<>();
+    // Planned destination by bundle name.
+    private final Map<String, String> bundleBrokerMap = new HashMap<>();
     // map broker to Scores. scores:0-100
     private final Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
@@ -193,7 +193,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             double traffic = e.getRight();
             if (traffic > 0 && traffic <= trafficMarkedToOffload.doubleValue()) {
                 selectedBundlesCache.put(overloadedBroker, bundle.getKey());
-                bundleBrokerMap.put(bundle.getValue(), underloadedBroker);
+                bundleBrokerMap.put(bundle.getKey(), underloadedBroker);
                 trafficMarkedToOffload.add(-traffic);
                 log.debug().attr("bundle", bundle).attr("isMsgRateToOffload", isMsgRateToOffload)
                         .attr("traffic", traffic)
@@ -273,17 +273,33 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
-        final var brokerToUnload = bundleBrokerMap.getOrDefault(bundleToAssign, null);
-        if (brokerToUnload == null || !candidates.contains(bundleBrokerMap.get(bundleToAssign))) {
+        return candidates.isEmpty() ? Optional.empty() : Optional.of(getExpectedBroker(candidates, bundleToAssign));
+    }
+
+    @Override
+    public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle, BundleData bundleToAssign,
+                                                  LoadData loadData, ServiceConfiguration conf) {
+        return bundle == null
+                ? selectBroker(candidates, bundleToAssign, loadData, conf)
+                : selectBrokerWithBundleName(candidates, bundle, bundleToAssign);
+    }
+
+    private Optional<String> selectBrokerWithBundleName(Set<String> candidates, String bundle,
+                                                         BundleData bundleToAssign) {
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        final var brokerToUnload = bundleBrokerMap.get(bundle);
+        if (brokerToUnload == null || !candidates.contains(brokerToUnload)) {
             // cluster initializing or broker is shutdown
-            if (!bundleBrokerMap.containsKey(bundleToAssign)) {
+            if (brokerToUnload == null) {
                 log.debug("cluster is initializing");
             } else {
-                log.debug().attr("broker", bundleBrokerMap.get(bundleToAssign)).attr("candidates", candidates)
+                log.debug().attr("broker", brokerToUnload).attr("candidates", candidates)
                         .log("expected broker is shutdown");
             }
             String broker = getExpectedBroker(candidates, bundleToAssign);
-            bundleBrokerMap.put(bundleToAssign, broker);
+            bundleBrokerMap.put(bundle, broker);
             return Optional.of(broker);
         } else {
             return Optional.of(brokerToUnload);

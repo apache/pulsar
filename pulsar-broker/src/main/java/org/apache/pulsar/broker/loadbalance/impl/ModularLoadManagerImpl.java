@@ -959,10 +959,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             if (sheddingExcludedNamespaces.contains(namespaceNameFromBundleName)) {
                 log.debug().attr("bundle", bundle).log("Use round robin broker selector for bundle");
                 broker = sheddingExcludedNamespaceSelectionStrategy
-                        .selectBroker(brokerCandidateCache, data, loadData, conf);
+                        .selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             } else {
                 // Choose a broker among the potentially smaller filtered list, when possible
-                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                broker = placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             }
             log.debug().attr("selectedBroker", broker).attr("candidates", brokerCandidateCache)
                     .log("Selected broker from candidate brokers");
@@ -981,7 +981,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
                 Optional<String> brokerTmp =
-                        placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                        placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
                     broker = brokerTmp;
                 }

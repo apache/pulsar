@@ -47,6 +47,26 @@ public interface ModularLoadManagerStrategy {
             ServiceConfiguration conf);
 
     /**
+     * Find a suitable broker to assign the given bundle when its stable name is available.
+     *
+     * @param candidates
+     *            The candidates for which the bundle may be assigned.
+     * @param bundle
+     *            The stable bundle name.
+     * @param bundleToAssign
+     *            The data for the bundle to assign.
+     * @param loadData
+     *            The load data from the leader broker.
+     * @param conf
+     *            The service configuration.
+     * @return The name of the selected broker as it appears on ZooKeeper.
+     */
+    default Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle, BundleData bundleToAssign,
+                                                   LoadData loadData, ServiceConfiguration conf) {
+        return selectBroker(candidates, bundleToAssign, loadData, conf);
+    }
+
+    /**
      * Triggered when active brokers change.
      */
     default void onActiveBrokersChange(Set<String> activeBrokers) {
