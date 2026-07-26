@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -563,6 +564,45 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> removeAutoTopicCreationAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "autoTopicCreation");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setScalableTopicAutoScalePolicy(String namespace,
+            AutoScalePolicyOverride override) throws PulsarAdminException {
+        sync(() -> setScalableTopicAutoScalePolicyAsync(namespace, override));
+    }
+
+    @Override
+    public CompletableFuture<Void> setScalableTopicAutoScalePolicyAsync(
+            String namespace, AutoScalePolicyOverride override) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "scalableTopicAutoScalePolicy");
+        return asyncPostRequest(path, Entity.entity(override, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public AutoScalePolicyOverride getScalableTopicAutoScalePolicy(String namespace)
+            throws PulsarAdminException {
+        return sync(() -> getScalableTopicAutoScalePolicyAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<AutoScalePolicyOverride> getScalableTopicAutoScalePolicyAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<AutoScalePolicyOverride>() {
+        }, namespace,
+                "scalableTopicAutoScalePolicy");
+    }
+
+    @Override
+    public void removeScalableTopicAutoScalePolicy(String namespace) throws PulsarAdminException {
+        sync(() -> removeScalableTopicAutoScalePolicyAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeScalableTopicAutoScalePolicyAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "scalableTopicAutoScalePolicy");
         return asyncDeleteRequest(path);
     }
 

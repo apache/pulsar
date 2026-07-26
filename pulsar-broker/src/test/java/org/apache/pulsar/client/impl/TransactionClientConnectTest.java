@@ -138,10 +138,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     @Test
     public void testPulsarClientCloseThenCloseTcClient() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
-        field.setAccessible(true);
-        TransactionMetaStoreHandler[] handlers =
-                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
+        java.util.Collection<TransactionMetaStoreHandler> handlers = transactionCoordinatorClient.getHandlers();
 
         for (TransactionMetaStoreHandler handler : handlers) {
             handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
@@ -168,11 +165,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     public void testHandlerStateChangeToReady() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient =
                 ((PulsarClientImpl) pulsarClient).getTcClient();
-        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
-        field.setAccessible(true);
-        TransactionMetaStoreHandler[] handlers =
-                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
-        TransactionMetaStoreHandler transactionMetaStoreHandler = handlers[0];
+        TransactionMetaStoreHandler transactionMetaStoreHandler =
+                transactionCoordinatorClient.getHandlers().iterator().next();
         Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);
         Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
     }

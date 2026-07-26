@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 
 /**
@@ -77,6 +78,12 @@ public interface PulsarClientProvider {
     <T extends com.google.protobuf.Message> Schema<T> protobufSchema(Class<T> clazz);
 
     Schema<byte[]> autoProduceBytesSchema();
+
+    Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo);
+
+    Schema<byte[]> autoProduceBytesSchema(Schema<?> base);
+
+    Schema<GenericRecord> autoConsumeSchema();
 
     // --- Checkpoint ---
 

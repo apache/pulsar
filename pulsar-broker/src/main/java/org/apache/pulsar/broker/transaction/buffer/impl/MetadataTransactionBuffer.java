@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +30,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -41,6 +47,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
 import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
@@ -54,6 +61,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.ScanConsumer;
@@ -119,9 +127,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /** Version of the durable watermark record; -1 if it doesn't exist yet. */
     private long watermarkVersion = -1L;
 
-    /** Latest dispatched position from non-txn publishes — the natural ceiling when no opens pin. */
-    private Position lastDispatchable;
-
     /** Current maxReadPosition; never moves above the watermark while recovery-discovered opens exist. */
     private Position maxReadPosition;
 
@@ -134,6 +139,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
 
+    /** Periodic task that range-deletes aborted-txn records once the segment ML trims past them. */
+    private final ScheduledFuture<?> abortedGcTask;
+    /** Guards against a new GC cycle starting while the previous async one is still in flight. */
+    private final AtomicBoolean gcRunning = new AtomicBoolean(false);
+
     public MetadataTransactionBuffer(PersistentTopic topic, TxnMetadataStore txnStore) {
         this.topic = topic;
         this.ledger = topic.getManagedLedger();
@@ -141,8 +151,56 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         this.segmentName = topic.getName();
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.maxReadPosition = ledger.getLastConfirmedEntry();
-        this.lastDispatchable = this.maxReadPosition;
         recover();
+        this.abortedGcTask = scheduleAbortedGc();
+    }
+
+    /**
+     * Schedule the periodic aborted-record GC on the broker executor. Returns {@code null} when no
+     * executor is reachable (e.g. a unit test with a mocked topic); such callers drive
+     * {@link #pruneTrimmedAbortedTxns()} directly.
+     */
+    private ScheduledFuture<?> scheduleAbortedGc() {
+        ScheduledExecutorService executor = brokerExecutor();
+        if (executor == null) {
+            return null;
+        }
+        long intervalSeconds = Math.max(1, topic.getBrokerService().getPulsar().getConfiguration()
+                .getTransactionCoordinatorScalableTopicsGcIntervalSeconds());
+        long intervalMs = TimeUnit.SECONDS.toMillis(intervalSeconds);
+        // Wrap in catchingAndLoggingThrowables so an unexpected RuntimeException doesn't cancel the
+        // fixed-delay schedule. The gcRunning guard skips a cycle while the previous async sweep is
+        // still in flight (slow metadata store) rather than overlapping sweeps.
+        return executor.scheduleWithFixedDelay(Runnables.catchingAndLoggingThrowables(() -> {
+            if (closed || !gcRunning.compareAndSet(false, true)) {
+                return;
+            }
+            CompletableFuture<Void> sweep;
+            try {
+                sweep = pruneTrimmedAbortedTxns();
+            } catch (Throwable t) {
+                gcRunning.set(false);
+                throw t;
+            }
+            sweep.whenComplete((__, ex) -> {
+                gcRunning.set(false);
+                if (ex != null) {
+                    log.warn().attr("segment", segmentName).exception(ex)
+                            .log("Aborted-txn GC sweep failed; will retry next cycle");
+                }
+            });
+        }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private ScheduledExecutorService brokerExecutor() {
+        try {
+            if (topic.getBrokerService() != null && topic.getBrokerService().getPulsar() != null) {
+                return topic.getBrokerService().getPulsar().getExecutor();
+            }
+        } catch (Throwable t) {
+            // Mocked topic in unit tests — no broker executor; GC is driven directly.
+        }
+        return null;
     }
 
     // ---- Recovery ----------------------------------------------------------
@@ -438,6 +496,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 // it (e.g. after an in-memory rebuild that lost the set).
                 abortedTxns.add(txnIdKey);
             }
+            // Drop the now-terminal entry so the cache stays bounded by the open-txn count rather
+            // than growing for the segment's lifetime. This is safe: recomputeMaxReadPositionLocked
+            // only consults OPEN entries, and isTxnAborted reads the separate abortedTxns set (an
+            // aborted txn stays there, a committed/unknown one correctly reads as visible). The
+            // positions needed for the durable side-effects below were already captured above.
+            txns.remove(txnIdKey);
         }
 
         // Persist aborted record if this is an abort.
@@ -544,18 +608,28 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             next = watermarkPos != null ? watermarkPos : maxReadPosition;
         } else {
             Position min = null;
+            boolean anyOpen = false;
             for (TxnEntry e : txns.values()) {
-                if (e.state == TxnState.OPEN && e.firstPosition != null) {
-                    if (min == null || e.firstPosition.compareTo(min) < 0) {
+                if (e.state == TxnState.OPEN) {
+                    anyOpen = true;
+                    if (e.firstPosition != null
+                            && (min == null || e.firstPosition.compareTo(min) < 0)) {
                         min = e.firstPosition;
                     }
                 }
             }
             if (min != null) {
+                // Pin just below the lowest open txn's first write.
                 next = ledger.getPreviousPosition(min);
+            } else if (anyOpen) {
+                // Open txn(s) whose first write isn't tracked yet (an append is in flight between
+                // the /txn/op record and the ledger entry): hold the current ceiling rather than
+                // risk exposing the in-flight entry.
+                next = maxReadPosition;
             } else {
-                // No open txns pinning anything: free to advance to last-dispatched.
-                next = lastDispatchable;
+                // No open txns: every written entry is resolved — committed data is visible and
+                // aborted data is filtered by isTxnAborted — so advance to the last written entry.
+                next = ledger.getLastConfirmedEntry();
             }
         }
         Position prev = maxReadPosition;
@@ -593,7 +667,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         }
         topic.updateLastDispatchablePosition(position);
         synchronized (lock) {
-            lastDispatchable = position;
             recomputeMaxReadPositionLocked();
             // Persist the new watermark if it advanced as a result of the non-txn append.
             stateTail = stateTail.thenCompose(__ -> persistWatermarkIfAdvanced())
@@ -613,8 +686,71 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closed = true;
+        if (abortedGcTask != null) {
+            abortedGcTask.cancel(false);
+        }
         closeSubscriptionQuietly();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Range-delete aborted-txn records — and drop their in-memory {@link #abortedTxns} entries —
+     * whose highest position in this segment is below the ML's first still-valid position, i.e. whose
+     * data has been fully trimmed. Safe because a trimmed position is never dispatched, so its abort
+     * filtering is no longer needed; records for still-readable data (max position at or above the
+     * first valid position) are retained. Without this the durable aborted set and the heap set grow
+     * for the segment's whole lifetime even as the underlying data is trimmed away.
+     */
+    @VisibleForTesting
+    CompletableFuture<Void> pruneTrimmedAbortedTxns() {
+        if (closed) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Position firstValid = ledger.getFirstPosition();
+        if (firstValid == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<String> toPrune = Collections.synchronizedList(new ArrayList<>());
+        return txnStore.scanAbortedTxns(segmentName,
+                TxnPaths.abortedByPositionSegmentLowerBound(segmentName),
+                TxnPaths.abortedByPositionSegmentUpperBound(segmentName),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                        if (txnIdKey == null) {
+                            return;
+                        }
+                        AbortedTxnRecord rec = TxnMetadataStore.fromJson(r.getValue(), AbortedTxnRecord.class);
+                        Position maxPos = PositionFactory.create(rec.maxLedgerId(), rec.maxEntryId());
+                        // Strictly below the first valid position → fully trimmed (conservative).
+                        if (maxPos.compareTo(firstValid) < 0) {
+                            toPrune.add(txnIdKey);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segmentName).exception(throwable)
+                                .log("Aborted-txn GC scan errored");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenCompose(__ -> {
+                    if (toPrune.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    synchronized (lock) {
+                        toPrune.forEach(abortedTxns::remove);
+                    }
+                    List<CompletableFuture<Void>> deletes = new ArrayList<>(toPrune.size());
+                    for (String txnIdKey : toPrune) {
+                        deletes.add(txnStore.deleteAbortedTxn(segmentName, txnIdKey));
+                    }
+                    return FutureUtil.waitForAll(deletes);
+                });
     }
 
     private void closeSubscriptionQuietly() {
@@ -696,6 +832,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 }
             }
             return n;
+        }
+    }
+
+    /** Size of the in-memory per-txn cache; bounded by the open-txn count once terminals are pruned. */
+    @VisibleForTesting
+    int trackedTxnCount() {
+        synchronized (lock) {
+            return txns.size();
         }
     }
 

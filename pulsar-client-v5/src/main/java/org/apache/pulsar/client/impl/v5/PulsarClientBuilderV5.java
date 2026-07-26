@@ -43,6 +43,10 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     PulsarClientBuilderV5() {
         conf.setStatsIntervalSeconds(0);
+        // v5 SDK transactions use the metadata-store (PIP-473) coordinator. This internal flag
+        // routes the underlying v4 TC client to it, keeping v5 transactions independent from any
+        // v4 SDK clients (which use the legacy coordinator) on the same cluster.
+        conf.setScalableTransactions(true);
     }
 
     @Override
@@ -73,6 +77,16 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             throws PulsarClientException {
         conf.setAuthPluginClassName(authPluginClassName);
         conf.setAuthParams(authParamsString);
+        // Instantiate the Authentication and attach it to the conf — the v4 PulsarClientImpl
+        // honors the plugin class name + params strings only as metadata, it reads the actual
+        // Authentication instance via conf.getAuthentication() at connect time.
+        try {
+            conf.setAuthentication(
+                    org.apache.pulsar.client.api.AuthenticationFactory.create(
+                            authPluginClassName, authParamsString));
+        } catch (org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException e) {
+            throw new PulsarClientException(e.getMessage(), e);
+        }
         return this;
     }
 
@@ -113,10 +127,18 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClientBuilder tlsPolicy(TlsPolicy policy) {
-        // TlsPolicy configures TLS settings
-        // For now, just enable TLS — full TLS config adaptation will be
-        // implemented when TlsPolicy internals are defined
         conf.setUseTls(true);
+        if (policy.trustCertsFilePath() != null) {
+            conf.setTlsTrustCertsFilePath(policy.trustCertsFilePath());
+        }
+        if (policy.keyFilePath() != null) {
+            conf.setTlsKeyFilePath(policy.keyFilePath());
+        }
+        if (policy.certificateFilePath() != null) {
+            conf.setTlsCertificateFilePath(policy.certificateFilePath());
+        }
+        conf.setTlsAllowInsecureConnection(policy.allowInsecureConnection());
+        conf.setTlsHostnameVerificationEnable(policy.enableHostnameVerification());
         return this;
     }
 
@@ -143,6 +165,11 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         this.description = description;
         conf.setDescription(description);
         return this;
+    }
+
+    /** @return the underlying v4 configuration data; for tests in this package only. */
+    ClientConfigurationData getConfForTesting() {
+        return conf;
     }
 
     /**

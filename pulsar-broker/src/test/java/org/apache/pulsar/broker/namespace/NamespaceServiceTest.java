@@ -375,7 +375,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String candidateBroker2 = "localhost:3000";
         String broker2Url = "pulsar://localhost:6660";
         LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        lr.setName(candidateBroker1);
+        LocalBrokerData ld =
+                new LocalBrokerData(candidateBroker2, "http://" + candidateBroker2, null, broker2Url, null);
+
         String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
         String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
@@ -412,7 +415,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder()
                 .brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker,
+        LocalBrokerData ld = new LocalBrokerData(candidateBroker, "http://" + candidateBroker,
                 null, brokerUrl, null, advertisedListeners);
         String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
@@ -423,8 +426,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         LookupResult noListener = pulsar.getNamespaceService()
                 .createLookupResult(candidateBroker, false, null).get();
+        LookupOptions options = LookupOptions.builder().advertisedListenerName(listener).build();
         LookupResult withListener = pulsar.getNamespaceService()
-                .createLookupResult(candidateBroker, false, listener).get();
+                .createLookupResult(candidateBroker, false, options).get();
 
         Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
@@ -699,7 +703,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LoadManager loadManager = pulsar.getLoadManager().get();
         Awaitility.await().untilAsserted(() -> {
             BundleData targetBundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                    .getBundleDataOrDefault(namespace + "/" + bundle);
+                    .getBundleDataOrDefaultAsync(namespace + "/" + bundle).join();
             assertEquals(targetBundleData.getTopics(), 10);
         });
 

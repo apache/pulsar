@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.serializeWithSize;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import static org.apache.pulsar.common.util.SafeCollectionUtils.longArrayToList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
@@ -135,7 +136,6 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -144,6 +144,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private static final Logger LOG = Logger.get(ConsumerImpl.class);
     protected final Logger log;
 
+    private static final long[] EMPTY_ACK_SET = new long[0];
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     final long consumerId;
@@ -942,7 +943,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
                     // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
+                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
@@ -1044,6 +1045,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.warn().attr("errorType", t.getClass().getName())
                 .exceptionMessage(t)
                 .log("Closed consumer because of unrecoverable error");
+        // If the unrecoverable error occurs before the initial subscribe completes, fail the subscribe
+        // future as well; otherwise callers waiting on it (e.g. RawReader.create() / subscribeAsync())
+        // would hang forever. This is a no-op when the subscribe future has already completed.
+        subscribeFuture.completeExceptionally(t);
         closeAsync().whenComplete((__, ex) -> {
             if (ex == null) {
                 fail(t);
@@ -1424,11 +1429,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
-        List<Long> ackSet = Collections.emptyList();
+        long[] ackSet = EMPTY_ACK_SET;
         if (cmdMessage.getAckSetsCount() > 0) {
-            ackSet = new ArrayList<>(cmdMessage.getAckSetsCount());
+            ackSet = new long[cmdMessage.getAckSetsCount()];
             for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
-                ackSet.add(cmdMessage.getAckSetAt(i));
+                ackSet[i] = cmdMessage.getAckSetAt(i);
             }
         }
         int redeliveryCount = cmdMessage.getRedeliveryCount();
@@ -1494,7 +1499,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getPayloadProcessor() != null) {
             // uncompressedPayload is released in this method so we don't need to call release() again
             processPayloadByProcessor(brokerEntryMetadata, msgMetadata,
-                    uncompressedPayload, msgId, schema, redeliveryCount, ackSet, consumerEpoch);
+                    uncompressedPayload, msgId, schema, redeliveryCount, longArrayToList(ackSet), consumerEpoch);
             return;
         }
 
@@ -1720,12 +1725,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      */
     void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
         if (pendingReceives.isEmpty()) {
+            if (getState() != State.Closing && getState() != State.Closed) {
+                log.error().attr("message", message)
+                    .attr("pendingReceives-size", pendingReceives.size())
+                    .log("If you received this log, it means that you encountered a bug: a message was"
+                        + " dropped internally, the client-side will encounter a crucial issue: this message will"
+                        + " never be consumed until the consumer is restarted or the topic is unloaded.");
+            }
             return;
         }
 
         // fetch receivedCallback from queue
         final CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture == null) {
+            if (getState() != State.Closing && getState() != State.Closed) {
+                log.error().attr("message", message)
+                    .log("The pendingReceives pulled out a null conpletableFuture object. If you received this log,"
+                        + " it means that you encountered a bug: a message was"
+                        + " dropped internally, the client-side will encounter a crucial issue: this message will never"
+                        + " be consumed until the consumer is restarted or the topic is unloaded.");
+            }
             return;
         }
 
@@ -1763,7 +1782,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -1778,8 +1797,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         BitSet ackSetInMessageId = BatchMessageIdImpl.newAckSet(batchSize);
         BitSetRecyclable ackBitSet = null;
-        if (ackSet != null && ackSet.size() > 0) {
-            ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+        if (ackSet != null && ackSet.length > 0) {
+            ackBitSet = BitSetRecyclable.valueOf(ackSet);
+            ackSetInMessageId.and(BitSet.valueOf(ackSet));
         }
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -2686,7 +2706,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final ByteBuf seek;
         if (msgId.getFirstChunkMessageId() != null) {
             seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
-                    firstChunkMsgId.getEntryId(), new long[0]);
+                    firstChunkMsgId.getEntryId(), EMPTY_ACK_SET);
         } else {
             final long[] ackSetArr;
             if (MessageIdAdvUtils.isBatch(msgId)) {
@@ -2696,7 +2716,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ackSetArr = ackSet.toLongArray();
                 ackSet.recycle();
             } else {
-                ackSetArr = new long[0];
+                ackSetArr = EMPTY_ACK_SET;
             }
             seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
         }

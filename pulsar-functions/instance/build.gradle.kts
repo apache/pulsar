@@ -24,30 +24,30 @@ plugins {
 dependencies {
     implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-utils"))
-    implementation(project(":pulsar-functions:pulsar-functions-api"))
-    implementation(project(":pulsar-functions:pulsar-functions-secrets"))
-    implementation(project(":pulsar-functions:pulsar-functions-proto"))
+    api(project(":pulsar-functions:pulsar-functions-api"))
+    api(project(":pulsar-functions:pulsar-functions-secrets"))
+    api(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-metadata"))
-    implementation(project(":pulsar-io:pulsar-io-core"))
-    implementation(project(":pulsar-client-original"))
+    api(project(":pulsar-io:pulsar-io-core"))
+    api(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
-    implementation(libs.guava)
+    api(libs.guava)
     implementation(libs.gson)
-    implementation(libs.commons.lang3)
+    api(libs.commons.lang3)
     implementation(libs.caffeine)
     implementation(libs.picocli)
     implementation(libs.typetools)
-    implementation(libs.simpleclient)
+    api(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.caffeine)
     implementation(libs.simpleclient.httpserver)
     implementation(libs.prometheus.jmx.collector)
-    implementation(libs.sketches.core)
+    implementation(libs.datasketches.java)
     implementation(libs.jackson.databind)
-    implementation(libs.netty.buffer)
+    api(libs.netty.buffer)
     implementation(libs.netty.common)
-    implementation(libs.bookkeeper.stream.storage.java.client) {
+    api(libs.bookkeeper.stream.storage.java.client) {
         exclude(group = "io.grpc")
         exclude(group = "com.google.protobuf")
     }
@@ -57,13 +57,15 @@ dependencies {
     }
     implementation(libs.grpc.netty.shaded)
     implementation(libs.grpc.stub)
-    implementation(libs.grpc.all)
     runtimeOnly(libs.perfmark.api)
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.log4j.api)
-    implementation(libs.log4j.core)
+    api(libs.log4j.core)
     implementation(libs.bcpkix.jdk18on)
     implementation(libs.bookkeeper.circe.checksum)
+    // Main code only touches com.google.protobuf reflectively (protobuf schema detection for user
+    // functions); tests exercise that path with concrete protobuf types.
+    testImplementation(libs.protobuf.java)
 }
 
 tasks.withType<Test> {

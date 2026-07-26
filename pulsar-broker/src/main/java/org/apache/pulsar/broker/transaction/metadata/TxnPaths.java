@@ -92,6 +92,43 @@ public final class TxnPaths {
      */
     public static final String IDX_TXN_ABORTED_BY_POSITION = "idx:txn-aborted-by-position";
 
+    /**
+     * Index: list all {@code /txn/op} records for a txn. Key = {@code txnId}. Used by the v5 TC
+     * at end-txn time to enumerate the txn's participants without scanning the whole
+     * {@code /txn/op} namespace.
+     */
+    public static final String IDX_OPS_BY_TXN = "idx:ops-by-txn";
+
+    /** Path prefix for per-tcId txnId-sequence counter documents. */
+    public static final String TXN_TC_SEQ_PREFIX = "/txn/tc-seq";
+
+    /** @return {@code /txn/tc-seq/<tcId>} — the txnId-sequence counter doc for {@code tcId}. */
+    public static String tcSequencePath(long tcId) {
+        return TXN_TC_SEQ_PREFIX + "/" + tcId;
+    }
+
+    /**
+     * Path prefix for the per-partition transaction-coordinator leader-election nodes. Each
+     * partition {@code N} has a {@code LeaderElection} under {@code /txn/tc/leader/<N>} whose
+     * value is the {@link TcLeader} currently coordinating that partition. Replaces the
+     * {@code transaction_coordinator_assign} topic as the v5 TC's election surface — election
+     * rests on the metadata store directly, not on topic/bundle ownership.
+     */
+    public static final String TXN_TC_LEADER_PREFIX = "/txn/tc/leader";
+
+    /** @return {@code /txn/tc/leader/<partition>} — the leader-election node for {@code partition}. */
+    public static String tcLeaderPath(int partition) {
+        return TXN_TC_LEADER_PREFIX + "/" + partition;
+    }
+
+    /**
+     * Cluster-wide record of the scalable-topics TC parallelism, written once by the first broker to
+     * start. Every broker verifies its configured value against this and refuses to start on a
+     * mismatch, so the coordinator-count encoded in transaction ids stays stable for the cluster's
+     * lifetime.
+     */
+    public static final String TXN_TC_PARALLELISM_PATH = "/txn/tc/parallelism";
+
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 
@@ -277,6 +314,20 @@ public final class TxnPaths {
             return null;
         }
         return name.substring(0, dash);
+    }
+
+    /**
+     * Extract the {@code txnId} key from a header path under {@link #TXN_HEADER_PREFIX}. The layout
+     * is {@code /txn/id/<txnId>}, so the txnId key is the trailing path component.
+     *
+     * @return the txnId key, or {@code null} if {@code headerPath} doesn't have the expected shape
+     */
+    public static String txnIdFromHeaderPath(String headerPath) {
+        int lastSlash = headerPath.lastIndexOf('/');
+        if (lastSlash < 0 || lastSlash == headerPath.length() - 1) {
+            return null;
+        }
+        return headerPath.substring(lastSlash + 1);
     }
 
     private TxnPaths() {}

@@ -307,7 +307,7 @@ public class MockBrokerService {
             startMockBrokerService();
             log.info().attr("serviceOn", getBrokerAddress()).log("Started mock Pulsar service on");
 
-            lookupData = new LookupData(getBrokerAddress(), null,
+            lookupData = new LookupData(getBrokerId(), getBrokerAddress(), null,
                     getHttpAddress(), null);
         } catch (Exception e) {
             log.error().exception(e).log("Error starting mock service");
@@ -439,6 +439,10 @@ public class MockBrokerService {
 
     public void resetHandleCloseConsumer() {
         handleCloseConsumer = null;
+    }
+
+    public String getBrokerId() {
+        return String.format("localhost:%d", server.getURI().getPort());
     }
 
     public String getHttpAddress() {

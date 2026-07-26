@@ -41,6 +41,8 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.net.ServerSocket;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -48,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -1127,5 +1130,44 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .subscriptionName(sub).subscribe();
         consumer1.unsubscribe(true);
         assertFalse(consumer1.isConnected());
+    }
+
+    /**
+     * Regression test for https://github.com/apache/pulsar/issues/25997: a broker-assigned redirect
+     * ({@code CloseProducer}/{@code CloseConsumer} carrying an {@code assignedBrokerServiceUrl})
+     * pointing at a wrong or unreachable broker must be honored for the immediate reconnect attempt
+     * only. If that attempt fails, subsequent retries must fall back to topic lookup instead of
+     * staying pinned to the stale address.
+     */
+    @Test
+    public void testStaleBrokerRedirectFallsBackToLookup() throws Exception {
+        String topic = "persistent://my-property/my-ns/staleRedirectFallback";
+        @Cleanup
+        Producer<byte[]> producerInstance = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        Consumer<byte[]> consumerInstance = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("my-subscriber-name").subscribe();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) producerInstance;
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) consumerInstance;
+
+        // An address with no listener behind it: dialing the redirect fails immediately.
+        URI unreachable;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            unreachable = URI.create("pulsar://127.0.0.1:" + socket.getLocalPort());
+        }
+
+        // Deliver the disconnect+redirect exactly as ClientCnx#handleCloseProducer and
+        // #handleCloseConsumer do for a broker unload notification.
+        producer.connectionClosed(producer.getClientCnx(), Optional.of(0L), Optional.of(unreachable));
+        consumer.connectionClosed(consumer.getClientCnx(), Optional.of(0L), Optional.of(unreachable));
+
+        // The redirect dial fails; the clients must recover by looking up the topic again.
+        Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(producer.getState(), State.Ready);
+            assertEquals(consumer.getState(), State.Ready);
+        });
+
+        producer.send("msg".getBytes(UTF_8));
+        assertNotNull(consumer.receive(10, TimeUnit.SECONDS));
     }
 }

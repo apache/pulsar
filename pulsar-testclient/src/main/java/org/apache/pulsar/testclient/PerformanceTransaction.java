@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -46,18 +47,19 @@ import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.Producer;
+import org.apache.pulsar.client.api.v5.ProducerBuilder;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
+import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
+import org.apache.pulsar.client.api.v5.Transaction;
+import org.apache.pulsar.client.api.v5.async.AsyncProducer;
+import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -65,6 +67,15 @@ import picocli.CommandLine.Option;
 @Command(name = "transaction", description = "Test pulsar transaction performance.")
 @CustomLog
 public class PerformanceTransaction extends PerformanceBaseArguments{
+
+    /** Same v4-compat SubscriptionType flag as PerformanceConsumer. See its javadoc. */
+    public enum SubscriptionType {
+        Exclusive,
+        Shared,
+        Failover,
+        Key_Shared
+    }
+
 
     private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
     private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
@@ -110,6 +121,15 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             + "not trying to create a topic")
     public Integer partitions = null;
 
+    @Option(names = {"--scalable"}, description = "Create the producer/consumer topics as scalable"
+            + " topics (PIP-473) with --scalable-segments initial segments. Required for transactions"
+            + " against the scalable-topics (v5) coordinator. Mutually exclusive with --partitions.")
+    public boolean scalable = false;
+
+    @Option(names = {"--scalable-segments"}, description = "Number of initial segments for scalable"
+            + " topics created via --scalable.")
+    public int scalableSegments = 1;
+
     @Option(names = {"-time",
             "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
     public long testTime = 0;
@@ -122,7 +142,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     public int numSubscriptions = 1;
 
     @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.EARLIEST;
 
     @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
     public SubscriptionType subscriptionType = SubscriptionType.Shared;
@@ -197,7 +217,27 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
         for (int i = 0; i < payloadBytes.length; ++i) {
             payloadBytes[i] = (byte) (random.nextInt(26) + 65);
         }
-        if (this.partitions != null) {
+        if (this.scalable) {
+            // Scalable topics (PIP-473) must be pre-created via the admin API — they don't
+            // auto-create on produce. Create both the produce and consume topics so a
+            // transaction against the scalable-topics coordinator has segment participants.
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(this, this.adminURL);
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
+                List<String> allTopics = new ArrayList<>(this.producerTopic);
+                allTopics.addAll(this.consumerTopic);
+                for (String topic : allTopics) {
+                    try {
+                        adminClient.scalableTopics().createScalableTopic(topic, this.scalableSegments);
+                        log.info().attr("topic", topic).attr("segments", this.scalableSegments)
+                                .log("Created scalable topic");
+                    } catch (PulsarAdminException.ConflictException alreadyExists) {
+                        log.debug().attr("topic", topic).attr("exists", alreadyExists)
+                                .log("Scalable topic already exists");
+                    }
+                }
+            }
+        } else if (this.partitions != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
                     .createAdminBuilderFromArguments(this, this.adminURL);
 
@@ -226,9 +266,19 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             }
         }
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
-                .enableTransaction(!this.isDisableTransaction);
+        if (this.subscriptionType == SubscriptionType.Exclusive
+                || this.subscriptionType == SubscriptionType.Failover) {
+            log.warn().attr("type", this.subscriptionType)
+                    .log("V5 has no exclusive/failover subscription type. Falling back to QueueConsumer "
+                            + "(Shared-style work distribution).");
+        }
 
+        PulsarClientBuilder clientBuilder = PerfClientUtils.createV5ClientBuilderFromArguments(this);
+        if (!this.isDisableTransaction) {
+            clientBuilder.transactionPolicy(TransactionPolicy.builder()
+                    .timeout(Duration.ofSeconds(this.transactionTimeout))
+                    .build());
+        }
         PulsarClient client = clientBuilder.build();
         try {
 
@@ -261,16 +311,13 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                     //responsible for the production and consumption tasks of the transaction through the loop.
                     //A thread may perform tasks of multiple transactions in a traversing manner.
                     List<Producer<byte[]>> producers = null;
-                    List<List<Consumer<byte[]>>> consumers = null;
+                    List<List<QueueConsumer<byte[]>>> consumers = null;
                     AtomicReference<Transaction> atomicReference = null;
                     try {
                         producers = buildProducers(client);
                         consumers = buildConsumer(client);
                         if (!this.isDisableTransaction) {
-                            atomicReference = new AtomicReference<>(client.newTransaction()
-                                    .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
-                                    .build()
-                                    .get());
+                            atomicReference = new AtomicReference<>(client.newTransaction());
                         } else {
                             atomicReference = new AtomicReference<>(null);
                         }
@@ -310,8 +357,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                             }
                         }
                         Transaction transaction = atomicReference.get();
-                        for (List<Consumer<byte[]>> subscriptions : consumers) {
-                            for (Consumer<byte[]> consumer : subscriptions) {
+                        for (List<QueueConsumer<byte[]>> subscriptions : consumers) {
+                            for (QueueConsumer<byte[]> consumer : subscriptions) {
                                 for (int j = 0; j < this.numMessagesReceivedPerTransaction; j++) {
                                     Message<byte[]> message = null;
                                     try {
@@ -322,102 +369,85 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                         PerfClientUtils.exit(1);
                                     }
                                     long receiveTime = System.nanoTime();
-                                    if (!this.isDisableTransaction) {
-                                        consumer.acknowledgeAsync(message.getMessageId(), transaction)
-                                                .thenRun(() -> {
-                                                    long latencyMicros = NANOSECONDS.toMicros(
-                                                            System.nanoTime() - receiveTime);
-                                                    messageAckRecorder.recordValue(latencyMicros);
-                                                    messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                                    numMessagesAckSuccess.increment();
-                                                }).exceptionally(exception -> {
-                                                    if (PerfClientUtils.hasInterruptedException(exception)) {
-                                                        Thread.currentThread().interrupt();
-                                                        return null;
-                                                    }
-                                                    log.error()
-                                                            .attr("transaction", transaction)
-                                                            .exception(exception)
-                                                            .log("Ack message failed with transaction throw exception");
-                                                    numMessagesAckFailed.increment();
-                                                    return null;
-                                                });
-                                    } else {
-                                        consumer.acknowledgeAsync(message).thenRun(() -> {
-                                            long latencyMicros = NANOSECONDS.toMicros(
-                                                    System.nanoTime() - receiveTime);
-                                            messageAckRecorder.recordValue(latencyMicros);
-                                            messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                            numMessagesAckSuccess.increment();
-                                        }).exceptionally(exception -> {
-                                            if (PerfClientUtils.hasInterruptedException(exception)) {
-                                                Thread.currentThread().interrupt();
-                                                return null;
-                                            }
+                                    // V5 acknowledge is synchronous void. Record latency immediately
+                                    // and catch any failure into the existing counter.
+                                    try {
+                                        if (!this.isDisableTransaction) {
+                                            consumer.acknowledge(message.id(), transaction);
+                                        } else {
+                                            consumer.acknowledge(message.id());
+                                        }
+                                        long latencyMicros = NANOSECONDS.toMicros(
+                                                System.nanoTime() - receiveTime);
+                                        messageAckRecorder.recordValue(latencyMicros);
+                                        messageAckCumulativeRecorder.recordValue(latencyMicros);
+                                        numMessagesAckSuccess.increment();
+                                    } catch (Exception ackEx) {
+                                        if (PerfClientUtils.hasInterruptedException(ackEx)) {
+                                            Thread.currentThread().interrupt();
+                                        } else {
                                             log.error()
-                                                    .attr("transaction", transaction)
-                                                    .exception(exception)
+                                                    .exception(ackEx)
                                                     .log("Ack message failed with transaction throw exception");
                                             numMessagesAckFailed.increment();
-                                            return null;
-                                        });
+                                        }
                                     }
                                 }
                             }
                         }
 
+                        // V5 transaction-aware sends are queued onto an internal dispatch chain,
+                        // so the v4-side txn-coordinator registration of the send can race the
+                        // commit() if commit fires before the chain drains. We collect each
+                        // per-txn send future here and await them all before committing — this is
+                        // also the semantically-correct ordering (commit only after sends land).
+                        java.util.List<java.util.concurrent.CompletableFuture<?>> pendingSends =
+                                new java.util.ArrayList<>();
                         for (Producer<byte[]> producer : producers) {
+                            AsyncProducer<byte[]> asyncProducer = producer.async();
                             for (int j = 0; j < this.numMessagesProducedPerTransaction; j++) {
                                 long sendTime = System.nanoTime();
+                                var msg = asyncProducer.newMessage().value(payloadBytes);
                                 if (!this.isDisableTransaction) {
-                                    producer.newMessage(transaction).value(payloadBytes)
-                                            .sendAsync().thenRun(() -> {
-                                                long latencyMicros = NANOSECONDS.toMicros(
-                                                        System.nanoTime() - sendTime);
-                                                messageSendRecorder.recordValue(latencyMicros);
-                                                messageSendRCumulativeRecorder.recordValue(latencyMicros);
-                                                numMessagesSendSuccess.increment();
-                                            }).exceptionally(exception -> {
-                                                if (PerfClientUtils.hasInterruptedException(exception)) {
-                                                    Thread.currentThread().interrupt();
-                                                    return null;
-                                                }
-                                                // Ignore the exception when the producer is closed
-                                                if (exception.getCause()
-                                                        instanceof PulsarClientException.AlreadyClosedException) {
-                                                    return null;
-                                                }
-                                                log.error()
-                                                        .exception(exception)
-                                                        .log("Send transaction message failed with exception");
-                                                numMessagesSendFailed.increment();
-                                                return null;
-                                            });
-                                } else {
-                                    producer.newMessage().value(payloadBytes)
-                                            .sendAsync().thenRun(() -> {
-                                                long latencyMicros = NANOSECONDS.toMicros(
-                                                        System.nanoTime() - sendTime);
-                                                messageSendRecorder.recordValue(latencyMicros);
-                                                messageSendRCumulativeRecorder.recordValue(latencyMicros);
-                                                numMessagesSendSuccess.increment();
-                                            }).exceptionally(exception -> {
-                                                if (PerfClientUtils.hasInterruptedException(exception)) {
-                                                    Thread.currentThread().interrupt();
-                                                    return null;
-                                                }
-                                                // Ignore the exception when the producer is closed
-                                                if (exception.getCause()
-                                                        instanceof PulsarClientException.AlreadyClosedException) {
-                                                    return null;
-                                                }
-                                                log.error()
-                                                        .exception(exception)
-                                                        .log("Send message failed with exception");
-                                                numMessagesSendFailed.increment();
-                                                return null;
-                                            });
+                                    msg.transaction(transaction);
                                 }
+                                pendingSends.add(msg.send().whenComplete((id, ex) -> {
+                                    if (ex == null) {
+                                        long latencyMicros = NANOSECONDS.toMicros(
+                                                System.nanoTime() - sendTime);
+                                        messageSendRecorder.recordValue(latencyMicros);
+                                        messageSendRCumulativeRecorder.recordValue(latencyMicros);
+                                        numMessagesSendSuccess.increment();
+                                    } else {
+                                        if (PerfClientUtils.hasInterruptedException(ex)) {
+                                            Thread.currentThread().interrupt();
+                                            return;
+                                        }
+                                        // Ignore the exception when the producer is closed
+                                        if (ex.getCause()
+                                                instanceof PulsarClientException.AlreadyClosedException) {
+                                            return;
+                                        }
+                                        log.error()
+                                                .exception(ex)
+                                                .log("Send message failed with exception");
+                                        numMessagesSendFailed.increment();
+                                    }
+                                }));
+                            }
+                        }
+
+                        // Await all pending sends before committing so the txn-coordinator has
+                        // registered every send. allOf().exceptionally() swallows individual send
+                        // failures here — they are already counted in the whenComplete above.
+                        try {
+                            java.util.concurrent.CompletableFuture.allOf(
+                                    pendingSends.toArray(new java.util.concurrent.CompletableFuture[0]))
+                                    .exceptionally(t -> null)
+                                    .join();
+                        } catch (Exception awaitEx) {
+                            if (PerfClientUtils.hasInterruptedException(awaitEx)) {
+                                Thread.currentThread().interrupt();
                             }
                         }
 
@@ -426,7 +456,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                         }
                         if (!this.isDisableTransaction) {
                             if (!this.isAbortTransaction) {
-                                transaction.commit()
+                                transaction.async().commit()
                                         .thenRun(() -> {
                                             numTxnOpSuccess.increment();
                                             totalNumEndTxnOpSuccess.increment();
@@ -436,35 +466,31 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 return null;
                                             }
                                             log.error()
-                                                    .attr("transaction", transaction.getTxnID().toString())
                                                     .exception(exception)
                                                     .log("Commit transaction failed with exception");
                                             totalNumEndTxnOpFailed.increment();
                                             return null;
                                         });
                             } else {
-                                transaction.abort().thenRun(() -> {
-                                    numTxnOpSuccess.increment();
-                                    totalNumEndTxnOpSuccess.increment();
-                                }).exceptionally(exception -> {
-                                    if (PerfClientUtils.hasInterruptedException(exception)) {
-                                        Thread.currentThread().interrupt();
-                                        return null;
-                                    }
-                                    log.error()
-                                            .attr("transaction", transaction.getTxnID().toString())
-                                            .exception(exception)
-                                            .log("Commit transaction failed with exception");
-                                    totalNumEndTxnOpFailed.increment();
-                                    return null;
-                                });
+                                transaction.async().abort()
+                                        .thenRun(() -> {
+                                            numTxnOpSuccess.increment();
+                                            totalNumEndTxnOpSuccess.increment();
+                                        }).exceptionally(exception -> {
+                                            if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                Thread.currentThread().interrupt();
+                                                return null;
+                                            }
+                                            log.error()
+                                                    .exception(exception)
+                                                    .log("Abort transaction failed with exception");
+                                            totalNumEndTxnOpFailed.increment();
+                                            return null;
+                                        });
                             }
                             while (!Thread.currentThread().isInterrupted()) {
                                 try {
-                                    Transaction newTransaction = client.newTransaction()
-                                            .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
-                                            .build()
-                                            .get();
+                                    Transaction newTransaction = client.newTransaction();
                                     atomicReference.compareAndSet(transaction, newTransaction);
                                     totalNumTxnOpenTxnSuccess.increment();
                                     break;
@@ -631,29 +657,29 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
 
 
-    private  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client)
+    private List<List<QueueConsumer<byte[]>>> buildConsumer(PulsarClient client)
             throws ExecutionException, InterruptedException {
-        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES)
-                .subscriptionType(this.subscriptionType)
-                .receiverQueueSize(this.receiverQueueSize)
-                .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .replicateSubscriptionState(this.replicatedSubscription);
 
         Iterator<String> consumerTopicsIterator = this.consumerTopic.iterator();
-        List<List<Consumer<byte[]>>> consumers = new ArrayList<>(this.consumerTopic.size());
+        List<List<QueueConsumer<byte[]>>> consumers = new ArrayList<>(this.consumerTopic.size());
         while (consumerTopicsIterator.hasNext()){
             String topic = consumerTopicsIterator.next();
-            final List<Consumer<byte[]>> subscriptions = new ArrayList<>(this.numSubscriptions);
-            final List<Future<Consumer<byte[]>>> subscriptionFutures =
+            final List<QueueConsumer<byte[]>> subscriptions = new ArrayList<>(this.numSubscriptions);
+            final List<Future<QueueConsumer<byte[]>>> subscriptionFutures =
                     new ArrayList<>(this.numSubscriptions);
             log.info().attr("topic", topic).log("Create subscriptions for topic");
             for (int j = 0; j < this.numSubscriptions; j++) {
                 String subscriberName = this.subscriptions.get(j);
-                subscriptionFutures
-                        .add(consumerBuilder.clone().topic(topic).subscriptionName(subscriberName)
-                                .subscribeAsync());
+                // V5 QueueConsumerBuilder has no clone(); build fresh per subscription.
+                QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
+                        .receiverQueueSize(this.receiverQueueSize)
+                        .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                        .replicateSubscriptionState(this.replicatedSubscription)
+                        .topic(topic)
+                        .subscriptionName(subscriberName);
+                subscriptionFutures.add(b.subscribeAsync());
             }
-            for (Future<Consumer<byte[]>> future : subscriptionFutures) {
+            for (Future<QueueConsumer<byte[]>> future : subscriptionFutures) {
                 subscriptions.add(future.get());
             }
             consumers.add(subscriptions);
@@ -664,13 +690,13 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     private List<Producer<byte[]>> buildProducers(PulsarClient client)
             throws ExecutionException, InterruptedException {
 
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES)
-                .sendTimeout(0, TimeUnit.SECONDS);
-
         final List<Future<Producer<byte[]>>> producerFutures = new ArrayList<>();
         for (String topic : this.producerTopic) {
             log.info().attr("topic", topic).log("Create producer for topic");
-            producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
+            ProducerBuilder<byte[]> b = client.newProducer(Schema.bytes())
+                    .sendTimeout(Duration.ZERO)
+                    .topic(topic);
+            producerFutures.add(b.createAsync());
         }
         final List<Producer<byte[]>> producers = new ArrayList<>(producerFutures.size());
 

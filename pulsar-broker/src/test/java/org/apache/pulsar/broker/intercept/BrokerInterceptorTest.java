@@ -278,7 +278,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
 
         Assert.assertEquals(responseEvent.getResponseStatus(),
-                javax.ws.rs.core.Response.noContent().build().getStatus());
+                jakarta.ws.rs.core.Response.noContent().build().getStatus());
     }
 
     public void requestInterceptorFailedTest() {

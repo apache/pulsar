@@ -48,16 +48,7 @@ final class AsyncCheckpointConsumerV5<T> implements AsyncCheckpointConsumer<T> {
 
     @Override
     public CompletableFuture<List<Message<T>>> receiveMulti(int maxMessages, Duration timeout) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                var msgs = consumer.receiveMulti(maxMessages, timeout);
-                List<Message<T>> result = new java.util.ArrayList<>();
-                msgs.forEach(result::add);
-                return result;
-            } catch (Exception e) {
-                throw new java.util.concurrent.CompletionException(e);
-            }
-        });
+        return consumer.receiveMultiAsync(maxMessages, timeout);
     }
 
     @Override

@@ -185,6 +185,12 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     }
 
     @Override
+    public QueueConsumerBuilderV5<T> replicateSubscriptionState(boolean replicate) {
+        conf.setReplicateSubscriptionState(replicate);
+        return this;
+    }
+
+    @Override
     public QueueConsumerBuilderV5<T> negativeAckRedeliveryBackoff(BackoffPolicy backoff) {
         conf.setNegativeAckRedeliveryBackoff(
                 org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()

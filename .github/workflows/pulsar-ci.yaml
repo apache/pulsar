@@ -25,9 +25,9 @@ on:
       - branch-*
       - pulsar-*
   schedule:
-    # scheduled job with JDK 21
-    - cron: '0 12 * * *'
     # scheduled job with JDK 25
+    - cron: '0 12 * * *'
+    # scheduled job with JDK 21
     # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -37,9 +37,9 @@ on:
         required: true
         type: choice
         options:
-          - '21'
           - '25'
-        default: '21'
+          - '21'
+        default: '25'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
         required: true
@@ -97,13 +97,13 @@ jobs:
       - name: Select JDK major version
         id: jdk_major_version
         run: |
-          # use JDK 25 for the scheduled build with cron expression '0 6 * * *'
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
           if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
-            echo "jdk_major_version=25" >> $GITHUB_OUTPUT
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
             exit 0
           fi
-          # use JDK 21 for build unless overridden with workflow_dispatch input
-          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '21'}}" >> $GITHUB_OUTPUT
+          # use JDK 25 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -177,6 +177,9 @@ jobs:
 
       - name: Check binary licenses
         run: ./gradlew checkBinaryLicense --no-configuration-cache
+
+      - name: Check that project's public libraries can be published to a Maven repository
+        run: ./gradlew publishAllPublicationsToLocalDeployRepository
 
       - name: Upload Gradle reports
         uses: actions/upload-artifact@v4
@@ -258,8 +261,8 @@ jobs:
             group: CLIENT
           - name: Pulsar Metadata
             group: METADATA
-          - name: Protobuf v4
-            group: PROTOBUFV4
+          - name: Protobuf v3
+            group: PROTOBUFV3
 
     steps:
       - name: checkout
@@ -511,6 +514,13 @@ jobs:
           - name: Kubernetes
             group: PULSAR_K8S
 
+          - name: Native Image
+            group: NATIVE_IMAGE
+            runtime_jdk: 25
+            # Native image compilation (even in quick build mode) is slower than a
+            # regular test group, so allow extra headroom over the default timeout.
+            timeout: 40
+
     steps:
       - name: checkout
         uses: actions/checkout@v6
@@ -526,12 +536,22 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
+        if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: |
             ${{ matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && matrix.runtime_jdk || '' }}
             ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      # The NATIVE_IMAGE group compiles a native binary with GraalVM native-build-tools,
+      # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
+      - name: Set up GraalVM
+        if: ${{ matrix.group == 'NATIVE_IMAGE' }}
+        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
+        with:
+          distribution: 'graalvm-community'
+          java-version: 25 # always use GraalVM 25.x
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
@@ -658,7 +678,7 @@ jobs:
 
       - name: Run Trivy container scan
         id: trivy_scan
-        uses: lhotari/sandboxed-trivy-action@555963036b2012b44c1071508a236e569db28ebb
+        uses: lhotari/sandboxed-trivy-action@f01374b6cc3bf7264ab238293e94f6db7ada6dd0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         continue-on-error: true
         with:
@@ -863,14 +883,24 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: true
+
+      - name: Configure Gradle for CodeQL
+        run: |
+          cat >> gradle.properties <<'EOF'
+          
+          org.gradle.configuration-cache=false
+          org.gradle.configureondemand=false
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          org.gradle.daemon=false
+          EOF
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ env.CODEQL_LANGUAGE }}
-
-      - name: Build Java code
-        run: ./gradlew assemble
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
