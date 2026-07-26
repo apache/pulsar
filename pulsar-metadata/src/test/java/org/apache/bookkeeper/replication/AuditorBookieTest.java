@@ -133,13 +133,12 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
             assertTrue("Auditor elector is not running!", auditorElector
                     .isRunning());
         }
-        stopBKCluster();
         stopAuditorElectors();
-
-        startBKCluster(zkUtil.getMetadataServiceUri());
-        //startBKCluster(zkUtil.getMetadataServiceUri()) override the base conf metadataServiceUri
-        baseConf.setMetadataServiceUri(
-                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        // Restart the bookies while preserving their identities (host:port and data dirs).
+        // Tearing the cluster down and recreating bookies with fresh data dirs on recycled
+        // ports fails bookie cookie validation against the cookies that are still registered
+        // in the metadata store, which made this test flaky.
+        restartBookies();
         startAuditorElectors();
         BookieServer newAuditor = waitForNewAuditor(auditor);
         assertNotSame(
@@ -219,6 +218,10 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
             auditorElector.shutdown();
             log.debug("Stopping Auditor Elector!");
         }
+        // The same test instance is reused across test methods, so drop references to the
+        // shut-down electors. Otherwise a later method that iterates over auditorElectors
+        // (e.g. testBookieClusterRestart) would observe stale, already-stopped electors.
+        auditorElectors.clear();
     }
 
     private BookieServer verifyAuditor() throws Exception {

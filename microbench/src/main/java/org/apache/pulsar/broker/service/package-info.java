@@ -16,13 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.collections;
-
 /**
- * An immutable pair of an object and an int value.
+ * Benchmarks for broker service internals.
  */
-public record ObjectIntPair<T>(T left, int rightInt) {
-    public static <T> ObjectIntPair<T> of(T left, int right) {
-        return new ObjectIntPair<>(left, right);
-    }
-}
+package org.apache.pulsar.broker.service;

@@ -299,8 +299,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(l, lB.get(), "Should be the ledger I marked");
     }
 
-    @Test(dataProvider = "zkImpls", timeOut = 10000)
-    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes(String provider, Supplier<String> urlSupplier)
+    @Test(dataProvider = "distributedImpl", timeOut = 10000)
+    public void testMarkReplicatedDeletesEmptyParentNodes(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
 

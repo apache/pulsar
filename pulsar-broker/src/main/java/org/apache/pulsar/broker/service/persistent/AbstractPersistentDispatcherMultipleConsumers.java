@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -64,4 +66,12 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
     public abstract Map<String, TopicMetricBean> getBucketDelayedIndexStats();
 
     public abstract boolean isClassic();
+
+    static long getTotalBytesSize(List<Entry> entries) {
+        long totalBytesSize = 0;
+        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
+            totalBytesSize += entries.get(i).getLength();
+        }
+        return totalBytesSize;
+    }
 }

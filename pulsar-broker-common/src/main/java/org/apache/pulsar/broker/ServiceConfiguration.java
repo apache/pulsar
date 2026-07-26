@@ -826,6 +826,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Time in seconds that a persistent geo-replication replicator may stay idle before the broker"
+                + " disconnects its replication producer. A replicator is eligible only when it has no backlog and"
+                + " has not read entries for replication processing for longer than this threshold. Disconnecting"
+                + " only releases the idle producer; the replicator and its cursor remain available, and the"
+                + " producer is recreated automatically when new messages need to be replicated. Set this value to"
+                + " 0 or a negative value to disable idle-replicator disconnection. The check runs with the"
+                + " inactive-topic monitor, whose interval is brokerDeleteInactiveTopicsFrequencySeconds, and only"
+                + " when brokerDeleteInactiveTopicsEnabled is true. The default is 86400 seconds (24 hours)."
+    )
+    private int brokerReplicationInactiveThresholdSeconds = 24 * 3600;
+
+    @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
@@ -1417,6 +1431,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "Total entry-bucket budget per scalable topic. Entry-buckets are the unit of key-shared "
+                    + "consumption parallelism within a segment, so this budget is how many consumers can "
+                    + "share a single segment's keys. It is distributed across the topic's segments (each "
+                    + "gets floor(budget / segmentCount), at least 1): a single-segment topic starts with "
+                    + "the whole budget, and as the topic splits into more segments each segment settles "
+                    + "toward 1 bucket (full batching)."
+    )
+    private int scalableTopicEntryBucketBudget = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."
@@ -1965,6 +1991,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When enabled, all registered topic-policy listeners in a namespace are re-notified with the current"
+                    + " topic policies after the namespace's topic-policy cache finishes its initial load. Topics load"
+                    + " and apply their own policies when they are loaded, so this broadcast is normally redundant; it"
+                    + " is only needed for custom plugins that register TopicPolicyListeners and depend on it for"
+                    + " backwards compatibility. Disabled by default.")
+    private boolean topicPolicyListenerReplayEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2741,8 +2776,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
-                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
-                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
 
     @FieldContext(
@@ -2765,13 +2799,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If number of unack message range is higher than this limit then broker will persist"
                     + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 200000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
-                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
-                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
-                    + "ranges excluding the acknowledged messages.")
-    private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,

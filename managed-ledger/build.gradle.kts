@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":pulsar-opentelemetry"))
     api(libs.bookkeeper.server)
     api(libs.guava)
+    implementation(libs.fastutil)
     implementation(libs.roaringbitmap)
     implementation(libs.jctools.core.jdk11)
     api(libs.slog)

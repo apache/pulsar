@@ -26,6 +26,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.common.scalable.HashRange;
 
 /**
  * In-memory handle for a consumer registered with the controller leader.
@@ -196,11 +197,14 @@ public class ConsumerSession {
         var proto = new org.apache.pulsar.common.api.proto.ScalableConsumerAssignment()
                 .setLayoutEpoch(assignment.layoutEpoch());
         for (ConsumerAssignment.AssignedSegment seg : assignment.assignedSegments()) {
-            proto.addSegment()
+            var segProto = proto.addSegment()
                     .setSegmentId(seg.segmentId())
                     .setHashStart(seg.hashRange().start())
                     .setHashEnd(seg.hashRange().end())
                     .setSegmentTopic(seg.underlyingTopicName());
+            for (HashRange bucket : seg.bucketRanges()) {
+                segProto.addBucketRange().setStart(bucket.start()).setEnd(bucket.end());
+            }
         }
         return proto;
     }
