@@ -1547,31 +1547,78 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (rc != BKException.Code.OK) {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
-                ManagedLedgerInfo managedLedgerInfo;
+                Position terminatedPosition;
                 synchronized (ManagedLedgerImpl.this) {
                     lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
                     updateClosedLedgerInfo(lh, lh.getLastAddConfirmed(), false);
-                    managedLedgerInfo = getManagedLedgerInfo();
+                    terminatedPosition = lastConfirmedEntry;
                 }
-                // Store the new state in metadata
-                store.asyncUpdateLedgerIds(name, managedLedgerInfo, ledgersStat, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat stat) {
-                        ledgersStat = stat;
-                        log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
-                        maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
-                        callback.terminateComplete(lastConfirmedEntry, ctx);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error().exceptionMessage(e).log("Failed to terminate managed ledger");
-                        handleBadVersion(e);
-                        callback.terminateFailed(new ManagedLedgerException(e), ctx);
-                    }
-                });
+                persistTerminatedLedgerInfo(terminatedPosition, callback, ctx);
             }
         }, null);
+    }
+
+    private void persistTerminatedLedgerInfo(Position terminatedPosition, TerminateCallback callback, Object ctx) {
+        if (!metadataMutex.tryLock()) {
+            try {
+                scheduledExecutor.schedule(() -> persistTerminatedLedgerInfo(terminatedPosition, callback, ctx),
+                        100, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException e) {
+                log.error().exception(e).log("Failed to schedule termination metadata update");
+                callback.terminateFailed(new ManagedLedgerException(e), ctx);
+            }
+            return;
+        }
+
+        CompletableFuture<Stat> updateResult = new CompletableFuture<>();
+        updateResult.whenComplete((stat, ex) -> {
+            if (ex == null) {
+                try {
+                    ledgersStat = stat;
+                    metadataMutex.unlock();
+                    log.info().attr("lastConfirmedEntry", terminatedPosition).log("Terminated managed ledger");
+                    maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
+                } finally {
+                    callback.terminateComplete(terminatedPosition, ctx);
+                }
+            } else {
+                try {
+                    log.error().exceptionMessage(ex).log("Failed to terminate managed ledger");
+                    handleBadVersion(ex);
+                } finally {
+                    try {
+                        metadataMutex.unlock();
+                    } finally {
+                        callback.terminateFailed(new ManagedLedgerException(ex), ctx);
+                    }
+                }
+            }
+        });
+
+        try {
+            ManagedLedgerInfo managedLedgerInfo;
+            synchronized (this) {
+                managedLedgerInfo = getManagedLedgerInfo();
+                managedLedgerInfo.setTerminatedPosition()
+                        .setLedgerId(terminatedPosition.getLedgerId())
+                        .setEntryId(terminatedPosition.getEntryId());
+            }
+
+            // Store the new state in metadata
+            store.asyncUpdateLedgerIds(name, managedLedgerInfo, ledgersStat, new MetaStoreCallback<Void>() {
+                @Override
+                public void operationComplete(Void result, Stat stat) {
+                    updateResult.complete(stat);
+                }
+
+                @Override
+                public void operationFailed(MetaStoreException e) {
+                    updateResult.completeExceptionally(e);
+                }
+            });
+        } catch (RuntimeException e) {
+            updateResult.completeExceptionally(e);
+        }
     }
 
     @Override

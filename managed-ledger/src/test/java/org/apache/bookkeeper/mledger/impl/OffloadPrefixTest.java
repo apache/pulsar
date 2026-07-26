@@ -36,6 +36,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
@@ -1375,6 +1377,75 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertTrue(lastLedgerInfo.getSize() > 0);
         assertTrue(lastLedgerInfo.getTimestamp() > 0);
         assertTrue(lastLedgerInfo.getOffloadContext().isComplete());
+    }
+
+    @Test
+    public void manualOffloadWaitsForTerminationMetadataUpdate() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        String ledgerName = "my_test_ledger" + UUID.randomUUID();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.getLastConfirmedEntry();
+        CountDownLatch terminationMetadataPutStarted = new CountDownLatch(1);
+        CountDownLatch allowTerminationMetadataPut = new CountDownLatch(1);
+        AtomicBoolean allowConcurrentMetadataPuts = new AtomicBoolean();
+        AtomicInteger metadataPutCount = new AtomicInteger();
+        String metadataPath = "/managed-ledgers/" + ledgerName;
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("concurrent metadata update"),
+                (operation, path) -> {
+                    if (operation != FaultInjectionMetadataStore.OperationType.PUT || !metadataPath.equals(path)) {
+                        return false;
+                    }
+                    if (metadataPutCount.incrementAndGet() == 1) {
+                        terminationMetadataPutStarted.countDown();
+                        try {
+                            return !allowTerminationMetadataPut.await(5, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return true;
+                        }
+                    }
+                    return !allowConcurrentMetadataPuts.get();
+                });
+
+        CompletableFuture<Position> terminationResult = new CompletableFuture<>();
+        ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                terminationResult.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                terminationResult.completeExceptionally(exception);
+            }
+        }, null);
+        assertTrue(terminationMetadataPutStarted.await(5, TimeUnit.SECONDS));
+
+        OffloadCallbackPromise offloadResult = new OffloadCallbackPromise();
+        ledger.asyncOffloadPrefix(lastPosition, offloadResult, null);
+        try {
+            assertThrows(TimeoutException.class, () -> offloadResult.get(1, TimeUnit.SECONDS));
+            assertEquals(metadataPutCount.get(), 1);
+        } finally {
+            allowConcurrentMetadataPuts.set(true);
+            allowTerminationMetadataPut.countDown();
+        }
+
+        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        assertEquals(offloadResult.get(5, TimeUnit.SECONDS), lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        assertFalse(ledger.getState().isFenced());
     }
 
     @Test
