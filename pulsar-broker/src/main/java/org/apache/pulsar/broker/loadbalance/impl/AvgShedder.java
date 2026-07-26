@@ -273,7 +273,10 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
-        return candidates.isEmpty() ? Optional.empty() : Optional.of(getExpectedBroker(candidates, bundleToAssign));
+        String bundle = findBundleNameByIdentity(bundleToAssign, loadData);
+        return bundle == null
+                ? candidates.isEmpty() ? Optional.empty() : Optional.of(getExpectedBroker(candidates, bundleToAssign))
+                : selectBrokerWithBundleName(candidates, bundle, bundleToAssign);
     }
 
     @Override
@@ -304,6 +307,19 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         } else {
             return Optional.of(brokerToUnload);
         }
+    }
+
+    private static String findBundleNameByIdentity(BundleData bundleToAssign, LoadData loadData) {
+        // Compatibility path for callers using the legacy API; identity is not retained as strategy state.
+        if (loadData == null) {
+            return null;
+        }
+        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+            if (entry.getValue() == bundleToAssign) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {
