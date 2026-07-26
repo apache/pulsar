@@ -3747,8 +3747,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long current = ledgers.lastKey();
+            LedgerInfo lastLedgerInfo = ledgers.get(current);
             boolean includeLastLedger = STATE_UPDATER.get(this) == State.Terminated
-                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0;
+                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0
+                    && lastLedgerInfo != null
+                    && lastLedgerInfo.getEntries() > 0;
 
             // the first ledger which will not be offloaded. Defaults to current,
             // in the case that the whole headmap is offloaded. Otherwise, it will

@@ -1380,6 +1380,52 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void offloadDoesNotIncludeFinalLedgerBeforeTerminationClose() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.getLastConfirmedEntry();
+        CompletableFuture<Void> closeLedger = bkc.promiseAfter(0);
+        CompletableFuture<Position> terminationResult = new CompletableFuture<>();
+        try {
+            ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+                @Override
+                public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                    terminationResult.complete(lastCommittedPosition);
+                }
+
+                @Override
+                public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                    terminationResult.completeExceptionally(exception);
+                }
+            }, null);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closeLedger.getNumberOfDependents() > 0);
+            assertFalse(terminationResult.isDone());
+            assertEquals(ledger.getLedgersInfo().get(lastLedgerId).getEntries(), 0);
+
+            Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+            assertEquals(firstUnoffloaded, PositionFactory.create(lastLedgerId, 0));
+            assertTrue(offloader.offloadedLedgers().isEmpty());
+        } finally {
+            closeLedger.complete(null);
+        }
+
+        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        assertEquals(ledger.offloadPrefix(lastPosition), lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+    }
+
+    @Test
     public void manualOffloadWaitsForTerminationMetadataUpdate() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
