@@ -22,17 +22,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.ExecutionError;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,20 +51,30 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlight
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.schema.SchemaInfo;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
 public class GeoPersistentReplicatorTest {
 
-    @Test
-    public void testSchemaInfoSynchronousFailureSkipsOuterReadUntilScheduledCursorRewind() throws Exception {
-        ThrowingSchemaReplicator replicator = new ThrowingSchemaReplicator();
+    @DataProvider
+    public static Object[][] synchronousSchemaLookupFailures() {
+        return new Object[][] {
+                { new ExecutionException(new RuntimeException("checked schema provider failure")) },
+                { new UncheckedExecutionException(new RuntimeException("unchecked schema provider failure")) },
+                { new ExecutionError(new AssertionError("schema provider error")) }
+        };
+    }
+
+    @Test(dataProvider = "synchronousSchemaLookupFailures")
+    public void testSchemaInfoSynchronousFailureSkipsOuterReadUntilScheduledCursorRewind(
+            Throwable schemaLookupFailure) throws Exception {
+        ThrowingSchemaReplicator replicator = new ThrowingSchemaReplicator(schemaLookupFailure);
         replicator.forceStarted();
 
         Position firstPosition = PositionFactory.create(1, 2);
@@ -80,6 +93,9 @@ public class GeoPersistentReplicatorTest {
                     .isEqualTo(entries.size());
             verify(firstEntry).release();
             verify(secondEntry).release();
+            assertThat(headersAndPayload.refCnt())
+                    .as("the entry and retained schema lookup buffer should both be released")
+                    .isZero();
             verify(replicator.cursor, never()).rewind();
             verify(replicator.context.executor).schedule(any(Runnable.class),
                     eq((long) PersistentTopic.MESSAGE_RATE_BACKOFF_MS), eq(TimeUnit.MILLISECONDS));
@@ -131,8 +147,9 @@ public class GeoPersistentReplicatorTest {
         private final ReplicatorContext context;
         private int readMoreEntriesCalls;
 
-        ThrowingSchemaReplicator() throws PulsarServerException {
-            this(new ReplicatorContext());
+        ThrowingSchemaReplicator(Throwable schemaLookupFailure)
+                throws PulsarServerException, ExecutionException {
+            this(new ReplicatorContext(schemaLookupFailure));
         }
 
         private ThrowingSchemaReplicator(ReplicatorContext context)
@@ -145,11 +162,6 @@ public class GeoPersistentReplicatorTest {
         @Override
         protected void startProducer() {
             // Avoid creating a real remote producer from the superclass constructor.
-        }
-
-        @Override
-        protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
-            throw new ExecutionException(new RuntimeException("injected schema provider failure"));
         }
 
         @Override
@@ -201,9 +213,15 @@ public class GeoPersistentReplicatorTest {
         }
 
         @SuppressWarnings("unchecked")
-        private static PulsarClientImpl mockReplicationClient() {
+        private static PulsarClientImpl mockReplicationClient(Throwable schemaLookupFailure)
+                throws ExecutionException {
             PulsarClientImpl replicationClient = mock(PulsarClientImpl.class);
+            LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = mock(LoadingCache.class);
             ProducerBuilder<byte[]> producerBuilder = mock(ProducerBuilder.class, RETURNS_SELF);
+            when(replicationClient.getSchemaProviderLoadingCache()).thenReturn(schemaProviderLoadingCache);
+            doAnswer(__ -> {
+                throw schemaLookupFailure;
+            }).when(schemaProviderLoadingCache).get(anyString());
             when(replicationClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
             return replicationClient;
         }
@@ -218,13 +236,14 @@ public class GeoPersistentReplicatorTest {
         private final PulsarClientImpl replicationClient;
         private final PulsarAdmin replicationAdmin;
 
-        private ReplicatorContext() throws PulsarServerException {
+        private ReplicatorContext(Throwable schemaLookupFailure)
+                throws PulsarServerException, ExecutionException {
             this.scheduledTask = new AtomicReference<>();
             this.executor = mock(EventLoopGroup.class);
             this.brokerService = ThrowingSchemaReplicator.mockBrokerService(executor, scheduledTask);
             this.topic = ThrowingSchemaReplicator.mockTopic(brokerService);
             this.cursor = ThrowingSchemaReplicator.mockCursor();
-            this.replicationClient = ThrowingSchemaReplicator.mockReplicationClient();
+            this.replicationClient = ThrowingSchemaReplicator.mockReplicationClient(schemaLookupFailure);
             this.replicationAdmin = mock(PulsarAdmin.class);
         }
     }

@@ -23,7 +23,6 @@ import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -258,12 +257,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 headersAndPayload.retain();
 
-                CompletableFuture<SchemaInfo> schemaFuture;
-                try {
-                    schemaFuture = getSchemaInfo(msg);
-                } catch (ExecutionException e) {
-                    schemaFuture = CompletableFuture.failedFuture(e);
-                }
+                CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
                 if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
                     /**
                      * Skip in flight reading tasks.
