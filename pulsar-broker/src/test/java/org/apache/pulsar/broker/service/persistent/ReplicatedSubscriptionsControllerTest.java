@@ -25,11 +25,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
 import java.time.Clock;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +41,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -51,6 +56,7 @@ import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -157,6 +163,140 @@ public class ReplicatedSubscriptionsControllerTest {
                     .isTrue();
         } finally {
             marker.release();
+            controller.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFinalSnapshotMarkerPublishFailureKeepsSnapshotPending() {
+        PulsarService pulsar = mock(PulsarService.class);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        @SuppressWarnings("rawtypes")
+        ScheduledFuture timer = mock(ScheduledFuture.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setReplicatedSubscriptionsSnapshotFrequencyMillis(60_000);
+        config.setReplicatedSubscriptionsSnapshotTimeoutSeconds(3);
+        OpenTelemetryReplicatedSubscriptionStats stats = mock(OpenTelemetryReplicatedSubscriptionStats.class);
+        BrokerService brokerService = mock(BrokerService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+        Replicator replicator = mock(Replicator.class);
+        List<Topic.PublishContext> publishContexts = new ArrayList<>();
+        AtomicReference<Runnable> scheduledSnapshotTask = new AtomicReference<>();
+
+        when(topic.getName()).thenReturn("persistent://public/default/t1");
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        when(topic.getLastMaxReadPositionMovedForwardTimestamp()).thenReturn(1L);
+        when(topic.getReplicators()).thenReturn(Map.of("remote", replicator));
+        when(replicator.isConnected()).thenReturn(true);
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getOpenTelemetryReplicatedSubscriptionStats()).thenReturn(stats);
+        when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
+                .thenAnswer(invocation -> {
+                    scheduledSnapshotTask.set(invocation.getArgument(0, Runnable.class));
+                    return timer;
+                });
+        doAnswer(invocation -> {
+            publishContexts.add(invocation.getArgument(1, Topic.PublishContext.class));
+            return null;
+        }).when(topic).publishMessage(any(ByteBuf.class), any(Topic.PublishContext.class));
+
+        ReplicatedSubscriptionsController controller = new ReplicatedSubscriptionsController(topic, "local");
+        String snapshotId = null;
+        try {
+            Assert.assertNotNull(scheduledSnapshotTask.get());
+            scheduledSnapshotTask.get().run();
+            Assert.assertEquals(controller.pendingSnapshots().size(), 1);
+            snapshotId = controller.pendingSnapshots().keySet().iterator().next();
+            Assert.assertEquals(publishContexts.size(), 1);
+
+            ByteBuf responseMarker = Markers.newReplicatedSubscriptionsSnapshotResponse(snapshotId, "local",
+                    "remote", 11, 11);
+            try {
+                Commands.skipMessageMetadata(responseMarker);
+                controller.receivedReplicatedSubscriptionMarker(PositionFactory.create(1, 1),
+                        MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE, responseMarker);
+            } finally {
+                responseMarker.release();
+            }
+            Assert.assertEquals(publishContexts.size(), 2);
+
+            publishContexts.get(1).completed(new RuntimeException("final marker publish failed"), -1, -1);
+
+            Assert.assertTrue(controller.pendingSnapshots().containsKey(snapshotId),
+                    "Snapshot should remain pending after the final snapshot marker publish fails");
+            Assert.assertFalse(controller.getLastCompletedSnapshotId().isPresent(),
+                    "Failed final snapshot marker publish should not update the last completed snapshot id");
+        } finally {
+            if (snapshotId != null && controller.pendingSnapshots().containsKey(snapshotId)) {
+                controller.snapshotCompleted(snapshotId);
+            }
+            controller.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testTimeoutCleanupDoesNotRecordTimeoutWhenSnapshotCompletedConcurrently() {
+        PulsarService pulsar = mock(PulsarService.class);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        @SuppressWarnings("rawtypes")
+        ScheduledFuture timer = mock(ScheduledFuture.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setReplicatedSubscriptionsSnapshotFrequencyMillis(60_000);
+        config.setReplicatedSubscriptionsSnapshotTimeoutSeconds(3);
+        OpenTelemetryReplicatedSubscriptionStats stats = mock(OpenTelemetryReplicatedSubscriptionStats.class);
+        BrokerService brokerService = mock(BrokerService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+        Replicator replicator = mock(Replicator.class);
+        AtomicReference<Runnable> scheduledSnapshotTask = new AtomicReference<>();
+
+        when(topic.getName()).thenReturn("persistent://public/default/t1");
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        when(topic.getLastMaxReadPositionMovedForwardTimestamp()).thenReturn(1L, 1L, 0L, 0L);
+        when(topic.getReplicators()).thenReturn(Map.of("remote", replicator));
+        when(replicator.isConnected()).thenReturn(true);
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getOpenTelemetryReplicatedSubscriptionStats()).thenReturn(stats);
+        when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
+                .thenAnswer(invocation -> {
+                    scheduledSnapshotTask.set(invocation.getArgument(0, Runnable.class));
+                    return timer;
+                });
+
+        ReplicatedSubscriptionsController controller = new ReplicatedSubscriptionsController(topic, "local");
+        try {
+            Assert.assertNotNull(scheduledSnapshotTask.get());
+            scheduledSnapshotTask.get().run();
+            Assert.assertEquals(controller.pendingSnapshots().size(), 1);
+            String snapshotId = controller.pendingSnapshots().keySet().iterator().next();
+            ReplicatedSubscriptionsSnapshotBuilder originalBuilder = controller.pendingSnapshots().get(snapshotId);
+
+            AtomicBoolean completedDuringTimeoutCheck = new AtomicBoolean();
+            ReplicatedSubscriptionsSnapshotBuilder completedBuilder =
+                    new ReplicatedSubscriptionsSnapshotBuilder(controller, Set.of("remote"), config,
+                            Clock.systemUTC()) {
+                        @Override
+                        boolean isTimedOut() {
+                            if (completedDuringTimeoutCheck.compareAndSet(false, true)) {
+                                controller.snapshotCompleted(snapshotId);
+                            }
+                            return true;
+                        }
+                    };
+            Assert.assertTrue(controller.pendingSnapshots().replace(snapshotId, originalBuilder, completedBuilder));
+
+            scheduledSnapshotTask.get().run();
+
+            Assert.assertTrue(completedDuringTimeoutCheck.get());
+            Assert.assertFalse(controller.pendingSnapshots().containsKey(snapshotId));
+            verify(stats).recordSnapshotCompleted(anyLong());
+            verify(stats, never()).recordSnapshotTimedOut(anyLong());
+        } finally {
             controller.close();
         }
     }

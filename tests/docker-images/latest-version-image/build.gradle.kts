@@ -21,7 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
-val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.24-alpine")
+val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.25-alpine")
 
 // Ensure the parent project is configured before resolving cross-project task references.
 // Required for --configure-on-demand: the Kotlin DSL needs parent ClassLoaderScopes to be locked.

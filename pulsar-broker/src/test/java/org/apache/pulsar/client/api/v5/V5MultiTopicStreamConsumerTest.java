@@ -29,6 +29,7 @@ import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
@@ -174,6 +175,80 @@ public class V5MultiTopicStreamConsumerTest extends V5ClientBaseTest {
         assertTrue(stale == null,
                 "cumulative ack should have covered every topic; got redelivery: "
                         + (stale != null ? stale.value() : ""));
+    }
+
+    @Test
+    public void closeWithoutAckDoesNotAcknowledgeAnything() throws Exception {
+        // A stream consumer acknowledges only via explicit acknowledgeCumulative. Closing
+        // the consumer (or, equivalently, a crash) must NOT acknowledge anything on the
+        // application's behalf. Regression test for a close-time flush that used to ack each
+        // per-topic consumer up to its prefetch frontier — silently acking messages the
+        // application had buffered but never received. We assert it at the broker: after
+        // receiving every message but acknowledging none, the subscription backlog must
+        // still cover every message. (With the old flush this dropped to 0.)
+        String topicA = topicName("a");
+        String topicB = topicName("b");
+        admin.scalableTopics().createScalableTopic(topicA, 1);
+        admin.scalableTopics().createScalableTopic(topicB, 1);
+
+        @Cleanup
+        Producer<String> pa = v5Client.newProducer(Schema.string()).topic(topicA).create();
+        @Cleanup
+        Producer<String> pb = v5Client.newProducer(Schema.string()).topic(topicB).create();
+
+        String subscription = "multi-stream-close-no-ack";
+        StreamConsumer<String> first = v5Client.newStreamConsumer(Schema.string())
+                .namespace(getNamespace())
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            pa.newMessage().value("a-" + i).send();
+            pb.newMessage().value("b-" + i).send();
+        }
+
+        // Receive every message — advancing each per-topic prefetch frontier — but ack
+        // NOTHING. If close flushed that frontier, all 2n would be acknowledged here.
+        Set<String> receivedFirst = new HashSet<>();
+        long deadline = System.currentTimeMillis() + 20_000L;
+        while (receivedFirst.size() < 2 * n && System.currentTimeMillis() < deadline) {
+            Message<String> msg = first.receive(Duration.ofSeconds(1));
+            if (msg != null) {
+                receivedFirst.add(msg.value());
+            }
+        }
+        assertEquals(receivedFirst.size(), 2 * n, "first consumer should receive every message");
+        first.close();
+
+        // At the broker, every message must still be in the backlog: close acked nothing.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(subscriptionBacklog(subscription, topicA, topicB), 2L * n,
+                        "close must not acknowledge anything; full backlog must remain"));
+    }
+
+    /**
+     * Total delivered-but-unacked backlog for {@code subscription} across every segment of
+     * the given scalable topics. Reads the broker's Topic reference directly — the topics
+     * REST admin does not serve the {@code segment://} domain.
+     */
+    private long subscriptionBacklog(String subscription, String... scalableTopics) throws Exception {
+        long total = 0;
+        for (String topic : scalableTopics) {
+            var stats = admin.scalableTopics().getStats(topic);
+            for (var seg : stats.getSegments().values()) {
+                var ref = getTopicReference(seg.name());
+                if (ref.isEmpty()) {
+                    continue;
+                }
+                var sub = ref.get().getSubscription(subscription);
+                if (sub != null) {
+                    total += sub.getNumberOfEntriesInBacklog(true);
+                }
+            }
+        }
+        return total;
     }
 
     @Test

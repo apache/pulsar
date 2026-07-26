@@ -1436,6 +1436,7 @@ public class ScalableTopicController {
      * Create initial segment layout for a new scalable topic.
      */
     public static ScalableTopicMetadata createInitialMetadata(int numInitialSegments,
+                                                        int entryBucketBudget,
                                                         Map<String, String> properties) {
         if (numInitialSegments < 1) {
             throw new IllegalArgumentException("Must have at least 1 segment");
@@ -1444,12 +1445,17 @@ public class ScalableTopicController {
         int rangeSize = (HashRange.MAX_HASH + 1) / numInitialSegments;
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
 
+        // PIP-486: share the topic's entry-bucket budget equally across the initial segments.
+        List<Integer> entryBucketSplits = EntryBucketSplits.equalWidth(
+                EntryBucketSplits.bucketsForBudget(entryBucketBudget, numInitialSegments));
+
         long nowMs = System.currentTimeMillis();
         for (int i = 0; i < numInitialSegments; i++) {
             int start = i * rangeSize;
             int end = (i == numInitialSegments - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
             HashRange range = HashRange.of(start, end);
-            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs);
+            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs)
+                    .withEntryBucketSplits(entryBucketSplits);
             segments.put((long) i, segment);
         }
 
@@ -1484,10 +1490,16 @@ public class ScalableTopicController {
      * @param partitions     the source partition count; {@code <= 0} means non-partitioned
      */
     public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
-                                                               int partitions) {
+                                                               int partitions,
+                                                               int entryBucketBudget) {
         int n = Math.max(partitions, 1);
         long nowMs = System.currentTimeMillis();
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
+
+        // PIP-486: the active children share the topic's entry-bucket budget. The sealed legacy parents
+        // take no new writes, so they keep a single bucket (no splits).
+        List<Integer> childEntryBucketSplits = EntryBucketSplits.equalWidth(
+                EntryBucketSplits.bucketsForBudget(entryBucketBudget, n));
 
         // Child IDs are N..2N-1; every child lists every parent (full fan-in).
         List<Long> childIds = new ArrayList<>(n);
@@ -1516,7 +1528,8 @@ public class ScalableTopicController {
             long segId = n + j;
             int start = j * rangeSize;
             int end = (j == n - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
-            SegmentInfo child = SegmentInfo.active(segId, HashRange.of(start, end), parentIds, 0, nowMs);
+            SegmentInfo child = SegmentInfo.active(segId, HashRange.of(start, end), parentIds, 0, nowMs)
+                    .withEntryBucketSplits(childEntryBucketSplits);
             segments.put(segId, child);
         }
 

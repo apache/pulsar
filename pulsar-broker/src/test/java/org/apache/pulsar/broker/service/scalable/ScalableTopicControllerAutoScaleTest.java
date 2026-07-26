@@ -153,7 +153,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
     private void startController(int initialSegments) throws Exception {
         resources.createScalableTopicAsync(topicName,
-                ScalableTopicController.createInitialMetadata(initialSegments, Map.of())).get();
+                ScalableTopicController.createInitialMetadata(initialSegments, 4, Map.of())).get();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
         controller.initialize().get();
