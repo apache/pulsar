@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -159,6 +160,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
             }};
+            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage" -> new Object[][]{{
+                    new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
+            }};
             default -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
@@ -188,6 +193,51 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker.containsMessage(3, 3));
 
         tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testExpiredTrackedMessageReturnsFalse(BucketDelayedDeliveryTracker tracker) {
+        clockTime.set(1000);
+        assertTrue(tracker.addMessage(1, 1, 2000));
+        assertTrue(tracker.containsMessage(1, 1));
+
+        clockTime.set(2500);
+
+        assertFalse(
+                "Expired tracked message should return false so dispatcher delivers immediately",
+                tracker.addMessage(1, 1, 2000));
+
+        tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testRecoverThenExpireAddMessage(BucketDelayedDeliveryTracker tracker) throws Exception {
+        clockTime.set(0);
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 1000);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        clockTime.set(0);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 100000, clock, true,
+                bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+        assertTrue(tracker2.containsMessage(1, 1));
+
+        clockTime.set(10000);
+
+        assertFalse(
+                "Recovered message that is now expired should return false",
+                tracker2.addMessage(1, 1, 1000));
+
+        tracker2.close();
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
@@ -505,6 +555,16 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class RecordingDeleteStorage extends MockBucketSnapshotStorage {
+        final AtomicLong deleteCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteCalls.incrementAndGet();
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
     private TrackerWithStorage createTrackerWithMockLedger(long firstLedgerId, int maxNumBuckets)
             throws Exception {
         return createTrackerWithMockLedger(firstLedgerId, maxNumBuckets, new MockBucketSnapshotStorage());
@@ -575,6 +635,38 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimDoesNotDeleteBucketOverlappingFirstActiveLedger() throws Exception {
+        RecordingDeleteStorage storage = new RecordingDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(3L, 4, storage);
+        try {
+            for (long ledgerId = 1; ledgerId <= 6; ledgerId++) {
+                ts.tracker.addMessage(ledgerId, 0L, 1000L);
+            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+                ImmutableBucket bucket = ts.tracker.getImmutableBuckets().asMapOfRanges()
+                        .values().iterator().next();
+                assertTrue(bucket.getSnapshotCreateFuture().orElseThrow().isDone());
+            });
+
+            // The fifth immutable bucket triggers trimming. All buckets have one snapshot segment,
+            // so merging does not remove any snapshots during this test.
+            for (long ledgerId = 7; ledgerId <= 26; ledgerId++) {
+                ts.tracker.addMessage(ledgerId, 0L, 1000L);
+            }
+            Awaitility.await().untilAsserted(
+                    () -> assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 5));
+
+            Awaitility.await().pollDelay(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(
+                    () -> assertEquals(storage.deleteCalls.get(), 0L,
+                            "A bucket overlapping the first active ledger must not be deleted"));
+        } finally {
+            ts.close();
+        }
     }
 
     @Test

@@ -94,6 +94,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -4176,6 +4177,89 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // it's not an estimate if all entries are the same size
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeWhenLatestLedgerIsEmpty() throws Exception {
+        ManagedLedger ledger = factory.open("test_estimated_unacked_size_empty_latest_ledger");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeWhenCursorCaughtUpWithLastPosition() throws Exception {
+        ManagedLedger ledger = factory.open("test_estimated_unacked_size_cursor_caught_up");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        Position lastPosition = ledger.addEntry("entry".getBytes(Encoding));
+        cursor.markDelete(lastPosition);
+
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeWhenCursorAdvancedToEmptyCurrentLedger() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getName()).thenReturn("test_estimated_unacked_size_empty_current_ledger");
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(log);
+
+        long currentLedgerId = 4;
+        Position lastPosition = PositionFactory.create(3, 9);
+        Position markDeletePosition = PositionFactory.create(currentLedgerId, -1);
+        when(ledger.getLastPosition()).thenReturn(lastPosition);
+        when(ledger.ledgerExists(lastPosition.getLedgerId())).thenReturn(true);
+
+        LedgerHandle currentLedger = mock(LedgerHandle.class);
+        when(currentLedger.getId()).thenReturn(currentLedgerId);
+        ledger.currentLedger = currentLedger;
+        ledger.currentLedgerEntries = 0;
+
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
+        cursor.markDeletePosition = markDeletePosition;
+
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
+        verify(ledger, never()).estimateBacklogFromPosition(any());
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeWhenLastPositionLedgerIsNoLongerInLedgerList() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getName()).thenReturn("test_estimated_unacked_size_last_position_ledger_removed");
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(log);
+
+        Position lastPosition = PositionFactory.create(3, 0);
+        Position markDeletePosition = PositionFactory.create(4, -1);
+        when(ledger.getLastPosition()).thenReturn(lastPosition);
+        when(ledger.ledgerExists(lastPosition.getLedgerId())).thenReturn(false);
+
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
+        cursor.markDeletePosition = markDeletePosition;
+
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeFailsWhenCursorIsUnexpectedlyAheadOfLastPosition() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getName()).thenReturn("test_estimated_unacked_size_unexpected_position");
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(log);
+
+        Position lastPosition = PositionFactory.create(1, 10);
+        Position markDeletePosition = PositionFactory.create(2, -1);
+        when(ledger.getLastPosition()).thenReturn(lastPosition);
+        when(ledger.ledgerExists(lastPosition.getLedgerId())).thenReturn(true);
+        when(ledger.ledgerExists(markDeletePosition.getLedgerId())).thenReturn(true);
+
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
+        cursor.markDeletePosition = markDeletePosition;
+
+        IllegalArgumentException exception = Assert.expectThrows(IllegalArgumentException.class,
+                cursor::getEstimatedSizeSinceMarkDeletePosition);
+        assertTrue(exception.getMessage().contains("is ahead of the last position"));
     }
 
     /**

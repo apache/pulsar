@@ -233,6 +233,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.channelState = Constructed;
     }
 
+    @VisibleForTesting
+    Map<String, CompletableFuture<String>> getOwnerRequests() {
+        return getOwnerRequests;
+    }
+
+    @VisibleForTesting
+    Map<String, CompletableFuture<Void>> getCleanupJobs() {
+        return cleanupJobs;
+    }
+
     @Override
     public void scheduleOwnershipMonitor() {
         if (monitorTask == null) {
@@ -855,13 +865,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleSkippedEvent(String serviceUnit) {
+    @VisibleForTesting
+    void handleSkippedEvent(String serviceUnit) {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);
             if (data != null && data.state() == Owned) {
                 getOwnerRequest.complete(data.dstBroker());
-                getOwnerRequests.remove(serviceUnit);
+                // Completing the request can run callbacks that install a newer request for the same service unit.
+                getOwnerRequests.remove(serviceUnit, getOwnerRequest);
                 stateChangeListeners.notify(serviceUnit, data, null);
             }
         }
@@ -1025,7 +1037,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return future;
     }
 
-    private CompletableFuture<String> dedupeGetOwnerRequest(String serviceUnit) {
+    @VisibleForTesting
+    CompletableFuture<String> dedupeGetOwnerRequest(String serviceUnit) {
 
         var requested = new MutableObject<CompletableFuture<String>>();
         try {
@@ -1058,7 +1071,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var future = requested.get();
             if (future != null) {
                 future.whenComplete((__, e) -> {
-                    getOwnerRequests.remove(serviceUnit);
+                    // The request may have been replaced by a later lookup before this callback runs.
+                    getOwnerRequests.remove(serviceUnit, future);
                     if (e != null) {
                         log.warn().attr("broker", brokerId).attr("serviceUnit", serviceUnit).exception(e)
                                 .log("failed to getOwner for serviceUnit");
@@ -1357,14 +1371,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleBrokerCreationEvent(String broker) {
 
-        if (!cleanupJobs.isEmpty() && cleanupJobs.containsKey(broker)) {
+        CompletableFuture<Void> cleanupJob = cleanupJobs.get(broker);
+        if (cleanupJob != null) {
             healthCheckBrokerAsync(broker)
                     .orTimeout(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
                             , MILLISECONDS)
                     .thenAccept(__ -> {
-                        CompletableFuture<Void> future = cleanupJobs.remove(broker);
-                        if (future != null) {
-                            future.cancel(false);
+                        // The health check is async; only cancel the cleanup job observed before the check.
+                        if (cleanupJobs.remove(broker, cleanupJob)) {
+                            cleanupJob.cancel(false);
                             totalInactiveBrokerCleanupCancelledCnt++;
                             log.info().attr("broker", broker).attr("count", cleanupJobs.size())
                                     .log("Successfully cancelled the ownership cleanup for broker: ."
@@ -1430,7 +1445,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return false;
     }
 
-    private void scheduleCleanup(String broker, long delayInSecs) {
+    @VisibleForTesting
+    void scheduleCleanup(String broker, long delayInSecs) {
         var scheduled = new MutableObject<CompletableFuture<Void>>();
         try {
             if (channelDisabled()) {
@@ -1460,7 +1476,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var future = scheduled.get();
             if (future != null) {
                 future.whenComplete((v, ex) -> {
-                    cleanupJobs.remove(broker);
+                    // The job may have been replaced by a later cleanup schedule before this callback runs.
+                    cleanupJobs.remove(broker, future);
                 });
             }
         }

@@ -409,12 +409,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
-        if (containsMessage(ledgerId, entryId)) {
-            return true;
-        }
-
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             return false;
+        }
+
+        if (containsMessage(ledgerId, entryId)) {
+            return true;
         }
 
         boolean existBucket = findImmutableBucket(ledgerId).isPresent();
@@ -887,8 +887,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
         ManagedLedger ledger = context.getCursor().getManagedLedger();
 
-        Map<Range<Long>, ImmutableBucket> toBeDeletedBuckets =
-                new HashMap<>(immutableBuckets.subRangeMap(Range.lessThan(firstLedgerId)).asMapOfRanges());
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBuckets = new HashMap<>();
+        // subRangeMap returns clipped intersection ranges. Snapshot deletion must use the original
+        // bucket range, so only select buckets whose complete range precedes the first live ledger.
+        immutableBuckets.asMapOfRanges().forEach((range, bucket) -> {
+            if (range.upperEndpoint() < firstLedgerId) {
+                toBeDeletedBuckets.put(range, bucket);
+            }
+        });
 
         if (toBeDeletedBuckets.isEmpty()) {
             return CompletableFuture.completedFuture(null);

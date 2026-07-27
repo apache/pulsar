@@ -431,6 +431,9 @@ public class FunctionConfigUtils {
             Map<String, String> schemaProps = new HashMap<>();
             input.forEachSchemaProperties(schemaProps::put);
             consumerConfig.setSchemaProperties(schemaProps);
+            Map<String, String> consumerProps = new HashMap<>();
+            input.forEachConsumerProperties(consumerProps::put);
+            consumerConfig.setConsumerProperties(consumerProps);
             consumerConfig.setPoolMessages(input.isPoolMessages());
             consumerConfigMap.put(topicName, consumerConfig);
         });

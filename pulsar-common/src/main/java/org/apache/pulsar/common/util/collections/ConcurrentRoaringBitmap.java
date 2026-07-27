@@ -116,32 +116,38 @@ class ConcurrentRoaringBitmap implements LongBitmap {
     }
 
     @Override
-    public void remove(long value) {
+    public boolean remove(long value) {
         validateRange(value);
         long stamp = lock.writeLock();
         try {
-            if (bitmap.checkedRemove((int) value)) {
+            boolean removed = bitmap.checkedRemove((int) value);
+            if (removed) {
                 removesSinceTrim++;
                 maybeTrim();
             }
+            return removed;
         } finally {
             lock.unlockWrite(stamp);
         }
     }
 
     @Override
-    public void remove(long from, long to) {
+    public boolean remove(long from, long to) {
         if (to <= from) {
-            return;
+            return false;
         }
         validateRange(from);
         validateRange(to - 1);
         long stamp = lock.writeLock();
         try {
+            long cardinalityBefore = bitmap.getLongCardinality();
             bitmap.remove(from, to);
-            // Range size upper-bounds removals; clamp so a huge range can't overflow the counter.
-            removesSinceTrim = Math.min(removesSinceTrim + (to - from), TRIM_AFTER_REMOVES);
-            maybeTrim();
+            long removedCount = cardinalityBefore - bitmap.getLongCardinality();
+            if (removedCount > 0) {
+                removesSinceTrim += removedCount;
+                maybeTrim();
+            }
+            return removedCount > 0;
         } finally {
             lock.unlockWrite(stamp);
         }
