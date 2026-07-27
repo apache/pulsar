@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -34,6 +35,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
@@ -56,6 +58,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -66,6 +70,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -293,6 +298,75 @@ public class ModularLoadManagerImplTest {
 
     private String mockBundleName(final int i) {
         return String.format("%d/%d/0x00000000_0xffffffff", i, i);
+    }
+
+    @Test
+    public void testFollowerSkipsLoadShedding() {
+        Awaitility.await().until(() -> pulsar1.getLeaderElectionService().isLeader()
+                || pulsar2.getLeaderElectionService().isLeader());
+
+        ModularLoadManagerImpl followerLoadManager = pulsar1.getLeaderElectionService().isLeader()
+                ? secondaryLoadManager : primaryLoadManager;
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        followerLoadManager.setLoadSheddingStrategy(loadSheddingStrategy);
+
+        followerLoadManager.doLoadShedding();
+
+        verifyNoInteractions(loadSheddingStrategy);
+    }
+
+    @Test
+    public void testLoadSheddingStopsWhenLeadershipChangesBeforeUnload() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+
+        AtomicBoolean leader = new AtomicBoolean(true);
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        loadManagerSpy.setLoadSheddingStrategy(loadSheddingStrategy);
+        when(loadSheddingStrategy.findBundlesForUnloading(any(), any()))
+                .thenReturn(ImmutableMultimap.of(primaryBrokerId, mockBundleName(1)));
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldAntiAffinityNamespaceUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> {
+            leader.set(false);
+            return Optional.of(secondaryBrokerId);
+        }).when(loadManagerSpy).selectBroker(any());
+        doNothing().when(loadManagerSpy).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.doLoadShedding();
+
+        verify(loadManagerSpy).selectBroker(any());
+        verify(loadManagerSpy, Mockito.never()).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testBundleDataWriteStopsWhenLeadershipChangesBeforeMetadataWrite() throws Exception {
+        String bundle = mockBundleName(99);
+        BundleData bundleData = new BundleData(10, 1000);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        Awaitility.await().until(() -> primaryLoadManager.getLoadData().getBrokerData().containsKey(primaryBrokerId));
+        AtomicInteger leaderChecks = new AtomicInteger();
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        LoadData loadData = loadManagerSpy.getLoadData();
+        loadData.getBundleData().clear();
+        loadData.getBundleData().put(bundle, bundleData);
+        loadData.getBrokerData().get(primaryBrokerId).getLocalData().getLastStats()
+                .put(bundle, new NamespaceBundleStats());
+        doAnswer(invocation -> leaderChecks.getAndIncrement() < 2).when(loadManagerSpy).isLeader();
+
+        loadManagerSpy.writeBundleDataOnZooKeeper();
+
+        assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
     }
 
     // Test disabled since it's depending on CPU usage in the machine
