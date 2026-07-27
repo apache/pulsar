@@ -301,9 +301,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         lastMetadataSessionEvent = e;
     }
 
+    @VisibleForTesting
+    boolean isLeader() {
+        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
+    }
+
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
                 Thread.currentThread().getContextClassLoader());
+    }
+
+    @VisibleForTesting
+    void setLoadSheddingStrategy(LoadSheddingStrategy loadSheddingStrategy) {
+        this.loadSheddingStrategy = loadSheddingStrategy;
+    }
+
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
     }
 
     /**
@@ -635,6 +650,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public synchronized void doLoadShedding() {
+        if (!isLeader()) {
+            log.debug().log("Skipping load shedding because this broker is not the leader");
+            return;
+        }
         if (!LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
             return;
         }
@@ -684,12 +703,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     return;
                 }
 
-                log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                        .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
-                        .log("Unloading bundle from source broker to dest broker");
                 try {
-                    pulsar.getAdminClient().namespaces()
-                            .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
+                    if (!isLeader()) {
+                        return;
+                    }
+                    log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                            .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
+                            .log("Unloading bundle from source broker to dest broker");
+                    unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                     loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
                     unloadBundleCount++;
                     unloadBundleForBroker.set(true);
@@ -704,6 +725,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         });
 
         updateBundleUnloadingMetrics();
+    }
+
+    @VisibleForTesting
+    void unloadNamespaceBundle(String namespaceName, String bundleRange, String destinationBroker)
+            throws PulsarServerException, PulsarAdminException {
+        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange, destinationBroker);
     }
 
     /**
@@ -1204,20 +1231,34 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
+        if (!isLeader()) {
+            log.debug().log("Skipping bundle data write because this broker is not the leader");
+            return;
+        }
         updateBundleData();
+        if (!isLeader()) {
+            return;
+        }
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // use synchronized to protect bundleArr.
         synchronized (bundleArr) {
             int updateBundleCount = selectTopKBundle();
-            bundleArr.stream().limit(updateBundleCount).forEach(entry -> futures.add(
-                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
-                            entry.getKey(), (BundleData) entry.getValue())));
+            for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
+                if (!isLeader()) {
+                    break;
+                }
+                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
+                        entry.getKey(), (BundleData) entry.getValue()));
+            }
         }
 
         // Write the time average broker data to metadata store.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+            if (!isLeader()) {
+                break;
+            }
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
             futures.add(pulsarResources.getLoadBalanceResources()
