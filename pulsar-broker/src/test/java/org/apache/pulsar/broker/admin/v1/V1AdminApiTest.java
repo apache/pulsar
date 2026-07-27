@@ -113,6 +113,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -127,6 +128,8 @@ import org.testng.annotations.Test;
 public class V1AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(V1AdminApiTest.class);
+
+    private static final String BROKER_SHUTDOWN_TIMEOUT_MS = "brokerShutdownTimeoutMs";
 
     private MockedPulsarService mockPulsarSetup;
 
@@ -189,6 +192,14 @@ public class V1AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @AfterMethod(alwaysRun = true)
     public void reset() throws Exception {
+        if (pulsar == null || !pulsar.isRunning()) {
+            // A test method left the broker stopped, for example because stopBroker() failed. Throwing from
+            // here is a TestNG configuration failure, which makes TestNG skip every remaining test method of
+            // this class. TestRetrySupport recreates the shared test context before the next test method.
+            log.warn("Broker isn't running, skipping the cleanup of the previous test method");
+            return;
+        }
+        restoreBrokerShutdownTimeout();
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
@@ -209,6 +220,25 @@ public class V1AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.tenants().createTenant("prop-xyz", tenantInfo);
         }
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
+    }
+
+    /**
+     * Several test methods of this class lower the {@code brokerShutdownTimeoutMs} dynamic configuration to 10ms.
+     * The broker applies dynamic configuration changes asynchronously, so when the value is left behind it can
+     * become effective while a later test method is shutting the broker down in stopBroker() or restartBroker().
+     * PulsarService#close then fails with "Timeout in close" and leaves the test holding a broker that is no
+     * longer listening, which fails this @AfterMethod and skips the remaining test methods of the class.
+     */
+    private void restoreBrokerShutdownTimeout() throws Exception {
+        String overriddenValue = admin.brokers().getAllDynamicConfigurations().get(BROKER_SHUTDOWN_TIMEOUT_MS);
+        if (overriddenValue == null) {
+            return;
+        }
+        long overriddenTimeoutMs = Long.parseLong(overriddenValue);
+        // removing the dynamic configuration makes the broker restore the value it was started with
+        admin.brokers().deleteDynamicConfiguration(BROKER_SHUTDOWN_TIMEOUT_MS);
+        Awaitility.await().untilAsserted(
+                () -> assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), overriddenTimeoutMs));
     }
 
     @DataProvider(name = "numBundles")
@@ -622,6 +652,9 @@ public class V1AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
         // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
         assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
+        // wait until the broker has applied the value before restoring it below, so that the asynchronous
+        // update cannot set it back to shutdownTime once this test method has completed
+        Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == shutdownTime);
 
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(defaultValue);
     }
