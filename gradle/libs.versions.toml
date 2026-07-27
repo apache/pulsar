@@ -165,7 +165,7 @@ restassured = "5.4.0"
 skyscreamer = "1.5.0"
 # misc
 zstd-jni = "1.5.7-3"
-lz4java = "1.11.0"
+lz4java = "1.11.1"
 spring = "6.2.12"
 kubernetesclient = "26.0.0"
 aws-sdk = "1.12.788"
