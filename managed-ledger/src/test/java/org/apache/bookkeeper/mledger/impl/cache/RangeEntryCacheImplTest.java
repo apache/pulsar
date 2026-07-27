@@ -321,12 +321,16 @@ public class RangeEntryCacheImplTest {
 
         assertThat(future).isCompleted();
         List<Entry> entries = future.getNow(null);
-        assertThat(entries).hasSize(5);
-        for (int i = 0; i < 5; i++) {
-            assertThat(entries.get(i).getEntryId()).isEqualTo(i);
+        try {
+            assertThat(entries).hasSize(5);
+            for (int i = 0; i < 5; i++) {
+                assertThat(entries.get(i).getEntryId()).isEqualTo(i);
+            }
+            // Verify batch read was used, not readUnconfirmedAsync
+            verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        } finally {
+            entries.forEach(Entry::release);
         }
-        // Verify batch read was used, not readUnconfirmedAsync
-        verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
     }
 
     private void performReadAndValidateResult() {

@@ -115,14 +115,15 @@ public class CompositeLedgerEntriesImplTest {
     }
 
     @Test
-    public void testCloseAndRecycle() {
+    public void testCloseIsIdempotent() {
         LedgerEntryImpl e0 = createEntry(1L, 0L, new byte[]{0});
 
         List<LedgerEntry> entries = new ArrayList<>();
         entries.add(e0);
 
+        MockLedgerEntries container = new MockLedgerEntries(entries);
         List<LedgerEntries> containers = new ArrayList<>();
-        containers.add(new MockLedgerEntries(entries));
+        containers.add(container);
 
         CompositeLedgerEntriesImpl combined = (CompositeLedgerEntriesImpl) CompositeLedgerEntriesImpl.create(
                 entries, containers);
@@ -131,10 +132,12 @@ public class CompositeLedgerEntriesImplTest {
         assertThat(combined.iterator().hasNext()).isTrue();
 
         combined.close();
+        combined.close();
 
         // After close, iterator should throw
         assertThatThrownBy(combined::iterator)
-                .isInstanceOf(NullPointerException.class);
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(container.closeCount).isEqualTo(1);
     }
 
     @Test
@@ -207,7 +210,7 @@ public class CompositeLedgerEntriesImplTest {
      */
     private static class MockLedgerEntries implements LedgerEntries {
         private final List<LedgerEntry> entries;
-        private boolean closed = false;
+        private int closeCount;
 
         MockLedgerEntries(List<LedgerEntry> entries) {
             this.entries = entries;
@@ -225,7 +228,7 @@ public class CompositeLedgerEntriesImplTest {
 
         @Override
         public void close() {
-            closed = true;
+            closeCount++;
             entries.forEach(LedgerEntry::close);
         }
     }

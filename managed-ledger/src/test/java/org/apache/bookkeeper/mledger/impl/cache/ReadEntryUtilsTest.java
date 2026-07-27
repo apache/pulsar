@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -140,6 +142,120 @@ public class ReadEntryUtilsTest {
     }
 
     @Test
+    public void testSynchronousBatchReadFailureIsReturnedInFuture() {
+        when(lh.batchReadUnconfirmedAsync(eq(0L), anyInt(), anyLong()))
+                .thenThrow(new UnsupportedOperationException("Batch read is not supported"));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::get)
+                .hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testSynchronousFailureAfterPartialReadReleasesEntries() {
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries firstBatch = createLedgerEntries(closeCount, 1L, 0, 1);
+        when(lh.batchReadUnconfirmedAsync(0L, 5, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(firstBatch));
+        when(lh.batchReadUnconfirmedAsync(2L, 3, 1024L))
+                .thenThrow(new UnsupportedOperationException("Batch read is not supported"));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThat(closeCount).hasValue(1);
+    }
+
+    @Test
+    public void testEmptyBatchAfterPartialReadFailsAndReleasesEntries() {
+        AtomicInteger firstCloseCount = new AtomicInteger();
+        AtomicInteger secondCloseCount = new AtomicInteger();
+        LedgerEntries firstBatch = createLedgerEntries(firstCloseCount, 1L, 0, 1);
+        LedgerEntries secondBatch = wrapLedgerEntries(new ArrayList<>(), secondCloseCount);
+        when(lh.batchReadUnconfirmedAsync(0L, 5, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(firstBatch));
+        when(lh.batchReadUnconfirmedAsync(2L, 3, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(secondBatch));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::get)
+                .hasCauseInstanceOf(ManagedLedgerException.class);
+        assertThat(firstCloseCount).hasValue(1);
+        assertThat(secondCloseCount).hasValue(1);
+    }
+
+    @Test
+    public void testNonContiguousBatchFailsAndReleasesEntries() {
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries entries = createLedgerEntries(closeCount, 1L, 0, 2);
+        when(lh.batchReadUnconfirmedAsync(0L, 3, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 2L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::get)
+                .hasCauseInstanceOf(ManagedLedgerException.class)
+                .hasMessageContaining("non-contiguous");
+        assertThat(closeCount).hasValue(1);
+    }
+
+    @Test
+    public void testExcessiveBatchFailsAndReleasesEntries() {
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries entries = createLedgerEntries(closeCount, 1L, 0, 1, 2);
+        when(lh.batchReadUnconfirmedAsync(0L, 2, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 1L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::get)
+                .hasCauseInstanceOf(ManagedLedgerException.class);
+        assertThat(closeCount).hasValue(1);
+    }
+
+    @Test
+    public void testCancelledBatchReadReleasesResult() {
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries entries = createLedgerEntries(closeCount, 1L, 0, 1);
+        CompletableFuture<LedgerEntries> batchFuture = new CompletableFuture<>();
+        when(lh.batchReadUnconfirmedAsync(0L, 2, 1024L)).thenReturn(batchFuture);
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 1L, true, 1024);
+
+        assertThat(future.cancel(false)).isTrue();
+        batchFuture.complete(entries);
+        assertThat(closeCount).hasValue(1);
+    }
+
+    @Test
+    public void testCancelledPartialBatchReadReleasesResult() {
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries entries = createLedgerEntries(closeCount, 1L, 0);
+        CompletableFuture<LedgerEntries> batchFuture = new CompletableFuture<>();
+        when(lh.batchReadUnconfirmedAsync(0L, 3, 1024L)).thenReturn(batchFuture);
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 2L, true, 1024);
+
+        assertThat(future.cancel(false)).isTrue();
+        batchFuture.complete(entries);
+        assertThat(closeCount).hasValue(1);
+        verify(lh, never()).batchReadUnconfirmedAsync(eq(1L), anyInt(), anyLong());
+    }
+
+    @Test
     public void testBatchReadDisabledFallback() {
         LedgerEntries mockEntries = createLedgerEntries(1L, 0, 1, 2, 3, 4);
         when(lh.readUnconfirmedAsync(0L, 4L))
@@ -173,12 +289,12 @@ public class ReadEntryUtilsTest {
 
     @Test
     public void testBatchReadWithNonLedgerHandle() {
-        ReadHandle rh = mock(ReadHandle.class);
+        ReadHandle rh = mock(ReadHandle.class, CALLS_REAL_METHODS);
         when(rh.getId()).thenReturn(1L);
         LedgerEntries mockEntries = createLedgerEntries(1L, 0, 1, 2);
         // ReadHandle.batchReadUnconfirmedAsync is a default method that delegates to
         // readUnconfirmedAsync for non-LedgerHandle implementations
-        when(rh.batchReadUnconfirmedAsync(eq(0L), eq(3), eq(1024L)))
+        when(rh.readUnconfirmedAsync(0L, 2L))
                 .thenReturn(CompletableFuture.completedFuture(mockEntries));
 
         CompletableFuture<LedgerEntries> future =
@@ -192,6 +308,7 @@ public class ReadEntryUtilsTest {
             }
             assertThat(entryIds).containsExactly(0L, 1L, 2L);
         }
+        verify(rh).readUnconfirmedAsync(0L, 2L);
     }
 
     @Test
@@ -282,16 +399,26 @@ public class ReadEntryUtilsTest {
     // --- helpers ---
 
     private static LedgerEntries createLedgerEntries(long ledgerId, long... entryIds) {
+        return createLedgerEntries(new AtomicInteger(), ledgerId, entryIds);
+    }
+
+    private static LedgerEntries createLedgerEntries(AtomicInteger closeCount, long ledgerId, long... entryIds) {
         List<LedgerEntry> entries = new ArrayList<>();
         for (long entryId : entryIds) {
             entries.add(LedgerEntryImpl.create(ledgerId, entryId, 1,
                     Unpooled.wrappedBuffer(new byte[]{(byte) entryId})));
         }
-        return wrapLedgerEntries(entries);
+        return wrapLedgerEntries(entries, closeCount);
     }
 
     private static LedgerEntries wrapLedgerEntries(List<LedgerEntry> entries) {
+        return wrapLedgerEntries(entries, new AtomicInteger());
+    }
+
+    private static LedgerEntries wrapLedgerEntries(List<LedgerEntry> entries, AtomicInteger closeCount) {
         return new LedgerEntries() {
+            private boolean closed;
+
             @Override
             public LedgerEntry getEntry(long eid) {
                 for (LedgerEntry e : entries) {
@@ -309,7 +436,11 @@ public class ReadEntryUtilsTest {
 
             @Override
             public void close() {
-                entries.forEach(LedgerEntry::close);
+                if (!closed) {
+                    closed = true;
+                    closeCount.incrementAndGet();
+                    entries.forEach(LedgerEntry::close);
+                }
             }
         };
     }

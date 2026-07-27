@@ -19,51 +19,31 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import io.netty.util.Recycler;
+import static com.google.common.base.Preconditions.checkState;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 
 public class CompositeLedgerEntriesImpl implements LedgerEntries {
-    private List<LedgerEntry> entries;
-    private List<LedgerEntries> ledgerEntries;
-    private final Recycler.Handle<CompositeLedgerEntriesImpl> recyclerHandle;
+    private final List<LedgerEntry> entries;
+    private final List<LedgerEntries> ledgerEntries;
+    private boolean closed;
 
-    private CompositeLedgerEntriesImpl(Recycler.Handle<CompositeLedgerEntriesImpl> recyclerHandle) {
-        this.recyclerHandle = recyclerHandle;
+    private CompositeLedgerEntriesImpl(List<LedgerEntry> entries, List<LedgerEntries> ledgerEntries) {
+        this.entries = entries;
+        this.ledgerEntries = ledgerEntries;
     }
-
-    private static final Recycler<CompositeLedgerEntriesImpl> RECYCLER = new Recycler<>() {
-        @Override
-        protected CompositeLedgerEntriesImpl newObject(Recycler.Handle<CompositeLedgerEntriesImpl> handle) {
-            return new CompositeLedgerEntriesImpl(handle);
-        }
-    };
 
     public static LedgerEntries create(List<LedgerEntry> entries, List<LedgerEntries> ledgerEntries) {
         checkArgument(!entries.isEmpty(), "entries for create should not be empty.");
         checkArgument(!ledgerEntries.isEmpty(), "ledgerEntries for create should not be empty.");
-        CompositeLedgerEntriesImpl instance = RECYCLER.get();
-        instance.entries = entries;
-        instance.ledgerEntries = ledgerEntries;
-        return instance;
-    }
-
-    private void recycle() {
-        if (ledgerEntries == null) {
-            return;
-        }
-        ledgerEntries.forEach(LedgerEntries::close);
-        entries = null;
-        ledgerEntries = null;
-        recyclerHandle.recycle(this);
+        return new CompositeLedgerEntriesImpl(entries, ledgerEntries);
     }
 
     @Override
     public LedgerEntry getEntry(long entryId) {
-        checkNotNull(entries, "entries has been recycled");
+        checkState(!closed, "entries have been closed");
         long firstId = entries.get(0).getEntryId();
         long lastId = entries.get(entries.size() - 1).getEntryId();
         if (entryId < firstId || entryId > lastId) {
@@ -81,12 +61,16 @@ public class CompositeLedgerEntriesImpl implements LedgerEntries {
 
     @Override
     public Iterator<LedgerEntry> iterator() {
-        checkNotNull(entries, "entries has been recycled");
+        checkState(!closed, "entries have been closed");
         return entries.iterator();
     }
 
     @Override
     public void close() {
-        recycle();
+        if (closed) {
+            return;
+        }
+        closed = true;
+        ledgerEntries.forEach(LedgerEntries::close);
     }
 }

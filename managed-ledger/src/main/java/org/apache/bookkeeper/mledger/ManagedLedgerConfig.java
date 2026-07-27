@@ -102,8 +102,7 @@ public class ManagedLedgerConfig {
     private boolean batchReadEnabled = false;
 
     /**
-     * Max size in bytes for per-batch read request. If set to 0 or negative,
-     * uses the netty max frame size (default 5MB).
+     * Max size in bytes for per-batch read request. A non-positive value disables batch reads.
      * Batch read may return fewer entries if total size exceeds this limit.
      */
     @Getter
