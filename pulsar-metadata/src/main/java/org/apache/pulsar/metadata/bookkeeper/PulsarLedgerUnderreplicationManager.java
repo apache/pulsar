@@ -186,7 +186,13 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (!store.exists(layoutPath).join()) {
                 LedgerRereplicationLayoutFormat.Builder builder = LedgerRereplicationLayoutFormat.newBuilder();
                 builder.setType(LAYOUT).setVersion(LAYOUT_VERSION);
-                store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).join();
+                try {
+                    store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    if (!(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
+                        throw new RuntimeException(e);
+                    }
+                }
             } else {
                 byte[] layoutData = store.get(layoutPath).join().get().getValue();
 
