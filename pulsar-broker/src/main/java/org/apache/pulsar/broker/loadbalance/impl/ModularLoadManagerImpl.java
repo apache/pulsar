@@ -376,47 +376,56 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Attempt to local the data for the given bundle in metadata store
     // If it cannot be found, return the default bundle data.
+    /**
+     * @deprecated use {@link #getBundleDataOrDefaultAsync(String)} instead.
+     */
+    @Deprecated
     @Override
     public BundleData getBundleDataOrDefault(final String bundle) {
-        BundleData bundleData = null;
-        try {
-            Optional<BundleData> optBundleData =
-                    pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle).join();
-            if (optBundleData.isPresent()) {
-                return optBundleData.get();
-            }
+        return getBundleDataOrDefaultAsync(bundle).join();
+    }
 
-            Optional<ResourceQuota> optQuota = pulsarResources.getLoadBalanceResources().getQuotaResources()
-                    .getQuota(bundle).join();
-            if (optQuota.isPresent()) {
-                ResourceQuota quota = optQuota.get();
-                bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
-                // Initialize from existing resource quotas if new API ZNodes do not exist.
-                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
+    @Override
+    public CompletableFuture<BundleData> getBundleDataOrDefaultAsync(final String bundle) {
+        return pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle)
+                .thenCompose(optBundleData -> {
+                    if (optBundleData.isPresent()) {
+                        return CompletableFuture.completedFuture(optBundleData.get());
+                    }
+                    return pulsarResources.getLoadBalanceResources().getQuotaResources().getQuota(bundle)
+                            .thenApply(optQuota -> {
+                                if (optQuota.isEmpty()) {
+                                    return null;
+                                }
+                                ResourceQuota quota = optQuota.get();
+                                BundleData bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
+                                // Initialize from existing resource quotas if new API ZNodes do not exist.
+                                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
 
-                shortTermData.setMsgRateIn(quota.getMsgRateIn());
-                shortTermData.setMsgRateOut(quota.getMsgRateOut());
-                shortTermData.setMsgThroughputIn(quota.getBandwidthIn());
-                shortTermData.setMsgThroughputOut(quota.getBandwidthOut());
+                                shortTermData.setMsgRateIn(quota.getMsgRateIn());
+                                shortTermData.setMsgRateOut(quota.getMsgRateOut());
+                                shortTermData.setMsgThroughputIn(quota.getBandwidthIn());
+                                shortTermData.setMsgThroughputOut(quota.getBandwidthOut());
 
-                longTermData.setMsgRateIn(quota.getMsgRateIn());
-                longTermData.setMsgRateOut(quota.getMsgRateOut());
-                longTermData.setMsgThroughputIn(quota.getBandwidthIn());
-                longTermData.setMsgThroughputOut(quota.getBandwidthOut());
+                                longTermData.setMsgRateIn(quota.getMsgRateIn());
+                                longTermData.setMsgRateOut(quota.getMsgRateOut());
+                                longTermData.setMsgThroughputIn(quota.getBandwidthIn());
+                                longTermData.setMsgThroughputOut(quota.getBandwidthOut());
 
-                // Assume ample history.
-                shortTermData.setNumSamples(NUM_SHORT_SAMPLES);
-                longTermData.setNumSamples(NUM_LONG_SAMPLES);
-            }
-        } catch (Exception e) {
-            log.warn().attr("bundle", bundle).exceptionMessage(e)
-                    .log("Error when trying to find bundle on metadata store");
-        }
-        if (bundleData == null) {
-            bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats);
-        }
-        return bundleData;
+                                // Assume ample history.
+                                shortTermData.setNumSamples(NUM_SHORT_SAMPLES);
+                                longTermData.setNumSamples(NUM_LONG_SAMPLES);
+                                return bundleData;
+                            });
+                })
+                .exceptionally(e -> {
+                    log.warn().attr("bundle", bundle).exceptionMessage(e)
+                            .log("Error when trying to find bundle on metadata store");
+                    return null;
+                })
+                .thenApply(bundleData -> bundleData != null ? bundleData
+                        : new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats));
     }
 
     // Use the Pulsar client to acquire the namespace bundle stats.
@@ -556,7 +565,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 } else {
                     // Otherwise, attempt to find the bundle data on metadata store.
                     // If it cannot be found, use the latest stats as the first sample.
-                    BundleData currentBundleData = getBundleDataOrDefault(bundle);
+                    BundleData currentBundleData = getBundleDataOrDefaultAsync(bundle).join();
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
                 }
@@ -879,7 +888,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void preallocateBundle(String bundle, String broker) {
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
-                key -> getBundleDataOrDefault(bundle));
+                key -> getBundleDataOrDefaultAsync(bundle).join());
         loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
         preallocatedBundleToBroker.put(bundle, broker);
 
@@ -893,7 +902,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
-                    key -> getBundleDataOrDefault(bundle));
+                    key -> getBundleDataOrDefaultAsync(bundle).join());
             brokerCandidateCache.clear();
             LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                     getAvailableBrokers(),
@@ -993,15 +1002,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // At this point, the ports will be updated with the real port number that the server was assigned
             Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
 
-            lastData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+            lastData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
+                    pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
+                    pulsar.getAdvertisedListeners());
             lastData.setProtocols(protocolData);
             // configure broker-topic mode
             lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
-            localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+            localData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
+                    pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
+                    pulsar.getAdvertisedListeners());
             localData.setProtocols(protocolData);
             localData.setBrokerVersionString(pulsar.getBrokerVersion());
             // configure broker-topic mode

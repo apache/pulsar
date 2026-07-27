@@ -97,7 +97,7 @@ public class BrokerBookieIsolationTest {
     @BeforeMethod
     protected void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(4, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(4, 0);
         bkEnsemble.start();
     }
 

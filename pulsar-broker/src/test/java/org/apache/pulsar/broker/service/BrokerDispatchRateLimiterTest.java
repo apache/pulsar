@@ -20,11 +20,14 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
@@ -35,6 +38,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
+import org.mockito.exceptions.misusing.DisabledMockException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -109,10 +113,18 @@ public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
         }
 
         // Assert broker metrics
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
-        String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsStr);
+        AtomicReference<String> metricsString = new AtomicReference<>();
+        Awaitility.await()
+                .pollInterval(Duration.ofMillis(200))
+                .atMost(Duration.ofSeconds(5))
+                .ignoreExceptionsMatching(exception -> exception.getCause() instanceof DisabledMockException)
+                .untilAsserted(() -> {
+                    ByteArrayOutputStream output = new ByteArrayOutputStream();
+                    PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
+                    metricsString.set(output.toString());
+                    assertFalse(metricsString.get().isEmpty());
+                });
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsString.get());
 
         // Assert subscription metrics reason by broker limit
         Collection<PrometheusMetricsClient.Metric> subscriptionDispatchThrottledMsgCountMetrics =

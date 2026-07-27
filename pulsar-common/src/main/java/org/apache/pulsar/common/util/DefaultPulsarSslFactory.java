@@ -332,6 +332,13 @@ public class DefaultPulsarSslFactory implements PulsarSslFactory {
                 sslParams.setWantClientAuth(true);
             }
         }
+        // Netty 4.2 changed SslContext.newEngine(alloc, peerHost, peerPort) to default the endpoint
+        // identification algorithm to "HTTPS" (it was unset in 4.1). Pulsar applies TLS hostname
+        // verification separately via SecurityUtility.configureSSLHandler(), and only when
+        // tlsHostnameVerificationEnable is set. Clear it here so the engine does not perform unintended
+        // hostname verification (which would otherwise fail whenever the peer host is absent from the
+        // certificate SANs, e.g. internal "localhost" broker connections).
+        sslParams.setEndpointIdentificationAlgorithm(null);
         if (this.config.getTlsProtocols() != null && !this.config.getTlsProtocols().isEmpty()) {
             sslParams.setProtocols(this.config.getTlsProtocols().toArray(new String[0]));
         } else {

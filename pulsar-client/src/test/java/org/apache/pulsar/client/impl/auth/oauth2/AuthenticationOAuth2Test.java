@@ -28,6 +28,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -41,7 +43,9 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -61,6 +65,13 @@ public class AuthenticationOAuth2Test {
         this.clock = new MockClock(Instant.EPOCH, ZoneOffset.UTC);
         this.flow = mock(Flow.class);
         this.auth = new AuthenticationOAuth2(flow, this.clock, 1, null);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void after() throws Exception {
+        if (this.auth != null) {
+            this.auth.close();
+        }
     }
 
     @Test
@@ -108,6 +119,63 @@ public class AuthenticationOAuth2Test {
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
         assertNotNull(this.auth.flow);
+    }
+
+    @Test
+    public void testConfiguredAuthIsSerializable() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("issuerUrl", "http://localhost");
+        params.put("connectTimeout", "PT10S");
+        params.put("readTimeout", "PT30S");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        AuthenticationOAuth2 configuredAuth = new AuthenticationOAuth2();
+        configuredAuth.configure(authParams);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(out)) {
+            objectOutputStream.writeObject(configuredAuth);
+        } finally {
+            configuredAuth.close();
+        }
+    }
+
+    @Test
+    public void testConfigureWithTlsClientAuth() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put(AuthenticationOAuth2.CONFIG_PARAM_TOKEN_ENDPOINT_AUTH_METHOD,
+                TokenEndpointAuthMethod.TLS_CLIENT_AUTH.value());
+        params.put("clientId", "test-client");
+        params.put("tlsCertFile", "/path/to/cert.pem");
+        params.put("tlsKeyFile", "/path/to/key.pem");
+        params.put("issuerUrl", "http://localhost");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        OAuth2MockHttpClient.withMockedSslFactory(() -> {
+            this.auth.configure(authParams);
+            assertNotNull(this.auth.flow);
+            assertEquals(this.auth.flow.getClass(), TlsClientAuthFlow.class);
+        });
+    }
+
+    @Test
+    public void testConfigureCredentialsWithTlsValues() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("tlsCertFile", "/path/to/cert.pem");
+        params.put("tlsKeyFile", "/path/to/key.pem");
+        params.put("issuerUrl", "http://localhost");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        OAuth2MockHttpClient.withMockedSslFactory(() -> {
+            this.auth.configure(authParams);
+            assertNotNull(this.auth.flow);
+            assertEquals(this.auth.flow.getClass(), ClientCredentialsFlow.class);
+        });
     }
 
     // ----- configure() via default constructor -----

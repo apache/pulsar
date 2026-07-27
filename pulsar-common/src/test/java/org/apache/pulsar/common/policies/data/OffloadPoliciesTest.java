@@ -333,6 +333,75 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+    @Test
+    public void brokerExtraConfigMergeTest() {
+        final String bucketPrefix = "o-123/c-456";
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", bucketPrefix);
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", bucketPrefix));
+    }
+
+    @Test
+    public void higherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "brokerOnly", "broker-value");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "topic-prefix");
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("topicOnly", "topic-value");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "topic-prefix",
+                        "brokerOnly", "broker-value",
+                        "topicOnly", "topic-value"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigInheritsBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl nsLevelPolicies = new OffloadPoliciesImpl();
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, nsLevelPolicies, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", ""));
+    }
+
 
     @Test
     public void brokerPropertyCompatibleTest() {

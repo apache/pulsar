@@ -174,9 +174,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers) {
+    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                      boolean supportsScalableTopics) {
         BaseCommand command = Commands.newConnectedCommand(
-                clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
+                clientProtocolVersion, maxMessageSize, supportsTopicWatchers, supportsScalableTopics);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -403,6 +404,23 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         safeIntercept(command, cnx);
         return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
                 command, permitAcquireErrorHandler);
+    }
+
+    @Override
+    public void sendScalableTopicSubscribeResponse(long requestId,
+            org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
+        writeAndFlush(Commands.newScalableTopicSubscribeResponse(requestId, assignment));
+    }
+
+    @Override
+    public void sendScalableTopicSubscribeError(long requestId, ServerError error, String message) {
+        writeAndFlush(Commands.newScalableTopicSubscribeError(requestId, error, message));
+    }
+
+    @Override
+    public void sendScalableTopicAssignmentUpdate(long consumerId,
+            org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
+        writeAndFlush(Commands.newScalableTopicAssignmentUpdate(consumerId, assignment));
     }
 
     private void writeAndFlush(ByteBuf outBuf) {

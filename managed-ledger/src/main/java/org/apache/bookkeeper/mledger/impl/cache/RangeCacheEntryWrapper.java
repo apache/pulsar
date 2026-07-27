@@ -191,6 +191,7 @@ class RangeCacheEntryWrapper {
         size = 0;
         timestampNanos = 0;
         requeueCount = 0;
+        messageMetadataInitialized = false;
         accessed = false;
         recyclerHandle.recycle(this);
     }

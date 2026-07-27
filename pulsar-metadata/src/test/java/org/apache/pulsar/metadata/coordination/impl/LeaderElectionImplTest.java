@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
@@ -61,5 +68,26 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
             }
         });
         blockFuture.join();
+    }
+
+    @Test(timeOut = 20000)
+    public void getLeaderValueTimesOutWhenElectionNeverCompletes() {
+        MetadataStoreExtended store = mock(MetadataStoreExtended.class);
+        // The store never answers, so the election never settles.
+        when(store.get(anyString())).thenReturn(new CompletableFuture<>());
+
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        LeaderElectionImpl<String> le = new LeaderElectionImpl<>(store, String.class,
+                "/getLeaderValueTimesOutWhenElectionNeverCompletes", __ -> {
+        }, executor);
+        le.setLeaderElectionCompletionTimeoutSeconds(1);
+
+        le.elect("test-1");
+
+        assertThatThrownBy(() -> le.getLeaderValue().join())
+                .hasCauseInstanceOf(TimeoutException.class)
+                .cause()
+                .hasMessageContaining("did not complete within");
     }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static java.util.Map.entry;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.broker.service.BacklogQuotaManager.computeEntriesToEvict;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.destination_storage;
@@ -56,6 +57,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
@@ -72,6 +74,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -135,7 +138,7 @@ public class BacklogQuotaManagerTest {
     void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
             bkEnsemble.start();
 
             // start pulsar service
@@ -198,14 +201,28 @@ public class BacklogQuotaManagerTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    void createNamespaces() throws PulsarAdminException {
+    void createNamespaces() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
-        admin.namespaces().createNamespace("prop/ns-quota");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"), false);
-        admin.namespaces().createNamespace("prop/quotahold");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotahold", Sets.newHashSet("usc"), false);
-        admin.namespaces().createNamespace("prop/quotaholdasync");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"), false);
+        createNamespaceForTest("prop/ns-quota");
+        createNamespaceForTest("prop/quotahold");
+        createNamespaceForTest("prop/quotaholdasync");
+    }
+
+    /**
+     * If a previous test's @AfterMethod timed out before the namespace was fully removed, the
+     * leftover would otherwise cascade as HTTP 409 here and fail every subsequent test.
+     * Force-delete and retry so each test starts with clean namespace state.
+     */
+    private void createNamespaceForTest(String ns) throws Exception {
+        try {
+            admin.namespaces().createNamespace(ns);
+        } catch (PulsarAdminException.ConflictException e) {
+            log.warn().attr("namespace", ns)
+                    .log("Namespace already exists from previous test — force-deleting and recreating");
+            deleteNamespaceWithRetry(ns, true);
+            admin.namespaces().createNamespace(ns);
+        }
+        admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("usc"), false);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -2199,5 +2216,131 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
+    }
+
+    private void assertPendingAcks(org.apache.pulsar.broker.service.Consumer consumer, int expected) {
+        PendingAcksMap pendingAcks = consumer.getPendingAcks();
+        assertThat(pendingAcks).isNotNull();
+        assertThat(pendingAcks.size()).isEqualTo(expected);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(expected);
+    }
+
+    @Test
+    public void testConsumerBacklogEvictionSizeQuotaCleansPendingAcks() throws Exception {
+        final int msgSize = 1024;
+        final int quotaSizeLimit = 10 * 1024;
+        final int numMsgs = 20;
+
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitSize(quotaSizeLimit)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build());
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(adminUrl.toString())
+                .build();
+
+        final String topic =
+                BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic-pending-acks-size");
+        final String subName = "key-shared-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = createProducer(client, topic);
+
+        byte[] content = new byte[msgSize];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+        }
+
+        // Receive all messages but don't ack — pending acks accumulate.
+        for (int i = 0; i < numMsgs; i++) {
+            consumer.receive();
+        }
+
+        PersistentTopic topicRef =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription sub = topicRef.getSubscription(subName);
+
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = sub.getDispatcher().getConsumers().get(0);
+        assertThat(sub).isNotNull();
+        assertPendingAcks(brokerConsumer, numMsgs);
+
+        int expectedRemaining = numMsgs - computeEntriesToEvict(
+                (long) numMsgs * msgSize,
+                quotaSizeLimit,
+                numMsgs);
+
+        Awaitility.await()
+                .pollDelay(TIME_TO_CHECK_BACKLOG_QUOTA + 1, SECONDS)
+                .pollInterval(1, SECONDS)
+                .untilAsserted(() -> assertPendingAcks(brokerConsumer, expectedRemaining));
+    }
+
+    @Test
+    public void testConsumerBacklogEvictionTimeQuotaNotPreciseCleansPendingAcks()
+            throws Exception {
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), message_age);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(adminUrl.toString())
+                .build();
+
+        final String topic =
+                BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic-pending-acks-time");
+        final String subName = "key-shared-sub-time";
+        final int numMsgs = 14;
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = createProducer(client, topic);
+
+        byte[] content = new byte[1024];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+        }
+
+        // Receive all messages but don't ack — pending acks accumulate.
+        for (int i = 0; i < numMsgs; i++) {
+            consumer.receive();
+        }
+
+        PersistentTopic topicRef =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription sub = topicRef.getSubscription(subName);
+
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = sub.getDispatcher().getConsumers().get(0);
+        assertThat(sub).isNotNull();
+
+        assertPendingAcks(brokerConsumer, numMsgs);
+
+        // Non-precise eviction removes whole closed ledgers only.
+        // With MAX_ENTRIES_PER_LEDGER=5 and 14 entries:
+        // ledgers are [5, 5, 4]. The last ledger remains open and is not evicted.
+        int expectedRemaining = numMsgs % MAX_ENTRIES_PER_LEDGER;
+
+        Awaitility.await()
+                .pollDelay(TIME_TO_CHECK_BACKLOG_QUOTA * 2, SECONDS)
+                .pollInterval(1, SECONDS)
+                .untilAsserted(() -> assertPendingAcks(brokerConsumer, expectedRemaining));
     }
 }

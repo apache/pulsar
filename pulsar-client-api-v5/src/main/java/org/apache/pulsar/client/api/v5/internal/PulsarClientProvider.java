@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api.v5.internal;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
@@ -28,6 +27,7 @@ import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 
 /**
@@ -79,6 +79,12 @@ public interface PulsarClientProvider {
 
     Schema<byte[]> autoProduceBytesSchema();
 
+    Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo);
+
+    Schema<byte[]> autoProduceBytesSchema(Schema<?> base);
+
+    Schema<GenericRecord> autoConsumeSchema();
+
     // --- Checkpoint ---
 
     Checkpoint checkpointFromBytes(byte[] data) throws IOException;
@@ -86,8 +92,6 @@ public interface PulsarClientProvider {
     Checkpoint earliestCheckpoint();
 
     Checkpoint latestCheckpoint();
-
-    Checkpoint checkpointAtTimestamp(Instant timestamp);
 
     // --- Authentication ---
 

@@ -149,7 +149,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
-        // if replicator producer is already closed, restart it to send snapshot response
         Replicator replicator = topic.getReplicators().get(request.getSourceCluster());
         if (replicator == null) {
             log.warn()
@@ -158,9 +157,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     .log("Received replicated subscription snapshot request from cluster, but no replicator is"
                             + "configured for that cluster. Ignoring the request.");
             return;
-        }
-        if (!replicator.isConnected()) {
-            topic.startReplProducers();
         }
 
         // Send response containing the current last written message id. The response
@@ -217,7 +213,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
         if (sub != null) {
-            sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
+            sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
         } else {
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
             log.info()
@@ -228,7 +224,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
                             true /* replicateSubscriptionState */, Collections.emptyMap())
                     .thenAccept(subscriptionCreated -> {
-                        subscriptionCreated.acknowledgeMessage(Collections.singletonList(pos),
+                        subscriptionCreated.acknowledgeMessageAsync(Collections.singletonList(pos),
                                 AckType.Cumulative, Collections.emptyMap());
                     });
         }

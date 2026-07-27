@@ -55,8 +55,6 @@ public class CmdGenerateDocumentation extends CmdBase{
         cmdClassMap.put("transaction", PerformanceTransaction.class);
         cmdClassMap.put("read", PerformanceReader.class);
         cmdClassMap.put("monitor-brokers", BrokerMonitor.class);
-        cmdClassMap.put("simulation-client", LoadSimulationClient.class);
-        cmdClassMap.put("simulation-controller", LoadSimulationController.class);
         cmdClassMap.put("websocket-producer", PerformanceClient.class);
         cmdClassMap.put("managed-ledger", ManagedLedgerWriter.class);
 

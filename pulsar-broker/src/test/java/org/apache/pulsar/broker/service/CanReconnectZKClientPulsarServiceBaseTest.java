@@ -80,7 +80,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         brokerConfigZk.start();
 
         // Start BK.
-        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0);
         bkEnsemble.start();
     }
 

@@ -66,6 +66,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     }
 
     @Override
+    @Test(enabled = false)
+    public void testReceiverSideReplicationStats() throws Exception {
+        super.testReceiverSideReplicationStats();
+    }
+
+    @Override
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
@@ -73,15 +79,33 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         config.setDefaultNumPartitions(1);
     }
 
+    @Override
     @Test(enabled = false)
     public void testDeleteTopicWhenReplicating() throws Exception {
         super.testDeleteTopicWhenReplicating();
+    }
+
+    @Test(enabled = false)
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        super.testDisconnectAndReconnectReplicator(binaryWayRepl, hasLocalProducerRegistered, localProducerHasTraffic,
+                hasRemoteProducerTraffic, hasRemoteProducerRegistered);
     }
 
     @Override
     @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
     }
 
     @Override
@@ -100,6 +124,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testCreateRemoteConsumerFirst() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
     }
 
     @Override

@@ -116,7 +116,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             } else {
                 effectiveInterceptors = new ArrayList<>(effectiveInterceptors);
             }
-            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor());
+            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor(
+                    client.instrumentProvider()));
         }
 
         return effectiveInterceptors == null || effectiveInterceptors.size() == 0

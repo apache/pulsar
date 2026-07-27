@@ -84,10 +84,6 @@ public class PulsarStandalone implements AutoCloseable {
         this.bkEnsemble = bkEnsemble;
     }
 
-    public void setBkPort(int bkPort) {
-        this.bkPort = bkPort;
-    }
-
     public void setBkDir(String bkDir) {
         this.bkDir = bkDir;
     }
@@ -172,10 +168,6 @@ public class PulsarStandalone implements AutoCloseable {
         return zkPort;
     }
 
-    public int getBkPort() {
-        return bkPort;
-    }
-
     public String getZkDir() {
         return zkDir;
     }
@@ -236,9 +228,6 @@ public class PulsarStandalone implements AutoCloseable {
     @Option(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
     private int zkPort = 2181;
-
-    @Option(names = { "--bookkeeper-port" }, description = "Local bookies base port")
-    private int bkPort = 3181;
 
     @Option(names = { "--zookeeper-dir" },
             description = "Local zooKeeper's data directory",
@@ -470,7 +459,6 @@ public class PulsarStandalone implements AutoCloseable {
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
-                .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
                 .clearOldData(wipeData)
@@ -484,9 +472,9 @@ public class PulsarStandalone implements AutoCloseable {
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
-        // Start LocalBookKeeper
+        // Start LocalBookKeeper. Bookies bind to kernel-assigned ports.
         bkEnsemble = new LocalBookkeeperEnsemble(
-                this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
+                this.getNumOfBk(), this.getZkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
         config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);

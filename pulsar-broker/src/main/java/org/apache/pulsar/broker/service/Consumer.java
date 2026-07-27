@@ -28,6 +28,7 @@ import io.github.merlimat.slog.Logger;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
+import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -72,8 +73,6 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.IntIntPair;
-import org.apache.pulsar.common.util.collections.ObjectIntPair;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -83,6 +82,7 @@ import org.apache.pulsar.transaction.common.exception.TransactionConflictExcepti
 public class Consumer {
 
     private static final Logger LOG = Logger.get(Consumer.class);
+    private static final int PENDING_ACK_NOT_FOUND = PendingAcksMap.PENDING_ACK_NOT_FOUND;
     private final Logger log;
 
     private final Subscription subscription;
@@ -385,9 +385,18 @@ public class Consumer {
                     } else {
                         stickyKeyHash = stickyKeyHashes.get(i);
                     }
-                    boolean sendingAllowed =
-                            pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(), batchSize,
-                                    stickyKeyHash);
+                    boolean sendingAllowed;
+                    long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
+                    int remainingUnacked;
+                    if (ackSet != null) {
+                        remainingUnacked = BitSet.valueOf(ackSet).cardinality();
+                        unackedMessages -= (batchSize - remainingUnacked);
+                    } else {
+                        remainingUnacked = batchSize;
+                    }
+                    sendingAllowed =
+                            pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(),
+                                    remainingUnacked, stickyKeyHash);
                     if (!sendingAllowed) {
                         // sending isn't allowed when pending acks doesn't accept adding the entry
                         // this happens when Key_Shared draining hashes contains the stickyKeyHash
@@ -401,10 +410,6 @@ public class Consumer {
                                 .attr("batchSize", batchSize)
                                 .log("Skipping sending of entry since adding to pending acks failed");
                     } else {
-                        long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
-                        if (ackSet != null) {
-                            unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
-                        }
                         log.debug()
                                 .attr("ledgerId", entry.getLedgerId())
                                 .attr("entryId", entry.getEntryId())
@@ -512,6 +517,10 @@ public class Consumer {
     }
 
     public CompletableFuture<Void> messageAcked(CommandAck ack) {
+        return messageAcked(ack, false);
+    }
+
+    public CompletableFuture<Void> messageAcked(CommandAck ack, boolean requirePersistedAck) {
         CompletableFuture<Long> future;
 
         this.lastAckedTimestamp = System.currentTimeMillis();
@@ -544,22 +553,20 @@ public class Consumer {
                 position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
             }
 
+            List<Position> positionsAcked = Collections.singletonList(position);
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                List<Position> positionsAcked = Collections.singletonList(position);
                 future = transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
                         ack.getTxnidLeastBits(), positionsAcked)
                         .thenApply(unused -> 1L);
+            } else if (requirePersistedAck) {
+                future = subscription.acknowledgeMessageAsync(positionsAcked, AckType.Cumulative, properties)
+                        .thenApply(unused -> 1L);
             } else {
-                List<Position> positionsAcked = Collections.singletonList(position);
-                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
+                subscription.acknowledgeMessageAsync(positionsAcked, AckType.Cumulative, properties);
                 future = CompletableFuture.completedFuture(1L);
             }
         } else {
-            if (ack.hasTxnidLeastBits() && ack.hasTxnidMostBits()) {
-                future = individualAckWithTransaction(ack);
-            } else {
-                future = individualAckNormal(ack, properties);
-            }
+            future = individualAck(ack, properties, requirePersistedAck);
         }
 
         return future
@@ -570,57 +577,182 @@ public class Consumer {
                 });
     }
 
-    //this method is for individual ack not carry the transaction
-    private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
-        List<Pair<Consumer, Position>> positionsAcked = new ArrayList<>();
+    /**
+     * Handles individual acknowledgments, with or without a transaction.
+     *
+     * <p>Non-transactional acks defer pending ack state updates until persistence succeeds.
+     * Transactional acks immediately apply pending ack state updates (preserving the original
+     * timing behavior), and additionally schedule per-position cleanup on txn storage completion.
+     */
+    private CompletableFuture<Long> individualAck(CommandAck ack, Map<String, Long> properties,
+                                                  boolean requirePersistedAck) {
+        boolean hasTxn = ack.hasTxnidLeastBits() && ack.hasTxnidMostBits();
+
+        if (hasTxn && !isTransactionEnabled()) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
+        }
+
+        // Txn path needs consumer+position+batchSize tuples for transactionIndividualAcknowledge.
+        List<Pair<Consumer, MutablePair<Position, Integer>>> txnPositions =
+                hasTxn ? new ArrayList<>() : null;
+        // Non-txn path needs plain positions for acknowledgeMessageAsync.
+        List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>();
+        // Deferred completions for non-txn (applied after persistence).
+        List<PendingAckCompletion> pendingAckCompletions = new ArrayList<>();
         long totalAckCount = 0;
+
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
-            Position position;
+            boolean hasAckSet = msgId.getAckSetsCount() > 0;
             ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize =
                     getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
-            long ackedCount;
-            int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
-            if (msgId.getAckSetsCount() > 0) {
-                long[] ackSets = new long[msgId.getAckSetsCount()];
-                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                    ackSets[j] = msgId.getAckSetAt(j);
-                }
-                position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, ackOwnerConsumer);
-                if (isTransactionEnabled()) {
-                    //sync the batch position bit set point, in order to delete the position in pending acks
-                    if (Subscription.isIndividualAckMode(subType)) {
-                        ((PersistentSubscription) subscription)
-                                .syncBatchPositionBitSetForPendingAck(position);
-                    }
-                }
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-            } else {
-                position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
-                if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                    updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
-                }
+
+            if (hasTxn && ackOwnerConsumerAndBatchSize == null) {
+                log.warn()
+                        .attr("ledgerId", msgId.getLedgerId())
+                        .attr("entryId", msgId.getEntryId())
+                        .log("Acknowledging message that was already deleted");
+                continue;
             }
 
-            positionsAcked.add(Pair.of(ackOwnerConsumer, position));
+            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
 
-            checkAckValidationError(ack, position);
+            if (hasTxn) {
+                // Transactional: use batch size from message ID (not from pendingAcks, which may not
+                // exist for non-Shared subscriptions). PendingAckHandleImpl needs the actual batch size
+                // to correctly track ack set state.
+                int batchSize = msgId.hasBatchSize() ? msgId.getBatchSize() : 0;
+                Position position = AckSetStateUtil.createPositionWithAckSet(
+                        msgId.getLedgerId(), msgId.getEntryId(), null);
+                long ackedCount;
+                if (hasAckSet) {
+                    long[] ackSets = new long[msgId.getAckSetsCount()];
+                    for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                        ackSets[j] = msgId.getAckSetAt(j);
+                    }
+                    AckSetStateUtil.getAckSetState(position).setAckSet(ackSets);
+                    ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
+                } else {
+                    ackedCount = 1;
+                }
+                txnPositions.add(Pair.of(ackOwnerConsumer, MutablePair.of(position, batchSize)));
 
-            totalAckCount += ackedCount;
+                // TODO: If the transaction is later aborted, the unacked count is NOT restored, leading
+                // to an incorrect (lower) unacked message count. Fixing this requires coordinating
+                // with PendingAckHandle's commit/abort callbacks to defer consumer-level state
+                // updates until the transaction outcome is determined.
+                if (hasAckSet && ackedCount > 0) {
+                    boolean updated = ackOwnerConsumer.updateRemainingUnacked(
+                            position.getLedgerId(), position.getEntryId(), (int) ackedCount);
+                    if (updated) {
+                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                    }
+                } else if (!hasAckSet) {
+                    int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
+                            position.getLedgerId(), position.getEntryId());
+                    if (removed != PENDING_ACK_NOT_FOUND) {
+                        addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
+                        updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                    }
+                }
+
+                totalAckCount += ackedCount;
+            } else {
+                // Non-transactional: build position and compute acked count, defer state updates.
+                Position position = buildPosition(msgId);
+                int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
+                long ackedCount = computeAckedCount(msgId, position, ackOwnerConsumer, batchSize);
+
+                nonTxnPositions.add(position);
+                pendingAckCompletions.add(new PendingAckCompletion(ackOwnerConsumer, position,
+                        hasAckSet, ackedCount));
+                totalAckCount += ackedCount;
+            }
+
+            checkAckValidationError(ack, getAckPosition(hasTxn, msgId));
         }
-        subscription.acknowledgeMessage(positionsAcked.stream()
-                .map(Pair::getRight)
-                .collect(Collectors.toList()), AckType.Individual, properties);
-        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(totalAckCount);
-        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(positionPair -> {
-                Consumer ackOwnerConsumer = positionPair.getLeft();
-                Position position = positionPair.getRight();
+
+        final long finalTotalAckCount = totalAckCount;
+
+        if (hasTxn) {
+            CompletableFuture<Void> txnFuture = transactionIndividualAcknowledge(
+                    ack.getTxnidMostBits(), ack.getTxnidLeastBits(),
+                    txnPositions.stream().map(Pair::getRight).collect(Collectors.toList()));
+            if (Subscription.isIndividualAckMode(subType)) {
+                txnFuture.whenComplete((v, e) ->
+                        txnPositions.forEach(positionPair -> {
+                            Consumer ackOwnerConsumer = positionPair.getLeft();
+                            MutablePair<Position, Integer> posAndBatch = positionPair.getRight();
+                            if (AckSetStateUtil.hasAckSet(posAndBatch.getLeft())) {
+                                if (((PersistentSubscription) subscription)
+                                        .checkIsCanDeleteConsumerPendingAck(posAndBatch.left)) {
+                                    removePendingAcks(ackOwnerConsumer, posAndBatch.left);
+                                }
+                            }
+                        }));
+            }
+            return txnFuture.thenApply(__ -> finalTotalAckCount);
+        }
+
+        // Non-transactional
+        CompletableFuture<Void> ackFuture = subscription.acknowledgeMessageAsync(
+                nonTxnPositions, AckType.Individual, properties);
+        if (requirePersistedAck) {
+            return ackFuture.thenApply(unused -> {
+                applyPendingAckCompletions(pendingAckCompletions);
+                return finalTotalAckCount;
+            });
+        }
+        ackFuture.thenRun(() -> applyPendingAckCompletions(pendingAckCompletions));
+        return CompletableFuture.completedFuture(finalTotalAckCount);
+    }
+
+    /**
+     * Get the ack position from the message ID. For txn acks the position is built without ack set,
+     * for non-txn acks it includes ack set data.
+     */
+    private static Position getAckPosition(boolean hasTxn, MessageIdData msgId) {
+        if (hasTxn) {
+            return AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
+        }
+        if (msgId.getAckSetsCount() > 0) {
+            long[] ackSets = new long[msgId.getAckSetsCount()];
+            for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                ackSets[j] = msgId.getAckSetAt(j);
+            }
+            return AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+        }
+        return PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
+    }
+
+
+    private record PendingAckCompletion(Consumer consumer, Position position, boolean hasAckSet, long ackedCount) {
+    }
+
+    private void applyPendingAckCompletions(List<PendingAckCompletion> pendingAckCompletions) {
+        for (PendingAckCompletion pendingAckCompletion : pendingAckCompletions) {
+            Consumer ackOwnerConsumer = pendingAckCompletion.consumer();
+            Position position = pendingAckCompletion.position();
+
+            if (pendingAckCompletion.hasAckSet()) {
+                if (pendingAckCompletion.ackedCount() > 0) {
+                    boolean updated = ackOwnerConsumer.updateRemainingUnacked(
+                            position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletion.ackedCount());
+                    if (updated) {
+                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) pendingAckCompletion.ackedCount());
+                    }
+                }
+            } else {
+                int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
+                        position.getLedgerId(), position.getEntryId());
+                if (removed != PENDING_ACK_NOT_FOUND) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
+                }
+            }
+            updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+
+            if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
                 //check if the position can remove from the consumer pending acks.
                 // the bit set is empty in pending ack handle.
                 if (AckSetStateUtil.hasAckSet(position)) {
@@ -629,115 +761,59 @@ public class Consumer {
                         removePendingAcks(ackOwnerConsumer, position);
                     }
                 }
-            }));
+            }
         }
-        return completableFuture;
     }
 
-
-    //this method is for individual ack carry the transaction
-    private CompletableFuture<Long> individualAckWithTransaction(CommandAck ack) {
-        // Individual ack
-        List<Pair<Consumer, MutablePair<Position, Integer>>> positionsAcked = new ArrayList<>();
-        if (!isTransactionEnabled()) {
-            return FutureUtil.failedFuture(
-                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
-        }
-
-        LongAdder totalAckCount = new LongAdder();
-        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
-            MessageIdData msgId = ack.getMessageIdAt(i);
-            Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
-            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
-                    msgId.getEntryId());
-            if (ackOwnerConsumerAndBatchSize == null) {
-                log.warn()
-                        .attr("position", position)
-                        .log("Acknowledging message that was already deleted");
-                continue;
+    /**
+     * Build the position from the message id, syncing batch index ack state if needed.
+     */
+    private Position buildPosition(MessageIdData msgId) {
+        if (msgId.getAckSetsCount() > 0) {
+            long[] ackSets = new long[msgId.getAckSetsCount()];
+            for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                ackSets[j] = msgId.getAckSetAt(j);
             }
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
-            // acked count at least one
-            long ackedCount;
-            int batchSize;
-            if (msgId.hasBatchSize()) {
-                batchSize = msgId.getBatchSize();
-                // ack batch messages set ackeCount = batchSize
-                ackedCount = msgId.getBatchSize();
-                positionsAcked.add(Pair.of(ackOwnerConsumer, new MutablePair<>(position, msgId.getBatchSize())));
-            } else {
-                // ack no batch message set ackedCount = 1
-                batchSize = 0;
-                ackedCount = 1;
-                positionsAcked.add(Pair.of(ackOwnerConsumer, new MutablePair<>(position, (int) batchSize)));
+            Position position =
+                    AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+            if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+                ((PersistentSubscription) subscription)
+                        .syncBatchPositionBitSetForPendingAck(position);
             }
-
-            if (msgId.getAckSetsCount() > 0) {
-                long[] ackSets = new long[msgId.getAckSetsCount()];
-                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                    ackSets[j] = msgId.getAckSetAt(j);
-                }
-                AckSetStateUtil.getAckSetState(position).setAckSet(ackSets);
-                ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
-            }
-
-            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-
-            checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
-
-            checkAckValidationError(ack, position);
-
-            totalAckCount.add(ackedCount);
+            return position;
         }
-
-        CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
-                ack.getTxnidLeastBits(), positionsAcked.stream().map(Pair::getRight).collect(Collectors.toList()));
-        if (Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) ->
-                    positionsAcked.forEach(positionPair -> {
-                        Consumer ackOwnerConsumer = positionPair.getLeft();
-                        MutablePair<Position, Integer> positionLongMutablePair = positionPair.getRight();
-                        if (AckSetStateUtil.hasAckSet(positionLongMutablePair.getLeft())) {
-                            if (((PersistentSubscription) subscription)
-                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                                removePendingAcks(ackOwnerConsumer, positionLongMutablePair.left);
-                            }
-                        }
-                    }));
-        }
-        return completableFuture.thenApply(__ -> totalAckCount.sum());
+        return PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
     }
 
-    private long getAckedCountForMsgIdNoAckSets(int batchSize, Position position, Consumer consumer) {
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
-            long[] cursorAckSet = getCursorAckSet(position);
-            if (cursorAckSet != null) {
-                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET, consumer);
-            }
+    /**
+     * Compute the number of newly acked batch indexes for batch-index level acks.
+     */
+    private long computeAckedCount(MessageIdData msgId, Position position, Consumer consumer, int batchSize) {
+        if (msgId.getAckSetsCount() <= 0) {
+            // No batch-index ack set: the entire batch is being acked.
+            return batchSize;
         }
-        return batchSize;
-    }
 
-    private long getAckedCountForBatchIndexLevelEnabled(Position position, int batchSize, long[] ackSets,
-                                                        Consumer consumer) {
-        long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
-            && consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
-            long[] cursorAckSet = getCursorAckSet(position);
-            if (cursorAckSet != null) {
-                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-                int lastCardinality = cursorBitSet.cardinality();
-                BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
-                cursorBitSet.and(givenBitSet);
-                givenBitSet.recycle();
-                int currentCardinality = cursorBitSet.cardinality();
-                ackedCount = lastCardinality - currentCardinality;
-                cursorBitSet.recycle();
-            } else {
-                ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
-            }
+        long[] ackSets = new long[msgId.getAckSetsCount()];
+        for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+            ackSets[j] = msgId.getAckSetAt(j);
         }
-        return ackedCount;
+        if (!isAcknowledgmentAtBatchIndexLevelEnabled || !Subscription.isIndividualAckMode(subType)
+                || !consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
+            return 0;
+        }
+        long[] cursorAckSet = getCursorAckSet(position);
+        if (cursorAckSet == null) {
+            return batchSize - BitSet.valueOf(ackSets).cardinality();
+        }
+        BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
+        int lastCardinality = cursorBitSet.cardinality();
+        BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
+        cursorBitSet.and(givenBitSet);
+        givenBitSet.recycle();
+        int currentCardinality = cursorBitSet.cardinality();
+        cursorBitSet.recycle();
+        return lastCardinality - currentCardinality;
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
@@ -745,19 +821,6 @@ public class Consumer {
         long ackedCount = batchSize - bitset.cardinality();
         bitset.recycle();
         return ackedCount;
-    }
-
-    private long getUnAckedCountForBatchIndexLevelEnabled(Position position, int batchSize) {
-        long unAckedCount = batchSize;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-            long[] cursorAckSet = getCursorAckSet(position);
-            if (cursorAckSet != null) {
-                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-                unAckedCount = cursorBitSet.cardinality();
-                cursorBitSet.recycle();
-            }
-        }
-        return unAckedCount;
     }
 
     private void checkAckValidationError(CommandAck ack, Position position) {
@@ -769,14 +832,6 @@ public class Consumer {
         }
     }
 
-    private boolean checkCanRemovePendingAcksAndHandle(Consumer ackOwnedConsumer,
-                                                       Position position, MessageIdData msgId) {
-        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
-            return removePendingAcks(ackOwnedConsumer, position);
-        }
-        return false;
-    }
-
     /**
      * Retrieves the acknowledgment owner consumer and batch size for the specified ledgerId and entryId.
      *
@@ -786,16 +841,16 @@ public class Consumer {
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
-            IntIntPair pendingAck = getPendingAcks().get(ledgerId, entryId);
-            if (pendingAck != null) {
-                return ObjectIntPair.of(this, pendingAck.leftInt());
+            int remainingUnacked = getPendingAcks().getRemainingUnacked(ledgerId, entryId);
+            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                return ObjectIntPair.of(this, remainingUnacked);
             } else {
                 // If there are more consumers, this step will consume more CPU, and it should be optimized later.
                 for (Consumer consumer : subscription.getConsumers()) {
                     if (consumer != this) {
-                        pendingAck = consumer.getPendingAcks().get(ledgerId, entryId);
-                        if (pendingAck != null) {
-                            return ObjectIntPair.of(consumer, pendingAck.leftInt());
+                        remainingUnacked = consumer.getPendingAcks().getRemainingUnacked(ledgerId, entryId);
+                        if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                            return ObjectIntPair.of(consumer, remainingUnacked);
                         }
                     }
                 }
@@ -925,20 +980,16 @@ public class Consumer {
         }
     }
 
-    public boolean checkAndApplyTopicMigration() {
-        if (subscription.isSubscriptionMigrated()) {
-            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar(),
-                    topicName);
-            if (clusterUrl.isPresent()) {
-                ClusterUrl url = clusterUrl.get();
-                cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
-                        url.getBrokerServiceUrlTls());
-                // disconnect consumer after sending migrated cluster url
-                disconnect();
-                return true;
-            }
+    public CompletableFuture<Boolean> checkAndApplyTopicMigrationAsync() {
+        if (!subscription.isSubscriptionMigrated()) {
+            return CompletableFuture.completedFuture(false);
         }
-        return false;
+        return AbstractTopic.getMigratedClusterUrlAsync(cnx.getBrokerService().getPulsar(), topicName)
+                .thenApply(clusterUrl -> {
+                    // topicMigrated() sends the migrated cluster url and disconnects the consumer if present
+                    topicMigrated(clusterUrl);
+                    return clusterUrl.isPresent();
+                });
     }
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
@@ -1121,36 +1172,91 @@ public class Consumer {
         return pendingAcks;
     }
 
+    /**
+     * Atomically decrement the remaining unacked count for the specified position
+     * by the given acknowledged delta.
+     *
+     * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * @return {@code true} if the update succeeds or pendingAcks is null;
+     *         {@code false} otherwise
+     */
+    public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta) {
+        if (pendingAcks != null) {
+            return pendingAcks.updateRemainingUnacked(ledgerId, entryId, ackedDelta);
+        }
+        return true;
+    }
+
+    /**
+     * Atomically remove the pending ack entry and return its stored values.
+     *
+     * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * @return the remaining unacked count, or {@link PendingAcksMap#PENDING_ACK_NOT_FOUND} if not found
+     */
+    public int removePendingAckAndGetRemainingUnacked(long ledgerId, long entryId) {
+        if (pendingAcks != null) {
+            return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+        }
+        return PENDING_ACK_NOT_FOUND;
+    }
+
+    /**
+     * Remove all pending acks up to the given mark-delete position and decrement the consumer's unacked message
+     * counter by the remaining unacked count for each removed entry.
+     *
+     * <p>This is used when the cursor's mark-delete position advances past entries that are still in the consumer's
+     * pending acks. The remaining unacked count accounts for batch index level acknowledgments — only the truly
+     * unacked batch indexes are decremented.
+     *
+     * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
+     * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     */
+    public void removePendingAcksUpToPositionAndDecrementUnacked(long markDeleteLedgerId, long markDeleteEntryId) {
+        if (pendingAcks == null) {
+            return;
+        }
+
+        MutableInt mutableTotalUnacked = new MutableInt(0);
+        pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
+                (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                    mutableTotalUnacked.add(remainingUnacked);
+                });
+        int totalUnacked = mutableTotalUnacked.intValue();
+        if (totalUnacked > 0) {
+            addAndGetUnAckedMsgs(this, -totalUnacked);
+            updateBlockedConsumerOnUnackedMsgs(this);
+        }
+    }
+
     public int getPriorityLevel() {
         return priorityLevel;
     }
 
     public void redeliverUnacknowledgedMessages(long consumerEpoch) {
-        // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        clearUnAckedMsgs();
-        blockedConsumerOnUnackedMsgs = false;
         log.debug("Consumer received redelivery");
 
         if (pendingAcks != null) {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                int unAckedCount =
-                        (int) getUnAckedCountForBatchIndexLevelEnabled(PositionFactory.create(ledgerId, entryId),
-                                batchSize);
-                totalRedeliveryMessages.add(unAckedCount);
+            pendingAcks.forEachAndClear((ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                totalRedeliveryMessages.add(remainingUnacked);
                 pendingPositions.add(PositionFactory.create(ledgerId, entryId));
             });
 
-            for (Position p : pendingPositions) {
-                pendingAcks.remove(p.getLedgerId(), p.getEntryId());
+            if (totalRedeliveryMessages.intValue() > 0) {
+                addAndGetUnAckedMsgs(this, -totalRedeliveryMessages.intValue());
             }
+            blockedConsumerOnUnackedMsgs = false;
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             msgRedeliverCounter.add(totalRedeliveryMessages.intValue());
 
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
+            clearUnAckedMsgs();
+            blockedConsumerOnUnackedMsgs = false;
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
@@ -1162,11 +1268,10 @@ public class Consumer {
         List<Position> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
-            IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (pendingAck != null) {
-                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
-                pendingAcks.remove(position.getLedgerId(), position.getEntryId());
-                totalRedeliveryMessages += unAckedCount;
+            int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
+                    position.getLedgerId(), position.getEntryId());
+            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }
         }
@@ -1183,16 +1288,7 @@ public class Consumer {
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
         msgRedeliverCounter.add(totalRedeliveryMessages);
 
-        int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
-
-        // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
-        if (numberOfBlockedPermits > 0) {
-            MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
-            log.debug()
-                    .attr("numberOfBlockedPermits", numberOfBlockedPermits)
-                    .log("Added blockedPermits to consumer's messagePermits");
-            subscription.consumerFlow(this, numberOfBlockedPermits);
-        }
+        flowConsumerBlockedPermits(this);
     }
 
     public Subscription getSubscription() {

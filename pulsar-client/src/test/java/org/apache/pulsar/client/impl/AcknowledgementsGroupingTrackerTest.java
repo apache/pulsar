@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -28,9 +29,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -56,6 +61,8 @@ public class AcknowledgementsGroupingTrackerTest {
     private ConsumerImpl<?> consumer;
     private EventLoopGroup eventLoopGroup;
     private AtomicBoolean returnCnx = new AtomicBoolean(true);
+    private ChannelHandlerContext successCtx;
+    private AtomicBoolean failAckCommandSend = new AtomicBoolean(false);
 
     @BeforeClass
     public void setup() throws NoSuchFieldException, IllegalAccessException {
@@ -70,9 +77,9 @@ public class AcknowledgementsGroupingTrackerTest {
         doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
         doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
                 .when(consumer).getUnAckedMessageTracker();
-        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        successCtx = ClientTestFixtures.mockChannelHandlerContext();
         doAnswer(invocation -> returnCnx.get() ? cnx : null).when(consumer).getClientCnx();
-        doReturn(ctx).when(cnx).ctx();
+        doReturn(successCtx).when(cnx).ctx();
     }
 
     @DataProvider(name = "isNeedReceipt")
@@ -323,6 +330,60 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
+    @Test
+    public void testFlushRetainsPendingIndividualAckOnSendFailureWithoutAckReceipt() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(false);
+        doReturn(false).when(consumer).isAckReceiptEnabled();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        doReturn(createFailedChannelHandlerContext()).when(cnx).ctx();
+
+        tracker.flush();
+
+        assertTrue(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        doReturn(successCtx).when(cnx).ctx();
+
+        tracker.flush();
+
+        assertFalse(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testFlushFailsAckFutureOnSendFailureWithAckReceipt() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(true);
+        doReturn(true).when(consumer).isAckReceiptEnabled();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        CompletableFuture<Void> ackFuture =
+                tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        failAckCommandSend.set(true);
+        tracker.flush();
+
+        assertTrue(ackFuture.isCompletedExceptionally());
+        assertFalse(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+
+        failAckCommandSend.set(false);
+        tracker.close();
+    }
+
     @Test(dataProvider = "isNeedReceipt")
     public void testBatchAckTrackerMultiAck(boolean isNeedReceipt) throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
@@ -463,12 +524,40 @@ public class AcknowledgementsGroupingTrackerTest {
 
         @Override
         public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
+            if (failAckCommandSend.get()) {
+                return CompletableFuture.failedFuture(new RuntimeException("ack send failed"));
+            }
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
                                                TimedCompletableFuture<Void> future) {
+            if (failAckCommandSend.get()) {
+                future.completeExceptionally(new RuntimeException("ack send failed"));
+            }
         }
+    }
+
+    private ChannelHandlerContext createFailedChannelHandlerContext() {
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        ChannelFuture failedFuture = mock(ChannelFuture.class);
+        when(failedFuture.isSuccess()).thenReturn(false);
+        when(failedFuture.cause()).thenReturn(new RuntimeException("ack send failed"));
+        doAnswer(invocation -> {
+            GenericFutureListener<Future<Void>> listener = invocation.getArgument(0);
+            listener.operationComplete(failedFuture);
+            return listenerFuture;
+        }).when(listenerFuture).addListener(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return listenerFuture;
+        }).when(ctx).write(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return listenerFuture;
+        }).when(ctx).writeAndFlush(any());
+        return ctx;
     }
 }

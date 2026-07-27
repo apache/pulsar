@@ -57,11 +57,12 @@ public class PublishRateLimiterTest {
     private ServerCnx serverCnx;
     private PublishRateLimiterImpl publishRateLimiter;
     private ServerCnxThrottleTracker throttleTracker;
-    private DefaultThreadFactory threadFactory = new DefaultThreadFactory("pulsar-io");
-    private EventLoop eventLoop = new DefaultEventLoop(threadFactory);
+    private final DefaultThreadFactory threadFactory = new DefaultThreadFactory("pulsar-io");
+    private EventLoop eventLoop;
 
     @BeforeMethod
     public void setup() throws Exception {
+        eventLoop = new DefaultEventLoop(threadFactory);
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));

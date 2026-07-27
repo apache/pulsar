@@ -173,7 +173,7 @@ public class ModularLoadManagerImplTest {
         executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         // Start broker 1
@@ -413,6 +413,26 @@ public class ModularLoadManagerImplTest {
         String topicLookupAfterUnload = admin1.lookups().lookupTopic(topic);
         log.debug().attr("topicLookup", topicLookupAfterUnload).log("final broker service url");
         Assert.assertEquals(brokerServiceUrl, topicLookupAfterUnload);
+    }
+
+    @Test
+    public void testBrokerAffinityLookupUsesFullBundleName() throws Exception {
+        String affinityBroker1 = "affinity-broker-1";
+        String affinityBroker2 = "affinity-broker-2";
+        NamespaceBundle bundle1 = makeBundle("tenant-1", "ns-1");
+        NamespaceBundle bundle2 = makeBundle("tenant-1", "ns-2");
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle1.toString(), affinityBroker1);
+        wrapper.setNamespaceBundleAffinity(bundle2.toString(), affinityBroker2);
+
+        Optional<ResourceUnit> leastLoadedBroker1 = wrapper.getLeastLoaded(bundle1);
+        Optional<ResourceUnit> leastLoadedBroker2 = wrapper.getLeastLoaded(bundle2);
+
+        Assert.assertTrue(leastLoadedBroker1.isPresent());
+        Assert.assertTrue(leastLoadedBroker2.isPresent());
+        Assert.assertEquals(leastLoadedBroker1.get().getResourceId(), affinityBroker1);
+        Assert.assertEquals(leastLoadedBroker2.get().getResourceId(), affinityBroker2);
     }
 
     /**
@@ -927,25 +947,32 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
-        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        PulsarService pulsar = new PulsarService(config);
-        // create znode using different zk-session
-        final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
-                + config.getWebServicePort().get();
-        pulsar1.getLocalMetadataStore()
-                .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        // Pre-allocate a port: the test creates a znode at the broker's would-be address before
+        // starting the broker, so it needs to know the address up front.
+        int webPort = PortManager.nextLockedFreePort();
         try {
-            pulsar.start();
-            fail("should have failed");
-        } catch (PulsarServerException e) {
-            //Ok.
-        }
+            config.setWebServicePort(Optional.of(webPort));
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+            config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+            config.setBrokerServicePort(Optional.of(0));
+            PulsarService pulsar = new PulsarService(config);
+            // create znode using different zk-session
+            final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
+                    + config.getWebServicePort().get();
+            pulsar1.getLocalMetadataStore()
+                    .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+            try {
+                pulsar.start();
+                fail("should have failed");
+            } catch (PulsarServerException e) {
+                //Ok.
+            }
 
-        pulsar.close();
+            pulsar.close();
+        } finally {
+            PortManager.releaseLockedPort(webPort);
+        }
     }
 
     @Test
@@ -998,7 +1025,7 @@ public class ModularLoadManagerImplTest {
 
         // get the bundleData of the first bundle range.
         // The default value of the bundleData be the same as resourceQuota because the resourceQuota is present.
-        BundleData defaultBundleData = lm.getBundleDataOrDefault(namespaceBundle.toString());
+        BundleData defaultBundleData = lm.getBundleDataOrDefaultAsync(namespaceBundle.toString()).join();
 
         TimeAverageMessageData shortTermData = defaultBundleData.getShortTermData();
         TimeAverageMessageData longTermData = defaultBundleData.getLongTermData();

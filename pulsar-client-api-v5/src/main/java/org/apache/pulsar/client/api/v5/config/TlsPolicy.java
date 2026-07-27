@@ -18,42 +18,66 @@
  */
 package org.apache.pulsar.client.api.v5.config;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 /**
  * TLS configuration for the Pulsar client connection.
  *
- * @param trustCertsFilePath          path to the trusted CA certificate file (PEM format)
- * @param keyFilePath                 path to the client private key file (PEM format), or {@code null}
- * @param certificateFilePath         path to the client certificate file (PEM format), or {@code null}
- * @param allowInsecureConnection     whether to allow connecting to brokers with untrusted certificates
- * @param enableHostnameVerification  whether to verify the broker hostname against the certificate
+ * <p>Construct via {@link #builder()}, or use {@link #ofInsecure()} for development.
  */
-public record TlsPolicy(
-        String trustCertsFilePath,
-        String keyFilePath,
-        String certificateFilePath,
-        boolean allowInsecureConnection,
-        boolean enableHostnameVerification
-) {
-    /**
-     * Create a TLS policy that trusts the given CA certificate and verifies hostnames.
-     *
-     * @param trustCertsFilePath the path to the trusted CA certificate file (PEM format)
-     * @return a {@link TlsPolicy} with hostname verification enabled and insecure connections disabled
-     */
-    public static TlsPolicy of(String trustCertsFilePath) {
-        return new TlsPolicy(trustCertsFilePath, null, null, false, true);
+@EqualsAndHashCode
+@ToString
+public final class TlsPolicy {
+
+    private final String trustCertsFilePath;
+    private final String keyFilePath;
+    private final String certificateFilePath;
+    private final boolean allowInsecureConnection;
+    private final boolean enableHostnameVerification;
+
+    private TlsPolicy(String trustCertsFilePath, String keyFilePath, String certificateFilePath,
+                      boolean allowInsecureConnection, boolean enableHostnameVerification) {
+        this.trustCertsFilePath = trustCertsFilePath;
+        this.keyFilePath = keyFilePath;
+        this.certificateFilePath = certificateFilePath;
+        this.allowInsecureConnection = allowInsecureConnection;
+        this.enableHostnameVerification = enableHostnameVerification;
     }
 
     /**
-     * Create a TLS policy with mutual TLS (mTLS) authentication.
-     *
-     * @param trustCertsFilePath the path to the trusted CA certificate file (PEM format)
-     * @param keyFilePath        the path to the client private key file (PEM format)
-     * @param certificateFilePath the path to the client certificate file (PEM format)
-     * @return a {@link TlsPolicy} configured for mutual TLS with hostname verification enabled
+     * @return path to the trusted CA certificate file (PEM), or {@code null} when not set
      */
-    public static TlsPolicy ofMutualTls(String trustCertsFilePath, String keyFilePath, String certificateFilePath) {
-        return new TlsPolicy(trustCertsFilePath, keyFilePath, certificateFilePath, false, true);
+    public String trustCertsFilePath() {
+        return trustCertsFilePath;
+    }
+
+    /**
+     * @return path to the client private key file (PEM), or {@code null} when not using mTLS
+     */
+    public String keyFilePath() {
+        return keyFilePath;
+    }
+
+    /**
+     * @return path to the client certificate file (PEM), or {@code null} when not using mTLS
+     */
+    public String certificateFilePath() {
+        return certificateFilePath;
+    }
+
+    /**
+     * @return whether connections to brokers with untrusted certificates are allowed
+     */
+    public boolean allowInsecureConnection() {
+        return allowInsecureConnection;
+    }
+
+    /**
+     * @return whether the broker hostname is verified against the certificate
+     */
+    public boolean enableHostnameVerification() {
+        return enableHostnameVerification;
     }
 
     /**
@@ -63,5 +87,91 @@ public record TlsPolicy(
      */
     public static TlsPolicy ofInsecure() {
         return new TlsPolicy(null, null, null, true, false);
+    }
+
+    /**
+     * @return a new builder for constructing a {@link TlsPolicy}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link TlsPolicy}.
+     */
+    public static final class Builder {
+        private String trustCertsFilePath;
+        private String keyFilePath;
+        private String certificateFilePath;
+        private boolean allowInsecureConnection = false;
+        private boolean enableHostnameVerification = true;
+
+        private Builder() {
+        }
+
+        /**
+         * Path to the trusted CA certificate file (PEM format).
+         *
+         * @param trustCertsFilePath the trust store path
+         * @return this builder
+         */
+        public Builder trustCertsFilePath(String trustCertsFilePath) {
+            this.trustCertsFilePath = trustCertsFilePath;
+            return this;
+        }
+
+        /**
+         * Path to the client private key file (PEM format) for mutual TLS.
+         *
+         * @param keyFilePath the client key path
+         * @return this builder
+         */
+        public Builder keyFilePath(String keyFilePath) {
+            this.keyFilePath = keyFilePath;
+            return this;
+        }
+
+        /**
+         * Path to the client certificate file (PEM format) for mutual TLS.
+         *
+         * @param certificateFilePath the client certificate path
+         * @return this builder
+         */
+        public Builder certificateFilePath(String certificateFilePath) {
+            this.certificateFilePath = certificateFilePath;
+            return this;
+        }
+
+        /**
+         * Whether to allow connecting to brokers with untrusted certificates.
+         * Default {@code false}. Enable only for development.
+         *
+         * @param allowInsecureConnection whether to skip certificate validation
+         * @return this builder
+         */
+        public Builder allowInsecureConnection(boolean allowInsecureConnection) {
+            this.allowInsecureConnection = allowInsecureConnection;
+            return this;
+        }
+
+        /**
+         * Whether to verify the broker hostname against the certificate. Default
+         * {@code true}.
+         *
+         * @param enableHostnameVerification whether to verify the hostname
+         * @return this builder
+         */
+        public Builder enableHostnameVerification(boolean enableHostnameVerification) {
+            this.enableHostnameVerification = enableHostnameVerification;
+            return this;
+        }
+
+        /**
+         * @return a new {@link TlsPolicy} instance
+         */
+        public TlsPolicy build() {
+            return new TlsPolicy(trustCertsFilePath, keyFilePath, certificateFilePath,
+                    allowInsecureConnection, enableHostnameVerification);
+        }
     }
 }

@@ -25,7 +25,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -35,6 +38,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -129,5 +134,64 @@ public class BrokerMessageDeduplicationTest {
             assertTrue(e.getCause() instanceof RuntimeException);
             assertTrue(e.getMessage().contains("asyncReadEntries failed"));
         }
+        assertEquals(String.valueOf(deduplication.getStatus()), "Failed");
+    }
+
+    @Test
+    public void checkStatusDoesNotStartMultipleRecoveries() throws Exception {
+        final var cursor = mock(ManagedCursor.class);
+        final var openCursorCallback = new AtomicReference<AsyncCallbacks.OpenCursorCallback>();
+        doAnswer(invocation -> {
+            openCursorCallback.set(invocation.getArgument(1));
+            return null;
+        }).when(managedLedger).asyncOpenCursor(any(), any(), any());
+        doReturn(Map.of()).when(cursor).getProperties();
+        doReturn(false).when(cursor).hasMoreEntries();
+
+        final var firstCheckStatus = deduplication.checkStatus();
+        assertFalse(firstCheckStatus.isDone());
+        assertEquals(String.valueOf(deduplication.getStatus()), "Recovering");
+
+        final var secondCheckStatus = deduplication.checkStatus();
+        assertFalse(secondCheckStatus.isDone());
+        verify(managedLedger, times(1)).asyncOpenCursor(any(), any(), any());
+
+        openCursorCallback.get().openCursorComplete(cursor, null);
+        firstCheckStatus.get(3, TimeUnit.SECONDS);
+        secondCheckStatus.get(3, TimeUnit.SECONDS);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Enabled");
+        verify(managedLedger, times(1)).asyncOpenCursor(any(), any(), any());
+    }
+
+    @Test
+    public void checkStatusRetriesAfterFailedEnable() throws Exception {
+        final var cursor = mock(ManagedCursor.class);
+        doAnswer(invocation -> {
+            ((AsyncCallbacks.OpenCursorCallback) invocation.getArgument(1)).openCursorComplete(cursor, null);
+            return null;
+        }).when(managedLedger).asyncOpenCursor(any(), any(), any());
+        doReturn(Map.of("from-snapshot", 10L)).when(cursor).getProperties();
+
+        final var hasMoreEntriesCalls = new AtomicInteger();
+        doAnswer(invocation -> hasMoreEntriesCalls.getAndIncrement() == 0).when(cursor).hasMoreEntries();
+        doAnswer(invocation -> {
+            throw new RuntimeException("asyncReadEntries failed");
+        }).when(cursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
+
+        try {
+            deduplication.checkStatus().get(3, TimeUnit.SECONDS);
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertTrue(e.getMessage().contains("asyncReadEntries failed"));
+        }
+        assertEquals(String.valueOf(deduplication.getStatus()), "Failed");
+
+        final var retry = deduplication.checkStatus();
+        retry.get(3, TimeUnit.SECONDS);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Enabled");
+        assertEquals(deduplication.getLastPublishedSequenceId("from-snapshot"), 10L);
+        verify(cursor, times(2)).rewind();
+        verify(managedLedger, times(2)).asyncOpenCursor(any(), any(), any());
     }
 }

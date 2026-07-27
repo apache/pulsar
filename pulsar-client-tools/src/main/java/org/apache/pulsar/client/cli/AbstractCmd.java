@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.cli;
 
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
 public abstract class AbstractCmd implements Callable<Integer> {
@@ -28,4 +30,28 @@ public abstract class AbstractCmd implements Callable<Integer> {
     }
 
     abstract int run() throws Exception;
+
+    /**
+     * Resolve a {@code file:} URI (as accepted by the encryption-key flags) to a {@link Path}.
+     * Supports both the hierarchical form ({@code file:///abs/path}, where {@link URI#getPath()}
+     * is set) and the opaque relative form ({@code file:rel/path}, where the path lives in the
+     * scheme-specific part).
+     *
+     * @param fileUri a {@code file:} URI string
+     * @return the resolved {@link Path}
+     * @throws IllegalArgumentException if the URI scheme is not {@code file}
+     */
+    static Path fileUriToPath(String fileUri) {
+        URI uri = URI.create(fileUri);
+        if (!"file".equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("This version of pulsar-client supports only file:// "
+                    + "encryption keys; got '" + fileUri + "'.");
+        }
+        String path = uri.getPath();
+        if (path == null) {
+            // Opaque (relative) file: URI, e.g. file:../certs/key.pem
+            path = uri.getSchemeSpecificPart();
+        }
+        return Path.of(path);
+    }
 }

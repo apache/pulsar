@@ -977,7 +977,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                     cnx.getRemoteEndpointProtocolVersion(), producerName, topic)));
         }
         long requestId = client.newRequestId();
-        ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
+        ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, producerName, schemaInfo);
         log.info("GetOrCreateSchema request");
         return cnx.sendGetOrCreateSchema(request, requestId);
     }
@@ -1262,7 +1262,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         closeProducerTasks();
 
         ClientCnx cnx = cnx();
-        if (cnx == null || currentState != State.Ready) {
+        if (cnx == null || (currentState != State.Ready && currentState != State.RegisteringSchema)) {
             log.info("Closed Producer (not connected)");
             closeAndClearPendingMessages();
             return CompletableFuture.completedFuture(null);

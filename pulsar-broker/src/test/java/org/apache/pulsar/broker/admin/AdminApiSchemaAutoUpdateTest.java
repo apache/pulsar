@@ -22,11 +22,15 @@ import java.util.Set;
 import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -279,5 +283,67 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     public void testDisabledV1() throws Exception {
         testAutoUpdateDisabled("prop-xyz/ns1", "persistent://prop-xyz/ns1/disabled");
         testAutoUpdateDisabled("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/disabled-np");
+    }
+
+    @Test(timeOut = 60_000)
+    @SuppressWarnings("deprecation")
+    public void testIsAllowAutoUpdateSchemaWithReplicator() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+
+        // By default, it is true.
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.namespaces().getPolicies(namespace).is_allow_auto_update_schema_with_replicator);
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        try {
+            admin.namespaces().setIsAllowAutoUpdateSchema(
+                    namespace, true, false);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarAdminException e) {
+            Assert.assertTrue(e.getMessage().contains("Can not enable for all producers but denies for replicators,"
+                    + " which is meaningless"));
+        }
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, false);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertFalse(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertFalse(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, true, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertTrue(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        // cleanup.
+        admin.topics().delete(topic);
     }
 }

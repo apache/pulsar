@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -35,10 +36,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
+import org.apache.bookkeeper.common.util.MathUtils;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.util.MathUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.RetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
@@ -122,9 +123,34 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         log.info().attr("connectString", connectString).log("Reconnecting zookeeper");
                         // close the previous one
                         closeZkHandle();
+
+                        // ZooKeeper can deliver SyncConnected after createZooKeeper() returns but before zk.set(newZk)
+                        // publishes the new instance. Hold these events until the new instance is published, so child
+                        // watchers never observe a new-session event while PulsarZooKeeperClient still points at the
+                        // old handle.
+                        CountDownLatch newZkSetLatch = new CountDownLatch(1);
+                        Watcher forwardEventsWatcher = event -> {
+                            try {
+                                boolean awaited = newZkSetLatch.await(sessionTimeoutMs, TimeUnit.MILLISECONDS);
+                                if (!awaited) {
+                                    log.warn().attr("event", event)
+                                            .log("Timed out waiting for ZooKeeper instance to be published before "
+                                                    + "forwarding event");
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                log.warn()
+                                        .attr("event", event)
+                                        .exception(e)
+                                        .log("Interrupted while waiting for ZooKeeper instance to be published");
+                                return;
+                            }
+                            watcherManager.process(event);
+                        };
+
                         ZooKeeper newZk;
                         try {
-                            newZk = createZooKeeper();
+                            newZk = createZooKeeper(forwardEventsWatcher);
                         } catch (IOException | QuorumPeerConfig.ConfigException e) {
                             log.error()
                                     .attr("connectString", connectString)
@@ -133,8 +159,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                                     .log("Failed to create zookeeper instance");
                             throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
                         }
-                        waitForConnection();
+
+                        // Publish the new instance before releasing the forwarding watcher. waitForConnection() must
+                        // happen after countDown(), since it depends on the forwarded SyncConnected event.
                         zk.set(newZk);
+                        newZkSetLatch.countDown();
+                        waitForConnection();
                         log.info()
                                 .attr("sessionId", Long.toHexString(newZk.getSessionId()))
                                 .attr("connectString", connectString)
@@ -363,12 +393,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @SuppressWarnings("deprecation")
-    protected ZooKeeper createZooKeeper() throws IOException, QuorumPeerConfig.ConfigException {
+    protected ZooKeeper createZooKeeper(Watcher watcher) throws IOException, QuorumPeerConfig.ConfigException {
         if (null != configPath) {
-            return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,
+            return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode,
                     new ZKClientConfig(configPath));
         }
-        return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
+        return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode);
     }
 
     @Override
@@ -1174,7 +1204,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, setStats) {
 
             final VoidCallback vCb = new VoidCallback() {
@@ -1185,7 +1215,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
                     } else {
-                        vCb.processResult(rc, basePath, ctx);
+                        cb.processResult(rc, path, context);
                     }
                 }
 
@@ -1195,15 +1225,15 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             void zkRun() {
                 ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
-                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, cb, ctx);
+                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, vCb, worker);
                 } else {
-                    zkHandle.addWatch(basePath, watcher, mode, cb, ctx);
+                    zkHandle.addWatch(basePath, watcher, mode, vCb, worker);
                 }
             }
 
             @Override
             public String toString() {
-                return String.format("setData (%s, mode = %s)", basePath, mode.name());
+                return String.format("addWatch (%s, mode = %s)", basePath, mode.name());
             }
         };
         // execute it immediately

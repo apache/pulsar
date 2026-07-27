@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Sets;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -52,7 +53,7 @@ public class LeaderElectionServiceTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         log.info("---- bk started ----");
     }
@@ -116,6 +117,9 @@ public class LeaderElectionServiceTest {
                 leaderBrokerReference.get() != null);
         Mockito.when(leaderElectionService.getCurrentLeader())
                 .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
+        Mockito.when(leaderElectionService.readCurrentLeader())
+                .thenAnswer(invocation ->
+                        CompletableFuture.completedFuture(Optional.ofNullable(leaderBrokerReference.get())));
         leaderElectionServiceReference.set(leaderElectionService);
 
         // broker, webService and leaderElectionService is started, but elect not ready;

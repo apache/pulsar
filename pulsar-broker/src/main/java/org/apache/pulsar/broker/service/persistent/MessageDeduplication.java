@@ -104,6 +104,7 @@ public class MessageDeduplication {
 
 
     private volatile Status status;
+    private CompletableFuture<Void> statusChangeFuture = CompletableFuture.completedFuture(null);
 
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
@@ -159,7 +160,10 @@ public class MessageDeduplication {
     public CompletableFuture<Void> checkStatus() {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
-            if (status == Status.Recovering || status == Status.Removing) {
+            if (status == Status.Recovering) {
+                return statusChangeFuture;
+            }
+            if (status == Status.Removing) {
                 // If there's already a transition happening, check later for status
                 pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                 return CompletableFuture.completedFuture(null);
@@ -224,17 +228,27 @@ public class MessageDeduplication {
                         }, null);
 
                 return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
+            } else if ((status == Status.Disabled || status == Status.Initialized || status == Status.Failed)
+                    && shouldBeEnabled) {
                 // Enable deduping
-                final var future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
-                        .thenCompose(this::replayCursor);
-                future.exceptionally(e -> {
+                status = Status.Recovering;
+                final CompletableFuture<Void> future;
+                try {
+                    future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                            .thenCompose(this::replayCursor);
+                } catch (Throwable e) {
                     status = Status.Failed;
+                    statusChangeFuture = CompletableFuture.failedFuture(e);
                     log.error().exception(e).log("Failed to enable deduplication");
-                    future.completeExceptionally(e);
-                    return null;
+                    return statusChangeFuture;
+                }
+                statusChangeFuture = future.whenComplete((__, e) -> {
+                    if (e != null) {
+                        status = Status.Failed;
+                        log.error().exception(e).log("Failed to enable deduplication");
+                    }
                 });
-                return future;
+                return statusChangeFuture;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
@@ -244,6 +258,11 @@ public class MessageDeduplication {
 
     private CompletableFuture<Void> replayCursor(ManagedCursor cursor) {
         managedCursor = cursor;
+        cursor.rewind();
+        snapshotCounter = 0;
+        highestSequencedPushed.clear();
+        highestSequencedPersisted.clear();
+        inactiveProducers.clear();
         // Load the sequence ids from the snapshot in the cursor properties
         managedCursor.getProperties().forEach((k, v) -> {
             producerRemoved(k);
