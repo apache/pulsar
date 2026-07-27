@@ -47,23 +47,20 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
 
-    public void testAvgShedderReusesPlannedBroker() {
+    public void testAvgShedderWithoutPendingDestination() {
         ModularLoadManagerStrategy strategy = new AvgShedder();
         String bundle = "bundle-1";
         assertEquals(strategy.selectBrokerForBundle(Set.of(), bundle, new BundleData(), null, null), Optional.empty());
-        assertEquals(strategy.selectBrokerForBundle(Set.of("1"), bundle, new BundleData(), null, null),
-                Optional.of("1"));
-        BundleData refreshedBundleData = new BundleData();
-        refreshedBundleData.setTopics(1);
-        assertEquals(strategy.selectBrokerForBundle(Set.of("1", "2", "3"), bundle, refreshedBundleData, null,
-                null),
-                Optional.of("1"));
+        Set<String> candidates = new HashSet<>(Set.of("1", "2", "3"));
+        Optional<String> selectedBroker = strategy.selectBrokerForBundle(candidates, bundle, new BundleData(), null,
+                null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
 
-        // remove broker1 in candidates, only broker2 is candidate.
-        assertEquals(strategy.selectBrokerForBundle(Set.of("2"), bundle, new BundleData(), null, null),
-                Optional.of("2"));
-        assertEquals(strategy.selectBrokerForBundle(Set.of("2", "3"), bundle, new BundleData(), null, null),
-                Optional.of("2"));
+        candidates.remove(selectedBroker.get());
+        selectedBroker = strategy.selectBrokerForBundle(candidates, bundle, new BundleData(), null, null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
     }
 
     public void testSelectBrokerForBundleDelegatesToFourArgumentStrategy() {

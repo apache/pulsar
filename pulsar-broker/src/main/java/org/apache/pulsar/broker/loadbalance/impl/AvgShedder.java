@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.Hashing;
@@ -33,6 +34,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import lombok.CustomLog;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -48,8 +51,8 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 @CustomLog
 public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrategy {
-    // Planned destination by bundle name.
-    private final Map<String, String> bundleBrokerMap = new HashMap<>();
+    // Pending destinations produced by the current load-shedding attempt, keyed by stable bundle name.
+    private final ConcurrentMap<String, String> pendingBundleToBroker = new ConcurrentHashMap<>();
     // map broker to Scores. scores:0-100
     private final Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
@@ -59,6 +62,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
+        // Plans are consumed after each shedding attempt. Clear any state left by a nonstandard caller.
+        pendingBundleToBroker.clear();
         // result returned by shedding, map broker to bundles.
         Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
@@ -193,7 +198,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             double traffic = e.getRight();
             if (traffic > 0 && traffic <= trafficMarkedToOffload.doubleValue()) {
                 selectedBundlesCache.put(overloadedBroker, bundle.getKey());
-                bundleBrokerMap.put(bundle.getKey(), underloadedBroker);
+                pendingBundleToBroker.put(bundle.getKey(), underloadedBroker);
                 trafficMarkedToOffload.add(-traffic);
                 log.debug().attr("bundle", bundle).attr("isMsgRateToOffload", isMsgRateToOffload)
                         .attr("traffic", traffic)
@@ -204,7 +209,17 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public void onActiveBrokersChange(Set<String> activeBrokers) {
-        LoadSheddingStrategy.super.onActiveBrokersChange(activeBrokers);
+        // Keep a stale pending destination so selection can replace it once and reuse the replacement on retry.
+    }
+
+    @Override
+    public void onUnloadAttemptCompleted(Set<String> bundles) {
+        pendingBundleToBroker.keySet().removeAll(bundles);
+    }
+
+    @VisibleForTesting
+    boolean hasPendingDestination(String bundle) {
+        return pendingBundleToBroker.containsKey(bundle);
     }
 
     private List<String> calculateScoresAndSort(LoadData loadData, ServiceConfiguration conf) {
@@ -273,15 +288,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
-        String bundle = findBundleNameByIdentity(bundleToAssign, loadData);
-        return bundle == null
-                ? candidates.isEmpty() ? Optional.empty() : Optional.of(getExpectedBroker(candidates, bundleToAssign))
-                : selectBrokerWithBundleName(candidates, bundle, bundleToAssign);
+        return candidates.isEmpty() ? Optional.empty() : Optional.of(getExpectedBroker(candidates, bundleToAssign));
     }
 
     @Override
     public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle, BundleData bundleToAssign,
-                                                  LoadData loadData, ServiceConfiguration conf) {
+                                                   LoadData loadData, ServiceConfiguration conf) {
         return bundle == null
                 ? selectBroker(candidates, bundleToAssign, loadData, conf)
                 : selectBrokerWithBundleName(candidates, bundle, bundleToAssign);
@@ -292,34 +304,24 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         if (candidates.isEmpty()) {
             return Optional.empty();
         }
-        final var brokerToUnload = bundleBrokerMap.get(bundle);
-        if (brokerToUnload == null || !candidates.contains(brokerToUnload)) {
-            // cluster initializing or broker is shutdown
-            if (brokerToUnload == null) {
+        final var pendingBroker = pendingBundleToBroker.get(bundle);
+        if (pendingBroker == null || !candidates.contains(pendingBroker)) {
+            // cluster initializing or the pending broker is shutdown or filtered out
+            if (pendingBroker == null) {
                 log.debug("cluster is initializing");
             } else {
-                log.debug().attr("broker", brokerToUnload).attr("candidates", candidates)
+                log.debug().attr("broker", pendingBroker).attr("candidates", candidates)
                         .log("expected broker is shutdown");
             }
             String broker = getExpectedBroker(candidates, bundleToAssign);
-            bundleBrokerMap.put(bundle, broker);
+            if (pendingBroker != null) {
+                // Keep a replacement only for the remainder of this unload attempt, including the retry path.
+                pendingBundleToBroker.put(bundle, broker);
+            }
             return Optional.of(broker);
         } else {
-            return Optional.of(brokerToUnload);
+            return Optional.of(pendingBroker);
         }
-    }
-
-    private static String findBundleNameByIdentity(BundleData bundleToAssign, LoadData loadData) {
-        // Compatibility path for callers using the legacy API; identity is not retained as strategy state.
-        if (loadData == null) {
-            return null;
-        }
-        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
-            if (entry.getValue() == bundleToAssign) {
-                return entry.getKey();
-            }
-        }
-        return null;
     }
 
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {

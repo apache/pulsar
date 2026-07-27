@@ -34,6 +34,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
@@ -66,6 +68,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -143,6 +147,65 @@ public class ModularLoadManagerImplTest {
     private ModularLoadManagerImpl secondaryLoadManager;
 
     private ExecutorService executor;
+
+    public static class RecordingLoadSheddingStrategy implements LoadSheddingStrategy, ModularLoadManagerStrategy {
+        private static final AtomicReference<RecordingLoadSheddingStrategy> INSTANCE = new AtomicReference<>();
+
+        private volatile Multimap<String, String> bundlesToUnload = ImmutableMultimap.of();
+        private final AtomicReference<String> bundlePassedToSelector = new AtomicReference<>();
+        private final AtomicReference<Set<String>> completedBundles = new AtomicReference<>(Set.of());
+
+        public RecordingLoadSheddingStrategy() {
+            INSTANCE.set(this);
+        }
+
+        static void reset() {
+            INSTANCE.set(null);
+        }
+
+        static RecordingLoadSheddingStrategy getInstance() {
+            return INSTANCE.get();
+        }
+
+        void setBundlesToUnload(String source, String bundle) {
+            bundlesToUnload = ImmutableMultimap.of(source, bundle);
+        }
+
+        String getBundlePassedToSelector() {
+            return bundlePassedToSelector.get();
+        }
+
+        Set<String> getCompletedBundles() {
+            return completedBundles.get();
+        }
+
+        @Override
+        public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
+            return bundlesToUnload;
+        }
+
+        @Override
+        public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
+                                             ServiceConfiguration conf) {
+            throw new AssertionError("Expected selectBrokerForBundle to be used");
+        }
+
+        @Override
+        public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
+                                                       BundleData bundleToAssign, LoadData loadData,
+                                                       ServiceConfiguration conf) {
+            bundlePassedToSelector.set(bundle);
+            return Optional.empty();
+        }
+
+        @Override
+        public void onActiveBrokersChange(Set<String> activeBrokers) {}
+
+        @Override
+        public void onUnloadAttemptCompleted(Set<String> bundles) {
+            completedBundles.set(Set.copyOf(bundles));
+        }
+    }
 
     // Invoke non-overloaded method.
     private Object invokeSimpleMethod(final Object instance, final String methodName, final Object... args)
@@ -606,6 +669,30 @@ public class ModularLoadManagerImplTest {
         // The bundle shouldn't be unloaded because the broker is the same.
         verify(namespacesSpy1, Mockito.times(4))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testLoadSheddingPassesBundleNameAndCompletesAttempt() throws Exception {
+        RecordingLoadSheddingStrategy.reset();
+        String strategyClass = RecordingLoadSheddingStrategy.class.getName();
+        pulsar3.getConfiguration().setLoadBalancerEnabled(true);
+        pulsar3.getConfiguration().setLoadBalancerLoadPlacementStrategy(strategyClass);
+        pulsar3.getConfiguration().setLoadBalancerLoadSheddingStrategy(strategyClass);
+        pulsar3.start();
+
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar3.getLoadManager().get();
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
+        Awaitility.await().untilAsserted(() -> assertTrue(loadManager.getAvailableBrokers().size() > 1));
+
+        NamespaceBundle bundle = makeBundle("test", "load-shedding-strategy");
+        RecordingLoadSheddingStrategy strategy = RecordingLoadSheddingStrategy.getInstance();
+        assertTrue(strategy != null);
+        strategy.setBundlesToUnload(primaryBrokerId, bundle.toString());
+
+        loadManager.doLoadShedding();
+
+        assertEquals(strategy.getBundlePassedToSelector(), bundle.toString());
+        assertEquals(strategy.getCompletedBundles(), Set.of(bundle.toString()));
     }
 
     @Test
