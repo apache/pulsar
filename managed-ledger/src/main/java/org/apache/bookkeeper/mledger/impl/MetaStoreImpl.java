@@ -126,6 +126,17 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                                         }
                                         callback.operationComplete(ledgerBuilder.build(), stat);
                                     }).exceptionally(ex -> {
+                                        if (FutureUtil.unwrapCompletionException(ex)
+                                                instanceof MetadataStoreException.BadVersionException) {
+                                            // The z-node was created concurrently after the read above returned
+                                            // "not found". This happens for example when the broker creates the
+                                            // partitions of a topic while the same topic is being loaded. Read the
+                                            // z-node back instead of failing the managed ledger initialization.
+                                            log.info("Managed ledger path '{}' was concurrently created, reading it "
+                                                    + "back", path);
+                                            getManagedLedgerInfo(ledgerName, false, null, callback);
+                                            return null;
+                                        }
                                         callback.operationFailed(getException(ex));
                                         return null;
                                     });
