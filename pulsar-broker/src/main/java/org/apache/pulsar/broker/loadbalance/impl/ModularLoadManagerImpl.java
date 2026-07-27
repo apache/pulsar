@@ -995,6 +995,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
+    }
+
     /**
      * As any broker, start the load manager.
      *
