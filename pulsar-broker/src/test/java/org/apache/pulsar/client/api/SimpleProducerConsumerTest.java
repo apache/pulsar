@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -3536,6 +3537,137 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
 
         admin.topics().delete(topicName, true);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testConsumerImplHasMessageAvailableDoesNotThrowBeforeReceive() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/has-message-available");
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        producer.send("existing-message".getBytes(UTF_8));
+
+        // hasMessageAvailable is exposed by ConsumerImpl, not the Consumer public API.
+        @Cleanup
+        ConsumerImpl<byte[]> latestConsumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-has-message-available-latest")
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(latestConsumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestConsumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestConsumer.hasMessageAvailable());
+
+        @Cleanup
+        ConsumerImpl<byte[]> earliestConsumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-has-message-available-earliest")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(earliestConsumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(true);
+        assertThatCode(earliestConsumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertTrue(earliestConsumer.hasMessageAvailable());
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testReaderHasMessageAvailableDoesNotThrowBeforeRead() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/reader-has-message-available");
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        producer.send("existing-message".getBytes(UTF_8));
+
+        @Cleanup
+        Reader<byte[]> latestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.latest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(latestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestReader.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> earliestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(earliestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(true);
+        assertThatCode(earliestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertTrue(earliestReader.hasMessageAvailable());
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testHasMessageAvailableDoesNotThrowOnEmptyTopic() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/empty-has-message-available");
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-empty-has-message-available")
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(consumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(consumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(consumer.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> latestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.latest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(latestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestReader.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> earliestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(earliestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(earliestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(earliestReader.hasMessageAvailable());
 
         log.info("-- Exiting {} test --", methodName);
     }
