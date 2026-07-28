@@ -4832,6 +4832,210 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     /**
+     * Verifies that a ledger-property write whose metadata-store callback completes AFTER the ledger
+     * has been closed does not regress the closed ledger's entries.
+     *
+     * <p>The transform callback in {@code tryTransformLedgerInfo} previously did a blind
+     * {@code ledgers.put(ledgerId, newInfo)}, where {@code newInfo} carried the entry count captured at
+     * transform time (before the close). If the ledger filled and {@code ledgerClosed} updated the
+     * in-memory entry count in the meantime, the callback overwrote it with the stale pre-close value.
+     * The fix merges instead, keeping the transform's properties but taking entries/size/timestamp
+     * from the current in-memory value.
+     */
+    @Test
+    public void testLedgerPropertyWriteDoesNotRegressEntriesAfterConcurrentClose() throws Exception {
+        final String mlName = "testLedgerPropertyWriteDoesNotRegressEntriesAfterConcurrentClose";
+        final String mlPath = "/managed-ledgers/" + mlName;
+        final String key = "k";
+        final String value = "v";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+
+        // Gate that delays completion of the property write's managed-ledger PUT (and therefore its
+        // transform callback) until the ledger has been closed. We must NOT block inside the spy:
+        // asyncUpdateLedgerIds runs while the managed-ledger monitor is held, so blocking would
+        // deadlock addEntry. Instead we return a future that completes only after releaseGate.
+        CompletableFuture<Void> releaseGate = new CompletableFuture<>();
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+        CountDownLatch putIntercepted = new CountDownLatch(1);
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
+                putIntercepted.countDown();
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
+                CompletableFuture<Stat> gated = new CompletableFuture<>();
+                // Forward the real result to `gated` only once `releaseGate` is completed.
+                real.whenComplete((stat, ex) -> releaseGate.whenComplete((ignored, ignoredEx) -> {
+                    if (ex != null) {
+                        gated.completeExceptionally(ex);
+                    } else {
+                        gated.complete(stat);
+                    }
+                }));
+                return gated;
+            }
+            return inv.callRealMethod();
+        }).when(spyStore).put(eq(mlPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        try {
+            ml.addEntry("e1".getBytes()); // ledger X: 1 entry, not yet full
+            final long x = ml.currentLedger.getId();
+
+            // Kick off the property write; its managed-ledger PUT is intercepted and held open.
+            interceptNextPut.set(true);
+            CompletableFuture<Void> prop = ml.asyncAddLedgerProperty(x, key, value);
+            Assert.assertTrue(putIntercepted.await(5, TimeUnit.SECONDS));
+
+            // Fill ledger X -> ledgerClosed(X) updates the in-memory entries/size/timestamp to the
+            // closed values.
+            ml.addEntry("e2".getBytes());
+            Awaitility.await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> Assert.assertEquals(2L, ml.getLedgersInfo().get(x).getEntries()));
+            long closedSize = ml.getLedgersInfo().get(x).getSize();
+            long closedTimestamp = ml.getLedgersInfo().get(x).getTimestamp();
+
+            // Now let the property write's callback run: it must merge, not overwrite, the closed values.
+            releaseGate.complete(null);
+            prop.get();
+
+            LedgerInfo info = ml.getLedgersInfo().get(x);
+            // Without the merge fix entries regressed to 0 (captured before the close); size/timestamp
+            // were likewise clobbered by the stale snapshot.
+            Assert.assertEquals(2L, info.getEntries());
+            Assert.assertEquals(closedSize, info.getSize());
+            Assert.assertEquals(closedTimestamp, info.getTimestamp());
+            Assert.assertEquals(value, ml.asyncGetLedgerProperty(x, key).get());
+        } finally {
+            releaseGate.complete(null); // never leave the gated PUT dangling
+            ml.close();
+            factory.shutdown();
+        }
+    }
+
+    /**
+     * Verifies the no-concurrent-close path: when a property write completes on a still-open current
+     * ledger, the transform's merge must preserve the unset (not present) lightproto optional fields
+     * {@code entries}/{@code size}/{@code timestamp} rather than converting them into
+     * explicitly-present zeros.
+     */
+    @Test
+    public void testLedgerPropertyWritePreservesUnsetFieldPresenceOnOpenLedger() throws Exception {
+        final String mlName = "testLedgerPropertyWritePreservesUnsetFieldPresenceOnOpenLedger";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        try {
+            ml.addEntry("e1".getBytes()); // current ledger X is still open: entries/size unset
+            final long x = ml.currentLedger.getId();
+
+            // No concurrent close: the property write completes while the ledger is still open.
+            ml.asyncAddLedgerProperty(x, "k", "v").get();
+
+            LedgerInfo info = ml.getLedgersInfo().get(x);
+            // A newly created current ledger has no entries/size yet; the merge must not convert
+            // those unset optional fields into explicitly-present zeros.
+            Assert.assertFalse(info.hasEntries());
+            Assert.assertFalse(info.hasSize());
+            Assert.assertEquals("v", ml.asyncGetLedgerProperty(x, "k").get());
+        } finally {
+            ml.close();
+            factory.shutdown();
+        }
+    }
+
+    /**
+     * Verifies that the corrected entries/size/timestamp survive a restart: after the
+     * concurrent-close merge fixes the in-memory values, a subsequent ledger-list persist durably
+     * records them, and reopening the managed ledger reads them back.
+     */
+    @Test
+    public void testLedgerPropertyWriteCorrectedValuesSurviveReopen() throws Exception {
+        final String mlName = "testLedgerPropertyWriteCorrectedValuesSurviveReopen";
+        final String mlPath = "/managed-ledgers/" + mlName;
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+
+        CompletableFuture<Void> releaseGate = new CompletableFuture<>();
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+        CountDownLatch putIntercepted = new CountDownLatch(1);
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
+                putIntercepted.countDown();
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
+                CompletableFuture<Stat> gated = new CompletableFuture<>();
+                real.whenComplete((stat, ex) -> releaseGate.whenComplete((ignored, ignoredEx) -> {
+                    if (ex != null) {
+                        gated.completeExceptionally(ex);
+                    } else {
+                        gated.complete(stat);
+                    }
+                }));
+                return gated;
+            }
+            return inv.callRealMethod();
+        }).when(spyStore).put(eq(mlPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        final long x;
+        long closedSize;
+        long closedTimestamp;
+        try {
+            ml.addEntry("e1".getBytes()); // ledger X: 1 entry, not yet full
+            x = ml.currentLedger.getId();
+
+            interceptNextPut.set(true);
+            CompletableFuture<Void> prop = ml.asyncAddLedgerProperty(x, "k", "v");
+            Assert.assertTrue(putIntercepted.await(5, TimeUnit.SECONDS));
+
+            // Close X concurrently so the merge is the only thing keeping entries/size/timestamp correct.
+            ml.addEntry("e2".getBytes());
+            Awaitility.await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> Assert.assertEquals(2L, ml.getLedgersInfo().get(x).getEntries()));
+            closedSize = ml.getLedgersInfo().get(x).getSize();
+            closedTimestamp = ml.getLedgersInfo().get(x).getTimestamp();
+
+            releaseGate.complete(null);
+            prop.get();
+
+            // Trigger another ledger-list persist so the corrected values reach the metadata store.
+            ml.addEntry("e3".getBytes());
+            Awaitility.await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> Assert.assertEquals(2L, ml.getLedgersInfo().get(x).getEntries()));
+        } finally {
+            releaseGate.complete(null);
+            ml.close();
+            factory.shutdown();
+        }
+
+        // Reopen from the metadata store and confirm the corrected values survived.
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        try {
+            ManagedLedgerImpl ml2 = (ManagedLedgerImpl) factory2.open(mlName, config);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                LedgerInfo info = ml2.getLedgersInfo().get(x);
+                Assert.assertNotNull(info);
+                Assert.assertEquals(2L, info.getEntries());
+                Assert.assertEquals(closedSize, info.getSize());
+                Assert.assertEquals(closedTimestamp, info.getTimestamp());
+            });
+            ml2.close();
+        } finally {
+            factory2.shutdown();
+        }
+    }
+
+    /**
      * Verifies that ledger trimming respects the persistent cursor position, not just the in-memory position.
      *
      * <p><b>Test Flow:</b>

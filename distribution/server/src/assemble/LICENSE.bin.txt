@@ -383,7 +383,7 @@ The Apache Software License, Version 2.0
     - org.apache.distributedlog-distributedlog-protocol-4.18.0.jar
     - org.apache.bookkeeper-native-io-4.18.0.jar
     - org.apache.bookkeeper-native-library-common-4.18.0.jar
-    - at.yawk.lz4-lz4-java-1.11.0.jar
+    - at.yawk.lz4-lz4-java-1.11.1.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.14.jar
     - org.apache.httpcomponents-httpcore-4.4.16.jar
