@@ -2982,7 +2982,9 @@ public class PersistentTopicsBase extends AdminResource {
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
                                 results.complete(generateResponseWithEntry(entry, (PersistentTopic) topic));
-                            } catch (IOException exception) {
+                            } catch (RestException exception) {
+                                results.completeExceptionally(exception);
+                            } catch (Exception exception) {
                                 results.completeExceptionally(new RestException(exception));
                             } finally {
                                 if (entry != null) {
@@ -3116,6 +3118,8 @@ public class PersistentTopicsBase extends AdminResource {
                 return CompletableFuture.completedFuture(response);
             } catch (NullPointerException npe) {
                 throw new RestException(Status.NOT_FOUND, "Message not found");
+            } catch (RestException exception) {
+                throw exception;
             } catch (Exception exception) {
                 log.error()
                         .attr("position", messagePosition)
@@ -3206,6 +3210,8 @@ public class PersistentTopicsBase extends AdminResource {
             PersistentTopic persistentTopic = entryTopicPair.getRight();
             try {
                 return generateResponseWithEntry(entry, persistentTopic);
+            } catch (RestException exception) {
+                throw exception;
             } catch (IOException exception) {
                 throw new RestException(exception);
             } finally {
@@ -3350,6 +3356,48 @@ public class PersistentTopicsBase extends AdminResource {
                 .compareTo(persistentTopic.getMaxReadPosition()) > 0;
         responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
+        // Check total response header size against the configured limit.
+        //
+        // When the header size exceeds HttpConfiguration.responseHeaderSize, Jetty aborts the
+        // connection without sending any HTTP response.
+        //
+        // On the server side, the error is logged to stdout (via java.util.logging) instead of
+        // pulsar.log, making it hard to diagnose.
+        //
+        // On the client side, the caller receives a generic PulsarAdminException (statusCode=500)
+        // wrapping a TimeoutException, with no indication that the root cause is header overflow.
+        //
+        // We check here to return a proper error response and log it to pulsar.log.
+        int httpMaxResponseHeaderSize = pulsar().getConfig().getHttpMaxResponseHeaderSize();
+        Response headerOnlyResponse = responseBuilder.build();
+        // The margin accounts for: HTTP response line ("HTTP/1.1 200 OK\r\n"), final "\r\n"
+        // separating headers from body, and standard headers added by Jetty at send time
+        // (Content-Type, Server, Content-Length, Date, etc.)
+        int estimatedHeaderSize = 512;
+        // Note: String.length() counts UTF-16 code units, but for ASCII-only header values
+        // (JSON-escaped properties, Base64-encoded keys, numbers, booleans, timestamps),
+        // it equals the UTF-8 byte count. Non-ASCII characters in properties are escaped
+        // by Gson as Unicode escape sequences (e.g., backslash-u-0041), which are also ASCII.
+        for (Map.Entry<String, List<String>> headerEntry : headerOnlyResponse.getStringHeaders().entrySet()) {
+            for (String value : headerEntry.getValue()) {
+                estimatedHeaderSize += headerEntry.getKey().length() + 2 + value.length() + 2;
+            }
+        }
+        if (estimatedHeaderSize > httpMaxResponseHeaderSize) {
+            log.error()
+                    .attr("topic", topicName)
+                    .attr("ledgerId", entry.getLedgerId())
+                    .attr("entryId", entry.getEntryId())
+                    .attr("estimatedHeaderSize", estimatedHeaderSize)
+                    .attr("httpMaxResponseHeaderSize", httpMaxResponseHeaderSize)
+                    .log("HTTP response header size exceeds limit. "
+                            + "Consider reducing property sizes or increasing httpMaxResponseHeaderSize.");
+            throw new RestException(Response.Status.REQUEST_HEADER_FIELDS_TOO_LARGE,
+                    "Total response header size (" + estimatedHeaderSize
+                            + ") exceeds HTTP response header limit (" + httpMaxResponseHeaderSize
+                            + "). Please increase the broker/proxy configuration 'httpMaxResponseHeaderSize'");
+        }
+
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider
                 .getCompressionCodec(isEncrypted ? NONE : metadata.getCompression());
@@ -3366,7 +3414,7 @@ public class PersistentTopicsBase extends AdminResource {
             data.release();
         };
 
-        return responseBuilder.entity(stream).build();
+        return Response.fromResponse(headerOnlyResponse).entity(stream).build();
     }
 
     protected CompletableFuture<PersistentOfflineTopicStats> internalGetBacklogAsync(boolean authoritative) {

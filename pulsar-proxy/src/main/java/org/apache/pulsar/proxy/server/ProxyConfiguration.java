@@ -793,6 +793,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
             minValue = 1,
             category = CATEGORY_HTTP,
+            doc = """
+                The maximum size in bytes of the response header.
+                Larger headers will allow for larger response headers such as message properties
+                in the Admin API message inspection endpoints (getMessageById, peekNthMessage,
+                examineMessage). However, larger headers consume more memory and can make a server
+                more vulnerable to denial of service attacks.
+              """
+    )
+    private int httpMaxResponseHeaderSize = 8 * 1024;
+
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_HTTP,
             doc = "Http input buffer max size.\n\n"
                     + "The maximum amount of data that will be buffered for incoming http requests "
                     + "so that the request body can be replayed when the backend broker "
