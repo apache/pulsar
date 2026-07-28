@@ -159,6 +159,7 @@ dependencies {
     api(libs.netty.handler)
     api(libs.netty.buffer)
     api(libs.netty.resolver.dns)
+    implementation(libs.roaringbitmap)
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
     implementation(libs.netty.transport.native.unix.common)

@@ -74,7 +74,9 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicatorInflightTaskTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -1020,7 +1022,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Replicator for r1 -> r2
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
                 .getTopicReference(dest.toString()).get();
-        Replicator replicator = topic.getPersistentReplicator("r2");
+        PersistentReplicator replicator = (PersistentReplicator) topic.getPersistentReplicator("r2");
         PersistentTopic remoteTopic = (PersistentTopic) pulsar2.getBrokerService()
                 .getTopicReference(dest.toString()).get();
 
@@ -1859,21 +1861,26 @@ public class ReplicatorTest extends ReplicatorTestBase {
         waitReplicateFinish(topic, admin1);
 
         // Pause replicator
+        List<Runnable> resumeReplicatorFunctions = new ArrayList<>();
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
-            pauseReplicator(persistentReplicator);
+            resumeReplicatorFunctions.add(PersistentReplicatorInflightTaskTest.pauseReplicator(persistentReplicator));
         });
 
         // Send V2 and V3 messages, then let them expire. These messages will not be replicated to the remote cluster.
         persistentProducer1.send("V2".getBytes());
         persistentProducer1.send("V3".getBytes());
-        Thread.sleep(1000);
-        admin1.topics().expireMessagesForAllSubscriptions(topic.toString(), 1);
+        Thread.sleep(2000);
+        GeoPersistentReplicator persistentReplicator =
+                (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        persistentReplicator.expireMessages(1);
+        waitReplicateFinish(topic, admin1);
 
         // Start replicator
+        for  (Runnable r : resumeReplicatorFunctions) {
+            r.run();
+        }
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
-            PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
-            resumeReplicator(persistentReplicator);
             Awaitility.await().untilAsserted(() -> {
                 CompletableFuture<Optional<Topic>> topic2 =
                         pulsar2.getBrokerService().getTopic(topic.toString(), false);
@@ -1950,7 +1957,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     .stream()
                     .map(PersistentReplicator.class::cast)
                     .toList();
-            persistentReplicators.forEach(this::pauseReplicator);
+            persistentReplicators.forEach(PersistentReplicatorInflightTaskTest::pauseReplicator);
             producer1.produce(5);
             Awaitility.await().untilAsserted(() -> {
                 persistentReplicators.forEach(repl -> repl.expireMessages(1));
@@ -2030,19 +2037,5 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Replicator replicator = replicatorMap.get(replicatorMap.keySet().stream().toList().get(0));
             assertTrue(replicator.isConnected());
         });
-    }
-
-    private void pauseReplicator(PersistentReplicator replicator) {
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(replicator.isConnected());
-        });
-        Awaitility.await().until(() -> {
-            replicator.disconnect().join();
-            return true;
-        });
-    }
-
-    private void resumeReplicator(PersistentReplicator replicator) {
-        replicator.startProducer();
     }
 }

@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -53,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -599,17 +602,19 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         });
 
         // Cleanup must run exactly once per trigger and not repeat recursively (in older code it ran 3 times).
-        // Two failures are triggered here: the reader.close() above drives readMorePoliciesAsync into
-        // cleanPoliciesCacheInitMap (1x), and the second prepareInitPoliciesCacheAsync fails in initPolicesCache and
-        // is torn down by the identity-guarded cleanupFailedPolicyCacheInit (1x).
+        // Two failures are triggered here, and both tear down through the identity-guarded cleanupFailedPolicyCacheInit
+        // (2x): the reader.close() above drives readMorePoliciesAsync's AlreadyClosed branch into it, and the second
+        // prepareInitPoliciesCacheAsync fails in initPolicesCache and is torn down by it as well. The namespace-keyed
+        // cleanPoliciesCacheInitMap must not be reached from the reader-close path, otherwise a superseded reader could
+        // clobber a newer generation's init future.
         boolean logFound = testLogAppender.getEvents().stream().anyMatch(logEvent ->
                 logEvent.getMessage().toString().contains("Failed to create reader on __change_events topic"));
         assertFalse(logFound);
         boolean logFound2 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
                 logEvent.getMessage().toString().contains("Failed to check the move events for the system topic"));
         assertTrue(logFound2);
-        verify(spyService, times(1)).cleanPoliciesCacheInitMap(any(), anyBoolean());
-        verify(spyService, times(1)).cleanupFailedPolicyCacheInit(any(), any(), anyBoolean());
+        verify(spyService, times(0)).cleanPoliciesCacheInitMap(any());
+        verify(spyService, times(2)).cleanupFailedPolicyCacheInit(any(), any(), anyBoolean());
 
         // make sure not occur Recursive update
         boolean logFound3 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
@@ -678,7 +683,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                         || logEvent.getMessage().toString().contains("Failed to read event from the system topic"));
         assertFalse(logFound2);
         verify(spyService, times(1)).cleanupFailedPolicyCacheInit(any(), any(), anyBoolean());
-        verify(spyService, times(0)).cleanPoliciesCacheInitMap(any(), anyBoolean());
+        verify(spyService, times(0)).cleanPoliciesCacheInitMap(any());
     }
 
     @Test(timeOut = 60_000)
@@ -727,22 +732,16 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // Dropping the cached init future (e.g. on a namespace-bundle unload) must complete it so the topic loads
         // awaiting it fail fast and retry, instead of hanging until the broker restarts (issue #25294).
-        CompletableFuture<Void> pendingWithReaderClose = new CompletableFuture<>();
-        service.policyCacheInitMap.put(namespace, pendingWithReaderClose);
-        service.cleanPoliciesCacheInitMap(namespace, true);
-        assertTrue(pendingWithReaderClose.isCompletedExceptionally());
-        assertNull(service.getPoliciesCacheInit(namespace));
-
-        CompletableFuture<Void> pendingWithoutReaderClose = new CompletableFuture<>();
-        service.policyCacheInitMap.put(namespace, pendingWithoutReaderClose);
-        service.cleanPoliciesCacheInitMap(namespace, false);
-        assertTrue(pendingWithoutReaderClose.isCompletedExceptionally());
+        CompletableFuture<Void> pendingInitFuture = new CompletableFuture<>();
+        service.policyCacheInitMap.put(namespace, pendingInitFuture);
+        service.cleanPoliciesCacheInitMap(namespace);
+        assertTrue(pendingInitFuture.isCompletedExceptionally());
         assertNull(service.getPoliciesCacheInit(namespace));
 
         // An already-completed init future must not be overwritten/disturbed.
         CompletableFuture<Void> alreadyDone = CompletableFuture.completedFuture(null);
         service.policyCacheInitMap.put(namespace, alreadyDone);
-        service.cleanPoliciesCacheInitMap(namespace, true);
+        service.cleanPoliciesCacheInitMap(namespace);
         assertFalse(alreadyDone.isCompletedExceptionally());
     }
 
@@ -776,5 +775,128 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertTrue(newerInitFuture.isCompletedExceptionally());
         assertNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.times(1)).closeAsync();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testClosedSupersededReaderDoesNotAbortReloadedInit() throws Exception {
+        // Reproduces the race behind the flaky AdminApi2Test.testGetInternalStatsWithProperties: a namespace unload
+        // closes the __change_events reader while a reload (e.g. getTopic right after unload) installs a fresh reader
+        // and init future for the same namespace. The old reader's close only surfaces later, on the pulsar-client
+        // executor, as an AlreadyClosedException in readMorePoliciesAsync. That late cleanup must NOT clobber the newer
+        // generation and abort its init future ("...aborted because the cached state was cleared"), which would fail
+        // the reloading topic load.
+        @Cleanup
+        TestLogAppender testLogAppender = TestLogAppender.create(log);
+
+        pulsar.getTopicPoliciesService().close();
+        SystemTopicBasedTopicPoliciesService spyService =
+                Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
+        FieldUtils.writeField(pulsar, "topicPoliciesService", spyService, true);
+
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE5);
+        admin.namespaces().createNamespace(NAMESPACE5);
+
+        // A real reader, spied so its background read loop is fully controllable: it reports "no more events" so the
+        // initialization completes and readMorePoliciesAsync starts, then parks on a read future we complete by hand.
+        SystemTopicClient.Reader<PulsarEvent> oldReader =
+                Mockito.spy(spyService.createSystemTopicClient(namespace).get(30, TimeUnit.SECONDS));
+        CompletableFuture<Message<PulsarEvent>> parkedRead = new CompletableFuture<>();
+        Mockito.doReturn(CompletableFuture.completedFuture(false)).when(oldReader).hasMoreEventsAsync();
+        Mockito.doReturn(parkedRead).when(oldReader).readNextAsync();
+        Mockito.doReturn(CompletableFuture.completedFuture(oldReader))
+                .when(spyService).createSystemTopicClient(namespace);
+        spyService.getReaderCaches().put(namespace, CompletableFuture.completedFuture(oldReader));
+
+        // Drive initialization: readMorePoliciesAsync(oldReader, <old init future>) is now looping, parked on
+        // parkedRead, having registered its whenComplete callback.
+        assertTrue(spyService.prepareInitPoliciesCacheAsync(namespace).get(30, TimeUnit.SECONDS));
+        Mockito.verify(oldReader, Mockito.atLeastOnce()).readNextAsync();
+
+        // Simulate the concurrent unload+reload having already replaced the generation: a fresh reader and a fresh,
+        // still-pending init future that a reloading topic is awaiting.
+        SystemTopicClient.Reader<PulsarEvent> reloadReader = Mockito.mock(SystemTopicClient.Reader.class);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(reloadReader).closeAsync();
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> reloadReaderFuture =
+                CompletableFuture.completedFuture(reloadReader);
+        CompletableFuture<Void> reloadInitFuture = new CompletableFuture<>();
+        spyService.getReaderCaches().put(namespace, reloadReaderFuture);
+        spyService.policyCacheInitMap.put(namespace, reloadInitFuture);
+
+        // The old reader finally observes it was closed; this runs readMorePoliciesAsync's AlreadyClosed cleanup
+        // synchronously on this thread.
+        parkedRead.completeExceptionally(new PulsarClientException.AlreadyClosedException("reader is already closed"));
+
+        // The cleanup ran (it logged), but being identity-guarded on the init future it left the newer generation
+        // untouched. Before the fix it cleared readerCaches/policyCacheInitMap by namespace key and aborted the reload.
+        assertTrue(testLogAppender.getEvents().stream().anyMatch(e ->
+                e.getMessage().toString().contains("Closing the topic policies reader for")));
+        assertFalse("the reload's init future must not be aborted by the superseded reader's late close",
+                reloadInitFuture.isCompletedExceptionally());
+        assertFalse(reloadInitFuture.isDone());
+        assertSame("the reload's reader must remain cached", reloadReaderFuture,
+                spyService.getReaderCaches().get(namespace));
+        assertSame(reloadInitFuture, spyService.getPoliciesCacheInit(namespace));
+        Mockito.verify(reloadReader, Mockito.never()).closeAsync();
+    }
+
+    @Test
+    public void testReplayTopicPolicyListenersNotifiesOnlyNamespaceScopedLocalAndGlobalPolicies() throws Exception {
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final NamespaceName namespaceA = NamespaceName.get(NAMESPACE1);
+        final NamespaceName namespaceB = NamespaceName.get(NAMESPACE2);
+        final TopicName localTopicA = TopicName.get("persistent", namespaceA, "replay-local-a");
+        final TopicName globalTopicA = TopicName.get("persistent", namespaceA, "replay-global-a");
+        final TopicName topicB = TopicName.get("persistent", namespaceB, "replay-b");
+
+        // Seed the caches: namespace A has one topic with a cached local policy and another with a cached global
+        // policy; namespace B has a topic with a cached local policy that must not be replayed for namespace A.
+        service.policiesCache.put(localTopicA, TopicPolicies.builder().isGlobal(false).build());
+        service.globalPoliciesCache.put(globalTopicA, TopicPolicies.builder().isGlobal(true).build());
+        service.policiesCache.put(topicB, TopicPolicies.builder().isGlobal(false).build());
+
+        final Map<TopicName, List<TopicPolicies>> received = new ConcurrentHashMap<>();
+        for (TopicName topicName : List.of(localTopicA, globalTopicA, topicB)) {
+            final List<TopicPolicies> updates = new CopyOnWriteArrayList<>();
+            received.put(topicName, updates);
+            service.registerListenerAsync(topicName, updates::add).get();
+        }
+
+        service.replayTopicPolicyListeners(namespaceA).get(30, TimeUnit.SECONDS);
+
+        // Only namespace A's topics are notified, once each, and both the local and the global cache are replayed.
+        Assertions.assertThat(received.get(localTopicA)).hasSize(1);
+        Assertions.assertThat(received.get(globalTopicA)).hasSize(1);
+        // Namespace B is left untouched. The pre-fix code iterated the whole cache and replayed every namespace.
+        Assertions.assertThat(received.get(topicB)).isEmpty();
+    }
+
+    @Test
+    public void testTopicPolicyListenerReplayDisabledByDefault() {
+        Assertions.assertThat(new ServiceConfiguration().isTopicPolicyListenerReplayEnabled()).isFalse();
+    }
+
+    @Test
+    public void testChangeEventsTopicPolicyLoadDoesNotRecurse() throws Exception {
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final String namespaceStr = "system-topic/change-events-recursion";
+        admin.namespaces().createNamespace(namespaceStr);
+        final NamespaceName namespace = NamespaceName.get(namespaceStr);
+        final TopicName changeEvents =
+                TopicName.get("persistent", namespace, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+
+        // The __change_events system topic must not load topic-level policies: that would create a policy-cache
+        // reader on __change_events while __change_events is still loading -- a recursive, deadlocking dependency.
+        // isSelf() guards getTopicPoliciesAsync so it returns empty for the __change_events topic without ever
+        // creating a reader. AbstractTopic#initTopicPolicy (now called for persistent AND non-persistent topics)
+        // relies on this short-circuit when a __change_events topic itself is loaded.
+        Assertions.assertThat(service.getTopicPoliciesAsync(changeEvents, TopicPoliciesService.GetType.LOCAL_ONLY)
+                .get(30, TimeUnit.SECONDS)).isEmpty();
+        Assertions.assertThat(service.getTopicPoliciesAsync(changeEvents, TopicPoliciesService.GetType.GLOBAL_ONLY)
+                .get(30, TimeUnit.SECONDS)).isEmpty();
+        // No policy-cache reader was created as a side effect, which is what would recurse.
+        Assertions.assertThat(service.getReaderCaches()).doesNotContainKey(namespace);
     }
 }

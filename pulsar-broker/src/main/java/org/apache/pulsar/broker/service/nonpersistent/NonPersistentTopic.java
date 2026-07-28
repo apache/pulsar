@@ -67,7 +67,6 @@ import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicAttributes;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
-import org.apache.pulsar.broker.service.TopicPolicyListenerWrapper;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
@@ -84,7 +83,6 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -132,9 +130,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
                     NonPersistentTopic.class, TopicAttributes.class, "topicAttributes");
 
-    // prevents race conditions in topic policy initialization
-    private final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
-
     private static class TopicStats {
         public double averageMsgSize;
         public double aggMsgRateIn;
@@ -162,7 +157,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         super(topic, brokerService);
         this.log = LOG.with().ctx(super.log).build();
         this.isFenced = false;
-        registerTopicPolicyListener();
     }
 
     private CompletableFuture<Void> updateClusterMigrated() {
@@ -191,13 +185,15 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
                 }, getPoliciesNotifyThread())
-                // Complete the topic-policy listener wrapper so buffered and future topic-level policy
-                // updates are forwarded to this topic. Without this the wrapper stays uninitialized forever
-                // and all topic-level policy updates are silently dropped. Unlike PersistentTopic,
-                // non-persistent topics don't load initial topic policies (matching the previous behavior),
-                // so the loaded values are passed as null.
-                .thenRunAsync(() -> topicPolicyListener.completeInitialization(null, null),
-                        getPoliciesNotifyThread());
+                // Load the topic's initial policies (global and local) and register the policy listener, so a
+                // non-persistent topic applies its own policies on load, the same as a persistent topic does.
+                .thenCompose(ignore -> initTopicPolicy())
+                // a failure to load the initial topic policies must not fail topic loading.
+                .exceptionally(ex -> {
+                    log.warn().attr("topic", topic).exception(ex)
+                            .log("Error loading topic policies during initialization. Ignoring the failure.");
+                    return null;
+                });
     }
 
     @Override
@@ -347,47 +343,59 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
                     DEFAULT_CONSUMER_EPOCH, schemaType);
-            if (isMigrated()) {
-                consumer.topicMigrated(getMigratedClusterUrl());
-            }
-
-            addConsumerToSubscription(subscription, consumer).thenRun(() -> {
-                if (!cnx.isActive()) {
-                    try {
-                        consumer.close();
-                    } catch (BrokerServiceException e) {
-                        if (e instanceof ConsumerBusyException) {
-                            log.warn()
-                                    .attr("subscription", subscriptionName)
-                                    .attr("consumerId", consumerId)
-                                    .attr("consumerName", consumerName)
-                                    .log("Consumer already connected");
-                        } else if (e instanceof SubscriptionBusyException) {
-                            log.warn()
-                                    .attr("subscription", subscriptionName)
-                                    .exceptionMessage(e)
-                                    .log("Failed to subscribe");
-                        }
-
-                        decrementUsageCount();
-                        future.completeExceptionally(e);
-                        return;
-                    }
-                    log.debug()
-                            .attr("subscription", subscriptionName)
-                            .attr("consumerName", consumer.consumerName())
-                            .attr("usageCount", currentUsageCount())
-                            .log("Subscribe failed");
-                    future.completeExceptionally(
-                            new BrokerServiceException.ConnectionClosedException(
-                                    "Connection was closed while the opening the cursor "));
-                } else {
+            consumer.checkAndApplyTopicMigrationAsync().thenCompose(migrated -> {
+                if (migrated) {
+                    // The topic is migrated: checkAndApplyTopicMigrationAsync() has already sent the
+                    // TopicMigrated redirect and disconnected the consumer (which also released the usage
+                    // count taken by handleConsumerAdded above). Skip addConsumerToSubscription so the consumer
+                    // is never attached to the subscription on the old cluster. Sequencing the migration check
+                    // through thenCompose (instead of the previous fire-and-forget thenAccept that raced with
+                    // addConsumerToSubscription) is what guarantees the consumer is not added once migrated.
                     log.info()
                             .attr("subscription", subscriptionName)
                             .attr("consumerId", consumerId)
-                            .log("Created new subscription");
+                            .log("Skipped subscription on migrated topic; consumer was redirected");
                     future.complete(consumer);
+                    return CompletableFuture.<Void>completedFuture(null);
                 }
+                return addConsumerToSubscription(subscription, consumer).thenRun(() -> {
+                    if (!cnx.isActive()) {
+                        try {
+                            consumer.close();
+                        } catch (BrokerServiceException e) {
+                            if (e instanceof ConsumerBusyException) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .attr("consumerId", consumerId)
+                                        .attr("consumerName", consumerName)
+                                        .log("Consumer already connected");
+                            } else if (e instanceof SubscriptionBusyException) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .exceptionMessage(e)
+                                        .log("Failed to subscribe");
+                            }
+
+                            decrementUsageCount();
+                            future.completeExceptionally(e);
+                            return;
+                        }
+                        log.debug()
+                                .attr("subscription", subscriptionName)
+                                .attr("consumerName", consumer.consumerName())
+                                .attr("usageCount", currentUsageCount())
+                                .log("Subscribe failed");
+                        future.completeExceptionally(
+                                new BrokerServiceException.ConnectionClosedException(
+                                        "Connection was closed while the opening the cursor "));
+                    } else {
+                        log.info()
+                                .attr("subscription", subscriptionName)
+                                .attr("consumerId", consumerId)
+                                .log("Created new subscription");
+                        future.complete(consumer);
+                    }
+                });
             }).exceptionally(e -> {
                 Throwable throwable = e.getCause();
                 if (throwable instanceof ConsumerBusyException) {
@@ -1045,20 +1053,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return CompletableFuture.completedFuture(null);
         }
 
-        Optional<ClusterUrl> url = getMigratedClusterUrl();
-        if (url.isPresent()) {
-            this.migrated = true;
-            producers.forEach((__, producer) -> {
-                producer.topicMigrated(url);
-            });
-            subscriptions.forEach((__, sub) -> {
-                sub.getConsumers().forEach((consumer) -> {
-                    consumer.topicMigrated(url);
+        return getMigratedClusterUrlAsync().thenCompose(url -> {
+            if (url.isPresent()) {
+                this.migrated = true;
+                producers.forEach((__, producer) -> {
+                    producer.topicMigrated(url);
                 });
-            });
-            return disconnectReplicators().thenCompose(__ -> checkAndUnsubscribeSubscriptions());
-        }
-        return CompletableFuture.completedFuture(null);
+                subscriptions.forEach((__, sub) -> {
+                    sub.getConsumers().forEach((consumer) -> {
+                        consumer.topicMigrated(url);
+                    });
+                });
+                return disconnectReplicators().thenCompose(__ -> checkAndUnsubscribeSubscriptions());
+            }
+            return CompletableFuture.<Void>completedFuture(null);
+        });
     }
 
     private CompletableFuture<Void> checkAndUnsubscribeSubscriptions() {
@@ -1336,8 +1345,4 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 old -> old != null ? old : new TopicAttributes(TopicName.get(topic)));
     }
 
-    @Override
-    public TopicPolicyListener getTopicPolicyListener() {
-        return topicPolicyListener;
-    }
 }
