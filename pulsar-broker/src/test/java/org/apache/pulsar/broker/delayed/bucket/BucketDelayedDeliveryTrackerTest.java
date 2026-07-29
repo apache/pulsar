@@ -604,9 +604,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
-        MutableBucket mutableBucket = trackerWithStorage.tracker.getLastMutableBucket();
-        ImmutableBucket bucket = new ImmutableBucket(mutableBucket.dispatcherName, mutableBucket.cursor,
-                mutableBucket.sequencer, mutableBucket.bucketSnapshotStorage, startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setLastSegmentEntryId(firstScheduleTimestamps.size());
         bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
