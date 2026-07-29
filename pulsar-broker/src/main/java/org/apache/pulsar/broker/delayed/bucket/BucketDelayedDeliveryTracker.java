@@ -424,13 +424,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return true;
     }
 
-    private synchronized List<ImmutableBucket> selectMergedBuckets(final List<ImmutableBucket> values, int mergeNum) {
-        checkArgument(mergeNum < values.size());
+    @VisibleForTesting
+    synchronized List<ImmutableBucket> selectMergedBuckets(final List<ImmutableBucket> values, int mergeNum) {
+        if (values.size() < 2 || mergeNum < 2) {
+            return Collections.emptyList();
+        }
+        int actualMergeNum = Math.min(mergeNum, values.size());
         long minNumberMessages = Long.MAX_VALUE;
         long minScheduleTimestamp = Long.MAX_VALUE;
         int minIndex = -1;
-        for (int i = 0; i + (mergeNum - 1) < values.size(); i++) {
-            List<ImmutableBucket> immutableBuckets = values.subList(i, i + mergeNum);
+        for (int i = 0; i + (actualMergeNum - 1) < values.size(); i++) {
+            List<ImmutableBucket> immutableBuckets = values.subList(i, i + actualMergeNum);
             if (immutableBuckets.stream().allMatch(bucket -> {
                 // We should skip the bucket which last segment already been load to memory,
                 // avoid record replicated index.
@@ -441,8 +445,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         .sum();
                 if (numberMessages <= minNumberMessages) {
                     minNumberMessages = numberMessages;
+                    // Snapshot segment IDs start at 1 while the timestamp list is zero-based.
+                    // The next unloaded segment is currentSegmentEntryId + 1, at list index
+                    // currentSegmentEntryId.
                     long scheduleTimestamp = immutableBuckets.stream()
-                            .mapToLong(bucket -> bucket.firstScheduleTimestamps.get(bucket.currentSegmentEntryId + 1))
+                            .mapToLong(bucket -> bucket.firstScheduleTimestamps.get(bucket.currentSegmentEntryId))
                             .min().getAsLong();
                     if (scheduleTimestamp < minScheduleTimestamp) {
                         minScheduleTimestamp = scheduleTimestamp;
@@ -453,9 +460,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         if (minIndex >= 0) {
-            return values.subList(minIndex, minIndex + mergeNum);
-        } else if (mergeNum > 2){
-            return selectMergedBuckets(values, mergeNum - 1);
+            return values.subList(minIndex, minIndex + actualMergeNum);
+        } else if (actualMergeNum > 2) {
+            return selectMergedBuckets(values, actualMergeNum - 1);
         } else {
             return Collections.emptyList();
         }
