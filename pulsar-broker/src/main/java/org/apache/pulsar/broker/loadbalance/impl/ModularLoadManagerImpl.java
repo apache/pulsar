@@ -38,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -670,23 +669,27 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
-        bundlesToUnload.asMap().forEach((broker, bundles) -> {
-            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
-            bundles.forEach(bundle -> {
+        for (Map.Entry<String, Collection<String>> entry : bundlesToUnload.asMap().entrySet()) {
+            String broker = entry.getKey();
+            boolean unloadBundleForBroker = false;
+            for (String bundle : entry.getValue()) {
+                if (!isLeader()) {
+                    return;
+                }
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
                 if (sheddingExcludedNamespaces.contains(namespaceName)) {
                     log.debug().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("namespace", namespaceName)
                             .log("Skipping load shedding for namespace");
-                    return;
+                    continue;
                 }
                 if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
-                    return;
+                    continue;
                 }
 
                 if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                    return;
+                    continue;
                 }
                 NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
                 Optional<String> destBroker = this.selectBroker(bundleToUnload);
@@ -694,13 +697,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("bundle", bundle).attr("broker", broker)
                             .log("No broker available to unload bundle from broker");
-                    return;
+                    continue;
                 }
                 if (destBroker.get().equals(broker)) {
                     log.warn().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("broker", destBroker.get()).attr("bundle", bundle)
                             .log("The destination broker is the same as the current owner broker for bundle");
-                    return;
+                    continue;
                 }
 
                 try {
@@ -713,16 +716,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                     loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
                     unloadBundleCount++;
-                    unloadBundleForBroker.set(true);
+                    unloadBundleForBroker = true;
                 } catch (PulsarServerException | PulsarAdminException e) {
                     log.warn().attr("bundle", bundle).attr("broker", broker).exception(e)
                             .log("Error when trying to perform load shedding on for broker");
                 }
-            });
-            if (unloadBundleForBroker.get()) {
+            }
+            if (unloadBundleForBroker) {
                 unloadBrokerCount++;
             }
-        });
+        }
 
         updateBundleUnloadingMetrics();
     }

@@ -327,7 +327,8 @@ public class ModularLoadManagerImplTest {
         LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
         loadManagerSpy.setLoadSheddingStrategy(loadSheddingStrategy);
         when(loadSheddingStrategy.findBundlesForUnloading(any(), any()))
-                .thenReturn(ImmutableMultimap.of(primaryBrokerId, mockBundleName(1)));
+                .thenReturn(ImmutableMultimap.of(primaryBrokerId, mockBundleName(1),
+                        primaryBrokerId, mockBundleName(2)));
         doAnswer(invocation -> true).when(loadManagerSpy).shouldNamespacePoliciesUnload(
                 Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
         doAnswer(invocation -> true).when(loadManagerSpy).shouldAntiAffinityNamespaceUnload(
@@ -341,7 +342,7 @@ public class ModularLoadManagerImplTest {
 
         loadManagerSpy.doLoadShedding();
 
-        verify(loadManagerSpy).selectBroker(any());
+        verify(loadManagerSpy, Mockito.times(1)).selectBroker(any());
         verify(loadManagerSpy, Mockito.never()).unloadNamespaceBundle(
                 Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
     }
