@@ -625,7 +625,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @param subscriptionName the name of the subscription
      * @param cursor the cursor to use for the subscription
      * @param replicated the subscription replication flag
-     * @param subscriptionProperties the subscription properties
+     * @param subscriptionProperties the subscription properties. No longer used to build the subscription — the cursor
+     *                               already carries them — but retained so overriding implementations keep working.
      * @return the subscription instance
      */
     protected PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -636,7 +637,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompactedTopicImpl compactedTopic = pulsarTopicCompactionService.getCompactedTopic();
             return new PulsarCompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 

@@ -262,7 +262,7 @@ public abstract class AbstractWebSocketHandler extends Session.Listener.Abstract
     }
 
     @Override
-    public void onWebSocketClose(int statusCode, String reason) {
+    public void onWebSocketClose(int statusCode, String reason, Callback callback) {
         log.info()
                 .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
@@ -279,6 +279,7 @@ public abstract class AbstractWebSocketHandler extends Session.Listener.Abstract
                     .exception(e)
                     .log("Failed to close handler for topic");
         }
+        callback.succeed();
     }
 
     public void close(WebSocketError error) {
