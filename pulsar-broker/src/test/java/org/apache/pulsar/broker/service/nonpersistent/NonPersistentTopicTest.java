@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -34,6 +36,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -46,8 +49,10 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -65,6 +70,45 @@ public class NonPersistentTopicTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testInitializeFailsWhenTopicPolicyLoadingFails() {
+        RuntimeException failure =
+                new RuntimeException("Failed to load topic policies");
+
+        TopicPoliciesService topicPoliciesService =
+                Mockito.mock(TopicPoliciesService.class);
+
+        Mockito.doReturn(CompletableFuture.completedFuture(true))
+                .when(topicPoliciesService)
+                .registerListenerAsync(
+                        Mockito.any(),
+                        Mockito.any());
+
+        Mockito.doReturn(FutureUtil.failedFuture(failure))
+                .when(topicPoliciesService)
+                .getTopicPoliciesAsync(
+                        Mockito.any(),
+                        Mockito.any());
+
+        Mockito.doReturn(topicPoliciesService)
+                .when(pulsar)
+                .getTopicPoliciesService();
+
+        NonPersistentTopic topic =
+                new NonPersistentTopic(
+                        "non-persistent://prop/ns-abc/"
+                                + "policy-load-failure",
+                        pulsar.getBrokerService());
+
+        ExecutionException exception =
+                Assert.expectThrows(
+                        ExecutionException.class,
+                        () -> topic.initialize()
+                                .get(5, TimeUnit.SECONDS));
+
+        assertSame(exception.getCause(), failure);
     }
 
     @Test
