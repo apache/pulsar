@@ -34,6 +34,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.ReferenceCountUtil;
 import java.net.SocketAddress;
 import lombok.CustomLog;
 
@@ -141,6 +142,8 @@ public class PortForwarder implements AutoCloseable {
                         }
                     }
                 });
+            } else {
+                ReferenceCountUtil.release(msg);
             }
         }
 
