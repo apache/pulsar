@@ -57,6 +57,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
@@ -556,6 +558,28 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class BlockingCreateStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> allowCreate = new CompletableFuture<>();
+        final AtomicLong createCalls = new AtomicLong();
+        final AtomicLong deleteCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(
+                SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey,
+                String topicName, String cursorName) {
+            createCalls.incrementAndGet();
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                            cursorName)
+                    .thenCompose(bucketId -> allowCreate.thenApply(ignored -> bucketId));
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteCalls.incrementAndGet();
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
     private static class RecordingDeleteStorage extends MockBucketSnapshotStorage {
         final AtomicLong deleteCalls = new AtomicLong();
 
@@ -586,11 +610,17 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     private TrackerWithStorage createTrackerWithMockLedger(long firstLedgerId, int maxNumBuckets,
                                                           MockBucketSnapshotStorage storage)
             throws Exception {
+        return createTrackerWithMockLedger(new AtomicLong(firstLedgerId), maxNumBuckets, storage);
+    }
+
+    private TrackerWithStorage createTrackerWithMockLedger(AtomicLong firstLedgerId, int maxNumBuckets,
+                                                           MockBucketSnapshotStorage storage)
+            throws Exception {
         storage.start();
 
         ManagedLedger mockLedger = mock(ManagedLedger.class);
         NavigableMap<Long, LedgerInfo> ledgerInfo = new TreeMap<>();
-        ledgerInfo.put(firstLedgerId, mock(LedgerInfo.class));
+        ledgerInfo.put(firstLedgerId.get(), mock(LedgerInfo.class));
         when(mockLedger.getLedgersInfo()).thenReturn(ledgerInfo);
         when(mockLedger.getName()).thenReturn("test-ledger");
 
@@ -602,7 +632,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             @Override
             public Position getMarkDeletedPosition() {
-                return PositionFactory.create(firstLedgerId, -1);
+                return PositionFactory.create(firstLedgerId.get(), -1);
             }
         };
 
@@ -828,6 +858,55 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimWaitsForSnapshotCreation() throws Exception {
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(50L, 5, storage);
+        try {
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+
+            assertEquals(storage.createCalls.get(), 6L);
+            assertEquals(storage.deleteCalls.get(), 0L,
+                    "Trim must not delete a snapshot while its creation is in flight");
+
+            storage.allowCreate.complete(null);
+            ts.tracker.getTrimFuture().get(1, TimeUnit.MINUTES);
+
+            assertEquals(storage.deleteCalls.get(), 6L);
+            assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+        } finally {
+            storage.allowCreate.complete(null);
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testTrimRevalidatesBucketAfterSnapshotCreation() throws Exception {
+        AtomicLong firstLedgerId = new AtomicLong(50L);
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, 1000L);
+            }
+
+            assertEquals(storage.createCalls.get(), 6L);
+            firstLedgerId.set(0L);
+            storage.allowCreate.complete(null);
+            ts.tracker.getTrimFuture().get(1, TimeUnit.MINUTES);
+
+            assertEquals(storage.deleteCalls.get(), 0L,
+                    "Trim must revalidate that a bucket is still orphaned after snapshot creation");
+            assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 6);
+            assertEquals(ts.tracker.getNumberOfDelayedMessages(), 31L);
+        } finally {
+            storage.allowCreate.complete(null);
+            ts.close();
+        }
     }
 
     @Test
