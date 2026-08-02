@@ -5355,6 +5355,14 @@ public class PersistentTopicsBase extends AdminResource {
                             }
 
                             if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
+                                if (enabled
+                                        && !((PersistentSubscription) sub).isReplicated()
+                                        && !((PersistentTopic) topic).isReplicatedSubscriptionAllowed()) {
+                                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                            "Replicated subscriptions require topic replication"));
+                                    return;
+                                }
+
                                 if (!((PersistentSubscription) sub).setReplicated(enabled)) {
                                     asyncResponse.resume(
                                             new RestException(Status.INTERNAL_SERVER_ERROR,

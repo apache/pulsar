@@ -1150,6 +1150,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                    Boolean replicated,
                                                                    Map<String, String> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+        PersistentSubscription existingSubscription = subscriptions.get(subscriptionName);
+        if (Boolean.TRUE.equals(replicated)
+                && !isReplicatedSubscriptionAllowed()
+                && (existingSubscription == null || !existingSubscription.isReplicated())) {
+            subscriptionFuture.completeExceptionally(
+                    new NotAllowedException("Replicated subscriptions require topic replication"));
+            return subscriptionFuture;
+        }
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
@@ -4607,6 +4615,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    public boolean isReplicatedSubscriptionAllowed() {
+        return topicPolicies.getReplicationClusters().get().size() > 1;
+    }
+
     public synchronized void checkReplicatedSubscriptionControllerState() {
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
         subscriptions.forEach((name, subscription) -> {
@@ -4626,7 +4638,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
-        boolean replicationEnabled = this.topicPolicies.getReplicationClusters().get().size() > 1;
+        boolean replicationEnabled = isReplicatedSubscriptionAllowed();
 
         if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && replicationEnabled) {
             log.info("Enabling replicated subscriptions controller");

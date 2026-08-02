@@ -1420,6 +1420,30 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
+    @Test
+    public void testCannotEnableReplicatedSubscriptionWithoutTopicReplication() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://" + testTenant + "/" + testNamespaceLocal
+                        + "/replicated-subscription-without-replication");
+        String subName = "sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        PulsarAdminException.PreconditionFailedException exception =
+                Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class,
+                        () -> admin.topics().setReplicatedSubscriptionStatus(topicName, subName, true));
+
+        Assert.assertTrue(exception.getMessage()
+                .contains("Replicated subscriptions require topic replication"));
+        Map<String, Boolean> replicatedStatus =
+                admin.topics().getReplicatedSubscriptionStatus(topicName, subName);
+        Assert.assertFalse(replicatedStatus.getOrDefault(topicName, false));
+
+        // Disabling must remain valid even when topic replication is not configured.
+        admin.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     public void testGetMessageById() throws Exception {
