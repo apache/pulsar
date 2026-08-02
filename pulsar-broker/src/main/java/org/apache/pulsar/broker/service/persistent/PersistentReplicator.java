@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +55,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -219,7 +221,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         this.cursor.setInactive();
     }
 
-    private record ReadLimits(int messages, long bytes) {
+    private record ReadLimits(int messages, long bytes, long estimatedBytes) {
         public boolean isReadable() {
             return messages > 0 && bytes > 0;
         }
@@ -227,16 +229,17 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     /**
      * Calculate read limits for a read operation. Takes the rate limiter into account if it's enabled.
-     * Also limits to current readBatchSize and readMaxSizeBytes.
+     * Also limits to current readBatchSize and readMaxSizeBytes, and checks the broker-level replication
+     * memory budget.
      */
-    private ReadLimits getReadLimits(int permits) {
+    private ReadLimits getReadLimits(int permits, Runnable retryTask) {
 
         // return 0, if Producer queue is full, it will pause read entries.
         if (permits <= 0) {
             log.debug()
                     .attr("permits", permits)
                     .log("Producer queue is full, pausing reads");
-            return new ReadLimits(0, 0);
+            return new ReadLimits(0, 0, 0);
         }
 
         long readLimitOnMsg;
@@ -256,7 +259,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                         .attr("readLimitOnMsg", readLimitOnMsg)
                         .attr("readLimitOnByte", readLimitOnByte)
                         .log("Message-read exceeded topic replicator rate limit");
-                return new ReadLimits(-1, -1);
+                return new ReadLimits(-1, -1, 0);
             }
             // use given permits if no rate limit configured, otherwise limit to returned rate limiter permits
             readLimitOnMsg = readLimitOnMsg == -1 ? permits : Math.min(permits, readLimitOnMsg);
@@ -270,7 +273,20 @@ public abstract class PersistentReplicator extends AbstractReplicator
         // limit messages to current read batch size
         readLimitOnMsg = Math.min(readLimitOnMsg, readBatchSize);
 
-        return new ReadLimits((int) readLimitOnMsg, readLimitOnByte);
+        // estimate and acquire memory budget (best-effort)
+        final long avgEntrySize = getAverageEntrySize();
+        long tryAcquiredBytes = readLimitOnMsg * avgEntrySize;
+        long acquiredBytes = brokerService.getReplicationMemoryLimiter()
+                .acquireUpTo(tryAcquiredBytes, retryTask);
+        if (acquiredBytes <= 0) {
+            log.debug("No memory budget available, waiting");
+            return new ReadLimits(0, 0, 0);
+        }
+        if (acquiredBytes < tryAcquiredBytes) {
+            readLimitOnMsg = Math.max(1, acquiredBytes / avgEntrySize);
+        }
+
+        return new ReadLimits((int) readLimitOnMsg, readLimitOnByte, acquiredBytes);
     }
 
     public void disconnectIfNoTrafficAndBacklog() {
@@ -320,10 +336,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
                         permits = 1;
                     }
 
-                    readLimits = getReadLimits(permits);
+                    readLimits = getReadLimits(permits, this::readMoreEntriesAsync);
                     if (readLimits.isReadable()) {
                         newInFlightTask = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(),
                                 readLimits.messages);
+                        newInFlightTask.estimatedBytes = readLimits.estimatedBytes;
                     } else {
                         // no rate limiter permits from rate limit
                         log.debug()
@@ -349,12 +366,42 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 newInFlightTask/* Context object */, topic.getMaxReadPosition());
     }
 
+    private void readMoreEntriesAsync() {
+        topic.getBrokerService().executor().execute(this::readMoreEntries);
+    }
+
+    private long getAverageEntrySize() {
+        Position readPosition = cursor.getReadPosition();
+        if (readPosition == null) {
+            return 0;
+        }
+        long ledgerId = readPosition.getLedgerId();
+        NavigableMap<Long, LedgerInfo> ledgers = cursor.getManagedLedger().getLedgersInfo();
+        LedgerInfo info = ledgers.get(ledgerId);
+        if (info != null && info.getEntries() > 0) {
+            return info.getSize() / info.getEntries();
+        }
+        java.util.Map.Entry<Long, LedgerInfo> previousEntry = ledgers.lowerEntry(ledgerId);
+        if (previousEntry != null && previousEntry.getValue().getEntries() > 0) {
+            return previousEntry.getValue().getSize() / previousEntry.getValue().getEntries();
+        }
+        return 0;
+    }
+
+    private long estimateBytes(int messagesToRead, long avgEntrySize) {
+        if (messagesToRead <= 0) {
+            return 0;
+        }
+        return avgEntrySize > 0 ? messagesToRead * avgEntrySize : 0;
+    }
+
     @Override
     public void readEntriesComplete(List<Entry> entries, Object ctx) {
         log.debug()
                 .attr("size", entries.size())
                 .log("Read entries complete");
         InFlightTask inFlightTask = (InFlightTask) ctx;
+        long estimatedBytes = inFlightTask.estimatedBytes;
 
         latestPublishTime = System.currentTimeMillis();
         // The read result must be discarded because the replicator is terminating or the cursor was
@@ -364,6 +411,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             for (Entry entry : entries) {
                 entry.release();
             }
+            // Entries are discarded and not replicated, return the estimated bytes.
+            brokerService.getReplicationMemoryLimiter().calibrate(estimatedBytes, 0);
             boolean resumeReads = state != State.Terminated && state != State.Terminating;
             // Hold the inFlightTasks lock (the same lock doRewindCursor() and readMoreEntries()'s
             // read-scheduling path use) so completing the task and rewinding the cursor here are atomic with
@@ -432,6 +481,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
         // After set entries, the next reading can be start.
         inFlightTask.setEntries(entries);
+
+        // Calibrate the memory estimate with actual entry sizes.
+        long actualBytes = entries.stream().mapToLong(Entry::getLength).sum();
+        brokerService.getReplicationMemoryLimiter().calibrate(estimatedBytes, actualBytes);
 
         // After the replicator starts, the speed will be gradually increased.
         int maxReadBatchSize = getMaxReadBatchSize();
@@ -505,6 +558,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 inFlightTask.incCompletedEntries();
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
+            replicator.brokerService.getReplicationMemoryLimiter().release(entry.getLength());
             entry.release();
 
             // In general, we schedule a new batch read operation when the occupied queue size gets smaller than half
@@ -890,6 +944,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         volatile int completedEntries;
         volatile boolean skipReadResultDueToCursorRewind;
         final String replicatorId;
+        long estimatedBytes;
 
         public synchronized void incCompletedEntries() {
             if (!CollectionUtils.isEmpty(entries) && completedEntries < entries.size()) {
@@ -908,6 +963,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.entries = null;
             this.completedEntries = 0;
             this.skipReadResultDueToCursorRewind = false;
+            this.estimatedBytes = 0;
         }
 
         public InFlightTask(Position readPos, int readingEntries, String replicatorId) {
