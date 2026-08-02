@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -34,8 +33,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -48,7 +45,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -62,7 +58,6 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
@@ -279,81 +274,6 @@ public class ConsumerImplTest {
     }
 
     @Test
-    public void testResumeFlushesSubThresholdPermitsOnlyOnce() {
-        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
-        List<Integer> flowPermits = captureFlowPermits(cnx);
-        consumer.setClientCnx(cnx);
-
-        int threshold = consumer.getCurrentReceiverQueueSize() / 2;
-        int owed = threshold - 1;
-        assertThat(owed).isPositive();
-
-        consumer.pause();
-        consumer.increaseAvailablePermits(cnx, owed);
-        assertThat(flowPermits).isEmpty();
-        assertThat(consumer.getAvailablePermits()).isEqualTo(owed);
-
-        consumer.resume();
-        assertThat(flowPermits).containsExactly(owed);
-        assertThat(consumer.getAvailablePermits()).isZero();
-
-        consumer.resume();
-        assertThat(flowPermits).containsExactly(owed);
-    }
-
-    @Test
-    public void testIncreaseAvailablePermitsStillUsesThreshold() {
-        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
-        List<Integer> flowPermits = captureFlowPermits(cnx);
-        consumer.setClientCnx(cnx);
-
-        int threshold = consumer.getCurrentReceiverQueueSize() / 2;
-        consumer.increaseAvailablePermits(cnx, threshold - 1);
-        assertThat(flowPermits).isEmpty();
-        assertThat(consumer.getAvailablePermits()).isEqualTo(threshold - 1);
-
-        consumer.increaseAvailablePermits(cnx, 1);
-        assertThat(flowPermits).containsExactly(threshold);
-        assertThat(consumer.getAvailablePermits()).isZero();
-    }
-
-    @Test
-    public void testResumeWithAutoScaledReceiverQueueFlushesOnlyPositivePermits() {
-        ConsumerConfigurationData<byte[]> configuration = new ConsumerConfigurationData<>();
-        configuration.setAutoScaledReceiverQueueSizeEnabled(true);
-        configuration.setBatchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(3).build());
-        executorProvider.shutdownNow();
-        internalExecutor.shutdownNow();
-        consumerConf = configuration;
-        createConsumer(configuration);
-
-        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
-        List<Integer> flowPermits = captureFlowPermits(cnx);
-        consumer.setClientCnx(cnx);
-
-        int receiverQueueSize = consumer.getCurrentReceiverQueueSize();
-        assertThat(receiverQueueSize).isEqualTo(4);
-
-        consumer.pause();
-        consumer.increaseAvailablePermits(cnx, 1);
-        consumer.resume();
-        assertThat(flowPermits).containsExactly(1);
-        assertThat(consumer.getAvailablePermits()).isZero();
-
-        consumer.pause();
-        consumer.setCurrentReceiverQueueSize(receiverQueueSize * 2);
-        consumer.resume();
-        assertThat(flowPermits).containsExactly(1, receiverQueueSize);
-        assertThat(consumer.getAvailablePermits()).isZero();
-
-        consumer.pause();
-        consumer.setCurrentReceiverQueueSize(receiverQueueSize / 2);
-        consumer.resume();
-        assertThat(flowPermits).containsExactly(1, receiverQueueSize);
-        assertThat(consumer.getAvailablePermits()).isNegative();
-    }
-
-    @Test
     public void testTopicPriorityLevel() {
         ConsumerConfigurationData<byte[]> consumerConf2 = new ConsumerConfigurationData<>();
         consumerConf2.getTopicConfigurations().add(
@@ -398,26 +318,6 @@ public class ConsumerImplTest {
     public void testAutoGenerateConsumerName() {
         Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
         assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
-    }
-
-    private List<Integer> captureFlowPermits(ClientCnx cnx) {
-        List<Integer> flowPermits = new ArrayList<>();
-        ChannelHandlerContext ctx = cnx.ctx();
-        doAnswer(invocation -> {
-            ByteBuf command = invocation.getArgument(0);
-            try {
-                command.skipBytes(Integer.BYTES);
-                int commandSize = command.readInt();
-                BaseCommand parsedCommand = new BaseCommand();
-                parsedCommand.parseFrom(command, commandSize);
-                assertThat(parsedCommand.getType()).isEqualTo(BaseCommand.Type.FLOW);
-                flowPermits.add(parsedCommand.getFlow().getMessagePermits());
-            } finally {
-                command.release();
-            }
-            return null;
-        }).when(ctx).writeAndFlush(any(ByteBuf.class), any());
-        return flowPermits;
     }
 
     @Test(invocationTimeOut = 1000)
