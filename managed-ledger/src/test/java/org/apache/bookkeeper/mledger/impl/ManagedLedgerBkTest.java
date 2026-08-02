@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -42,8 +43,10 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -59,8 +62,10 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
+import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -757,5 +762,51 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // cleanup
         ledger1.close();
         factory.shutdown();
+    }
+
+    @Test
+    public void rollEmptyLedgerClosedInMetadata() throws Exception {
+        MockClock clock = new MockClock();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setClock(clock);
+        config.setMaximumRolloverTime(1, TimeUnit.HOURS);
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+        clock.advance(1, TimeUnit.HOURS);
+
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().during(1, TimeUnit.SECONDS).untilAsserted(() -> assertThat(ledger.currentLedger.getId())
+                .as("an empty ledger that is still open in metadata should not be rolled over")
+                .isEqualTo(ledgerId));
+
+        Versioned<LedgerMetadata> versionedMetadata =
+                bkc.getLedgerManager().readLedgerMetadata(ledgerId).get();
+        LedgerMetadata closedMetadata = LedgerMetadataBuilder.from(versionedMetadata.getValue())
+                .withClosedState()
+                .withLastEntryId(-1)
+                .withLength(0)
+                .build();
+        bkc.getLedgerManager()
+                .writeLedgerMetadata(ledgerId, closedMetadata, versionedMetadata.getVersion()).get();
+
+        assertThat(ledger.currentLedger.getLedgerMetadata().isClosed())
+                .as("the broker's write handle should still consider the ledger open")
+                .isFalse();
+
+        // Trigger the scheduled check and immediately produce to exercise the race with the metadata lookup.
+        ledger.rollCurrentLedgerIfFull();
+        Position position = ledger.addEntry("msg1".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(position.getLedgerId()).as("the first entry should be written to a new ledger")
+                .isNotEqualTo(ledgerId);
+        List<Entry> entries = cursor.readEntries(1);
+        assertThat(entries).singleElement().extracting(entry -> new String(entry.getData(), StandardCharsets.UTF_8))
+                .isEqualTo("msg1");
+        entries.forEach(Entry::release);
     }
 }

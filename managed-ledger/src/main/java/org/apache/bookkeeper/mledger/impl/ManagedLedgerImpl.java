@@ -285,6 +285,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // ledger metadata stored. This variable used to record the result of the latest once re-checking.
     private Pair<Long, CompletableFuture<Integer>> ledgerRecheckInProgress = new ImmutablePair<>(-1L,
             CompletableFuture.completedFuture(Code.OK));
+    private boolean emptyLedgerMetadataCheckInProgress;
 
     public enum State {
         None, // Uninitialized
@@ -879,7 +880,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         pendingAddEntries.add(addOperation);
 
-        if (state == State.ClosingLedger || state == State.CreatingLedger) {
+        if (state == State.LedgerOpened && currentLedgerEntries == 0 && maximumRolloverTimeReached()
+                && !emptyLedgerMetadataCheckInProgress) {
+            emptyLedgerMetadataCheckInProgress = true;
+            checkEmptyLedgerMetadata(currentLedger);
+        }
+
+        if (state == State.ClosingLedger || state == State.CreatingLedger
+                || emptyLedgerMetadataCheckInProgress) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
             log.debug("Queue addEntry request");
@@ -1885,7 +1893,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
         log.debug().attr("count", pendingAddEntries.size()).log("Resending pending messages");
+        resendPendingAddEntries();
+    }
 
+    private void resendPendingAddEntries() {
         createNewOpAddEntryForNewLedger();
 
         // Process all the pending addEntry requests
@@ -2023,9 +2034,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @VisibleForTesting
     @SuppressWarnings("deprecation")
     @Override
-    public void rollCurrentLedgerIfFull() {
+    public synchronized void rollCurrentLedgerIfFull() {
         log.info("Start checking if current ledger is full");
-        if (currentLedgerEntries > 0 && currentLedgerIsFull()
+        if (!currentLedgerIsFull()) {
+            return;
+        }
+
+        if (currentLedgerEntries > 0
                 && STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
             currentLedger.asyncClose(new AsyncCallback.CloseCallback() {
                 @Override
@@ -2045,7 +2060,55 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgerClosed(lh);
                 }
             }, null);
+        } else if (currentLedgerEntries == 0 && maximumRolloverTimeReached()
+                && STATE_UPDATER.get(this) == State.LedgerOpened
+                && !emptyLedgerMetadataCheckInProgress) {
+            emptyLedgerMetadataCheckInProgress = true;
+            checkEmptyLedgerMetadata(currentLedger);
         }
+    }
+
+    private void checkEmptyLedgerMetadata(LedgerHandle ledger) {
+        bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(ledger.getId())
+                .withDigestType(config.getDigestType()).withPassword(config.getPassword())
+                .withLoggerContext(log).execute()
+                .whenCompleteAsync((readHandle, exception) -> {
+                    try {
+                        synchronized (this) {
+                            emptyLedgerMetadataCheckInProgress = false;
+
+                            if (currentLedger != ledger || STATE_UPDATER.get(this) != State.LedgerOpened) {
+                                return;
+                            }
+
+                            if (exception != null) {
+                                log.warn().attr("ledgerId", ledger.getId()).exception(exception)
+                                        .log("Failed to check the metadata of an empty ledger");
+                                clearPendingAddEntries(createManagedLedgerException(exception));
+                                return;
+                            }
+
+                            LedgerMetadata metadata = readHandle.getLedgerMetadata();
+                            if (metadata.isClosed()) {
+                                if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
+                                    log.info().attr("ledgerId", ledger.getId())
+                                            .log("Rolling over an empty ledger that is closed in metadata");
+                                    ledgerClosed(ledger, metadata.getLastEntryId());
+                                }
+                            } else {
+                                resendPendingAddEntries();
+                            }
+                        }
+                    } finally {
+                        if (readHandle != null) {
+                            readHandle.closeAsync().exceptionally(closeException -> {
+                                log.warn().attr("ledgerId", ledger.getId()).exception(closeException)
+                                        .log("Failed to close the ledger metadata check handle");
+                                return null;
+                            });
+                        }
+                    }
+                }, executor);
     }
 
     @Override
@@ -4463,6 +4526,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             return false;
         }
+    }
+
+    private boolean maximumRolloverTimeReached() {
+        return factory.isMetadataServiceAvailable()
+                && config.getMaximumRolloverTimeMs() > 0
+                && clock.millis() - lastLedgerCreatedTimestamp >= config.getMaximumRolloverTimeMs();
     }
 
     public List<LedgerInfo> getLedgersInfoAsList() {
