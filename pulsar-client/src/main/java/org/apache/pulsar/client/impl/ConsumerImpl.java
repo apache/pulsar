@@ -1955,6 +1955,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    private void flushAvailablePermitsToBroker(ClientCnx currentCnx) {
+        int available = AVAILABLE_PERMITS_UPDATER.get(this);
+        while (available > 0 && !paused) {
+            if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
+                sendFlowPermitsToBroker(currentCnx, available);
+                break;
+            } else {
+                available = AVAILABLE_PERMITS_UPDATER.get(this);
+            }
+        }
+    }
+
     public void increaseAvailablePermits(int delta) {
         increaseAvailablePermits(cnx(), delta);
     }
@@ -1980,7 +1992,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public void resume() {
         if (paused) {
             paused = false;
-            increaseAvailablePermits(cnx(), 0);
+            flushAvailablePermitsToBroker(cnx());
         }
     }
 
