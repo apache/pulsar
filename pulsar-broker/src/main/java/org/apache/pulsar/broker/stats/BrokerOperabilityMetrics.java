@@ -38,7 +38,8 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 /**
  */
 public class BrokerOperabilityMetrics implements AutoCloseable {
-    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
+    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-")
+            .labelNames("reason").create().register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
@@ -191,8 +192,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
-    public void recordTopicLoadFailed() {
-        this.TOPIC_LOAD_FAILED.inc();
+    public void recordTopicLoadFailed(String reason) {
+        this.TOPIC_LOAD_FAILED.labels(reason).inc();
     }
 
     public void recordConnectionCreate() {
