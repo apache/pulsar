@@ -114,6 +114,18 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicPolicyException extends BrokerServiceException {
+        public TopicPolicyException(Throwable t) {
+            super(t);
+        }
+    }
+
+    public static class TopicInitException extends BrokerServiceException {
+        public TopicInitException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class ServerMetadataException extends BrokerServiceException {
         public ServerMetadataException(Throwable t) {
             super(t);

@@ -128,6 +128,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicInitException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicPolicyException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSystemTopic;
@@ -1319,20 +1321,60 @@ public class BrokerService implements Closeable {
                     context.setProperties(properties);
                 }
                 topicFuture.exceptionally(t -> {
+                    final var lastStep = context.getLastTimepointName();
                     final var latency = context.traceAndGetLatency("fail").description();
-                    if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
+                    final var unwrapped = FutureUtil.unwrapCompletionException(t);
+                    final String reason;
+                    if (unwrapped instanceof TimeoutException) {
+                        reason = getTimeoutReason(lastStep);
                         log.warn()
                                 .attr("topic", topicName)
                                 .attr("latency", latency)
                                 .log("Failed to load topic within " + timeoutSeconds + " s");
+                    } else if (unwrapped instanceof TopicMigratedException) {
+                        reason = "bundle_unloading";
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("latency", latency)
+                                .exception(t)
+                                .log("Failed to load topic");
+                    } else if (unwrapped instanceof TopicPolicyException) {
+                        reason = "failed_load_policies";
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("latency", latency)
+                                .exception(t)
+                                .log("Failed to load topic");
+                    } else if (unwrapped instanceof TopicInitException) {
+                        reason = "failed_init";
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("latency", latency)
+                                .exception(t)
+                                .log("Failed to load topic");
+                    } else if (unwrapped instanceof PersistenceException) {
+                        reason = "failed_load_ml";
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("latency", latency)
+                                .exception(t)
+                                .log("Failed to load topic");
+                    } else if (unwrapped instanceof MetadataStoreException) {
+                        reason = "failed_access_metadata_store";
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("latency", latency)
+                                .exception(t)
+                                .log("Failed to load topic");
                     } else {
+                        reason = "others";
                         log.warn()
                                 .attr("topic", topicName)
                                 .attr("latency", latency)
                                 .exception(t)
                                 .log("Failed to load topic");
                     }
-                    pulsarStats.recordTopicLoadFailed();
+                    pulsarStats.recordTopicLoadFailed(reason);
                     return Optional.empty();
                 });
                 context.trace("topic exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
@@ -1369,7 +1411,7 @@ public class BrokerService implements Closeable {
                     }).exceptionally(e -> {
                         log.warn().attr("topic", topicName).log("Topic creation encountered an exception"
                                 + " by initialize topic policies service");
-                        failTopicFuture(topicName.toString(), topicFuture, e);
+                        failTopicFuture(topicName.toString(), topicFuture, new TopicPolicyException(e));
                         return null;
                     });
                 }).exceptionally(e -> {
@@ -1432,6 +1474,26 @@ public class BrokerService implements Closeable {
         // It will trigger the logging for exception and traced latencies in topicFuture's exceptionally callback, so
         // we don't need to add an extra log before it.
         topicFuture.completeExceptionally(rc);
+    }
+
+    private static String getTimeoutReason(String lastStep) {
+        if (lastStep == null) {
+            return "timeout";
+        }
+        switch (lastStep) {
+            case "system topic":
+                return "timeout_load_policies";
+            case "open-ml":
+                return "timeout_load_ml";
+            case "deduplication":
+                return "timeout_dedup";
+            case "init":
+            case "replication":
+            case "pre-create compacted sub":
+                return "timeout_init";
+            default:
+                return "timeout";
+        }
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,
@@ -1585,7 +1647,7 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed();
+            pulsarStats.recordTopicLoadFailed("others");
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
@@ -2111,7 +2173,8 @@ public class BrokerService implements Closeable {
                                                                 .attr("topic", topic)
                                                                 .log("Get an error when closing topic.");
                                                     }
-                                                    topicFuture.completeExceptionally(ex);
+                                                    topicFuture.completeExceptionally(
+                                                            new TopicInitException(ex));
                                                 });
                                             });
                                             return null;
