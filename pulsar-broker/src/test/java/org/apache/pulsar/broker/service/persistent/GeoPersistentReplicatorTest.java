@@ -21,9 +21,11 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -35,10 +37,10 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -72,7 +74,7 @@ public class GeoPersistentReplicatorTest {
     }
 
     @Test(dataProvider = "synchronousSchemaLookupFailures")
-    public void testSchemaInfoSynchronousFailureSkipsOuterReadUntilScheduledCursorRewind(
+    public void testSchemaInfoSynchronousFailureDoesNotReadUntilScheduledCursorRewind(
             Throwable schemaLookupFailure) throws Exception {
         ThrowingSchemaReplicator replicator = new ThrowingSchemaReplicator(schemaLookupFailure);
         replicator.forceStarted();
@@ -83,7 +85,7 @@ public class GeoPersistentReplicatorTest {
         Entry secondEntry = mock(Entry.class);
 
         List<Entry> entries = List.of(firstEntry, secondEntry);
-        InFlightTask inFlightTask = new InFlightTask(firstPosition, entries.size(), replicator.getReplicatorId());
+        InFlightTask inFlightTask = replicator.createOrRecycleInFlightTaskIntoQueue(firstPosition, entries.size());
 
         try {
             replicator.readEntriesComplete(entries, inFlightTask);
@@ -97,16 +99,18 @@ public class GeoPersistentReplicatorTest {
                     .as("the entry and retained schema lookup buffer should both be released")
                     .isZero();
             verify(replicator.cursor, never()).rewind();
-            verify(replicator.context.executor).schedule(any(Runnable.class),
+            verify(replicator.cursor, never()).asyncReadEntriesOrWait(
+                    anyInt(), anyLong(), any(), any(), any());
+            verify(replicator.context.executor, atLeastOnce()).schedule(any(Runnable.class),
                     eq((long) PersistentTopic.MESSAGE_RATE_BACKOFF_MS), eq(TimeUnit.MILLISECONDS));
 
-            Runnable scheduledRewind = replicator.context.scheduledTask.get();
+            Runnable scheduledRewind = replicator.context.scheduledTasks.get(0);
             assertThat(scheduledRewind).isNotNull();
-            assertThat(replicator.readMoreEntriesCalls).isZero();
 
             scheduledRewind.run();
             verify(replicator.cursor).rewind();
-            assertThat(replicator.readMoreEntriesCalls).isEqualTo(1);
+            verify(replicator.cursor).asyncReadEntriesOrWait(
+                    anyInt(), anyLong(), any(), any(), any());
         } finally {
             while (headersAndPayload.refCnt() > 0) {
                 headersAndPayload.release();
@@ -145,7 +149,6 @@ public class GeoPersistentReplicatorTest {
     private static class ThrowingSchemaReplicator extends GeoPersistentReplicator {
 
         private final ReplicatorContext context;
-        private int readMoreEntriesCalls;
 
         ThrowingSchemaReplicator(Throwable schemaLookupFailure)
                 throws PulsarServerException, ExecutionException {
@@ -162,11 +165,6 @@ public class GeoPersistentReplicatorTest {
         @Override
         protected void startProducer() {
             // Avoid creating a real remote producer from the superclass constructor.
-        }
-
-        @Override
-        protected void readMoreEntries() {
-            readMoreEntriesCalls++;
         }
 
         void forceStarted() {
@@ -186,11 +184,12 @@ public class GeoPersistentReplicatorTest {
         private static ManagedCursor mockCursor() {
             ManagedCursor cursor = mock(ManagedCursor.class);
             when(cursor.getName()).thenReturn("pulsar.repl.remote");
+            when(cursor.getReadPosition()).thenReturn(PositionFactory.create(1, 1));
             return cursor;
         }
 
         private static BrokerService mockBrokerService(EventLoopGroup executor,
-                                                       AtomicReference<Runnable> scheduledTask)
+                                                       List<Runnable> scheduledTasks)
                 throws PulsarServerException {
             ServiceConfiguration config = new ServiceConfiguration();
             PulsarService pulsar = mock(PulsarService.class);
@@ -206,7 +205,7 @@ public class GeoPersistentReplicatorTest {
             when(brokerService.getPulsar()).thenReturn(pulsar);
             when(brokerService.executor()).thenReturn(executor);
             doAnswer(invocation -> {
-                scheduledTask.set(invocation.getArgument(0, Runnable.class));
+                scheduledTasks.add(invocation.getArgument(0, Runnable.class));
                 return null;
             }).when(executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
             return brokerService;
@@ -228,7 +227,7 @@ public class GeoPersistentReplicatorTest {
     }
 
     private static class ReplicatorContext {
-        private final AtomicReference<Runnable> scheduledTask;
+        private final List<Runnable> scheduledTasks;
         private final EventLoopGroup executor;
         private final BrokerService brokerService;
         private final PersistentTopic topic;
@@ -238,9 +237,9 @@ public class GeoPersistentReplicatorTest {
 
         private ReplicatorContext(Throwable schemaLookupFailure)
                 throws PulsarServerException, ExecutionException {
-            this.scheduledTask = new AtomicReference<>();
+            this.scheduledTasks = new ArrayList<>();
             this.executor = mock(EventLoopGroup.class);
-            this.brokerService = ThrowingSchemaReplicator.mockBrokerService(executor, scheduledTask);
+            this.brokerService = ThrowingSchemaReplicator.mockBrokerService(executor, scheduledTasks);
             this.topic = ThrowingSchemaReplicator.mockTopic(brokerService);
             this.cursor = ThrowingSchemaReplicator.mockCursor();
             this.replicationClient = ThrowingSchemaReplicator.mockReplicationClient(schemaLookupFailure);

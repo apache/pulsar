@@ -456,10 +456,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     .attr("atLeastOneMessageSentForReplication", atLeastOneMessageSentForReplication)
                     .attr("isWritable", isWritable())
                     .log("Pausing replication traffic");
-        } else if (waitForCursorRewindingRefCnf > 0) {
-            log.debug()
-                    .attr("reason", reasonOfWaitForCursorRewinding)
-                    .log("Skipping read while waiting for cursor rewind");
         } else {
             readMoreEntries();
         }
