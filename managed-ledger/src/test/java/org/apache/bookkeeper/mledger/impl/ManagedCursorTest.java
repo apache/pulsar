@@ -4714,6 +4714,415 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(deletedIndexes.get(0).getEnd(), 3);
     }
 
+    @Test(timeOut = 30000)
+    public void testMultiEntryIndividualAckStatePersistAndRecover() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithMultipleEntriesEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setMaxBatchDeletedIndexToPersist(1000);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_multi_entry_individual_ack_state";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 320; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+
+        Map<String, Long> properties = Map.of("checkpoint", 42L);
+        cursor.markDelete(positions.get(0), properties);
+        for (int i = 2; i < 180; i += 2) {
+            cursor.delete(positions.get(i));
+        }
+        for (int i = 200; i < 280; i++) {
+            deleteBatchIndex(cursor, positions.get(i), 64,
+                    Lists.newArrayList(new IntRange().setStart(1).setEnd(31)));
+        }
+        assertThat(cursor.getDeletedBatchIndexesAsLongArray(positions.get(240))).isNotEmpty();
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        ledger.close();
+
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(cursor.getProperties()).containsEntry("checkpoint", 42L);
+        assertThat(cursor.isMessageDeleted(positions.get(100))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(101))).isFalse();
+        List<IntRange> recoveredBatchIndexes =
+                getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray(positions.get(240)), 64);
+        assertThat(recoveredBatchIndexes).hasSize(1);
+        assertThat(recoveredBatchIndexes.get(0).getStart()).isEqualTo(1);
+        assertThat(recoveredBatchIndexes.get(0).getEnd()).isEqualTo(31);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testBatchIndexesRecoverFromMetadataStoreAfterCursorLedgerFailure() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithMultipleEntriesEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_batch_indexes_metadata_fallback";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+
+        cursor.markDelete(positions.get(0));
+        ManagedCursorImpl cursorBeforeFallback = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeFallback.getCursorLedger()).isNotNegative());
+        assertThat(cursor.closeCursorLedger()).isTrue();
+        deleteBatchIndex(cursor, positions.get(5), 32,
+                Lists.newArrayList(new IntRange().setStart(4).setEnd(20)));
+        ledger.close();
+
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<IntRange> recoveredBatchIndexes =
+                getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray(positions.get(5)), 32);
+        assertThat(recoveredBatchIndexes).hasSize(1);
+        assertThat(recoveredBatchIndexes.get(0).getStart()).isEqualTo(4);
+        assertThat(recoveredBatchIndexes.get(0).getEnd()).isEqualTo(20);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testLegacyLongArrayWithSingleAckHole() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistIndividualAckAsLongArray(true);
+        config.setPersistentUnackedRangesWithMultipleEntriesEnabled(false);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_legacy_long_array_single_ack_hole";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int messageNumber = 1; messageNumber <= 5; messageNumber++) {
+            positions.add(ledger.addEntry(("message-" + messageNumber).getBytes(Encoding)));
+        }
+
+        cursor.delete(positions.get(0));
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(3));
+        cursor.delete(positions.get(4));
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(1));
+        assertThat(cursor.getIndividuallyDeletedMessagesSet().asRanges())
+                .containsExactly(Range.openClosed(positions.get(2), positions.get(4)));
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        long cursorLedgerId = cursor.getCursorLedger();
+        ledger.close();
+
+        try (LedgerHandle cursorLedger = bkc.openLedgerNoRecovery(cursorLedgerId, DigestType.CRC32C,
+                config.getPassword())) {
+            PositionInfo persisted = CursorWal.readLatest(cursorLedger).get(5, TimeUnit.SECONDS)
+                    .positionInfo();
+
+            assertThat(persisted.getLedgerId()).isEqualTo(positions.get(1).getLedgerId());
+            assertThat(persisted.getEntryId()).isEqualTo(positions.get(1).getEntryId());
+            assertThat(persisted.hasCursorStateChunk()).isFalse();
+            assertThat(persisted.getIndividualDeletedMessageRangesCount()).isEqualTo(1);
+            assertThat(persisted.getIndividualDeletedMessageRangeAt(0).getKey())
+                    .isEqualTo(positions.get(0).getLedgerId());
+            assertThat(persisted.getIndividualDeletedMessageRangeAt(0).getValuesCount()).isEqualTo(2);
+            assertThat(persisted.getIndividualDeletedMessageRangeAt(0).getValueAt(0)).isEqualTo(24L);
+            assertThat(persisted.getIndividualDeletedMessageRangeAt(0).getValueAt(1)).isZero();
+            assertThat(BitSet.valueOf(new long[] {
+                    persisted.getIndividualDeletedMessageRangeAt(0).getValueAt(0),
+                    persisted.getIndividualDeletedMessageRangeAt(0).getValueAt(1)
+            }).toLongArray()).containsExactly(24L);
+        }
+
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(1));
+        assertThat(cursor.isMessageDeleted(positions.get(0))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(1))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(4))).isTrue();
+        ledger.close();
+    }
+
+    /**
+     * PIP-488 P2 end-to-end: enable DE+CM flag, perform individual acks, reopen, verify state.
+     * Mirrors the assertions of {@code testLegacyLongArrayWithSingleAckHole} but exercises the
+     * MDE + DE + CM write path and CM-fast-path recovery.
+     */
+    @Test(timeOut = 30000)
+    public void testDeCmIndividualAckPersistAndRecover() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithPerLedgerEntryEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_de_cm_individual_ack_persist_and_recover";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int messageNumber = 1; messageNumber <= 5; messageNumber++) {
+            positions.add(ledger.addEntry(("message-" + messageNumber).getBytes(Encoding)));
+        }
+
+        cursor.delete(positions.get(0));
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(3));
+        cursor.delete(positions.get(4));
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(1));
+        assertThat(cursor.getIndividuallyDeletedMessagesSet().asRanges())
+                .containsExactly(Range.openClosed(positions.get(2), positions.get(4)));
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        long cursorLedgerId = cursor.getCursorLedger();
+        ledger.close();
+
+        // Reopen and verify recovery via the CM fast path.
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(1));
+        assertThat(cursor.isMessageDeleted(positions.get(0))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(1))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(4))).isTrue();
+        ledger.close();
+    }
+
+    /**
+     * PIP-488 P2 phase 2: with CM triggers suppressed (high maxTailEntries + long interval),
+     * only the first flush writes a CM. Subsequent flushes append MDE + DE only, and recovery
+     * must use the tail-replay path: scan back to the lone CM, forward-replay the tail to
+     * pick up every DE override.
+     */
+    @Test(timeOut = 30000)
+    public void testDeCmTailReplayRecovery() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithPerLedgerEntryEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_de_cm_tail_replay_recovery";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("msg-" + i).getBytes(Encoding)));
+        }
+
+        cursor.markDelete(positions.get(0));
+        cursor.delete(positions.get(2));
+        cursor.delete(positions.get(4));
+        cursor.delete(positions.get(6));
+        cursor.delete(positions.get(8));
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        ledger.close();
+
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(cursor.isMessageDeleted(positions.get(1))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(4))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(5))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(6))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(7))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(8))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(9))).isFalse();
+        ledger.close();
+    }
+
+    /**
+     * PIP-488 P2: multi-msgLedger + cursor-ledger rollover. Writes enough entries to
+     * trigger at least one message-ledger rollover, acks across multiple msgLedgers, forces
+     * a cursor-ledger rollover by setting a small metadataMaxEntriesPerLedger, then reopens.
+     * Recovery must correctly restore individual ack state across all msgLedgers.
+     */
+    @Test(timeOut = 60000)
+    public void testDeCmMultiMsgLedgerWithCursorRollover() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithPerLedgerEntryEnabled(true);
+        config.setMaxEntriesPerLedger(5); // small message-ledger to trigger rollover quickly
+        config.setMetadataMaxEntriesPerLedger(100); // cursor ledger big enough for DE+CM
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_de_cm_multi_ledger_rollover";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        // Write 30 entries → at least 6 message ledgers (5 entries/ledger).
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            positions.add(ledger.addEntry(("msg-" + i).getBytes(Encoding)));
+        }
+
+        // Mark-delete the first entry, then individually ack scattered entries across ledgers.
+        cursor.markDelete(positions.get(0));
+        cursor.delete(positions.get(3));
+        cursor.delete(positions.get(7));
+        cursor.delete(positions.get(12));
+        cursor.delete(positions.get(20));
+        cursor.delete(positions.get(25));
+
+        // Verify pre-recovery state.
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(7))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(12))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(20))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(25))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(5))).isFalse();
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        ledger.close();
+
+        // Reopen and verify recovery across multiple msgLedgers + cursor-ledger rollover.
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(7))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(12))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(20))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(25))).isTrue();
+        // Non-acked should not be deleted.
+        assertThat(cursor.isMessageDeleted(positions.get(5))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(10))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(15))).isFalse();
+
+        ledger.close();
+    }
+
+    /**
+     * PIP-488 P2: cursor ledger rollover + GC. After rollover, old cursor ledgers
+     * that are no longer referenced by any DE should be deleted. Verifies that ack state
+     * survives rollover and that old ledgers are eventually cleaned up.
+     */
+    @Test(timeOut = 60000)
+    public void testDeCmCursorLedgerRolloverAndGC() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithPerLedgerEntryEnabled(true);
+        config.setMaxEntriesPerLedger(5);
+        config.setMetadataMaxEntriesPerLedger(100);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_de_cm_cursor_rollover_gc";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            positions.add(ledger.addEntry(("msg-" + i).getBytes(Encoding)));
+        }
+
+        cursor.markDelete(positions.get(0));
+        cursor.delete(positions.get(2));
+        cursor.delete(positions.get(5));
+        cursor.delete(positions.get(10));
+        cursor.delete(positions.get(15));
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(5))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(10))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(15))).isTrue();
+
+        ledger.close();
+
+        // Reopen and verify recovery across any cursor-ledger rollovers.
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(5))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(10))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(15))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(3))).isFalse();
+        ledger.close();
+    }
+
+    /**
+     * PIP-488 P2: batch ack persist + recovery via DE+CM. Verifies that batch ack entries
+     * stored inside DE entries are correctly recovered (the recoverFromCmFastPath must
+     * copy batchedEntryDeletionIndexInfo from each DE into the merged PositionInfo).
+     */
+    @Test(timeOut = 30000)
+    public void testDeCmBatchAckPersistAndRecover() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithPerLedgerEntryEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setMaxBatchDeletedIndexToPersist(1000);
+        config.setThrottleMarkDelete(0);
+
+        String ledgerName = "test_de_cm_batch_ack";
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+
+        cursor.markDelete(positions.get(0));
+        cursor.delete(positions.get(2));
+        deleteBatchIndex(cursor, positions.get(5), 32,
+                Lists.newArrayList(new IntRange().setStart(1).setEnd(10)));
+        deleteBatchIndex(cursor, positions.get(7), 32,
+                Lists.newArrayList(new IntRange().setStart(5).setEnd(15)));
+
+        assertThat(cursor.getDeletedBatchIndexesAsLongArray(positions.get(5))).isNotEmpty();
+        assertThat(cursor.getDeletedBatchIndexesAsLongArray(positions.get(7))).isNotEmpty();
+
+        ManagedCursorImpl cursorBeforeRecovery = cursor;
+        Awaitility.await().untilAsserted(
+                () -> assertThat(cursorBeforeRecovery.getCursorLedger()).isNotNegative());
+        ledger.close();
+
+        ledger = factory.open(ledgerName, config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isTrue();
+        assertThat(cursor.isMessageDeleted(positions.get(1))).isFalse();
+
+        List<IntRange> batch5 = getAckedIndexRange(
+                cursor.getDeletedBatchIndexesAsLongArray(positions.get(5)), 32);
+        assertThat(batch5).hasSize(1);
+        assertThat(batch5.get(0).getStart()).isEqualTo(1);
+        assertThat(batch5.get(0).getEnd()).isEqualTo(10);
+
+        List<IntRange> batch7 = getAckedIndexRange(
+                cursor.getDeletedBatchIndexesAsLongArray(positions.get(7)), 32);
+        assertThat(batch7).hasSize(1);
+        assertThat(batch7.get(0).getStart()).isEqualTo(5);
+        assertThat(batch7.get(0).getEnd()).isEqualTo(15);
+
+        ledger.close();
+    }
+
     private void deleteBatchIndex(ManagedCursor cursor, Position position, int batchSize,
                                   List<IntRange> deleteIndexes) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);

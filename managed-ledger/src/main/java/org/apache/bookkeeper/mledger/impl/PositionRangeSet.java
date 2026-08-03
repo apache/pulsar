@@ -22,13 +22,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -282,6 +286,12 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         return internalBitSetMap;
     }
 
+    Map<Long, byte[]> toSerializedBitmaps() {
+        Map<Long, byte[]> serializedBitmaps = new HashMap<>(rangeBitmapMap.size());
+        rangeBitmapMap.forEach((ledgerId, bitmap) -> serializedBitmaps.put(ledgerId, bitmap.serialize()));
+        return serializedBitmaps;
+    }
+
     @Override
     public void build(Map<Long, long[]> internalRange) {
         rangeBitmapMap.clear();
@@ -289,6 +299,21 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
 
         internalRange.forEach((ledgerId, ranges) -> {
             rangeBitmapMap.put(ledgerId.longValue(), LongBitmaps.deserializeFromLongArray(ranges));
+        });
+        invalidateCaches();
+    }
+
+    void buildFromSerializedBitmaps(Map<Long, byte[]> serializedBitmaps) {
+        rangeBitmapMap.clear();
+        resetDirtyKeys();
+
+        serializedBitmaps.forEach((ledgerId, serializedBitmap) -> {
+            ByteBuf buffer = Unpooled.wrappedBuffer(serializedBitmap);
+            try {
+                rangeBitmapMap.put(ledgerId.longValue(), LongBitmaps.deserialize(buffer));
+            } finally {
+                buffer.release();
+            }
         });
         invalidateCaches();
     }
@@ -453,7 +478,11 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     private void markDirty(long lowerLedgerId, long upperLedgerId) {
         // Original semantics: dirtyLedgers.addOpenClosed(k1, 0, k2, 0), which in LongPair ordering
         // is (k1, k2] on ledger ids. LongBitmap.add(from, to) is half-open [from, to), so shift both
-        // bounds. Same-ledger or inverted range is a no-op.
+        // bounds for cross-ledger acks.
+        //
+        // Same-ledger acks (the common individual-ack case) must also mark the ledger dirty;
+        // earlier code skipped them via `upperLedgerId <= lowerLedgerId`, which made the
+        // dirty tracker useless for the PIP-488 DE+CM flush path. Fixed here.
         //
         // Note: Ledger IDs are 64-bit longs, but LongBitmap supports unsigned 32-bit range [0, 2^32-1].
         // In practice, BookKeeper ledger IDs rarely exceed Integer.MAX_VALUE. If upperLedgerId exceeds
@@ -461,7 +490,7 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         // 1. The dirty tracker is an optimization hint for selective persistence
         // 2. Missing a dirty mark means conservative full-ledger write (safe, just slower)
         // 3. Real-world ledger IDs stay well within 32-bit range
-        if (upperLedgerId <= lowerLedgerId || lowerLedgerId < 0) {
+        if (lowerLedgerId < 0) {
             return;
         }
         if (lowerLedgerId >= Integer.MAX_VALUE || upperLedgerId > Integer.MAX_VALUE) {
@@ -471,7 +500,76 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
                     .log("Skipping dirty tracking for ledger ID at/exceeding Integer.MAX_VALUE");
             return;
         }
+        if (upperLedgerId == lowerLedgerId) {
+            // Same-ledger ack: mark just this one ledger dirty.
+            dirtyLedgers.add(lowerLedgerId, lowerLedgerId + 1);
+            return;
+        }
+        if (upperLedgerId < lowerLedgerId) {
+            return;
+        }
+        // Cross-ledger: (lowerLedgerId, upperLedgerId] → dirty range [lowerLedgerId+1, upperLedgerId]
         dirtyLedgers.add(lowerLedgerId + 1, upperLedgerId + 1);
+    }
+
+    /**
+     * Returns a snapshot of currently-dirty ledger IDs and clears the dirty tracker.
+     * Used by the DE+CM flush path to know which ledgers need a new DE entry.
+     *
+     * <p>The returned set is mutable; the caller owns it.
+     */
+    Set<Long> snapshotAndClearDirtyLedgers() {
+        Set<Long> snapshot = new HashSet<>();
+        dirtyLedgers.forEachLong(snapshot::add);
+        dirtyLedgers.clear();
+        return snapshot;
+    }
+
+    /**
+     * Restores dirty markers for the given ledgers. Used to roll back a failed DE append
+     * so the next flush retries the same ledgers.
+     */
+    void restoreDirtyLedgers(Set<Long> ledgerIds) {
+        for (long ledgerId : ledgerIds) {
+            if (ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE) {
+                dirtyLedgers.add(ledgerId, ledgerId + 1);
+            }
+        }
+    }
+
+    /**
+     * Returns the RoaringBitmap native serialization for a single ledger, or {@code null}
+     * if the ledger has no individual ack state. Used by the DE+CM flush path to build
+     * one DE per dirty ledger.
+     */
+    byte[] bitmapOf(long ledgerId) {
+        LongBitmap bitmap = rangeBitmapMap.get(ledgerId);
+        return bitmap == null ? null : bitmap.serialize();
+    }
+
+    /**
+     * Marks a ledger as dirty without requiring an individual ack mutation. Used when
+     * batch-level ack updates occur on a ledger that has no new individual ack — the
+     * next DE+CM flush must still write a DE for that ledger to persist the batch ack.
+     */
+    void markExternalDirty(long ledgerId) {
+        if (enableMultiEntry && ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE) {
+            dirtyLedgers.add(ledgerId, ledgerId + 1);
+        }
+    }
+
+    /**
+     * Mark every ledger that currently has ack state as dirty. Used before cursor-ledger
+     * rollover so the new ledger gets a full set of DE entries referencing the new
+     * cursor ledger (not the old one that is about to be deleted).
+     */
+    void markAllDirty() {
+        if (!enableMultiEntry) return;
+        rangeBitmapMap.forEach((ledgerId, bitmap) -> {
+            if (!bitmap.isEmpty() && ledgerId >= 0 && ledgerId <= Integer.MAX_VALUE) {
+                dirtyLedgers.add(ledgerId, ledgerId + 1);
+            }
+        });
     }
 
     private boolean isValid(long ledgerId, long entryId) {

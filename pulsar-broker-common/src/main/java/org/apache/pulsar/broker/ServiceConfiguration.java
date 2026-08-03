@@ -2784,6 +2784,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
                 + "are stored in multiple entries.")
     private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum BookKeeper entry payload used when cursor acknowledgment state is split into multiple "
+                    + "entries.",
+            minValue = 1024)
+    private int persistentUnackedRangesMaxEntrySize = maxMessageSize;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "When enabled, individual ack state is persisted as one Data Entry per dirty "
+                    + "message-ledger plus a Checkpoint Marker, instead of a single-snapshot "
+                    + "PositionInfo per flush.")
+    private boolean persistentUnackedRangesWithPerLedgerEntryEnabled = false;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,

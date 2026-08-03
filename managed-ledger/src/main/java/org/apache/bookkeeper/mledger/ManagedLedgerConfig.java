@@ -48,6 +48,9 @@ public class ManagedLedgerConfig {
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
     private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
+    private int persistentUnackedRangesMaxEntrySize = 5 * 1024 * 1024;
+    // Per-msgLedger Data Entry + Checkpoint Marker model.
+    private boolean persistentUnackedRangesWithPerLedgerEntryEnabled = false;
     private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInMetadataStore = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -538,6 +541,23 @@ public class ManagedLedgerConfig {
 
     public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean multipleEntriesEnabled) {
         this.persistentUnackedRangesWithMultipleEntriesEnabled = multipleEntriesEnabled;
+    }
+
+    public boolean isPersistentUnackedRangesWithPerLedgerEntryEnabled() {
+        return persistentUnackedRangesWithPerLedgerEntryEnabled;
+    }
+
+    public void setPersistentUnackedRangesWithPerLedgerEntryEnabled(boolean persistentUnackedRangesWithPerLedgerEntryEnabled) {
+        this.persistentUnackedRangesWithPerLedgerEntryEnabled = persistentUnackedRangesWithPerLedgerEntryEnabled;
+    }
+
+    public int getPersistentUnackedRangesMaxEntrySize() {
+        return persistentUnackedRangesMaxEntrySize;
+    }
+
+    public void setPersistentUnackedRangesMaxEntrySize(int maxEntrySize) {
+        checkArgument(maxEntrySize >= 1024, "maximum cursor metadata entry size must be at least 1024 bytes");
+        this.persistentUnackedRangesMaxEntrySize = maxEntrySize;
     }
 
     /**

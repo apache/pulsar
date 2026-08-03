@@ -75,15 +75,21 @@ message ManagedLedgerInfo {
 message PositionInfo {
     required int64 ledgerId = 1;
     required int64 entryId = 2;
-    repeated MessageRange individualDeletedMessages = 3;
+    repeated MessageRange individualDeletedMessages = 3; // [deprecated] use individualDeletedMessageRanges
 
-    // Additional custom properties associated with
-    // the current cursor position
     repeated LongProperty properties = 4;
 
-    // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
     repeated LongListMap individualDeletedMessageRanges = 6;
+
+    optional CursorStateChunk cursorStateChunk = 7;
+}
+
+// Chunk envelope for splitting a large PositionInfo across multiple BK entries.
+message CursorStateChunk {
+    optional int32 partIndex = 1;
+    optional int32 partCount = 2;
+    optional bytes payload = 3;
 }
 
 message NestedPositionInfo {
@@ -94,6 +100,7 @@ message NestedPositionInfo {
 message LongListMap {
     required int64 key = 1;
     repeated int64 values  = 2;
+    optional bytes bitmap = 3; // RoaringBitmap serialization (per-ledger ack state)
 }
 
 message MessageRange {
@@ -140,6 +147,11 @@ message ManagedCursorInfo {
     // Additional custom properties associated with
     // the cursor
     repeated StringProperty cursorProperties = 8;
+
+    // Location of the most recent Checkpoint Marker in the cursor ledger.
+    // When present, recovery reads this entry directly instead of scanning backwards.
+    optional int64 lastCmCursorLedgerId = 9;
+    optional int64 lastCmEntryId = 10;
 }
 
 enum CompressionType {
