@@ -60,7 +60,7 @@ bouncycastle-bcpkix-fips = "2.0.11"
 bouncycastle-bcutil-fips = "2.0.6"
 bouncycastle-bc-fips = "2.0.1"
 # Serialization
-avro = "1.12.0"
+avro = "1.12.2"
 gson = "2.13.2"
 snakeyaml = "2.6"
 # Vert.x
