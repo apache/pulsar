@@ -43,7 +43,7 @@ public class MessageRedeliveryController {
     private final boolean allowOutOfOrderDelivery;
     private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
-    private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
+    private final ConcurrentLongLongPairHashMap positionToStickyKeyHash;
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
@@ -54,13 +54,12 @@ public class MessageRedeliveryController {
         this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
         this.isClassicDispatcher = isClassicDispatcher;
         this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
+        this.positionToStickyKeyHash = ConcurrentLongLongPairHashMap
+                .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
         if (!allowOutOfOrderDelivery) {
-            this.hashesToBeBlocked = ConcurrentLongLongPairHashMap
-                    .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
             this.hashesRefCount = ConcurrentLongLongHashMap
                     .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
         } else {
-            this.hashesToBeBlocked = null;
             this.hashesRefCount = null;
         }
     }
@@ -74,30 +73,32 @@ public class MessageRedeliveryController {
             if (!isClassicDispatcher && stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                 throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
             }
-            boolean inserted = hashesToBeBlocked.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
-            if (!inserted) {
-                hashesToBeBlocked.put(ledgerId, entryId, stickyKeyHash, 0);
-            } else {
-                // Return -1 means the key was not present
-                long stored = hashesRefCount.get(stickyKeyHash);
-                hashesRefCount.put(stickyKeyHash, stored > 0 ? ++stored : 1);
-            }
+        } else if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            // Non-Key_Shared dispatchers use the sentinel hash and do not need position-to-hash filtering.
+            messagesToRedeliver.add(ledgerId, entryId);
+            return;
+        }
+        boolean inserted = positionToStickyKeyHash.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
+        if (!inserted) {
+            positionToStickyKeyHash.put(ledgerId, entryId, stickyKeyHash, 0);
+        } else if (!allowOutOfOrderDelivery) {
+            // Return -1 means the key was not present
+            long stored = hashesRefCount.get(stickyKeyHash);
+            hashesRefCount.put(stickyKeyHash, stored > 0 ? ++stored : 1);
         }
         messagesToRedeliver.add(ledgerId, entryId);
     }
 
     public void remove(long ledgerId, long entryId) {
-        if (!allowOutOfOrderDelivery) {
-            removeFromHashBlocker(ledgerId, entryId);
-        }
+        removeFromStickyKeyHash(ledgerId, entryId);
         messagesToRedeliver.remove(ledgerId, entryId);
     }
 
-    private void removeFromHashBlocker(long ledgerId, long entryId) {
-        LongPair value = hashesToBeBlocked.get(ledgerId, entryId);
+    private void removeFromStickyKeyHash(long ledgerId, long entryId) {
+        LongPair value = positionToStickyKeyHash.get(ledgerId, entryId);
         if (value != null) {
-            boolean removed = hashesToBeBlocked.remove(ledgerId, entryId, value.first, 0);
-            if (removed) {
+            boolean removed = positionToStickyKeyHash.remove(ledgerId, entryId, value.first, 0);
+            if (removed && !allowOutOfOrderDelivery) {
                 long exists = hashesRefCount.get(value.first);
                 if (exists == 1) {
                     hashesRefCount.remove(value.first, exists);
@@ -109,7 +110,7 @@ public class MessageRedeliveryController {
     }
 
     public Long getHash(long ledgerId, long entryId) {
-        LongPair value = hashesToBeBlocked.get(ledgerId, entryId);
+        LongPair value = positionToStickyKeyHash.get(ledgerId, entryId);
         if (value == null) {
             return null;
         }
@@ -118,17 +119,17 @@ public class MessageRedeliveryController {
 
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
         boolean bitsCleared = messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
-        // only if bits have been clear, and we are not allowing out of order delivery, we need to remove the hashes
-        // removing hashes is a relatively expensive operation, so we should only do it when necessary
-        if (bitsCleared && !allowOutOfOrderDelivery) {
+        // Only remove the hashes when bits have been cleared. Removing hashes is a relatively expensive operation,
+        // so we should only do it when necessary.
+        if (bitsCleared) {
             List<LongPair> keysToRemove = new ArrayList<>();
-            hashesToBeBlocked.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
+            positionToStickyKeyHash.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
                 if (ledgerId < markDeleteLedgerId || (ledgerId == markDeleteLedgerId && entryId <= markDeleteEntryId)) {
                     keysToRemove.add(new LongPair(ledgerId, entryId));
                 }
             });
             for (LongPair longPair : keysToRemove) {
-                removeFromHashBlocker(longPair.first, longPair.second);
+                removeFromStickyKeyHash(longPair.first, longPair.second);
             }
         }
     }
@@ -138,8 +139,8 @@ public class MessageRedeliveryController {
     }
 
     public void clear() {
+        positionToStickyKeyHash.clear();
         if (!allowOutOfOrderDelivery) {
-            hashesToBeBlocked.clear();
             hashesRefCount.clear();
         }
         messagesToRedeliver.clear();

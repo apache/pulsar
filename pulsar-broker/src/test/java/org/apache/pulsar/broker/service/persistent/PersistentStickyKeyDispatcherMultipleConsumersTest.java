@@ -489,14 +489,20 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
      * in the replay queue for consumers with available permits were then stuck until an unrelated event, such as a
      * consumer flow request, triggered another read.
      */
-    @Test(timeOut = 30000)
-    public void testLookAheadNotEngagedWhenCursorHasNoMoreEntries() throws Exception {
+    @DataProvider(name = "allowOutOfOrderDelivery")
+    private Object[][] allowOutOfOrderDelivery() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 30000)
+    public void testLookAheadNotEngagedWhenCursorHasNoMoreEntries(boolean allowOutOfOrderDelivery) throws Exception {
         persistentDispatcher.close();
 
         // the mocked executor doesn't support schedule(), so run the rescheduled read directly
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                 topicMock, cursorMock, subscriptionMock, configMock,
-                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(allowOutOfOrderDelivery)) {
             @Override
             protected void reScheduleReadInMs(long readAfterMs) {
                 orderedExecutor.execute(this::readMoreEntries);
