@@ -27,7 +27,7 @@ import picocli.CommandLine.Option;
  * PerformanceBaseArguments contains common CLI arguments and parsing logic available to all sub-commands.
  * Sub-commands should create Argument subclasses and override the `validate` method as necessary.
  */
-public abstract class PerformanceBaseArguments extends CmdBase{
+public abstract class PerformanceBaseArguments extends CmdBase {
 
 
     @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL", descriptionKey = "brokerServiceUrl")
@@ -57,6 +57,32 @@ public abstract class PerformanceBaseArguments extends CmdBase{
             "--trust-cert-file" }, description = "Path for the trusted TLS certificate file",
             descriptionKey = "tlsTrustCertsFilePath")
     public String tlsTrustCertsFilePath = "";
+
+    @Option(names = {"--use-keystore-tls" }, description = "Use KeyStore TLS", descriptionKey = "useKeyStoreTls")
+    public boolean useKeyStoreTls = false;
+
+    @Option(names = {"--truststore-type"}, description = "Type of the truststore, PKCS12 or JKS. The default is JKS.",
+            descriptionKey = "tlsTrustStoreType")
+    public String tlsTrustStoreType = "JKS";
+
+    @Option(names = {"--truststore-path"}, description = "Path to the truststore.",
+            descriptionKey = "tlsTrustStorePath")
+    public String tlsTrustStorePath = "";
+
+    @Option(names = {"--truststore-pass"}, description = "Password to the truststore.",
+            descriptionKey = "tlsTrustStorePassword")
+    public String tlsTrustStorePassword = "";
+
+    @Option(names = {"--keystore-type"}, description = "Type of the keystore, PKCS12 or JKS. The default is JKS.",
+            descriptionKey = "tlsKeyStoreType")
+    public String tlsKeyStoreType = "JKS";
+
+    @Option(names = {"--keystore-path"}, description = "Path to the keystore.", descriptionKey = "tlsKeyStorePath")
+    public String tlsKeyStorePath = "";
+
+    @Option(names = {"--keystore-pass"}, description = "Password to the keystore.",
+            descriptionKey = "tlsKeyStorePassword")
+    public String tlsKeyStorePassword = "";
 
     @Option(names = {
             "--tls-allow-insecure" }, description = "Allow insecure TLS connection",
@@ -116,6 +142,9 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     @Override
     public void validate() throws Exception {
         parseCLI();
+        if (useKeyStoreTls && isBlank(tlsTrustStorePath)) {
+            throw new ParameterException("tlsTrustStorePath is required if useKeystoreTls is used");
+        }
     }
 
     /**
