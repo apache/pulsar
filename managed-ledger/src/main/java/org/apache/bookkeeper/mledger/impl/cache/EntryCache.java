@@ -37,7 +37,8 @@ public interface EntryCache {
     String getName();
 
     /**
-     * Insert an entry in the cache.
+     * Insert an entry in the cache. This method is an explicit cache-admission decision and must not reject an entry
+     * based on its expected read count. Entries without an expected-read handler are valid transient cache entries.
      *
      * <p/>If the overall limit have been reached, this will trigger the eviction of other entries, possibly from
      * other EntryCache instances
