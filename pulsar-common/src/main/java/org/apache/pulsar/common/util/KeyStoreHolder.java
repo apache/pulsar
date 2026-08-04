@@ -67,6 +67,11 @@ public class KeyStoreHolder {
             String storeType = JcaKeyStores.inMemoryStoreType(jcaProvider, KeyStore.getDefaultType());
             keyStore = JcaKeyStores.keyStore(storeType, jcaProvider);
             keyStore.load(null, null);
+        } catch (KeyStoreException e) {
+            // JcaKeyStores raises this with an actionable message naming the pinned provider and the store
+            // types it does register; wrapping it in a generic "KeyStore creation error" would bury exactly
+            // the text the operator needs, since only the cause would carry it.
+            throw e;
         } catch (GeneralSecurityException | IOException e) {
             throw new KeyStoreException("KeyStore creation error", e);
         }
@@ -78,8 +83,10 @@ public class KeyStoreHolder {
 
     /**
      * @return the password this holder's key entries are stored under; a {@code KeyManagerFactory} reading
-     *         them must be initialized with it. The array is owned by this holder and must not be zeroed by
-     *         the caller.
+     *         them must be initialized with it. A fresh copy is returned on each call and is owned by the
+     *         caller, who should zero it once the factory has consumed it (as
+     *         {@code JdkSslContexts.setupKeyManager} does) rather than leaving the plaintext password
+     *         reachable.
      */
     public char[] getEntryPassword() {
         return Arrays.copyOf(entryPassword, entryPassword.length);

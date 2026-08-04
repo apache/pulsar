@@ -21,8 +21,6 @@ package org.apache.pulsar.common.util.tls;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.SecureRandom;
@@ -39,7 +37,7 @@ import org.apache.pulsar.common.util.KeyStoreHolder;
 /**
  * Assembles JDK {@link SSLContext} instances from loaded certificate/key material, resolving the security
  * provider through {@link JcaProviders} and parsing PEM inputs through {@link PemReader}. This is the JDK
- * {@code SSLContext} assembly primitive extracted from the former {@code SecurityUtility} grab-bag (PIP-478);
+ * {@code SSLContext} assembly primitive extracted from the {@code SecurityUtility} grab-bag (PIP-478);
  * the default file-based TLS factory ({@code TlsContexts}) builds its JDK fallback context here, and TLS
  * tests reuse it to construct JDK contexts from PEM material.
  */
@@ -184,8 +182,8 @@ public final class JdkSslContexts {
     private static SSLContext assembleSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
                                                  KeyManager[] keyManagers, Provider provider, Provider jcaProvider)
             throws GeneralSecurityException {
-        KeyStoreHolder ksh = new KeyStoreHolder(jcaProvider);
-        TrustManager[] trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, provider);
+        TrustManager[] trustManagers =
+                createTrustManagers(trustCertficates, allowInsecureConnection, provider, jcaProvider);
         SSLContext sslCtx = provider != null ? SSLContext.getInstance("TLS", provider)
                 : SSLContext.getInstance("TLS");
         // With a pinned JSSE provider, pass null so the SSLContext uses that provider's own SecureRandom: a
@@ -231,6 +229,32 @@ public final class JdkSslContexts {
     private static KeyManager[] setupKeyManager(PrivateKey privateKey, Certificate[] certificates, Provider provider,
                                                 Provider jcaProvider)
             throws GeneralSecurityException {
+        KeyManagerFactory kmf = createKeyManagerFactory(privateKey, certificates, provider, jcaProvider);
+        return kmf == null ? null : kmf.getKeyManagers();
+    }
+
+    /**
+     * Build a {@link KeyManagerFactory} over a single PEM identity (private key plus its certificate chain),
+     * carrying it into JSSE through an in-memory keystore created by the pinned JCA provider and a
+     * {@code KeyManagerFactory} from the pinned JSSE provider.
+     *
+     * <p>Exposed so the Netty context builders can pin both provider axes too. Handing Netty the raw
+     * {@code PrivateKey}/{@code X509Certificate[]} instead makes it build the carrier {@code KeyStore} and the
+     * {@code KeyManagerFactory} itself through the JVM provider search order ({@code SslContext
+     * .buildKeyManagerFactory} calls the no-provider {@code getInstance} forms), which silently defeats a
+     * {@code jsseProvider}/{@code jcaProvider} pin — {@code sslContextProvider} only pins the {@code SSLContext}
+     * itself.
+     *
+     * @param privateKey   the identity's private key, or {@code null} when there is no identity
+     * @param certificates the identity's certificate chain, or {@code null} when there is no identity
+     * @param provider     the resolved JSSE provider, or {@code null} for the platform default
+     * @param jcaProvider  the pinned JCA (material) provider, or {@code null} for the JVM search order
+     * @return the initialized factory, or {@code null} when no identity was given
+     * @throws GeneralSecurityException if the carrier or the factory cannot be built
+     */
+    public static KeyManagerFactory createKeyManagerFactory(PrivateKey privateKey, Certificate[] certificates,
+                                                            Provider provider, Provider jcaProvider)
+            throws GeneralSecurityException {
         if (certificates == null || privateKey == null) {
             return null;
         }
@@ -240,10 +264,59 @@ public final class JdkSslContexts {
         // mode rejects an empty password-based-KDF password on the PKCS12/BCFKS carrier.
         char[] entryPassword = ksh.getEntryPassword();
         try {
-            return createKeyManagerFactory(ksh.getKeyStore(), entryPassword, provider).getKeyManagers();
+            return createKeyManagerFactory(ksh.getKeyStore(), entryPassword, provider);
         } finally {
             Arrays.fill(entryPassword, '\0');
         }
+    }
+
+    /**
+     * Build the {@link TrustManager}s for a set of trust anchors, honoring both provider axes: the carrier
+     * keystore holding the anchors comes from the pinned JCA provider and the {@code TrustManagerFactory} from
+     * the pinned JSSE provider (algorithm-negotiated as on the key side). Also applies the Conscrypt
+     * hostname-verifier propagation workaround.
+     *
+     * <p>Exposed for the same reason as {@link #createKeyManagerFactory(PrivateKey, Certificate[], Provider,
+     * Provider)}: {@code SslContextBuilder.trustManager(X509Certificate...)} would have Netty build the
+     * factory through the JVM provider search order, defeating the pin.
+     *
+     * @param trustCertificates       the trust anchors; {@code null}/empty means the platform default trust
+     * @param allowInsecureConnection whether to trust all certificates (insecure)
+     * @param provider                the resolved JSSE provider, or {@code null} for the platform default
+     * @param jcaProvider             the pinned JCA (material) provider, or {@code null} for the JVM search order
+     * @return the trust managers
+     * @throws GeneralSecurityException if the factory cannot be built or initialized
+     */
+    public static TrustManager[] createTrustManagers(Certificate[] trustCertificates,
+                                                     boolean allowInsecureConnection, Provider provider,
+                                                     Provider jcaProvider) throws GeneralSecurityException {
+        if (allowInsecureConnection) {
+            return InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
+        }
+        // Same algorithm negotiation as the key-manager side: prefer the pinned provider's
+        // TrustManagerFactory (BCJSSE registers PKIX, the platform default), fall back to the platform
+        // factory for a provider that offers none (e.g. Conscrypt).
+        TrustManagerFactory tmf;
+        if (provider != null) {
+            String algorithm = supportedAlgorithm(provider, "TrustManagerFactory",
+                    TrustManagerFactory.getDefaultAlgorithm(), "PKIX");
+            tmf = algorithm != null ? TrustManagerFactory.getInstance(algorithm, provider)
+                    : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        } else {
+            tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        }
+
+        if (trustCertificates == null || trustCertificates.length == 0) {
+            tmf.init((KeyStore) null);
+        } else {
+            KeyStoreHolder ksh = new KeyStoreHolder(jcaProvider);
+            for (int i = 0; i < trustCertificates.length; i++) {
+                ksh.setCertificate("trust" + i, trustCertificates[i]);
+            }
+            tmf.init(ksh.getKeyStore());
+        }
+
+        return JcaProviders.processConscryptTrustManagers(tmf.getTrustManagers());
     }
 
     /**
@@ -262,37 +335,4 @@ public final class JdkSslContexts {
         return null;
     }
 
-    private static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
-                                                  Certificate[] trustCertficates, Provider securityProvider)
-            throws NoSuchAlgorithmException, KeyStoreException {
-        TrustManager[] trustManagers;
-        if (allowInsecureConnection) {
-            trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
-        } else {
-            // Same algorithm negotiation as the key-manager side: prefer the pinned provider's
-            // TrustManagerFactory (BCJSSE registers PKIX, the platform default), fall back to the platform
-            // factory for a provider that offers none (e.g. Conscrypt).
-            TrustManagerFactory tmf;
-            if (securityProvider != null) {
-                String algorithm = supportedAlgorithm(securityProvider, "TrustManagerFactory",
-                        TrustManagerFactory.getDefaultAlgorithm(), "PKIX");
-                tmf = algorithm != null ? TrustManagerFactory.getInstance(algorithm, securityProvider)
-                        : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            } else {
-                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            }
-
-            if (trustCertficates == null || trustCertficates.length == 0) {
-                tmf.init((KeyStore) null);
-            } else {
-                for (int i = 0; i < trustCertficates.length; i++) {
-                    ksh.setCertificate("trust" + i, trustCertficates[i]);
-                }
-                tmf.init(ksh.getKeyStore());
-            }
-
-            trustManagers = JcaProviders.processConscryptTrustManagers(tmf.getTrustManagers());
-        }
-        return trustManagers;
-    }
 }

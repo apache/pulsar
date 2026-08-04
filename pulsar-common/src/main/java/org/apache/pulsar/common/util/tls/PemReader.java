@@ -45,7 +45,7 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * Parses PEM-encoded X.509 certificates and PKCS#8 private keys from files and streams. This is the single
- * shared PEM-parsing primitive extracted from the former {@code SecurityUtility} grab-bag (PIP-478): it holds
+ * shared PEM-parsing primitive extracted from the {@code SecurityUtility} grab-bag (PIP-478): it holds
  * no TLS-context assembly or security-provider concerns, only the file/stream-to-material parsing that several
  * callers (the file-based TLS material sources and {@code AuthenticationDataTls}) reuse.
  *
@@ -183,9 +183,13 @@ public final class PemReader {
             StringBuilder sb = new StringBuilder();
             String currentLine = null;
 
-            // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
+            // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----.
+            // One line is consumed per iteration: the extracted-from version discarded a second line in the
+            // loop body, so a file whose BEGIN line sat at an ODD offset (one leading comment, blank line, or
+            // openssl "Bag Attributes" header) had that BEGIN line swallowed, ran the scan to EOF, and failed
+            // with the misleading "private key algorithm is not supported" below.
             while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
-                reader.readLine();
+                // skip preamble
             }
 
             // Stop (and skip) at the last line that has, say, -----END [RSA] PRIVATE KEY-----

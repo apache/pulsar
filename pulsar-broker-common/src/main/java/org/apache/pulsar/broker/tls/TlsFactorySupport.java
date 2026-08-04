@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.tls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Clock;
@@ -42,14 +43,15 @@ import org.apache.pulsar.tls.TlsFactoryInitContext;
  * replaces the PIP-337 {@code PulsarSslFactory} path (removed at the end of the PIP-478 series, leaving
  * this SPI the only server TLS path). Server components (broker,
  * proxy, websocket, functions-worker) call these helpers to instantiate and initialize the factory and parse
- * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key left in a config file is
- * rejected at config-file load by the removed-key validation in {@code PulsarConfigurationLoader}.
+ * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key is still accepted at this
+ * point in the series; the removed-key validation that rejects it at config-file load arrives with the
+ * server-side migration.
  *
- * <p>The helper is intentionally free of Netty {@code io.netty.handler.ssl} types (the {@code SslContext}
- * subscribe pattern stays inline in the binary-listener components that already depend on
- * {@code netty-handler}); it carries only {@link SslProvider} from {@code netty-common}, which
- * {@code pulsar-broker-common} already has. That keeps this class usable by every component, including the
- * websocket proxy and functions-worker web servers whose only TLS consumer is Jetty.
+ * <p>The helper deliberately does not touch Netty's {@code SslContext} itself — that subscribe pattern stays
+ * inline in the binary-listener components — so it stays usable by every component, including the websocket
+ * proxy and functions-worker web servers whose only TLS consumer is Jetty. It does reference
+ * {@link SslProvider} and {@link OpenSsl} for the engine selection below; both come from
+ * {@code netty-handler}, which reaches this module through its {@code pulsar-common} dependency.
  */
 @CustomLog
 public final class TlsFactorySupport {
@@ -210,10 +212,34 @@ public final class TlsFactorySupport {
 
     /**
      * Map a component's provider string to the Netty {@link SslProvider} engine used by the default
-     * file-based factory. Conservative: only an explicit {@code OPENSSL}/{@code OPENSSL_REFCNT} value selects
-     * the native engine — JCE provider names (e.g. {@code Conscrypt}, {@code SunJSSE}) and {@code null} map
-     * to the {@link SslProvider#JDK} engine (the safe default). The provider string is still passed
-     * separately to Jetty as its JCE provider for the web path.
+     * file-based factory. An explicit Netty engine literal is honored verbatim; JSSE provider names (e.g.
+     * {@code Conscrypt}, {@code SunJSSE}) select no engine and map to {@link SslProvider#JDK} — they belong to
+     * the other provider axis, and are routed there by {@link #resolveJsseProvider} (and passed to Jetty as
+     * its JSSE provider on the web path).
+     *
+     * <p><b>Unset (the default) selects {@link SslProvider#OPENSSL_REFCNT} when the native engine is
+     * available</b>, else {@link SslProvider#JDK}. Two reasons for that choice:
+     *
+     * <ul>
+     *   <li><b>It restores the historical default.</b> The PIP-337 path passed a {@code null} provider to
+     *       Netty, and {@code SslContextBuilder} then picks its own default — the native engine wherever
+     *       {@code netty-tcnative} has a binary. Defaulting to {@code JDK} here would have silently moved
+     *       every deployment onto the JDK engine.</li>
+     *   <li><b>It keeps Pulsar off finalization.</b> {@code OPENSSL} and {@code OPENSSL_REFCNT} build the same
+     *       native engine and both expose real reference counting — {@code OpenSslContext} does not stub out
+     *       {@code retain()}/{@code release()}, it merely adds a {@code finalize()} that frees the native
+     *       context if its owner forgot to. This factory never forgets: it owns each context it builds and
+     *       releases it deterministically (see {@code FileBasedTlsFactory}), so the finalizer would only ever
+     *       mask a bug. Finalization is deprecated for removal (JEP 421) and can already be switched off with
+     *       {@code --finalization=disabled}, under which {@code OPENSSL} leaks exactly like an unreleased
+     *       {@code OPENSSL_REFCNT} context.</li>
+     * </ul>
+     *
+     * <p>An operator who explicitly configures {@code OPENSSL} still gets {@link SslProvider#OPENSSL},
+     * unrewritten: silently substituting a different enum value than the one configured is the kind of
+     * surprise this mapping exists to avoid. Live connections are unaffected by either variant — a Netty
+     * engine retains its parent context for its lifetime and {@code SslHandler} releases the engine when it is
+     * removed.
      *
      * @param providerString the component's provider string (may be null/blank)
      * @return the Netty {@link SslProvider} engine selection
@@ -221,11 +247,15 @@ public final class TlsFactorySupport {
     public static SslProvider engineProvider(String providerString) {
         if (StringUtils.isNotBlank(providerString)) {
             String provider = providerString.trim();
-            if ("OPENSSL".equalsIgnoreCase(provider) || "OPENSSL_REFCNT".equalsIgnoreCase(provider)) {
+            if ("OPENSSL".equalsIgnoreCase(provider)) {
                 return SslProvider.OPENSSL;
             }
+            if ("OPENSSL_REFCNT".equalsIgnoreCase(provider)) {
+                return SslProvider.OPENSSL_REFCNT;
+            }
+            return SslProvider.JDK;
         }
-        return SslProvider.JDK;
+        return OpenSsl.isAvailable() ? SslProvider.OPENSSL_REFCNT : SslProvider.JDK;
     }
 
     /**

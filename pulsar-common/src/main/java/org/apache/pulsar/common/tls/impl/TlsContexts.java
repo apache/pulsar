@@ -26,6 +26,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.security.GeneralSecurityException;
+import java.security.KeyStoreException;
 import java.security.Provider;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -35,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import lombok.CustomLog;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.common.util.tls.JdkSslContexts;
@@ -69,7 +73,7 @@ public final class TlsContexts {
     /**
      * The default enabled TLS protocol set, applied whenever the effective protocol list is empty — a policy
      * with no {@code protocols()}, or a synthesized context whose factory companion set none. This preserves
-     * the {@code {TLSv1.3, TLSv1.2}} floor the removed {@code DefaultPulsarSslFactory} forced at engine build:
+     * the {@code {TLSv1.3, TLSv1.2}} floor {@code DefaultPulsarSslFactory} forces at engine build:
      * without it the PIP-478 path would silently defer to the JVM/provider default protocol set, a
      * security-relevant drift on upgrade.
      */
@@ -107,15 +111,8 @@ public final class TlsContexts {
             throws Exception {
         SslContextBuilder builder = SslContextBuilder.forClient();
         applyEngineProvider(builder, policy, provider);
-        applyClientTrust(builder, material, policy);
-        // Keystore material may hold several client identities (e.g. RSA + EC, or identities issued by
-        // different accepted CAs): hand the whole set to a KeyManagerFactory so JSSE selects one by the peer's
-        // requested key type / acceptable issuers. PEM material has a single identity (key + chain).
-        if (material.hasKeyStoreEntries()) {
-            builder.keyManager(buildKeyManagerFactory(material, policy));
-        } else if (material.hasKeyMaterial()) {
-            builder.keyManager(material.privateKey(), material.keyCertChainArray());
-        }
+        applyTrust(builder, material, policy);
+        applyKeyManager(builder, material, policy);
         applyCiphersAndProtocols(builder, policy);
         // Netty 4.2 defaults client contexts to "HTTPS" endpoint identification, so the algorithm must be
         // set explicitly both ways: hostname verification is the policy's decision alone, and an engine
@@ -137,12 +134,11 @@ public final class TlsContexts {
     static SslContext buildNettyServerContext(TlsMaterial material, TlsPolicy policy, SslProvider provider,
                                               boolean requireTrustedClientCert) throws Exception {
         // Keystore material builds the server identity from the whole keystore (multi-alias selection); PEM
-        // material has a single server key + chain.
-        SslContextBuilder builder = material.hasKeyStoreEntries()
-                ? SslContextBuilder.forServer(buildKeyManagerFactory(material, policy))
-                : SslContextBuilder.forServer(material.privateKey(), material.keyCertChainArray());
+        // material has a single server key + chain, routed through a KeyManagerFactory only when a provider
+        // axis is pinned (see applyKeyManager).
+        SslContextBuilder builder = serverBuilder(material, policy);
         applyEngineProvider(builder, policy, provider);
-        applyServerTrust(builder, material, policy);
+        applyTrust(builder, material, policy);
         applyCiphersAndProtocols(builder, policy);
         // Never drop to ClientAuth.NONE, even when insecure: a captured client cert powers TLS auth.
         builder.clientAuth(requireTrustedClientCert ? ClientAuth.REQUIRE : ClientAuth.OPTIONAL);
@@ -372,24 +368,107 @@ public final class TlsContexts {
         return overlay;
     }
 
-    private static void applyClientTrust(SslContextBuilder builder, TlsMaterial material, TlsPolicy policy) {
+    /**
+     * Install the trust anchors on a Netty builder.
+     *
+     * <p>Handing Netty the raw certificate array is the historical (and cheapest) path, but Netty then builds
+     * the carrier {@code KeyStore} and the {@code TrustManagerFactory} through the JVM provider search order —
+     * {@code SslContext.buildTrustManagerFactory} calls {@code TrustManagerFactory.getInstance(alg)} with no
+     * provider — which silently defeats a {@code jsseProvider}/{@code jcaProvider} pin, since
+     * {@code sslContextProvider} pins only the {@code SSLContext} itself. So when either axis is pinned, build
+     * the trust managers here through the pinned providers and hand Netty the resulting {@code TrustManager}
+     * instead. With neither axis pinned the raw path is kept exactly as before.
+     */
+    private static void applyTrust(SslContextBuilder builder, TlsMaterial material, TlsPolicy policy)
+            throws GeneralSecurityException {
         if (policy.allowInsecureConnection()) {
             warnInsecureModeOnce(policy);
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-        } else if (material.trustCertsArray().length > 0) {
-            builder.trustManager(material.trustCertsArray());
+            return;
         }
-        // else: leave the platform default trust manager (system trust store).
+        Provider jsseProvider = resolveJsseProvider(policy);
+        Provider jcaProvider = resolveJcaProvider(policy);
+        if (jsseProvider == null && jcaProvider == null) {
+            if (material.trustCertsArray().length > 0) {
+                builder.trustManager(material.trustCertsArray());
+            }
+            // else: leave the platform default trust manager (system trust store).
+            return;
+        }
+        // Note this runs even with no configured anchors, where createTrustManagers initializes the factory
+        // from a null keystore (the platform default anchors). Returning early instead would leave Netty to
+        // build the factory itself, so the SAME policy would validate peer chains inside the pinned provider
+        // on the JDK context but through the platform provider on the Netty one — the anchor set would match
+        // but the validator would not, which is exactly what a pinned FIPS posture must not allow.
+        TrustManager[] trustManagers = JdkSslContexts.createTrustManagers(material.trustCertsArray(), false,
+                jsseProvider, jcaProvider);
+        builder.trustManager(singleX509TrustManager(trustManagers));
     }
 
-    private static void applyServerTrust(SslContextBuilder builder, TlsMaterial material, TlsPolicy policy) {
-        if (policy.allowInsecureConnection()) {
-            warnInsecureModeOnce(policy);
-            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-        } else if (material.trustCertsArray().length > 0) {
-            builder.trustManager(material.trustCertsArray());
+    /**
+     * Netty's {@code trustManager(TrustManager)} accepts exactly one manager (it wraps it in a
+     * {@code TrustManagerFactory}), and a {@code TrustManagerFactory} initialized from a keystore returns a
+     * single {@code X509TrustManager}, so pick that one and fail loudly rather than silently dropping trust if
+     * a provider ever returns something unexpected.
+     */
+    private static TrustManager singleX509TrustManager(TrustManager[] trustManagers)
+            throws GeneralSecurityException {
+        for (TrustManager trustManager : trustManagers) {
+            if (trustManager instanceof X509TrustManager) {
+                return trustManager;
+            }
         }
-        // else: leave the platform default trust manager (system trust store).
+        throw new KeyStoreException("The pinned provider's TrustManagerFactory returned no X509TrustManager; "
+                + "trust cannot be established. Managers: " + Arrays.toString(trustManagers));
+    }
+
+    /**
+     * Install the client identity on a Netty builder. Keystore material may hold several identities (e.g.
+     * RSA + EC, or identities issued by different accepted CAs), so the whole set goes to a
+     * {@link KeyManagerFactory} and JSSE selects one by the peer's requested key type / acceptable issuers.
+     * PEM material has a single identity (key + chain) and keeps Netty's raw overload unless a provider axis
+     * is pinned, in which case it too must go through a factory this class builds (see {@link #applyTrust}).
+     */
+    private static void applyKeyManager(SslContextBuilder builder, TlsMaterial material, TlsPolicy policy)
+            throws Exception {
+        if (material.hasKeyStoreEntries()) {
+            builder.keyManager(buildKeyManagerFactory(material, policy));
+        } else if (material.hasKeyMaterial()) {
+            KeyManagerFactory pinned = pinnedPemKeyManagerFactory(material, policy);
+            if (pinned != null) {
+                builder.keyManager(pinned);
+            } else {
+                builder.keyManager(material.privateKey(), material.keyCertChainArray());
+            }
+        }
+    }
+
+    /**
+     * Start a server builder on the identity in {@code material}, mirroring {@link #applyKeyManager}'s choice
+     * between the factory and raw forms.
+     */
+    private static SslContextBuilder serverBuilder(TlsMaterial material, TlsPolicy policy) throws Exception {
+        if (material.hasKeyStoreEntries()) {
+            return SslContextBuilder.forServer(buildKeyManagerFactory(material, policy));
+        }
+        KeyManagerFactory pinned = pinnedPemKeyManagerFactory(material, policy);
+        return pinned != null ? SslContextBuilder.forServer(pinned)
+                : SslContextBuilder.forServer(material.privateKey(), material.keyCertChainArray());
+    }
+
+    /**
+     * A provider-pinned {@link KeyManagerFactory} over PEM material, or {@code null} when neither provider
+     * axis is pinned and the historical raw-material path should be kept.
+     */
+    private static KeyManagerFactory pinnedPemKeyManagerFactory(TlsMaterial material, TlsPolicy policy)
+            throws GeneralSecurityException {
+        Provider jsseProvider = resolveJsseProvider(policy);
+        Provider jcaProvider = resolveJcaProvider(policy);
+        if (jsseProvider == null && jcaProvider == null) {
+            return null;
+        }
+        return JdkSslContexts.createKeyManagerFactory(material.privateKey(), material.keyCertChainArray(),
+                jsseProvider, jcaProvider);
     }
 
     private static void applyCiphersAndProtocols(SslContextBuilder builder, TlsPolicy policy) {
@@ -399,7 +478,7 @@ public final class TlsContexts {
             builder.ciphers(ciphers);
         }
         // Pin the enabled protocols even when the policy configured none, preserving the {TLSv1.3, TLSv1.2}
-        // floor the removed DefaultPulsarSslFactory forced rather than deferring to the provider default.
+        // floor DefaultPulsarSslFactory forces rather than deferring to the provider default.
         String[] enabledProtocols = protocols != null
                 ? protocols.toArray(new String[0])
                 : DEFAULT_ENABLED_PROTOCOLS.toArray(new String[0]);

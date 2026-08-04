@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import io.netty.handler.ssl.SslProvider;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
 import javax.net.ssl.SSLContext;
@@ -44,6 +46,7 @@ import org.apache.pulsar.tls.TlsPolicy;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -270,6 +273,65 @@ public class JcaProviderPinningTest {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    // ------------------------------------------------- the Netty engine path honors the pins too
+
+    /**
+     * The Netty builders must not hand raw key/trust material to {@code SslContextBuilder}: Netty then builds
+     * the carrier {@code KeyStore} and the key/trust manager factories through the JVM provider search order,
+     * which silently defeats both pins ({@code sslContextProvider} pins only the {@code SSLContext} itself).
+     *
+     * <p>Proven with a provider that registers <em>no</em> services at all: any code path that actually routes
+     * the carrier keystore through the pin fails loudly on it, while a path that bypassed the pin would build
+     * a context successfully. The material is loaded unpinned so only the context build is under test.
+     */
+    @Test(dataProvider = "nettyPinnedMaterial")
+    public void nettyContextBuildRoutesCarrierKeyStoreThroughThePinnedJcaProvider(boolean withKey,
+                                                                                  boolean withTrust)
+            throws Exception {
+        Provider empty = new NoServicesProvider();
+        Security.addProvider(empty);
+        try {
+            TlsMaterial material = new TlsMaterialSource(
+                    pemPolicy(null, withKey, withTrust)).refresh().material();
+            TlsPolicy pinned = pemPolicy(NoServicesProvider.NAME, withKey, withTrust);
+
+            assertThatThrownBy(() ->
+                    TlsContexts.buildNettyClientContext(material, pinned, SslProvider.JDK))
+                    .as("the Netty build must consult the pinned jcaProvider")
+                    .hasMessageContaining("jcaProvider='" + NoServicesProvider.NAME + "'");
+        } finally {
+            Security.removeProvider(NoServicesProvider.NAME);
+        }
+    }
+
+    @DataProvider(name = "nettyPinnedMaterial")
+    public static Object[][] nettyPinnedMaterial() {
+        // Key-only exercises the identity path, trust-only the trust path — each builds its own carrier.
+        return new Object[][]{{true, false}, {false, true}, {true, true}};
+    }
+
+    /** A registered provider offering no services, so any pinned {@code getInstance} through it fails. */
+    private static final class NoServicesProvider extends Provider {
+        private static final long serialVersionUID = 1L;
+        static final String NAME = "PIP478-NO-SERVICES";
+
+        NoServicesProvider() {
+            super(NAME, "1.0", "test provider registering no services");
+        }
+    }
+
+    private TlsPolicy pemPolicy(String jcaProvider, boolean withKey, boolean withTrust) {
+        TlsPolicy.Builder builder = TlsPolicy.builder().jcaProvider(jcaProvider);
+        if (withTrust) {
+            builder.trustCertsFilePath(dir.resolve("ca.pem").toString());
+        }
+        if (withKey) {
+            builder.certificateFilePath(dir.resolve("cert.pem").toString())
+                    .keyFilePath(dir.resolve("key.pem").toString());
+        }
+        return builder.build();
+    }
 
     private TlsPolicy pemPolicy(String jcaProvider) {
         return TlsPolicy.builder()

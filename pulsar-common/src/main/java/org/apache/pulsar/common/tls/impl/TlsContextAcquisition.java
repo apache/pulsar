@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import lombok.CustomLog;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsEndpoint;
 import org.apache.pulsar.tls.TlsHandle;
@@ -74,33 +75,10 @@ import org.apache.pulsar.tls.TlsPurpose;
  * delivers the {@code SSLContext} cannot self-deadlock; a rotation whose companion cannot be resolved keeps the
  * last-good policy rather than downgrading it.
  */
+@CustomLog
 public final class TlsContextAcquisition {
 
     private TlsContextAcquisition() {
-    }
-
-    /**
-     * Default bound (5 minutes) on how long an AsyncHttpClient pooled HTTPS connection may keep using
-     * pre-rotation TLS material on the rotating PIP-478 factory path. Trades prompt rotation against
-     * connection churn.
-     */
-    public static final int DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS = 5 * 60 * 1000;
-
-    /** System property overriding {@link #DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS} (injectable for tests). */
-    public static final String HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY = "pulsar.tls.http.connectionTtlMillis";
-
-    /**
-     * The connection-TTL (millis) that bounds how long an AsyncHttpClient pooled HTTPS connection may keep
-     * using pre-rotation TLS material on the rotating PIP-478 factory path. Since AsyncHttpClient
-     * fixes its TLS configuration at build time and the framework installs a rotating {@code SslEngineFactory},
-     * new connections pick up rotated material immediately, but an established pooled connection would otherwise
-     * keep pre-rotation material indefinitely; this TTL caps that, making rotation effective "within the TTL
-     * bound" rather than merely eventually (PIP-478 "TLS rotation behind PulsarHttpClient"). Read per call so it
-     * is injectable at runtime via {@link #HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY}; defaults to 5 minutes.
-     */
-    public static int httpTlsRotationConnectionTtlMillis() {
-        return Integer.getInteger(HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY,
-                DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS);
     }
 
     /**
@@ -327,6 +305,10 @@ public final class TlsContextAcquisition {
         private final AtomicBoolean firstDelivery = new AtomicBoolean(true);
         private final AtomicLong deliveryGeneration = new AtomicLong();
         private long lastPublishedGeneration;
+        // A rotation's companion request is composed asynchronously, so its completion can land after the
+        // consumer disposed this handle. Publishing then would invoke the consumer callback — and synthesize a
+        // context — against state the consumer has already torn down.
+        private final AtomicBoolean disposed = new AtomicBoolean();
 
         SynthesizingSubscription(PulsarTlsFactory factory, TlsPurpose purpose, TlsSynthesisSpec synthesis,
                                  SSLParameters initialBaseline, Consumer<SslContext> onLoadOrReload) {
@@ -363,7 +345,7 @@ public final class TlsContextAcquisition {
         // monotonic in delivery order.
         private synchronized void publish(SSLContext jdkContext, SSLParameters baseline, long generation,
                                           boolean baselineResolved) {
-            if (generation < lastPublishedGeneration) {
+            if (generation < lastPublishedGeneration || disposed.get()) {
                 return;
             }
             lastPublishedGeneration = generation;
@@ -374,9 +356,19 @@ public final class TlsContextAcquisition {
                 // baseline, read under the same guard so a stale companion can never have regressed it.
                 baseline = lastBaseline;
             }
-            SslContext wrapped = synthesize(jdkContext, purpose, synthesis, baseline);
-            this.latest = wrapped;
-            onLoadOrReload.accept(wrapped);
+            // Synthesis and the consumer callback both run inside a whenComplete whose derived future is
+            // discarded, so an exception escaping here would vanish silently — the rotation would be lost with
+            // no WARN and no failure metric, leaving the consumer on pre-rotation material. Mirror the
+            // subscription contract stated on PulsarTlsFactory (a throwing callback is caught and logged and
+            // the subscription stays live) and the equivalent guard in JettyTlsFactory's reload coordinator.
+            try {
+                SslContext wrapped = synthesize(jdkContext, purpose, synthesis, baseline);
+                this.latest = wrapped;
+                onLoadOrReload.accept(wrapped);
+            } catch (Throwable t) {
+                log.warn().attr("purpose", purpose).exception(t)
+                        .log("Failed to publish rotated TLS context to the consumer; keeping the last-good one");
+            }
         }
 
         TlsHandle<SslContext> bind(TlsHandle<SSLContext> jdkHandle) {
@@ -390,7 +382,12 @@ public final class TlsContextAcquisition {
         }
 
         @Override
-        public void dispose() {
+        public synchronized void dispose() {
+            // Synchronized on the same monitor as publish(), so this returns only once any in-flight publish
+            // has finished: setting the flag alone would still let a publisher that had already passed the
+            // check invoke the consumer callback after dispose() returned. The callback contract is a cheap
+            // non-blocking store (see FileBasedTlsFactory.deliverToSubscribers), so waiting here is bounded.
+            disposed.set(true);
             TlsHandle<SSLContext> jdkHandle = underlying;
             if (jdkHandle != null) {
                 jdkHandle.dispose();

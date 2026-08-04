@@ -37,7 +37,8 @@ import org.apache.pulsar.common.util.tls.PemReader;
 /**
  * A {@link MaterialSource} that folds a server component's broker-client {@code Authentication} TLS
  * material over a file-based base source for the {@code BROKER_CLIENT} purpose (PIP-478). This is the
- * server-side mirror of the client TLS override hook, preserving the removed PIP-337 auth-data behavior:
+ * server-side mirror of the client TLS override hook, preserving the PIP-337 auth-data behavior it
+ * supersedes:
  * when the broker-client authentication plugin (e.g.
  * {@code AuthenticationTls}) supplies key material, its in-memory certificate/key <em>override</em> the
  * configured {@code brokerClient*} file paths, so a proxy or broker presents the right identity to the

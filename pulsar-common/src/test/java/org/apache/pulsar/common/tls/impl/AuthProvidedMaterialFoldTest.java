@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
  * when a broker-client {@code Authentication} plugin supplies TLS material, its in-memory cert/key override
  * the {@code brokerClient*} file policy (auth-cert-wins) — the flip-CI blocker — while the base file trust is
  * retained, and rotation of the auth material is detected independently of the files. The end-to-end TLS
- * handshake proof lives in {@code AuthedAdminProxyHandlerNewTlsPathTest} with real client certificates.
+ * handshake proof arrives with the proxy integration, on real client certificates.
  */
 public class AuthProvidedMaterialFoldTest {
 

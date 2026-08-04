@@ -32,7 +32,7 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * Resolves the JCA/JCE security providers Pulsar relies on: the Bouncy Castle provider (FIPS or non-FIPS)
  * and the optional Conscrypt (OpenSSL) provider. This is the single provider-resolution primitive extracted
- * from the former {@code SecurityUtility} grab-bag (PIP-478); loading either provider (as a side effect of
+ * from the {@code SecurityUtility} grab-bag (PIP-478); loading either provider (as a side effect of
  * class initialization, via {@link #BC_PROVIDER} / {@link #CONSCRYPT_PROVIDER}) calls
  * {@code Security.addProvider} so the provider is installed process-wide.
  */
@@ -113,11 +113,18 @@ public final class JcaProviders {
             return null;
         }
 
-        // Conscrypt is left with its built-in default hostname verifier, which performs standard RFC 2818
-        // (SAN-based) hostname verification. Pulsar no longer installs a custom hostname verifier: the deprecated
-        // CN-based hostname matching was removed in Pulsar 5.0 (PIP-478), so TLS certificates must carry the
-        // hostname in the SubjectAltName (SAN) extension. The bug-1015 workaround in processConscryptTrustManager
-        // still ensures Conscrypt's default (SAN) verifier is applied to each TrustManager.
+        // Unlike the PIP-337 loader this one installs NO custom hostname verifier, so Conscrypt keeps its
+        // built-in default: standard RFC 2818 (SAN-based) verification, matching PIP-478's removal of the
+        // deprecated CN-based matching. The bug-1015 workaround in processConscryptTrustManager propagates
+        // whatever Conscrypt's DEFAULT verifier is onto each TrustManager.
+        //
+        // CAVEAT while both TLS stacks coexist: Conscrypt.setDefaultHostnameVerifier is process-global, and
+        // SecurityUtility's static initializer (still the wired PIP-337 path) sets it to the CN-tolerant
+        // TlsHostnameVerifier. Whenever that class has been loaded, the "default" propagated above is that
+        // relaxed verifier, not Conscrypt's own. Nothing routes through this class yet so no deployment is
+        // affected today; the PR that turns SAN-only hostname verification on by default must neutralize that
+        // global (or land together with SecurityUtility's removal) for the SAN-only guarantee to hold on a
+        // Conscrypt-pinned deployment.
 
         Security.addProvider(provider);
         log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)

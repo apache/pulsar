@@ -104,9 +104,10 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
                 .requireTrustedClientCert(conf.isTlsRequireTrustedClientCertOnConnect())
                 .refreshIntervalSeconds(refreshIntervalSeconds(conf))
-                // Engine selection (JDK vs. OpenSSL) mapped from the broker's tlsProvider field (PIP-478
-                // stage 2b): only an explicit OPENSSL value selects the native engine; JCE provider names
-                // and null keep the JDK engine.
+                // Engine selection (JDK vs. OpenSSL) mapped from the broker's tlsProvider field: an explicit
+                // engine literal is honored verbatim, a JSSE provider name selects no engine, and an unset
+                // value takes the native engine as OPENSSL_REFCNT when tcnative is available (see
+                // TlsFactorySupport.engineProvider).
                 .engineProvider(TlsFactorySupport.engineProvider(conf.getTlsProvider()))
                 .build();
         Map<TlsPurpose, Supplier<AuthenticationDataProvider>> authSuppliers =
@@ -121,7 +122,11 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
                 .enableHostnameVerification(conf.isTlsHostnameVerificationEnabled())
                 .protocols(toList(conf.getTlsProtocols()))
-                .ciphers(toList(conf.getTlsCiphers()));
+                .ciphers(toList(conf.getTlsCiphers()))
+                // v4 parity: tlsProvider is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
+                // selects the Netty engine above and yields null here; any other value is a JSSE provider
+                // name (e.g. Conscrypt), which v4 used to build the SSLContext, so route it to that axis.
+                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, conf.getTlsProvider()));
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
@@ -145,7 +150,9 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
                 .enableHostnameVerification(conf.isTlsHostnameVerificationEnabled())
                 .protocols(toList(conf.getBrokerClientTlsProtocols()))
-                .ciphers(toList(conf.getBrokerClientTlsCiphers()));
+                .ciphers(toList(conf.getBrokerClientTlsCiphers()))
+                // The outbound leg has its own provider setting, on the same two axes as tlsProvider above.
+                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, conf.getBrokerClientSslProvider()));
         if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getBrokerClientTlsKeyStoreType())
@@ -163,10 +170,21 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         return builder.build();
     }
 
+    /**
+     * Map {@code tlsCertRefreshCheckDurationSec} onto the factory's poll interval, preserving the v4 meaning of
+     * a non-positive value: every v4 consumer guards its refresh task with {@code > 0}, and
+     * {@link FileBasedTlsFactorySettings} likewise documents {@code <= 0} as "no background poll". Pass it
+     * through rather than substituting the default, so an operator who set {@code 0} still gets no poll.
+     *
+     * <p>Note that {@code 0} therefore disables rotation for the subscribing server purposes, exactly as it
+     * already does on the PIP-337 path. The config key's "set 0 to check on every new connection" wording
+     * describes only the one-shot acquisition paths, which re-stat per request; it has not applied to the
+     * server listeners since they moved to a shared, periodically-refreshed context.
+     */
     private static int refreshIntervalSeconds(ServiceConfiguration conf) {
         long configured = conf.getTlsCertRefreshCheckDurationSec();
         if (configured <= 0) {
-            return FileBasedTlsFactorySettings.DEFAULT_REFRESH_INTERVAL_SECONDS;
+            return 0;
         }
         return (int) Math.min(configured, Integer.MAX_VALUE);
     }

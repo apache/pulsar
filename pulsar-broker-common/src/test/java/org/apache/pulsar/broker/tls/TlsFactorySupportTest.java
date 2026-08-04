@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Optional;
@@ -32,7 +33,7 @@ import org.testng.annotations.Test;
 
 /**
  * Unit tests for the PIP-478 {@link TlsFactorySupport} helpers (the only server TLS path since the PIP-337
- * removal, stage 4c).
+ * removal at the end of the PIP-478 series).
  */
 public class TlsFactorySupportTest {
 
@@ -68,12 +69,28 @@ public class TlsFactorySupportTest {
     }
 
     @Test
-    public void engineProviderMapsOnlyExplicitOpenSsl() {
-        assertThat(TlsFactorySupport.engineProvider(null)).isEqualTo(SslProvider.JDK);
+    public void engineProviderHonorsExplicitEngineLiterals() {
+        // An explicitly configured engine is never rewritten to a different enum value.
+        assertThat(TlsFactorySupport.engineProvider("openssl")).isEqualTo(SslProvider.OPENSSL);
+        assertThat(TlsFactorySupport.engineProvider("OPENSSL")).isEqualTo(SslProvider.OPENSSL);
+        assertThat(TlsFactorySupport.engineProvider("OPENSSL_REFCNT")).isEqualTo(SslProvider.OPENSSL_REFCNT);
+        assertThat(TlsFactorySupport.engineProvider("openssl_refcnt")).isEqualTo(SslProvider.OPENSSL_REFCNT);
+        assertThat(TlsFactorySupport.engineProvider("JDK")).isEqualTo(SslProvider.JDK);
+        // JSSE provider names belong to the other axis and select no engine.
         assertThat(TlsFactorySupport.engineProvider("Conscrypt")).isEqualTo(SslProvider.JDK);
         assertThat(TlsFactorySupport.engineProvider("SunJSSE")).isEqualTo(SslProvider.JDK);
-        assertThat(TlsFactorySupport.engineProvider("openssl")).isEqualTo(SslProvider.OPENSSL);
-        assertThat(TlsFactorySupport.engineProvider("OPENSSL_REFCNT")).isEqualTo(SslProvider.OPENSSL);
+    }
+
+    @Test
+    public void unsetEngineProviderPrefersTheFinalizerFreeNativeEngineWhenAvailable() {
+        // Unset restores the historical default (PIP-337 passed null and let Netty pick the native engine
+        // where tcnative has a binary), but on the finalizer-free variant so nothing relies on finalization.
+        SslProvider expected = OpenSsl.isAvailable() ? SslProvider.OPENSSL_REFCNT : SslProvider.JDK;
+        assertThat(TlsFactorySupport.engineProvider(null)).isEqualTo(expected);
+        assertThat(TlsFactorySupport.engineProvider("")).isEqualTo(expected);
+        assertThat(TlsFactorySupport.engineProvider("   ")).isEqualTo(expected);
+        assertThat(TlsFactorySupport.engineProvider(null)).as("never the finalizer-bearing OPENSSL variant")
+                .isNotEqualTo(SslProvider.OPENSSL);
     }
 
     @Test

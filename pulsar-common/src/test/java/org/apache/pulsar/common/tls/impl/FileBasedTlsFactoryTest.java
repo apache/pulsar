@@ -551,7 +551,7 @@ public class FileBasedTlsFactoryTest {
         assumeOpenSslAvailable();
         TlsPolicy policy = copyServerCertsToTemp(BROKER_CERT, BROKER_KEY);
         FileBasedTlsFactory factory = factory(Map.of(TlsPurpose.BROKER, policy),
-                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL)
+                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL_REFCNT)
                         .refreshIntervalSeconds(1).build());
 
         List<SslContext> deliveries = new CopyOnWriteArrayList<>();
@@ -580,7 +580,7 @@ public class FileBasedTlsFactoryTest {
         assumeOpenSslAvailable();
         TlsPolicy policy = copyServerCertsToTemp(BROKER_CERT, BROKER_KEY);
         FileBasedTlsFactory factory = factory(Map.of(TlsPurpose.BROKER, policy),
-                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL)
+                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL_REFCNT)
                         .refreshIntervalSeconds(1).build());
 
         List<SslContext> deliveries = new CopyOnWriteArrayList<>();
@@ -602,12 +602,45 @@ public class FileBasedTlsFactoryTest {
     }
 
     @Test
+    public void closeReleasesEveryBuiltContextToZero() throws Exception {
+        assumeOpenSslAvailable();
+        // The default factory selects OPENSSL_REFCNT for the native engine, which — unlike OPENSSL — has no
+        // finalizer to reclaim a context its owner forgot to release. The factory's ledger is therefore the
+        // ONLY thing freeing the native SSL_CTX, so assert it actually reaches zero: every retain (the
+        // factory's own memo, each one-shot handle, each subscription's current/previous) must be balanced by
+        // close(). A leak here is permanent for the process lifetime.
+        TlsPolicy policy = copyServerCertsToTemp(BROKER_CERT, BROKER_KEY);
+        FileBasedTlsFactory factory = factory(Map.of(TlsPurpose.BROKER, policy),
+                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL_REFCNT).build());
+
+        List<SslContext> deliveries = new CopyOnWriteArrayList<>();
+        TlsHandle<SslContext> subscription =
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class, deliveries::add).join().orElseThrow();
+        TlsHandle<SslContext> oneShot =
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class).join().orElseThrow();
+        SslContext context = deliveries.get(0);
+        assertThat(oneShot.get()).as("one-shot and subscription share the factory's memo").isSameAs(context);
+        // factory memo + subscription delivery + one-shot handle.
+        assertThat(((ReferenceCounted) context).refCnt()).isEqualTo(3);
+
+        oneShot.dispose();
+        assertThat(((ReferenceCounted) context).refCnt()).as("one-shot dispose is balanced").isEqualTo(2);
+
+        factory.close();
+        assertThat(((ReferenceCounted) context).refCnt())
+                .as("close() releases the subscription's borrow and the factory's own memo").isZero();
+        // Disposing a handle after close must not over-release the already-freed context.
+        subscription.dispose();
+        assertThat(((ReferenceCounted) context).refCnt()).as("post-close dispose is idempotent").isZero();
+    }
+
+    @Test
     public void withPinnedContextReReadsWhenBorrowWasFreed() throws Exception {
         assumeOpenSslAvailable();
         // Two independent OpenSSL contexts: the first is freed, standing in for a borrow that a rotation
         // released between the volatile read and the pin; the second is the live current context.
-        SslContext dead = SslContextBuilder.forClient().sslProvider(SslProvider.OPENSSL).build();
-        SslContext live = SslContextBuilder.forClient().sslProvider(SslProvider.OPENSSL).build();
+        SslContext dead = SslContextBuilder.forClient().sslProvider(SslProvider.OPENSSL_REFCNT).build();
+        SslContext live = SslContextBuilder.forClient().sslProvider(SslProvider.OPENSSL_REFCNT).build();
         ReferenceCountUtil.release(dead);
         assertThat(((ReferenceCounted) dead).refCnt()).as("freed borrow").isZero();
 
@@ -682,6 +715,37 @@ public class FileBasedTlsFactoryTest {
     }
 
     @Test
+    public void cancellingAnInFlightAcquisitionDoesNotLeakTheRetainedContext() throws Exception {
+        // With the finalizer-free OPENSSL_REFCNT engine, a retain that no handle will ever balance is a
+        // permanent native leak. The acquisition task retains on the caller's behalf before completing the
+        // future, so a caller that cancels while the load is in flight must not strand that reference.
+        assumeOpenSslAvailable();
+        GatedExecutor gated = new GatedExecutor();
+        FileBasedTlsFactory factory = new FileBasedTlsFactory(
+                Map.of(TlsPurpose.BROKER, TlsPolicy.pem(RSA_CA, BROKER_CERT, BROKER_KEY)),
+                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL_REFCNT).build());
+        factory.initialize(initContext(scheduler, gated)).join();
+
+        // Build the context once so the factory memo exists and its refcount is observable.
+        TlsHandle<SslContext> primed =
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class).join().orElseThrow();
+        SslContext context = primed.get();
+        primed.dispose();
+        int baseline = ((ReferenceCounted) context).refCnt();
+
+        gated.pause();
+        CompletableFuture<Optional<TlsHandle<SslContext>>> pending =
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class);
+        assertThat(pending.cancel(false)).as("cancelled before the held task ran").isTrue();
+        gated.releaseHeld();
+
+        assertThat(((ReferenceCounted) context).refCnt())
+                .as("the undelivered handle's retain is released, not stranded").isEqualTo(baseline);
+        factory.close();
+        assertThat(((ReferenceCounted) context).refCnt()).isZero();
+    }
+
+    @Test
     public void oneShotHandleDisposeIsIdempotentUnderConcurrency() throws Exception {
         // PIP-478 FIX E: OneShotHandle.dispose() must release exactly once. A plain check-then-set on a
         // volatile flag lets two concurrent disposers both pass the guard and over-release, freeing the shared
@@ -691,7 +755,7 @@ public class FileBasedTlsFactoryTest {
         assumeOpenSslAvailable();
         FileBasedTlsFactory factory = factory(
                 Map.of(TlsPurpose.BROKER, TlsPolicy.pem(RSA_CA, BROKER_CERT, BROKER_KEY)),
-                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL).build());
+                FileBasedTlsFactorySettings.builder().engineProvider(SslProvider.OPENSSL_REFCNT).build());
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             for (int i = 0; i < 500; i++) {
@@ -813,7 +877,8 @@ public class FileBasedTlsFactoryTest {
         broken.close();
     }
 
-    // ---- PIP-478 stage 4c: ports the removed SslContextTest matrix (SslProvider x ciphers x keystore/PEM) ----
+    // ---- PIP-478: ports the SslContextTest matrix (SslProvider x ciphers x keystore/PEM) onto the new
+    // factory; the PIP-337 original is deleted together with its subject at the end of the series. ----
     // onto the new FileBasedTlsFactory. OpenSSL rejects the JDK-named TLS 1.2 ciphers used here (matching the
     // removed test's assertion); the JDK engine accepts them, and keystore-format material builds regardless.
 
@@ -829,8 +894,8 @@ public class FileBasedTlsFactoryTest {
         return new Object[][] {
                 {SslProvider.JDK, MATRIX_CIPHERS},
                 {SslProvider.JDK, null},
-                {SslProvider.OPENSSL, MATRIX_CIPHERS},
-                {SslProvider.OPENSSL, null},
+                {SslProvider.OPENSSL_REFCNT, MATRIX_CIPHERS},
+                {SslProvider.OPENSSL_REFCNT, null},
         };
     }
 
@@ -896,7 +961,7 @@ public class FileBasedTlsFactoryTest {
                         TlsPurpose.CLIENT_DEFAULT, TlsPolicy.builder().trustCertsFilePath(RSA_CA).build()),
                 FileBasedTlsFactorySettings.defaults());
         // With no protocols configured the {TLSv1.3, TLSv1.2} floor is enabled on both the server and the
-        // client context (the set the removed DefaultPulsarSslFactory forced), not the provider default — so an
+        // client context (the set DefaultPulsarSslFactory forces), not the provider default — so an
         // upgrade to the PIP-478 TLS path does not silently change the enabled protocol set.
         assertThat(serverEngine(factory).getEnabledProtocols()).containsExactlyInAnyOrder("TLSv1.3", "TLSv1.2");
         assertThat(clientEngine(factory).getEnabledProtocols()).containsExactlyInAnyOrder("TLSv1.3", "TLSv1.2");
@@ -905,8 +970,8 @@ public class FileBasedTlsFactoryTest {
 
     private static void assertNettyContextBuildsUnlessOpenSslWithCiphers(FileBasedTlsFactory factory,
             TlsPurpose purpose, SslProvider provider, List<String> ciphers) {
-        if (ciphers != null && provider == SslProvider.OPENSSL) {
-            // OpenSSL does not support these JDK-named TLS 1.2 ciphers (as the removed SslContextTest asserted).
+        if (ciphers != null && provider == SslProvider.OPENSSL_REFCNT) {
+            // OpenSSL does not support these JDK-named TLS 1.2 ciphers (as SslContextTest asserts).
             assertThatThrownBy(() -> factory.createInstance(purpose, SslContext.class).join())
                     .hasCauseInstanceOf(SSLException.class);
             return;

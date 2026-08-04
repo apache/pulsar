@@ -50,7 +50,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
  * holds the returned {@link TlsHandle} for disposal and never drives {@code setSslContext}/{@code reload}
  * or overlays consumer configuration on such an instance.
  *
- * <p>This deliberately abandons the unsound {@code getSslContext()} override of the removed PIP-337
+ * <p>This deliberately abandons the unsound {@code getSslContext()} override of the superseded PIP-337
  * {@code JettySslContextFactory}. Instead it uses
  * Jetty's documented hot-reload API — the same one {@code KeyStoreScanner} uses: an {@code SSLContext}
  * subscription drives {@link SslContextFactory#setSslContext(SSLContext)} before start, and on each
@@ -183,7 +183,7 @@ public final class JettyTlsFactory {
                         .join()
                         .orElseThrow(() -> new IllegalStateException(
                                 "TLS factory supplied no SSLContext for purpose " + purpose));
-        return new ReloadableServerTls(sslContextFactory, subscription);
+        return new ReloadableServerTls(sslContextFactory, coordinator.bind(subscription));
     }
 
     /**
@@ -259,7 +259,7 @@ public final class JettyTlsFactory {
                         .join()
                         .orElseThrow(() -> new IllegalStateException(
                                 "TLS factory supplied no SSLContext for purpose " + purpose));
-        return new ReloadableClientTls(client, subscription);
+        return new ReloadableClientTls(client, coordinator.bind(subscription));
     }
 
     /**
@@ -491,6 +491,10 @@ public final class JettyTlsFactory {
         private final AtomicBoolean firstDelivery = new AtomicBoolean(true);
         private final AtomicLong deliveryGeneration = new AtomicLong();
         private long lastPublishedGeneration;
+        // A rotation's companion request is composed asynchronously, so its completion can land after the
+        // owner disposed the subscription (and, on the server path, after Jetty stopped the connector).
+        // Reloading a stopped/abandoned factory then would be a pointless mutation at best.
+        private final AtomicBoolean disposed = new AtomicBoolean();
 
         JettyReloadCoordinator(PulsarTlsFactory factory, TlsPurpose purpose, SslContextFactory target,
                                SSLParameters initialBaseline, BiConsumer<SSLContext, SSLParameters> applyReload) {
@@ -499,6 +503,29 @@ public final class JettyTlsFactory {
             this.target = target;
             this.lastBaseline = initialBaseline;
             this.applyReload = applyReload;
+        }
+
+        /**
+         * Wrap the backing subscription so disposing it also stops this coordinator. Synchronized on the same
+         * monitor as {@link #publish}, so dispose returns only once any in-flight publish has finished —
+         * setting the flag alone would still let a publisher that had already passed the check reload a
+         * factory its owner has torn down.
+         */
+        TlsHandle<SSLContext> bind(TlsHandle<SSLContext> subscription) {
+            return new TlsHandle<>() {
+                @Override
+                public SSLContext get() {
+                    return subscription.get();
+                }
+
+                @Override
+                public void dispose() {
+                    synchronized (JettyReloadCoordinator.this) {
+                        disposed.set(true);
+                    }
+                    subscription.dispose();
+                }
+            };
         }
 
         // Serial per subscription (SPI contract), so each delivery gets a strictly increasing generation.
@@ -529,7 +556,7 @@ public final class JettyTlsFactory {
         // delivery order.
         private synchronized void publish(SSLContext newContext, SSLParameters baseline, long generation,
                                           boolean baselineResolved) {
-            if (generation < lastPublishedGeneration) {
+            if (generation < lastPublishedGeneration || disposed.get()) {
                 return;
             }
             lastPublishedGeneration = generation;

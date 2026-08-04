@@ -57,9 +57,17 @@ import org.apache.pulsar.tls.TlsPurpose;
  * JDK {@code SSLContext}; returns {@code empty()} for every other class (notably Jetty's
  * {@code SslContextFactory.Server} and {@code SslContextFactory.Client}), which the framework synthesizes
  * from the JDK {@code SSLContext}. It also
- * returns {@code empty()} for the {@code javax.net.ssl.SSLParameters} companion (PIP-478): this factory bakes
- * its engine policy (protocols, ciphers, client-auth mode, hostname verification) natively into the Netty and
- * JDK contexts it builds, so it exposes no separate baseline for the framework to overlay.
+ * returns {@code empty()} for the {@code javax.net.ssl.SSLParameters} companion (PIP-478): its engine policy
+ * (protocols, ciphers, client-auth mode, hostname verification) is baked natively into the Netty contexts it
+ * builds, so it exposes no separate baseline for the framework to overlay on those.
+ *
+ * <p>A JDK {@code SSLContext} cannot itself carry that policy — enabled protocols and cipher suites,
+ * algorithm constraints and the endpoint-identification algorithm are all per-engine {@code SSLParameters}
+ * settings — so the JDK context this factory returns is a <em>material carrier</em>: it holds the key and
+ * trust managers (built through the pinned providers) and nothing else. Every consumer of it applies the
+ * engine policy itself from the same {@link TlsPolicy}, which is what {@code JettyTlsFactory} does. A
+ * consumer that instead created engines straight from this {@code SSLContext} would get the provider defaults,
+ * so consumers must not do that.
  *
  * <p><b>Purpose resolution.</b> A request resolves the requested purpose directly against the configured
  * {@code TlsPurpose -> TlsPolicy} map. When nothing is configured for the purpose, a {@code CLIENT}-role
@@ -158,14 +166,28 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     @Override
     public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
         try {
-            this.initContext = Objects.requireNonNull(context, "context must not be null");
-            this.metrics = TlsReloadMetrics.create(context.openTelemetry(), context.clock());
+            Objects.requireNonNull(context, "context must not be null");
+            // Required, not optional: every acquisition path in this factory reads files and parses key
+            // material. Without an executor the work would run inline on the caller's thread, which the SPI
+            // contract says may be a consumer event loop. Fail at wiring time rather than stalling a channel.
+            Objects.requireNonNull(context.blockingExecutor(),
+                    "TlsFactoryInitContext.blockingExecutor() must not be null: FileBasedTlsFactory performs "
+                            + "blocking file and key-material loading and must never run it on a consumer thread");
+            this.initContext = context;
             // Cancel any poll scheduled by a prior initialize() so a second call does not orphan the first:
             // the field is overwritten below and the old task would otherwise run forever.
             ScheduledFuture<?> previousPoll = this.pollFuture;
             if (previousPoll != null) {
                 previousPoll.cancel(false);
             }
+            // Same reasoning for the metrics: a prior initialize() registered an observable gauge that stays
+            // registered on the meter until close(), so overwriting the field without closing it would leave
+            // an orphaned callback reporting stale per-purpose timestamps forever.
+            TlsReloadMetrics previousMetrics = this.metrics;
+            if (previousMetrics != null) {
+                previousMetrics.close();
+            }
+            this.metrics = TlsReloadMetrics.create(context.openTelemetry(), context.clock());
             int interval = settings.refreshIntervalSeconds();
             if (interval > 0 && context.scheduler() != null) {
                 this.pollFuture = context.scheduler().scheduleWithFixedDelay(
@@ -261,8 +283,12 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
      * alerts on. Failures stay unconditional: an attempt that threw is always worth counting.
      */
     private <T> T loadInitialInstance(RegisteredSource source, Class<T> instanceClass) throws Exception {
+        // Hoisted out of the try so the catch can tell whether this call already CONSUMED a rotation before
+        // failing (see the comment on the catch below). Null means currentMaterial() itself threw, which
+        // commits no baseline and so consumes nothing.
+        MaterialSource.RefreshOutcome outcome = null;
         try {
-            MaterialSource.RefreshOutcome outcome = source.currentMaterial();
+            outcome = source.currentMaterial();
             // Sampled before acquireInstance, which is what populates the memo (both calls run under the
             // source monitor held by the caller, so no other acquisition can interleave).
             boolean firstBuild = source.cachedInstance(instanceClass) == null;
@@ -275,16 +301,30 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
             // subscribes to CLIENT_DEFAULT while another path acquires one-shot on it. Deliver the observed
             // change here, exactly as the poll would have; a delivery failure arms pendingRedeliver so the next
             // poll retries. No extra metric is recorded — this shares the single recordLoad below.
+            // Also drive the retry when a previous rotation's fan-out failed: the poll is the usual driver,
+            // but it is disabled entirely when refreshIntervalSeconds <= 0, and even when enabled an
+            // acquisition may get here first. Without this, a subscriber wedged by a failed rebuild would
+            // stay on the pre-rotation instance until the files changed again.
+            boolean retryPending = source.pendingRedeliver();
             boolean delivered = true;
-            if (outcome.changed()) {
+            if (outcome.changed() || retryPending) {
                 delivered = source.deliverToSubscribers(outcome.material(), settings);
             }
-            if (outcome.changed() || firstBuild) {
+            if (outcome.changed() || retryPending || firstBuild) {
                 recordLoad(source.purpose, delivered);
             }
             return instance;
         } catch (Exception e) {
             recordLoad(source.purpose, false);
+            // The material parsed (the baseline is committed) but building or delivering the context failed.
+            // currentMaterial() has therefore already CONSUMED this rotation's change signal, so every later
+            // poll would report changed=false and — without arming the redeliver flag here — return early,
+            // leaving the subscribers wedged on the pre-rotation instance until the files change again.
+            // deliverToSubscribers arms the flag itself on a partial delivery failure; this covers the case
+            // where the failure happened before it was ever reached.
+            if (outcome != null && outcome.changed()) {
+                source.armRedeliver();
+            }
             // Keep-last-good (PIP-478): a one-shot (or initial subscribing) acquisition during a
             // non-atomic rotation window — e.g. the cert file briefly unreadable while it is being replaced —
             // must not fail when a prior load already built a context of this class. Serve that last-good
@@ -379,12 +419,21 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     private <R> CompletableFuture<R> runAsync(Callable<R> task) {
         CompletableFuture<R> future = new CompletableFuture<>();
         TlsFactoryInitContext context = this.initContext;
-        Executor executor = context != null && context.blockingExecutor() != null
-                ? context.blockingExecutor() : Runnable::run;
+        // initialize() rejects a null blockingExecutor, so the caller-thread fallback is reachable only before
+        // initialize() has run — a direct-construction path (tests, or a component acquiring during its own
+        // startup) that is by definition not on a consumer event loop.
+        Executor executor = context != null ? context.blockingExecutor() : Runnable::run;
         try {
             executor.execute(() -> {
                 try {
-                    future.complete(task.call());
+                    R result = task.call();
+                    if (!future.complete(result)) {
+                        // The caller cancelled (or otherwise completed) the future while the acquisition was
+                        // still running, so nothing will ever receive this handle. The task has already
+                        // retained the context on its behalf, and with the finalizer-free OPENSSL_REFCNT
+                        // engine an unbalanced retain is a permanent native leak — dispose the orphan here.
+                        disposeOrphan(result);
+                    }
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
@@ -393,6 +442,21 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
             future.completeExceptionally(t);
         }
         return future;
+    }
+
+    /**
+     * Release a handle that was built but could not be delivered to its caller. Both acquisition forms
+     * produce an {@code Optional<TlsHandle<?>>}, and disposing it is exactly what the caller would have done:
+     * it drops the one-shot's retained reference, or unregisters the subscription and releases its borrows.
+     */
+    private static void disposeOrphan(Object result) {
+        if (result instanceof Optional<?> optional && optional.orElse(null) instanceof TlsHandle<?> handle) {
+            try {
+                handle.dispose();
+            } catch (Throwable t) {
+                log.warn().exception(t).log("Failed to dispose an undelivered TLS handle");
+            }
+        }
     }
 
     private static boolean isSupported(Class<?> instanceClass) {
@@ -522,6 +586,13 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
          * both by the background poll and by an acquisition that consumed the source's change signal first
          * (see {@link FileBasedTlsFactory#loadInitialInstance}), so a rotation reaches the subscribers no matter
          * which caller observed it. Records no metric itself — each caller counts the (re)load once.
+         *
+         * <p><b>Consumer callbacks run while this source's monitor is held</b>, which keeps a rotation's
+         * rebuild-and-publish atomic against a concurrent acquisition. The cost is a reentrancy constraint on
+         * consumers: a reload callback must not call {@code createInstance} for the same purpose and block on
+         * the returned future, because that acquisition needs this same monitor and would deadlock when the
+         * blocking executor runs it on another thread. Consumers are expected to do only a volatile store in
+         * the callback (swap the context they hand to new connections) and never to block in it.
          */
         synchronized boolean deliverToSubscribers(TlsMaterial material, FileBasedTlsFactorySettings settings) {
             boolean allRebuilt = true;
@@ -544,6 +615,20 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
             if (metrics != null) {
                 metrics.recordLoad(purpose, success);
             }
+        }
+
+        /**
+         * Arm the redeliver retry for a rotation whose change signal was consumed but whose fan-out never
+         * ran (the context build failed first). The next poll — or, when polling is disabled, the next
+         * acquisition — then re-attempts the rebuild even though the source now reports {@code changed=false}.
+         */
+        synchronized void armRedeliver() {
+            pendingRedeliver = true;
+        }
+
+        /** @return whether a rotation still owes its subscribers a rebuilt instance. */
+        synchronized boolean pendingRedeliver() {
+            return pendingRedeliver;
         }
 
         synchronized void removeSubscription(Subscription<?> subscription) {
