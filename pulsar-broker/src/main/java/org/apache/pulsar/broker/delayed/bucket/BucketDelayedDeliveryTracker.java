@@ -126,6 +126,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private volatile CompletableFuture<Void> trimFuture;
 
+    @VisibleForTesting
+    CompletableFuture<Void> getTrimFuture() {
+        return trimFuture;
+    }
+
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -918,20 +923,32 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> deleteBucketSnapshot(String ledgerName,
                                                           Range<Long> range, ImmutableBucket bucket) {
-        return bucket.asyncDeleteBucketSnapshot(stats)
-                .handle((__, t) -> {
-                    if (t != null) {
-                        log.warn().attr("LedgerName", ledgerName)
-                                .attr("BucketKey", bucket.bucketKey())
-                                .log("Failed to delete bucket snapshot");
-                        throw new CompletionException(t);
-                    }
+        return bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)
+                .thenCompose(bucketId -> {
                     synchronized (this) {
-                        snapshotSegmentLastIndexMap.entrySet().removeIf(entry -> entry.getValue() == bucket);
-                        removeBucket(range);
-                        numberDelayedMessages.addAndGet(-bucket.getNumberBucketDelayedMessages());
+                        Long firstLedgerId = firstActiveLedgerId();
+                        if (INVALID_BUCKET_ID.equals(bucketId)
+                                || firstLedgerId == null
+                                || range.upperEndpoint() >= firstLedgerId
+                                || immutableBuckets.asMapOfRanges().get(range) != bucket) {
+                            return CompletableFuture.completedFuture(null);
+                        }
                     }
-                    return null;
+                    return bucket.asyncDeleteBucketSnapshot(stats).thenRun(() -> {
+                        synchronized (this) {
+                            if (immutableBuckets.asMapOfRanges().get(range) != bucket) {
+                                return;
+                            }
+                            snapshotSegmentLastIndexMap.entrySet().removeIf(entry -> entry.getValue() == bucket);
+                            removeBucket(range);
+                            numberDelayedMessages.addAndGet(-bucket.getNumberBucketDelayedMessages());
+                        }
+                    });
+                }).exceptionally(t -> {
+                    log.warn().attr("LedgerName", ledgerName)
+                            .attr("BucketKey", bucket.bucketKey())
+                            .log("Failed to delete bucket snapshot");
+                    throw new CompletionException(t);
                 });
     }
 
