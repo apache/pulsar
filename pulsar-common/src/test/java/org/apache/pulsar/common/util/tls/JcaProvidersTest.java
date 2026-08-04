@@ -103,6 +103,65 @@ public class JcaProvidersTest {
         assertThat(resolved.provider().getName()).isEqualTo(JcaProviders.BC);
     }
 
+    // ---------------------------------------------------------------- BCJSSE on-demand registration
+
+    @Test
+    public void jsseProviderConfigSelectsFipsOnlyWhenTheJcaProviderIsFips() {
+        // The FIPS decision follows the JCA provider that is actually present: pairing a FIPS JSSE provider
+        // with a non-validated crypto provider would be FIPS-shaped rather than FIPS-compliant. Exercised as
+        // a pure function because bc-fips cannot share a classpath with bcprov (mismatched jar signers).
+        Provider fipsJca = new NamedProvider(JcaProviders.BC_FIPS);
+        Provider nonFipsJca = new NamedProvider(JcaProviders.BC);
+
+        assertThat(JcaProviders.jsseProviderConfig(
+                new JcaProviders.ResolvedBouncyCastleProvider(fipsJca, true)))
+                .as("FIPS JCA provider -> FIPS-mode JSSE provider bound to it").isEqualTo("fips:BCFIPS");
+        assertThat(JcaProviders.jsseProviderConfig(
+                new JcaProviders.ResolvedBouncyCastleProvider(nonFipsJca, false)))
+                .as("non-FIPS JCA provider -> default (non-FIPS) constructor").isNull();
+        assertThat(JcaProviders.jsseProviderConfig(null))
+                .as("no BouncyCastle JCA provider at all -> default constructor").isNull();
+    }
+
+    @Test
+    public void bcJsseIsRegisteredOnDemandFromTheClasspath() {
+        // bctls ships no META-INF/services entry, so BCJSSE is invisible to ServiceLoader and absent from
+        // Security until something registers it. Pinning jsseProvider=BCJSSE must therefore still resolve.
+        Provider resolved = JcaProviders.resolveNamedProvider(JcaProviders.BC_JSSE);
+
+        assertThat(resolved).isNotNull();
+        assertThat(resolved.getName()).isEqualTo(JcaProviders.BC_JSSE);
+        assertThat(resolved.getClass().getName()).isEqualTo(JcaProviders.BC_JSSE_PROVIDER_CLASS);
+        assertThat(Security.getProvider(JcaProviders.BC_JSSE))
+                .as("installed process-wide, so the JSSE engines can be obtained from it").isNotNull();
+
+        // This module's classpath carries the general-purpose bcprov, so the provider must NOT claim FIPS.
+        assertThat(JcaProviders.bouncyCastleJsseProvider()).isPresent();
+        assertThat(JcaProviders.bouncyCastleJsseProvider().orElseThrow().fips())
+                .as("non-FIPS classpath must not yield a FIPS-mode JSSE provider").isFalse();
+    }
+
+    @Test
+    public void bcJsseSuppliesTheTlsEnginesTheTlsStackAsksFor() throws Exception {
+        // The reason to register it at all: TlsContexts pins the SSLContext to this provider, and
+        // JdkSslContexts negotiates the key-manager algorithm against it (BCJSSE registers X.509 with a PKIX
+        // alias but no SunX509, which is why that negotiation exists).
+        Provider bcJsse = JcaProviders.resolveNamedProvider(JcaProviders.BC_JSSE);
+
+        assertThat(javax.net.ssl.SSLContext.getInstance("TLS", bcJsse)).isNotNull();
+        assertThat(bcJsse.getService("KeyManagerFactory", "PKIX")).isNotNull();
+        assertThat(bcJsse.getService("TrustManagerFactory", "PKIX")).isNotNull();
+        assertThat(bcJsse.getService("KeyManagerFactory", javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm()))
+                .as("SunX509 is deliberately absent -- JdkSslContexts falls back to PKIX").isNull();
+    }
+
+    /** A provider carrying only a name, standing in for a BouncyCastle JCA provider. */
+    private static final class NamedProvider extends Provider {
+        private NamedProvider(String name) {
+            super(name, "1.0", "PIP-478 test provider");
+        }
+    }
+
     /** A minimal java.security.Provider registered at runtime (resolvable only via Security.getProvider). */
     private static final class DummyProvider extends Provider {
         private DummyProvider(String name) {

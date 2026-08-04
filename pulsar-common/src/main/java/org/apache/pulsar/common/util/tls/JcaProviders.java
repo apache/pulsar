@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util.tls;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
@@ -54,6 +55,7 @@ public final class JcaProviders {
 
     public static final String BC_FIPS_PROVIDER_CLASS = "org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider";
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+    public static final String BC_JSSE_PROVIDER_CLASS = "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider";
     public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
     public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
 
@@ -61,6 +63,12 @@ public final class JcaProviders {
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
     public static final String BC = "BC";
+
+    /**
+     * The name BouncyCastle's JSSE provider registers under — the same in FIPS and non-FIPS mode, because
+     * the mode is a constructor argument rather than part of the provider identity.
+     */
+    public static final String BC_JSSE = "BCJSSE";
 
     private JcaProviders() {
     }
@@ -137,6 +145,102 @@ public final class JcaProviders {
             log.debug().exception(e)
                     .log("No Bouncy Castle provider (FIPS or non-FIPS) on the classpath");
             return null;
+        }
+    }
+
+    /**
+     * Lazily resolves BouncyCastle's JSSE provider on first access, registering it from the classpath when
+     * the operator has not installed it themselves.
+     */
+    private static final class BouncyCastleJsseHolder {
+        private static final ResolvedBouncyCastleProvider RESOLVED = loadBouncyCastleJsseProvider();
+    }
+
+    /**
+     * BouncyCastle's JSSE provider ({@value #BC_JSSE}), the provider a FIPS TLS deployment pins as
+     * {@code jsseProvider}.
+     *
+     * <p>Unlike every other provider this class resolves, {@value #BC_JSSE} cannot be discovered: {@code bctls}
+     * ships no {@code META-INF/services/java.security.Provider} entry, so an unregistered one is invisible to
+     * {@link ServiceLoader}. And it cannot simply be default-constructed either, because its FIPS mode is a
+     * constructor argument fixed at construction — the provider registers under the same name either way, so
+     * a no-arg instance would quietly be the non-FIPS one. This resolves it explicitly instead:
+     *
+     * <ol>
+     *   <li>an instance the operator already registered wins, whatever mode they built it in;</li>
+     *   <li>otherwise, when {@code bctls} is on the classpath, it is constructed and registered here — in
+     *       FIPS mode bound to the FIPS JCA provider when {@link #bouncyCastleProvider()} resolved that one,
+     *       and in the default mode otherwise, so the TLS stack follows whichever BouncyCastle artifact the
+     *       deployment actually ships;</li>
+     *   <li>otherwise it is absent, and pinning {@code jsseProvider=BCJSSE} fails loudly.</li>
+     * </ol>
+     *
+     * @return the resolved provider and whether it is in FIPS mode, or {@link Optional#empty()} when
+     *         {@code bctls} is not on the classpath
+     */
+    public static Optional<ResolvedBouncyCastleProvider> bouncyCastleJsseProvider() {
+        return Optional.ofNullable(BouncyCastleJsseHolder.RESOLVED);
+    }
+
+    private static ResolvedBouncyCastleProvider loadBouncyCastleJsseProvider() {
+        Provider registered = Security.getProvider(BC_JSSE);
+        if (registered != null) {
+            log.debug().attr("provider", BC_JSSE).log("Already instantiated BouncyCastle JSSE provider");
+            return new ResolvedBouncyCastleProvider(registered, isJsseFipsMode(registered));
+        }
+        Class<?> providerClass;
+        try {
+            providerClass = Class.forName(BC_JSSE_PROVIDER_CLASS);
+        } catch (ClassNotFoundException e) {
+            log.debug().attr("class", BC_JSSE_PROVIDER_CLASS)
+                    .log("No BouncyCastle JSSE provider on the classpath");
+            return null;
+        }
+        // Resolving the JCA provider first also installs it, which the FIPS configuration below needs: the
+        // JSSE provider looks its crypto provider up by name while constructing.
+        String config = jsseProviderConfig(bouncyCastleProvider().orElse(null));
+        try {
+            Provider provider = config == null
+                    ? (Provider) providerClass.getDeclaredConstructor().newInstance()
+                    : (Provider) providerClass.getDeclaredConstructor(String.class).newInstance(config);
+            Security.addProvider(provider);
+            boolean fips = isJsseFipsMode(provider);
+            log.info().attr("provider", provider.getName()).attr("fips", fips)
+                    .log("Registered the BouncyCastle JSSE provider");
+            return new ResolvedBouncyCastleProvider(provider, fips);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            log.warn().attr("class", BC_JSSE_PROVIDER_CLASS).attr("config", config).exception(e)
+                    .log("Failed to register the BouncyCastle JSSE provider");
+            return null;
+        }
+    }
+
+    /**
+     * The constructor argument for a self-registered {@value #BC_JSSE}: {@code "fips:<name>"} binds it to a
+     * FIPS JCA provider and turns FIPS mode on, while {@code null} selects the no-arg (default, non-FIPS)
+     * constructor. FIPS mode is chosen only when the resolved BouncyCastle JCA provider is itself the FIPS
+     * artifact — pairing a FIPS JSSE provider with a non-validated crypto provider would be FIPS-shaped
+     * rather than FIPS-compliant, which is exactly what the two provider axes exist to prevent.
+     *
+     * @param jcaProvider the resolved BouncyCastle JCA provider, or {@code null} when there is none
+     * @return the constructor argument, or {@code null} to use the no-arg constructor
+     */
+    @VisibleForTesting
+    static String jsseProviderConfig(ResolvedBouncyCastleProvider jcaProvider) {
+        if (jcaProvider == null || !jcaProvider.fips()) {
+            return null;
+        }
+        return "fips:" + jcaProvider.provider().getName();
+    }
+
+    /** Query a JSSE provider's FIPS mode reflectively, so this class never needs {@code bctls} to compile. */
+    private static boolean isJsseFipsMode(Provider provider) {
+        try {
+            return Boolean.TRUE.equals(provider.getClass().getMethod("isFipsMode").invoke(provider));
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            log.debug().attr("provider", provider.getName()).exception(e)
+                    .log("Provider exposes no isFipsMode(); assuming non-FIPS");
+            return false;
         }
     }
 
@@ -292,11 +396,21 @@ public final class JcaProviders {
                 return provider;
             }
         }
-        // 3. Fail loudly — a misconfigured provider must not silently default.
+        // 3. BouncyCastle's JSSE provider is invisible to both steps above until someone registers it —
+        // bctls ships no services entry — so register it from the classpath on demand when it is the name
+        // being pinned. See bouncyCastleJsseProvider() for why it cannot just be default-constructed.
+        if (BC_JSSE.equals(name)) {
+            Optional<ResolvedBouncyCastleProvider> jsse = bouncyCastleJsseProvider();
+            if (jsse.isPresent()) {
+                return jsse.get().provider();
+            }
+        }
+        // 4. Fail loudly — a misconfigured provider must not silently default.
         throw new IllegalArgumentException("No java.security.Provider named '" + name + "' could be resolved via "
                 + "Security.getProvider(...) or via ServiceLoader (META-INF/services/java.security.Provider) on the "
                 + "application class loader. Ensure the provider is on the classpath and registered — a JSSE "
-                + "(SSLContext) provider such as BCJSSE for jsseProvider, or a JCA (KeyStore/CertificateFactory) "
+                + "(SSLContext) provider such as BCJSSE for jsseProvider (which additionally requires the bctls jar "
+                + "on the classpath), or a JCA (KeyStore/CertificateFactory) "
                 + "provider such as BCFIPS for jcaProvider.");
     }
 
