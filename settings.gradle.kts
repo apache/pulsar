@@ -71,6 +71,9 @@ include("buildtools")
 include("pulsar-config-validation")
 include("pulsar-client-api")
 include("pulsar-client-api-v5")
+// Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
+include("pulsar-tls-factory-api")
+include("pulsar-http-client-api")
 
 // Tier 1
 include("pulsar-client-admin-api")
