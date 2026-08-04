@@ -949,29 +949,34 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
     @Test
     public void testEntryBucketDispatchRoutesByStampedRange() {
-        // PIP-486: with entryBucketDispatch set on the subscription's KeySharedMeta, a stamped entry
-        // routes as a whole by its entry-bucket hash (entry_hash_min), not by the message key.
-        PersistentStickyKeyDispatcherMultipleConsumers bucketDispatcher =
-                new PersistentStickyKeyDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock,
-                        configMock, new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
-                                .setEntryBucketDispatch(true));
+        // PIP-486: the entry-bucket dispatcher routes a stamped entry as a whole by its entry-bucket
+        // (entry_hash_min normalized to the bucket's canonical hash), not by the message key.
+        KeySharedMeta ksm = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                .setEntryBucketDispatch(true);
+        ksm.addHashRange().setStart(0x0000).setEnd(0x3FFF);
+        ksm.addHashRange().setStart(0x4000).setEnd(0x7FFF);
+        ksm.addHashRange().setStart(0x8000).setEnd(0xBFFF);
+        ksm.addHashRange().setStart(0xC000).setEnd(0xFFFF);
+        PersistentEntryBucketDispatcherMultipleConsumers bucketDispatcher =
+                new PersistentEntryBucketDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock,
+                        configMock, ksm);
         EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
         try {
             MessageMetadata stamped = new MessageMetadata()
                     .setProducerName("p").setSequenceId(1).setPublishTime(1)
-                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+                    .setEntryHashMin(0x4567).setEntryHashMax(0x4FFF);
             assertEquals(bucketDispatcher.getStickyKeyHash(
-                    EntryAndMetadata.create(entry, stamped)), 0x1234);
+                    EntryAndMetadata.create(entry, stamped)), 0x4000);
 
-            // entry_hash_min == 0 collides with the reserved "hash not set" sentinel, so it is nudged
-            // to 1, which is still inside bucket 0.
+            // Bucket 0's canonical hash is nudged to 1 (0 is the reserved "hash not set" sentinel).
             MessageMetadata zero = new MessageMetadata()
                     .setProducerName("p").setSequenceId(1).setPublishTime(1)
-                    .setEntryHashMin(0).setEntryHashMax(0);
+                    .setEntryHashMin(0).setEntryHashMax(0x3FFF);
             assertEquals(bucketDispatcher.getStickyKeyHash(
                     EntryAndMetadata.create(entry, zero)), 1);
 
-            // Unstamped entries (non-batched messages) fall back to the message's sticky-key hash.
+            // Unstamped entries (non-batched messages) fall back to the message key's hash,
+            // normalized to the same canonical bucket value.
             MessageMetadata unstamped = new MessageMetadata()
                     .setProducerName("p").setSequenceId(1).setPublishTime(1).setPartitionKey("some-key");
             assertEquals(bucketDispatcher.getStickyKeyHash(

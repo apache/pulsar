@@ -950,10 +950,12 @@ message ScalableAssignedSegment {
     required uint32 hash_end               = 3;
     // Fully-qualified segment:// topic name the consumer should attach to.
     required string segment_topic          = 4;
-    // PIP-486: the entry-bucket hash ranges (16-bit, inclusive) this consumer owns within the
-    // segment. Empty means the consumer owns the whole segment (single bucket) and subscribes
-    // Shared; non-empty means the segment is shared by bucket, and the consumer subscribes
-    // Key_Shared STICKY declaring exactly these ranges.
+    // PIP-486: the segment's full entry-bucket boundary list (16-bit inclusive ranges tiling
+    // 0x0000-0xFFFF). Empty means this consumer is the segment's sole owner and subscribes
+    // Exclusive; non-empty means the segment is shared by entry-bucket, and the consumer
+    // subscribes Key_Shared STICKY with entryBucketDispatch, declaring exactly this boundary
+    // list (identical for every sharer). The bucket-to-consumer spread is computed broker-side
+    // from the live membership, so handoffs need no client protocol.
     repeated IntRange bucket_ranges        = 5;
 }
 
