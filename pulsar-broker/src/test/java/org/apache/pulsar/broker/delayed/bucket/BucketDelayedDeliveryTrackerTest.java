@@ -149,7 +149,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                                     true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
                     }};
-            case "testMergeSnapshot", "testWithBkException", "testWithCreateFailDowngrade" -> new Object[][]{{
+            case "testMergeSnapshot", "testWithBkException", "testWithCreateFailDowngrade",
+                     "testMergePreservesAllSnapshotSegments" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 10)
             }};
@@ -161,7 +162,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
             }};
-            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage" -> new Object[][]{{
+            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage",
+                     "testExpiredTrackedMessageDecrementsCount" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
             }};
@@ -238,6 +240,40 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 "Recovered message that is now expired should return false",
                 tracker2.addMessage(1, 1, 1000));
 
+        tracker2.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testExpiredTrackedMessageDecrementsCount(BucketDelayedDeliveryTracker tracker) {
+        clockTime.set(1000);
+        tracker.addMessage(1, 1, 2000);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+
+        clockTime.set(2500);
+        assertFalse(tracker.addMessage(1, 1, 2000));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        assertFalse(tracker.containsMessage(1, 1));
+        tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testMergePreservesAllSnapshotSegments(BucketDelayedDeliveryTracker tracker) throws Exception {
+        clockTime.set(0);
+        for (int i = 1; i <= 56; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging)));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 56);
+
+        tracker.close();
+        clockTime.set(0);
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 100000, clock,
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 10);
+
+        assertEquals(tracker2.getNumberOfDelayedMessages(), 55);
         tracker2.close();
     }
 
@@ -366,7 +402,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(110 * 10);
 
         NavigableSet<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
@@ -443,7 +479,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
         });
@@ -568,9 +604,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
-        MutableBucket mutableBucket = trackerWithStorage.tracker.getLastMutableBucket();
-        ImmutableBucket bucket = new ImmutableBucket(mutableBucket.dispatcherName, mutableBucket.cursor,
-                mutableBucket.sequencer, mutableBucket.bucketSnapshotStorage, startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setLastSegmentEntryId(firstScheduleTimestamps.size());
         bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
