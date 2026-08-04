@@ -126,7 +126,6 @@ dependencies {
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.commons.math3)
     testImplementation(libs.okhttp3)
-    testImplementation(libs.spring.core)
     testImplementation(libs.vertx.core)
     testImplementation(libs.wiremock)
     testImplementation(libs.consolecaptor)
