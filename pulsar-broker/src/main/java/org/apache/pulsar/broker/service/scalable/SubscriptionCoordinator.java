@@ -626,17 +626,17 @@ public class SubscriptionCoordinator {
                     assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
                             segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
                 } else {
-                    List<HashRange> buckets = EntryBucketSplits.ranges(segment.entryBucketSplits());
-                    int base = buckets.size() / k;
-                    int extra = buckets.size() % k;
-                    int from = 0;
+                    // Shared segment: every attached consumer subscribes Key_Shared declaring the
+                    // segment's full (immutable) bucket boundary list — WHO owns WHICH bucket is
+                    // decided broker-side by the segment dispatcher's deterministic spread, and
+                    // bucket handoffs on membership changes drain broker-side too. The controller
+                    // only directs membership.
+                    List<HashRange> boundaries = EntryBucketSplits.ranges(segment.entryBucketSplits());
                     for (int c = 0; c < k; c++) {
-                        int size = base + (c < extra ? 1 : 0);
-                        List<HashRange> slice = List.copyOf(buckets.subList(from, from + size));
-                        from += size;
                         ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                         assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(), slice));
+                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
+                                boundaries));
                     }
                 }
             }
