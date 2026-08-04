@@ -22,6 +22,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Iterator;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import javax.net.ssl.SSLContext;
@@ -30,16 +32,26 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Resolves the JCA/JCE security providers Pulsar relies on: the Bouncy Castle provider (FIPS or non-FIPS)
- * and the optional Conscrypt (OpenSSL) provider. This is the single provider-resolution primitive extracted
- * from the {@code SecurityUtility} grab-bag (PIP-478); loading either provider (as a side effect of
- * class initialization, via {@link #BC_PROVIDER} / {@link #CONSCRYPT_PROVIDER}) calls
- * {@code Security.addProvider} so the provider is installed process-wide.
+ * Resolves the JCA/JCE security providers Pulsar relies on: a named provider for the PIP-478
+ * {@code jsseProvider} / {@code jcaProvider} axes, the Bouncy Castle provider (FIPS or non-FIPS), and the
+ * optional Conscrypt (OpenSSL) provider. This is the single provider-resolution primitive extracted from the
+ * {@code SecurityUtility} grab-bag (PIP-478).
+ *
+ * <p><b>Bouncy Castle is resolved lazily and is optional.</b> Loading this class must not require it: the
+ * class exists mainly to resolve <em>named</em> providers for the two TLS provider axes, which every TLS
+ * policy does, whereas Bouncy Castle is needed only by the code that actually asks for it (message
+ * encryption, and a deployment that pins {@code jcaProvider=BC}/{@code BCFIPS}). The provider is therefore
+ * looked up on first use through {@link #bouncyCastleProvider()} — which reports absence as
+ * {@link Optional#empty()} rather than failing — and only a caller that genuinely needs it, via
+ * {@link #requireBouncyCastleProvider()}, turns absence into an error. Resolving it does install it
+ * process-wide via {@code Security.addProvider}, as before.
+ *
+ * <p>Conscrypt, by contrast, is resolved during class initialization ({@link #CONSCRYPT_PROVIDER}) and
+ * installed process-wide when present; it reports absence as {@code null} and never fails class loading.
  */
 @CustomLog
 public final class JcaProviders {
 
-    public static final Provider BC_PROVIDER = getProvider();
     public static final String BC_FIPS_PROVIDER_CLASS = "org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider";
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
@@ -53,36 +65,90 @@ public final class JcaProviders {
     private JcaProviders() {
     }
 
-    public static boolean isBCFIPS() {
-        return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);
+    /**
+     * A resolved Bouncy Castle provider together with which of the two artifacts it came from. The flavour
+     * travels with the provider because callers that care (FIPS-approved-only algorithm choices) would
+     * otherwise have to re-derive it from the provider's class name, and because the answer is fixed once
+     * the provider is resolved.
+     *
+     * @param provider the resolved, process-wide registered provider
+     * @param fips     whether it is the FIPS-certified artifact ({@code bc-fips}, registered as
+     *                 {@code BCFIPS}) rather than the general-purpose one ({@code bcprov}, registered as
+     *                 {@code BC})
+     */
+    public record ResolvedBouncyCastleProvider(Provider provider, boolean fips) {
+        public ResolvedBouncyCastleProvider {
+            Objects.requireNonNull(provider, "provider must not be null");
+        }
     }
 
     /**
-     * Get the Bouncy Castle provider:
-     *  1. return the already-registered BC or BCFIPS provider, if any;
-     *  2. otherwise load it from the classpath (non-FIPS preferred, FIPS as fallback) and register it
-     *     via Security.addProvider.
+     * Lazily resolves Bouncy Castle on first access, so that merely loading {@link JcaProviders} — which
+     * every named-provider resolution does — never requires Bouncy Castle to be on the classpath.
      */
-    public static Provider getProvider() {
-        boolean isProviderInstalled =
-                Security.getProvider(BC) != null || Security.getProvider(BC_FIPS) != null;
+    private static final class BouncyCastleHolder {
+        private static final ResolvedBouncyCastleProvider RESOLVED = loadBouncyCastleProvider();
+    }
 
-        if (isProviderInstalled) {
-            Provider provider = Security.getProvider(BC) != null
-                    ? Security.getProvider(BC)
-                    : Security.getProvider(BC_FIPS);
-            log.debug().attr("provider", provider.getName()).log("Already instantiated Bouncy Castle provider");
-            return provider;
+    /**
+     * The Bouncy Castle provider, installed process-wide on first resolution:
+     * <ol>
+     *   <li>an already-registered {@code BC} or {@code BCFIPS} provider, if any;</li>
+     *   <li>otherwise loaded from the classpath (non-FIPS preferred, FIPS as fallback) and registered via
+     *       {@code Security.addProvider}.</li>
+     * </ol>
+     *
+     * @return the resolved provider and its flavour, or {@link Optional#empty()} when Bouncy Castle is not
+     *         available. Callers that cannot proceed without it should use
+     *         {@link #requireBouncyCastleProvider()}, so the failure names them rather than surfacing as a
+     *         class-initialization error somewhere unrelated.
+     */
+    public static Optional<ResolvedBouncyCastleProvider> bouncyCastleProvider() {
+        return Optional.ofNullable(BouncyCastleHolder.RESOLVED);
+    }
+
+    /**
+     * As {@link #bouncyCastleProvider()}, for callers whose functionality genuinely requires Bouncy Castle.
+     *
+     * @return the resolved provider and its flavour
+     * @throws IllegalStateException when Bouncy Castle is not on the classpath
+     */
+    public static ResolvedBouncyCastleProvider requireBouncyCastleProvider() {
+        return bouncyCastleProvider().orElseThrow(() -> new IllegalStateException(
+                "No Bouncy Castle provider is available: neither an already-registered " + BC + "/" + BC_FIPS
+                        + " provider nor " + BC_NON_FIPS_PROVIDER_CLASS + " / " + BC_FIPS_PROVIDER_CLASS
+                        + " on the classpath. Add the bcprov (or bc-fips) dependency to use this feature."));
+    }
+
+    private static ResolvedBouncyCastleProvider loadBouncyCastleProvider() {
+        Provider installed = Security.getProvider(BC);
+        if (installed == null) {
+            installed = Security.getProvider(BC_FIPS);
         }
-
-        // Not installed, try load from class path
+        if (installed != null) {
+            log.debug().attr("provider", installed.getName()).log("Already instantiated Bouncy Castle provider");
+            return toResolvedProvider(installed);
+        }
+        // Not installed, try to load from the classpath. Absence is not an error here — it is only an error
+        // for a caller that needs Bouncy Castle, which requireBouncyCastleProvider() reports.
         try {
-            return getBCProviderFromClassPath();
+            return toResolvedProvider(getBCProviderFromClassPath());
         } catch (Exception e) {
-            log.warn().exception(e)
-                    .log("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path");
-            throw new RuntimeException(e);
+            log.debug().exception(e)
+                    .log("No Bouncy Castle provider (FIPS or non-FIPS) on the classpath");
+            return null;
         }
+    }
+
+    /**
+     * Classify a resolved provider. Both the registered name and the implementation class are checked: the
+     * FIPS artifact registers as {@code BCFIPS}, and matching the class as well keeps the classification
+     * right for a provider registered under a non-standard name.
+     */
+    private static ResolvedBouncyCastleProvider toResolvedProvider(Provider provider) {
+        boolean fips = BC_FIPS.equals(provider.getName())
+                || BC_FIPS_PROVIDER_CLASS.equals(provider.getClass().getCanonicalName());
+        return new ResolvedBouncyCastleProvider(provider, fips);
     }
 
     private static Provider loadConscryptProvider() {
@@ -157,12 +223,28 @@ public final class JcaProviders {
 
     /**
      * Resolve a named {@link Provider} — e.g. the JSSE (SSLContext) provider named by the PIP-478
-     * {@code jsseProvider} field. Resolution uses
-     * the {@link ServiceLoader} mechanism on the application (thread-context) class loader
-     * ({@code META-INF/services/java.security.Provider}), matching by {@link Provider#getName()}; it falls
-     * back to a provider already statically registered in the JVM ({@link Security#getProvider(String)}); and
-     * it fails loudly when the name resolves to nothing (the fail-fast contract — a misconfigured provider
-     * surfaces at client build / server start rather than silently defaulting).
+     * {@code jsseProvider} field. Resolution prefers a provider the operator has already registered in the
+     * JVM ({@link Security#getProvider(String)}), falls back to the {@link ServiceLoader} mechanism on the
+     * application (thread-context) class loader ({@code META-INF/services/java.security.Provider}) matching
+     * by {@link Provider#getName()}, and fails loudly when the name resolves to nothing (the fail-fast
+     * contract — a misconfigured provider surfaces at client build / server start rather than silently
+     * defaulting).
+     *
+     * <p><b>Why the registered provider wins.</b> The two steps differ in <em>which instance</em> answers a
+     * name: {@code ServiceLoader} constructs a fresh instance through the provider's <em>no-arg</em>
+     * constructor, whereas {@link Security#getProvider(String)} returns the instance the operator installed.
+     * Preferring the latter makes an explicit {@code java.security} registration authoritative, which is
+     * what configuring one means — the operator's instance may carry provider-level configuration, and it is
+     * the object actually present in the JVM's provider list. It matters concretely for any provider that
+     * ships a {@code META-INF/services/java.security.Provider} entry <em>and</em> whose configuration is
+     * constructor-supplied; {@code bcprov} ships such an entry, so before this ordering a pinned
+     * {@code jcaProvider=BC} resolved to a fresh provider rather than the registered one.
+     *
+     * <p>Note that BouncyCastle's JSSE provider is <em>not</em> affected either way: {@code bctls} ships no
+     * services entry, so {@code BCJSSE} is never {@code ServiceLoader}-discoverable and must be registered
+     * by the operator to be resolvable at all. That is the only way its FIPS mode — a constructor argument,
+     * {@code new BouncyCastleJsseProvider("fips:BCFIPS")}, with the provider registering under the plain
+     * name {@code BCJSSE} either way — can reach Pulsar.
      *
      * <p>Unlike {@link #resolveProvider(String)} (which falls back to the default provider), this never
      * returns {@code null} for a non-blank name: an unresolvable name is a configuration error.
@@ -176,7 +258,13 @@ public final class JcaProviders {
             return null;
         }
         String name = providerName.trim();
-        // 1. ServiceLoader on the application class loader (META-INF/services/java.security.Provider).
+        // 1. A provider the operator registered in the JVM wins — it carries their configuration (see above).
+        Provider registered = Security.getProvider(name);
+        if (registered != null) {
+            log.debug().attr("provider", name).log("Resolved JCA provider via Security.getProvider");
+            return registered;
+        }
+        // 2. ServiceLoader on the application class loader (META-INF/services/java.security.Provider).
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (classLoader == null) {
             classLoader = JcaProviders.class.getClassLoader();
@@ -204,16 +292,10 @@ public final class JcaProviders {
                 return provider;
             }
         }
-        // 2. Fall back to a provider already statically registered in the JVM.
-        Provider registered = Security.getProvider(name);
-        if (registered != null) {
-            log.debug().attr("provider", name).log("Resolved JCA provider via Security.getProvider");
-            return registered;
-        }
         // 3. Fail loudly — a misconfigured provider must not silently default.
         throw new IllegalArgumentException("No java.security.Provider named '" + name + "' could be resolved via "
-                + "ServiceLoader (META-INF/services/java.security.Provider) on the application class loader or via "
-                + "Security.getProvider(...). Ensure the provider is on the classpath and registered — a JSSE "
+                + "Security.getProvider(...) or via ServiceLoader (META-INF/services/java.security.Provider) on the "
+                + "application class loader. Ensure the provider is on the classpath and registered — a JSSE "
                 + "(SSLContext) provider such as BCJSSE for jsseProvider, or a JCA (KeyStore/CertificateFactory) "
                 + "provider such as BCFIPS for jcaProvider.");
     }

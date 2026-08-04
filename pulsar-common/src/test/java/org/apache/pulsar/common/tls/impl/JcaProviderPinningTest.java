@@ -74,7 +74,7 @@ public class JcaProviderPinningTest {
     @BeforeClass
     public void installProvider() {
         // Registers the BouncyCastle provider process-wide, so "BC" resolves through JcaProviders.
-        bc = JcaProviders.getProvider();
+        bc = JcaProviders.requireBouncyCastleProvider().provider();
         assertThat(bc.getName()).isEqualTo("BC");
     }
 

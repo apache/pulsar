@@ -57,6 +57,52 @@ public class JcaProvidersTest {
                 .hasMessageContaining("NoSuchCryptoProvider_pip478");
     }
 
+    @Test
+    public void anOperatorRegisteredProviderWinsOverTheServiceLoaderInstance() {
+        // ServiceLoader can only ever build the no-arg instance, so for a provider whose configuration is
+        // constructor-supplied it answers with a differently-configured object than the one the operator
+        // installed. bcprov ships a META-INF/services entry, so this is reachable for a pinned
+        // jcaProvider=BC; ServiceLoadableTestProvider reproduces the shape with the mode in its
+        // constructor. The operator's registered instance must win.
+        Provider operatorConfigured = new ServiceLoadableTestProvider("operator-registered-instance");
+        assertThat(Security.addProvider(operatorConfigured))
+                .as("test provider must not already be registered").isNotEqualTo(-1);
+        try {
+            Provider resolved = JcaProviders.resolveNamedProvider(ServiceLoadableTestProvider.NAME);
+
+            assertThat(resolved).as("the operator's configured instance, not a fresh no-arg one")
+                    .isSameAs(operatorConfigured);
+            assertThat(resolved.getInfo()).isNotEqualTo(ServiceLoadableTestProvider.SERVICE_LOADER_MODE);
+        } finally {
+            Security.removeProvider(ServiceLoadableTestProvider.NAME);
+        }
+    }
+
+    @Test
+    public void theServiceLoaderInstanceStillResolvesWhenNothingIsRegistered() {
+        // With no registration, the ServiceLoader fallback still answers the name -- the reordering narrows
+        // which instance wins, it does not drop the classpath discovery path.
+        assertThat(Security.getProvider(ServiceLoadableTestProvider.NAME))
+                .as("precondition: not registered").isNull();
+
+        Provider resolved = JcaProviders.resolveNamedProvider(ServiceLoadableTestProvider.NAME);
+
+        assertThat(resolved).isInstanceOf(ServiceLoadableTestProvider.class);
+        assertThat(resolved.getInfo()).isEqualTo(ServiceLoadableTestProvider.SERVICE_LOADER_MODE);
+    }
+
+    @Test
+    public void bouncyCastleIsResolvedLazilyAndReportedAsOptional() {
+        // bcprov is on this module's test classpath, so it resolves; the point of the Optional is that
+        // loading JcaProviders itself (which every named-provider resolution does) never requires it.
+        assertThat(JcaProviders.bouncyCastleProvider()).isPresent();
+        JcaProviders.ResolvedBouncyCastleProvider resolved = JcaProviders.requireBouncyCastleProvider();
+        assertThat(resolved.provider().getName()).isIn(JcaProviders.BC, JcaProviders.BC_FIPS);
+        assertThat(resolved.fips())
+                .as("the non-FIPS bcprov artifact is what this module tests with").isFalse();
+        assertThat(resolved.provider().getName()).isEqualTo(JcaProviders.BC);
+    }
+
     /** A minimal java.security.Provider registered at runtime (resolvable only via Security.getProvider). */
     private static final class DummyProvider extends Provider {
         private DummyProvider(String name) {
