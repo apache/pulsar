@@ -116,7 +116,8 @@ jna = "5.18.1"
 java-semver = "0.9.0"
 oshi = "6.4.0"
 netty-reactive-streams = "2.0.6"
-cron-utils = "9.1.6"
+# 9.2.0+ is required for CronType.SPRING53 (Spring 5.3+ cron syntax)
+cron-utils = "9.2.1"
 failsafe = "3.3.2"
 disruptor = "3.4.3"
 ant = "1.10.12"
@@ -166,7 +167,6 @@ skyscreamer = "1.5.0"
 # misc
 zstd-jni = "1.5.7-3"
 lz4java = "1.11.1"
-spring = "6.2.12"
 kubernetesclient = "26.0.0"
 aws-sdk = "1.12.788"
 hadoop3 = "3.5.0"
@@ -424,8 +424,7 @@ restassured = { module = "io.rest-assured:rest-assured", version.ref = "restassu
 jsonassert = { module = "org.skyscreamer:jsonassert", version.ref = "skyscreamer" }
 zstd-jni = { module = "com.github.luben:zstd-jni", version.ref = "zstd-jni" }
 lz4-java = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4java" }
-spring-context = { module = "org.springframework:spring-context", version.ref = "spring" }
-spring-core = { module = "org.springframework:spring-core", version.ref = "spring" }
+cron-utils = { module = "com.cronutils:cron-utils", version.ref = "cron-utils" }
 kubernetes-client-java = { module = "io.kubernetes:client-java", version.ref = "kubernetesclient" }
 kubernetes-client-java-api-fluent = { module = "io.kubernetes:client-java-api-fluent", version.ref = "kubernetesclient" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }

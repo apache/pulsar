@@ -50,7 +50,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -108,12 +107,12 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             assertFalse(future.isCompletedExceptionally());
         });
         Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
                         .collect(Collectors.toList())
-                ))
+                        .isEmpty())
         );
     }
 
@@ -238,12 +237,12 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         }
         // To ensure we don't have any subscription, the producers and readers are closed.
         Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
                         .collect(Collectors.toList())
-                ))
+                        .isEmpty())
         );
     }
 
