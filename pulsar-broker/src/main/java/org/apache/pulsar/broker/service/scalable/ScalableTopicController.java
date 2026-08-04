@@ -1264,10 +1264,10 @@ public class ScalableTopicController {
             // No subscribers ever attached / all unsubscribed → nothing left to drain.
             return CompletableFuture.completedFuture(true);
         }
-        CompletableFuture<Boolean>[] checks = subs.stream()
+        List<CompletableFuture<Boolean>> checks = subs.stream()
                 .map(sub -> isSegmentDrained(seg, sub))
-                .toArray(CompletableFuture[]::new);
-        return CompletableFuture.allOf(checks)
+                .toList();
+        return CompletableFuture.allOf(checks.toArray(CompletableFuture<?>[]::new))
                 .thenApply(__ -> {
                     for (CompletableFuture<Boolean> c : checks) {
                         if (!c.join()) {

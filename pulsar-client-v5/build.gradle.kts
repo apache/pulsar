@@ -35,6 +35,9 @@ dependencies {
     compileOnly(libs.protobuf.java)
     implementation(libs.netty.handler)
     implementation(libs.jackson.annotations)
+    // pulsar-client's configuration-data classes carry runtime-retained @Schema annotations, so javac needs
+    // the OpenAPI annotation types on the compile classpath to read their class files without warning.
+    compileOnly(libs.swagger.annotations)
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
     testImplementation(libs.testng)

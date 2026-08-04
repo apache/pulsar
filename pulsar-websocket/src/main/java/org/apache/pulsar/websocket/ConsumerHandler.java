@@ -27,6 +27,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -96,7 +97,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
     // of the BatchMessageIdImpl will not complete.
     private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.HOURS)
+            .expireAfterWrite(Duration.ofHours(1))
             .build();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, JettyServerUpgradeResponse response) {

@@ -110,6 +110,9 @@ final class AuthenticationAdapter {
         }
 
         @Override
+        // The v4 no-arg getAuthData() is deprecated in favour of the broker-host variant, but this bridge has to
+        // preserve the host-less semantics of the v5 no-arg authData() it implements.
+        @SuppressWarnings("deprecation")
         public AuthenticationData authData() throws PulsarClientException {
             try {
                 AuthenticationDataProvider v4Data = v4Auth.getAuthData();
