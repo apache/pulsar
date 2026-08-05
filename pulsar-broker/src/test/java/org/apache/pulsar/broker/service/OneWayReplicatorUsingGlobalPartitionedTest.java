@@ -231,7 +231,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @DataProvider
     public Object[][] removeClusterLevels() {
         return new Object[][] {
-            //{"namespace"},
+            {"namespace"},
             {"topic"}
         };
     }
