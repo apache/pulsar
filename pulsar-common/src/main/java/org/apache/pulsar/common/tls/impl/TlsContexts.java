@@ -79,9 +79,16 @@ public final class TlsContexts {
      */
     public static final List<String> DEFAULT_ENABLED_PROTOCOLS = List.of("TLSv1.3", "TLSv1.2");
 
-    // WARN-once dedup for the insecure (trust-all) mode, keyed by policy value so a rotation's context rebuilds
-    // (and both the Netty and JDK builds of the same policy) log at most once.
-    private static final Set<TlsPolicy> INSECURE_WARNED = ConcurrentHashMap.newKeySet();
+    // WARN-once dedup for the insecure (trust-all) mode, keyed by a hash of the policy so a rotation's
+    // context rebuilds (and both the Netty and JDK builds of the same policy) log at most once.
+    //
+    // Deliberately NOT keyed by the TlsPolicy itself: the policy carries keyStorePassword/trustStorePassword,
+    // and this set is static and never cleared, so retaining policies would pin plaintext passwords for the
+    // JVM lifetime — once per distinct insecure policy a long-lived process ever builds. A hash costs at most
+    // one suppressed warning on a collision. The set is also capped, because a process that builds many
+    // varying insecure client policies would otherwise grow it without bound.
+    private static final int INSECURE_WARNED_CAPACITY = 1024;
+    private static final Set<Integer> INSECURE_WARNED = ConcurrentHashMap.newKeySet();
 
     private TlsContexts() {
     }
@@ -91,11 +98,17 @@ public final class TlsContexts {
      * certificates are not validated. Deduplicated per policy value so rotation rebuilds do not spam the log.
      */
     private static void warnInsecureModeOnce(TlsPolicy policy) {
-        if (policy.allowInsecureConnection() && INSECURE_WARNED.add(policy)) {
-            log.warn().log("TLS insecure mode is enabled (allowInsecureConnection=true): peer certificates are "
-                    + "NOT validated (trust-all). This disables authentication of the remote peer and must be "
-                    + "used only for testing.");
+        if (!policy.allowInsecureConnection()) {
+            return;
         }
+        // Past the cap, warn every time rather than silently stopping: a flood of identical warnings is a
+        // better failure than losing the signal that peer verification is off.
+        if (INSECURE_WARNED.size() < INSECURE_WARNED_CAPACITY && !INSECURE_WARNED.add(policy.hashCode())) {
+            return;
+        }
+        log.warn().log("TLS insecure mode is enabled (allowInsecureConnection=true): peer certificates are "
+                + "NOT validated (trust-all). This disables authentication of the remote peer and must be "
+                + "used only for testing.");
     }
 
     /**
