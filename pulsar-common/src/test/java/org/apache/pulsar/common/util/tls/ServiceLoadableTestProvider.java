@@ -29,6 +29,14 @@ import java.security.Provider;
  * constructs and registers themselves under the same name. That is exactly BouncyCastle's JSSE provider,
  * which registers as {@code BCJSSE} whether or not it was built in FIPS mode
  * ({@code new BouncyCastleJsseProvider("fips:BCFIPS")}).
+ *
+ * <p>The {@code META-INF/services} entry that makes this discoverable is visible to the whole
+ * {@code pulsar-common} test source set, deliberately: being reachable through {@code ServiceLoader} is
+ * the property under test, so installing it with {@code Security.addProvider} in a {@code @BeforeClass}
+ * would exercise the registered-provider branch instead — the opposite of what the test asserts. The
+ * blast radius is bounded because this provider registers <b>no services at all</b>: it can never satisfy
+ * a {@code getInstance()} call, and is visible only to code enumerating {@code ServiceLoader<Provider>},
+ * where it costs one no-op construction.
  */
 public final class ServiceLoadableTestProvider extends Provider {
 
