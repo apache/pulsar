@@ -236,6 +236,7 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
         }
         return runAsync(() -> {
             RegisteredSource source = resolve(purpose);
+            rejectReentrantAcquisition(source, purpose);
             synchronized (source) {
                 // FIX F: close() runs releaseAll() under this same source lock, and may have completed after
                 // the outer closed-check but before this task acquired the lock. Re-check here so we never
@@ -263,6 +264,7 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
         }
         return runAsync(() -> {
             RegisteredSource source = resolve(purpose);
+            rejectReentrantAcquisition(source, purpose);
             synchronized (source) {
                 // FIX F: re-check under the source lock (see createInstance above) so a task racing a
                 // concurrent close()/releaseAll() never builds+retains a context that then leaks past shutdown.
@@ -500,6 +502,28 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
         return instanceClass == SslContext.class || instanceClass == SSLContext.class;
     }
 
+    /**
+     * Fail an acquisition that re-enters the factory from inside a reload callback for the same purpose.
+     *
+     * <p>Consumer callbacks run while the source monitor is held (see
+     * {@link RegisteredSource#deliverToSubscribers}), so a callback that acquires the same purpose and
+     * blocks on the returned future deadlocks: the acquisition task needs the monitor its own caller is
+     * holding. The contract has always said not to do that, but a documented constraint that fails as a
+     * hang is a poor contract — this turns it into an immediate, self-describing error.
+     *
+     * <p>Only same-purpose re-entry is caught, because that is the case that cannot succeed. A callback
+     * acquiring a DIFFERENT purpose takes a different monitor and is merely inadvisable.
+     */
+    private static void rejectReentrantAcquisition(RegisteredSource source, TlsPurpose purpose) {
+        if (Thread.holdsLock(source)) {
+            throw new IllegalStateException("Re-entrant TLS acquisition for purpose " + purpose
+                    + ": a reload callback must not call createInstance(...) for the purpose it is being "
+                    + "delivered for and block on the result — the callback already holds that purpose's "
+                    + "monitor, so the acquisition could never complete. Do the work outside the callback; "
+                    + "the callback contract is a cheap, non-blocking store.");
+        }
+    }
+
     private static void retain(Object instance) {
         if (instance != null) {
             ReferenceCountUtil.retain(instance);
@@ -625,11 +649,14 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
          * which caller observed it. Records no metric itself — each caller counts the (re)load once.
          *
          * <p><b>Consumer callbacks run while this source's monitor is held</b>, which keeps a rotation's
-         * rebuild-and-publish atomic against a concurrent acquisition. The cost is a reentrancy constraint on
-         * consumers: a reload callback must not call {@code createInstance} for the same purpose and block on
-         * the returned future, because that acquisition needs this same monitor and would deadlock when the
-         * blocking executor runs it on another thread. Consumers are expected to do only a volatile store in
-         * the callback (swap the context they hand to new connections) and never to block in it.
+         * rebuild-and-publish atomic against a concurrent acquisition, and makes deliveries serial per
+         * subscription — a guarantee the framework's own Jetty coordinator relies on for its generation
+         * ordering. The cost is a reentrancy constraint on consumers: a reload callback must not call
+         * {@code createInstance} for the same purpose and block on the returned future, because that
+         * acquisition needs this same monitor. That is now enforced rather than merely documented —
+         * {@link FileBasedTlsFactory#rejectReentrantAcquisition} fails such an acquisition immediately with
+         * an actionable message instead of letting it hang. Consumers are expected to do only a volatile
+         * store in the callback (swap the context they hand to new connections) and never to block in it.
          */
         synchronized boolean deliverToSubscribers(TlsMaterial material, FileBasedTlsFactorySettings settings) {
             boolean allRebuilt = true;

@@ -54,6 +54,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -712,6 +713,30 @@ public class FileBasedTlsFactoryTest {
         factory2.close();
         gated2.releaseHeld();
         assertThatThrownBy(pending2::join).hasCauseInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void reentrantAcquisitionFromAReloadCallbackFailsLoudlyInsteadOfDeadlocking() throws Exception {
+        // Reload callbacks run while the source monitor is held, so a callback that acquires the SAME
+        // purpose and blocks on the result can never complete. That was documented but unenforced; it now
+        // fails the returned future with an actionable message instead of hanging.
+        TlsPolicy policy = copyServerCertsToTemp(BROKER_CERT, BROKER_KEY);
+        FileBasedTlsFactory factory = factory(Map.of(TlsPurpose.BROKER, policy),
+                FileBasedTlsFactorySettings.defaults());
+
+        AtomicReference<Throwable> fromCallback = new AtomicReference<>();
+        factory.createInstance(TlsPurpose.BROKER, SslContext.class, ctx -> {
+            try {
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class).join();
+            } catch (Throwable t) {
+                fromCallback.set(t);
+            }
+        }).join();
+
+        assertThat(fromCallback.get()).as("the re-entrant acquisition must not hang").isNotNull();
+        assertThat(fromCallback.get()).hasRootCauseInstanceOf(IllegalStateException.class);
+        assertThat(fromCallback.get().getCause()).hasMessageContaining("Re-entrant TLS acquisition");
+        factory.close();
     }
 
     @Test
