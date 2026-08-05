@@ -74,6 +74,18 @@ public final class JcaProviders {
     }
 
     /**
+     * Force this class to initialize, which installs Conscrypt process-wide when it is on the classpath
+     * (see {@link #CONSCRYPT_PROVIDER}). Consumers that need Conscrypt registered before they build a TLS
+     * stack — but that do not otherwise touch this class — call this instead of referencing a field for
+     * its side effect.
+     *
+     * @return whether Conscrypt was available and installed
+     */
+    public static boolean ensureConscryptRegistered() {
+        return CONSCRYPT_PROVIDER != null;
+    }
+
+    /**
      * A resolved Bouncy Castle provider together with which of the two artifacts it came from. The flavour
      * travels with the provider because callers that care (FIPS-approved-only algorithm choices) would
      * otherwise have to re-derive it from the provider's class name, and because the answer is fixed once

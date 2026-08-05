@@ -90,9 +90,9 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 public final class JettyTlsFactory {
 
     static {
-        // DO NOT EDIT - Load Conscrypt provider
-        if (JcaProviders.CONSCRYPT_PROVIDER != null) {
-        }
+        // Install Conscrypt process-wide, if present, before any TLS object is built here. Jetty resolves a
+        // JSSE provider by name, so the provider has to be registered by the time a factory is configured.
+        JcaProviders.ensureConscryptRegistered();
     }
 
     private JettyTlsFactory() {
