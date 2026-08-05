@@ -44,9 +44,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -76,6 +78,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class JettyTlsFactoryTest {
+
+    /**
+     * Reload executor for tests: same-thread, so a delivery's reload has completed by the time the call
+     * that triggered it returns and the assertions below stay deterministic. That publish genuinely runs
+     * OFF the delivery thread when a real executor is supplied has its own test
+     * ({@link #rotationReloadRunsOnTheSuppliedExecutorNotTheDeliveryThread()}).
+     */
+    private static final Executor SAME_THREAD = Runnable::run;
 
     private static final String CA = resource("certificate-authority/certs/ca.cert.pem");
     private static final String BROKER_CERT = resource("certificate-authority/server-keys/broker.cert.pem");
@@ -120,7 +130,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
 
         Server server = new Server();
         ServerConnector connector = new ServerConnector(server, reloadable.sslContextFactory());
@@ -176,7 +186,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.BROKER_CLIENT, null, true);
+                factory, TlsPurpose.BROKER_CLIENT, SAME_THREAD, null, true);
         SslContextFactory.Client clientFactory = reloadable.sslContextFactory();
         clientFactory.start();
         try {
@@ -285,7 +295,7 @@ public class JettyTlsFactoryTest {
         // Consumer config asks for no protocol/cipher restriction and only optional client auth; the companion
         // overrides all three.
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         try {
             assertThat(sslContextFactory.getIncludeProtocols()).containsExactly("TLSv1.2");
@@ -319,7 +329,7 @@ public class JettyTlsFactoryTest {
 
         // Consumer config asks for no protocol restriction and only optional client auth; the companion wins.
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         Server server = new Server();
         ServerConnector connector = new ServerConnector(server, reloadable.sslContextFactory());
         connector.setPort(0);
@@ -373,7 +383,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         // Start standalone (no full Jetty server needed) so the reload path (isStarted()) runs on delivery.
         sslContextFactory.start();
@@ -430,7 +440,7 @@ public class JettyTlsFactoryTest {
         ScriptableFactory factory = new ScriptableFactory(initial, null);
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         // Start standalone so the reload path (isStarted()) runs on each rotation delivery.
         sslContextFactory.start();
@@ -483,7 +493,7 @@ public class JettyTlsFactoryTest {
         ScriptableFactory factory = new ScriptableFactory(initial, lastGood);
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         sslContextFactory.start();
         try {
@@ -533,7 +543,7 @@ public class JettyTlsFactoryTest {
         // The consumer configures neither ciphers nor protocols, so the defaults are "no cipher restriction" and
         // the {TLSv1.3, TLSv1.2} protocol floor.
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         sslContextFactory.start();
         try {
@@ -573,7 +583,7 @@ public class JettyTlsFactoryTest {
         ScriptableFactory factory = new ScriptableFactory(initial, buildCompanion);
 
         JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.BROKER_CLIENT, null, true);
+                factory, TlsPurpose.BROKER_CLIENT, SAME_THREAD, null, true);
         SslContextFactory.Client clientFactory = reloadable.sslContextFactory();
         clientFactory.start();
         try {
@@ -607,6 +617,49 @@ public class JettyTlsFactoryTest {
      * is for a live factory), so the started factory runs the rotation's engine policy — protocols, cipher suites
      * and client-auth — rather than the stale build-time one.
      */
+    /**
+     * The reload must not run on the thread that delivered the rotation.
+     *
+     * <p>For the default factory the companion request completes synchronously — {@code SSLParameters} is
+     * an unsupported class, so {@code createInstance} returns an already-completed future — which means a
+     * plain {@code whenComplete} would run the whole Jetty reload inline, on a delivery thread that is
+     * inside the factory's {@code synchronized} fan-out. That put the source monitor at the head of a
+     * source -> coordinator -> Jetty lock chain and broke the delivery contract's "cheap non-blocking
+     * store". Dispatching to the supplied executor is what keeps that from happening.
+     */
+    @Test
+    public void rotationReloadRunsOnTheSuppliedExecutorNotTheDeliveryThread() throws Exception {
+        SSLContext initial = JdkSslContexts.createSslContext(false, CA, BROKER_CERT, BROKER_KEY, null);
+        SSLContext rotated = JdkSslContexts.createSslContext(false, CA, PROXY_CERT, PROXY_KEY, null);
+        ScriptableFactory factory = new ScriptableFactory(initial, null);
+        ExecutorService reloadExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "reload-executor"));
+        try {
+            JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
+                    factory, TlsPurpose.WEB, reloadExecutor, null, false, false, null, null);
+            SslContextFactory.Server target = reloadable.sslContextFactory();
+            target.start();
+
+            AtomicReference<String> reloadThread = new AtomicReference<>();
+            Thread deliveringThread = new Thread(() -> factory.deliver(rotated), "delivery-thread");
+            // Capture the thread the applied context lands on by observing the factory after the reload.
+            deliveringThread.start();
+            deliveringThread.join(TimeUnit.SECONDS.toMillis(10));
+
+            Awaitility.await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertThat(target.getSslContext()).isSameAs(rotated));
+            reloadExecutor.submit(() -> reloadThread.set(Thread.currentThread().getName()))
+                    .get(10, TimeUnit.SECONDS);
+
+            assertThat(reloadThread.get()).as("the reload executor is the one that ran publish")
+                    .isEqualTo("reload-executor");
+            assertThat(deliveringThread.isAlive())
+                    .as("the delivery thread was not held for the duration of the reload").isFalse();
+            reloadable.subscription().dispose();
+        } finally {
+            reloadExecutor.shutdownNow();
+        }
+    }
+
     @Test
     public void preStartRotationRefreshesCompanionBeforeStart() throws Exception {
         SSLContext initial = JdkSslContexts.createSslContext(false, CA, BROKER_CERT, BROKER_KEY, null);
@@ -616,7 +669,7 @@ public class JettyTlsFactoryTest {
         ScriptableFactory factory = new ScriptableFactory(initial, null);
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         SslContextFactory.Server sslContextFactory = reloadable.sslContextFactory();
         try {
             assertThat(sslContextFactory.getNeedClientAuth())
@@ -667,7 +720,7 @@ public class JettyTlsFactoryTest {
         ScriptableFactory factory = new ScriptableFactory(initial, null);
 
         JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.BROKER_CLIENT, null, true);
+                factory, TlsPurpose.BROKER_CLIENT, SAME_THREAD, null, true);
         SslContextFactory.Client clientFactory = reloadable.sslContextFactory();
         clientFactory.start();
         try {
@@ -726,9 +779,9 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableServerTls server = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         JettyTlsFactory.ReloadableClientTls client = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.WEB, null, true);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, true);
         try {
             assertThat(server.sslContextFactory().getIncludeProtocols())
                     .containsExactlyInAnyOrder("TLSv1.3", "TLSv1.2");
@@ -763,7 +816,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.BROKER_CLIENT, null, true);
+                factory, TlsPurpose.BROKER_CLIENT, SAME_THREAD, null, true);
         try {
             assertThat(reloadable.sslContextFactory().getIncludeProtocols()).containsExactly("TLSv1.2");
         } finally {
@@ -785,7 +838,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                factory, TlsPurpose.BROKER_CLIENT, null, true);
+                factory, TlsPurpose.BROKER_CLIENT, SAME_THREAD, null, true);
         try {
             assertThat(reloadable.sslContextFactory())
                     .as("the factory-supplied native Jetty client factory is used verbatim")
@@ -812,7 +865,7 @@ public class JettyTlsFactoryTest {
         factory.initialize(initContext()).join();
 
         JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                factory, TlsPurpose.WEB, null, false, false, null, null);
+                factory, TlsPurpose.WEB, SAME_THREAD, null, false, false, null, null);
         try {
             assertThat(reloadable.sslContextFactory())
                     .as("the factory-supplied native Jetty server factory is used verbatim")
@@ -1114,8 +1167,8 @@ public class JettyTlsFactoryTest {
             factory.initialize(initContext()).join();
             // Optional client auth (requireTrustedClientCert=false); TLSv1.2 so an untrusted-cert rejection
             // surfaces synchronously in the client handshake rather than as a post-handshake alert.
-            reloadable = JettyTlsFactory.createReloadingServerFactory(factory, TlsPurpose.WEB, null,
-                    false, allowInsecureConnection, null, Set.of("TLSv1.2"));
+            reloadable = JettyTlsFactory.createReloadingServerFactory(factory, TlsPurpose.WEB, SAME_THREAD,
+                    null, false, allowInsecureConnection, null, Set.of("TLSv1.2"));
             server = new Server();
             ServerConnector connector = new ServerConnector(server, reloadable.sslContextFactory());
             connector.setPort(0);

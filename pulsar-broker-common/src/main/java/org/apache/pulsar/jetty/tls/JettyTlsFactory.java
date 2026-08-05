@@ -20,6 +20,9 @@ package org.apache.pulsar.jetty.tls;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
@@ -127,6 +130,12 @@ public final class JettyTlsFactory {
      * Build a self-reloading {@link SslContextFactory.Server} for a purpose, handed back <em>unstarted</em>
      * (Jetty starts it with the connector lifecycle) with its initial {@code SSLContext} already set.
      *
+     * <p><b>Must not be called from the factory's blocking executor.</b> This builder blocks on the
+     * factory's acquisition, and the default factory dispatches acquisitions to
+     * {@code TlsFactoryInitContext.blockingExecutor()} — so calling it from that executor waits on work
+     * queued behind itself, which deadlocks when the executor is single-threaded. Call it from the owning
+     * component's startup thread.
+     *
      * @param factory                  the TLS factory to subscribe to
      * @param purpose                  the server purpose (e.g. {@link TlsPurpose#WEB})
      * @param sslProviderString        the legacy engine/JSSE provider string passed to Jetty's
@@ -140,6 +149,7 @@ public final class JettyTlsFactory {
      * @return the reloading factory and its subscription handle
      */
     public static ReloadableServerTls createReloadingServerFactory(PulsarTlsFactory factory, TlsPurpose purpose,
+                                                                   Executor reloadExecutor,
                                                                    String sslProviderString,
                                                                    boolean requireTrustedClientCert,
                                                                    boolean allowInsecureConnection,
@@ -165,8 +175,8 @@ public final class JettyTlsFactory {
         // Each rotation re-requests the companion asynchronously (off the delivery thread) and applies it under
         // a generation guard so an out-of-order companion cannot pin a stale context, retaining the last-good
         // baseline across a transient companion failure. See JettyReloadCoordinator.
-        JettyReloadCoordinator coordinator = new JettyReloadCoordinator(factory, purpose, sslContextFactory,
-                initialBaseline, (newContext, baseline) -> {
+        JettyReloadCoordinator coordinator = new JettyReloadCoordinator(factory, purpose, reloadExecutor,
+                sslContextFactory, initialBaseline, (newContext, baseline) -> {
                     sslContextFactory.setSslContext(newContext);
                     // Re-apply the consumer defaults first so a companion member dropped by this delivery
                     // (notably client-auth) reverts to the consumer default rather than staying stuck from the
@@ -179,8 +189,7 @@ public final class JettyTlsFactory {
                 });
 
         TlsHandle<SSLContext> subscription =
-                factory.createInstance(purpose, SSLContext.class, coordinator::onDelivery)
-                        .join()
+                awaitAcquisition(factory.createInstance(purpose, SSLContext.class, coordinator::onDelivery), purpose)
                         .orElseThrow(() -> new IllegalStateException(
                                 "TLS factory supplied no SSLContext for purpose " + purpose));
         return new ReloadableServerTls(sslContextFactory, coordinator.bind(subscription));
@@ -198,6 +207,12 @@ public final class JettyTlsFactory {
      * the rotated material. Dispose the returned {@link ReloadableClientTls#subscription()} when the owning
      * client is destroyed.
      *
+     * <p><b>Must not be called from the factory's blocking executor.</b> This builder blocks on the
+     * factory's acquisition, and the default factory dispatches acquisitions to
+     * {@code TlsFactoryInitContext.blockingExecutor()} — so calling it from that executor waits on work
+     * queued behind itself, which deadlocks when the executor is single-threaded. Call it from the owning
+     * component's startup thread.
+     *
      * @param factory                   the TLS factory to acquire from / subscribe to
      * @param purpose                   the client purpose (e.g. {@link TlsPurpose#BROKER_CLIENT})
      * @param sslProviderString         the legacy engine/JSSE provider string passed to Jetty's
@@ -210,6 +225,7 @@ public final class JettyTlsFactory {
      * @return the client factory and the handle backing it
      */
     public static ReloadableClientTls createReloadingClientFactory(PulsarTlsFactory factory, TlsPurpose purpose,
+                                                                   Executor reloadExecutor,
                                                                    String sslProviderString,
                                                                    boolean enableHostnameVerification) {
         // Ask the factory first: a custom factory may natively supply the Jetty client factory (a well-known
@@ -242,7 +258,8 @@ public final class JettyTlsFactory {
         // Rotations re-request the companion asynchronously (off the delivery thread) and apply it under a
         // generation guard, retaining the last-good baseline across a transient companion failure (client-auth
         // is a server concept; endpoint identification stays as set at build). See JettyReloadCoordinator.
-        JettyReloadCoordinator coordinator = new JettyReloadCoordinator(factory, purpose, client, initialBaseline,
+        JettyReloadCoordinator coordinator = new JettyReloadCoordinator(factory, purpose, reloadExecutor, client,
+                initialBaseline,
                 (newContext, baseline) -> {
                     client.setSslContext(newContext);
                     // Re-apply the consumer defaults first (the {TLSv1.3, TLSv1.2} floor and an unrestricted cipher
@@ -255,8 +272,7 @@ public final class JettyTlsFactory {
                 });
 
         TlsHandle<SSLContext> subscription =
-                factory.createInstance(purpose, SSLContext.class, coordinator::onDelivery)
-                        .join()
+                awaitAcquisition(factory.createInstance(purpose, SSLContext.class, coordinator::onDelivery), purpose)
                         .orElseThrow(() -> new IllegalStateException(
                                 "TLS factory supplied no SSLContext for purpose " + purpose));
         return new ReloadableClientTls(client, coordinator.bind(subscription));
@@ -381,7 +397,7 @@ public final class JettyTlsFactory {
      */
     private static <T extends SslContextFactory> Optional<TlsHandle<T>> acquireNativeJettyFactory(
             PulsarTlsFactory factory, TlsPurpose purpose, Class<T> jettyClass) {
-        return factory.createInstance(purpose, jettyClass).join();
+        return awaitAcquisition(factory.createInstance(purpose, jettyClass), purpose);
     }
 
     /**
@@ -392,7 +408,8 @@ public final class JettyTlsFactory {
      * {@link #extractBaseline}.
      */
     private static Optional<SSLParameters> resolveBaselineParameters(PulsarTlsFactory factory, TlsPurpose purpose) {
-        return Optional.ofNullable(extractBaseline(factory.createInstance(purpose, SSLParameters.class).join()));
+        return Optional.ofNullable(
+                extractBaseline(awaitAcquisition(factory.createInstance(purpose, SSLParameters.class), purpose)));
     }
 
     /**
@@ -410,6 +427,30 @@ public final class JettyTlsFactory {
             return paramsHandle.get();
         } finally {
             paramsHandle.dispose();
+        }
+    }
+
+    /**
+     * Await a factory acquisition made during a synchronous builder, unwrapping {@link CompletionException}
+     * so a configuration failure surfaces as its own cause. The underlying messages ("No TLS material
+     * configured for server purpose WEB") are the actionable ones and should not arrive wrapped.
+     *
+     * @param pending the acquisition
+     * @param purpose the purpose being acquired, for the failure message
+     * @return the acquisition result
+     */
+    private static <T> T awaitAcquisition(CompletableFuture<T> pending, TlsPurpose purpose) {
+        try {
+            return pending.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw new IllegalStateException("Failed to acquire TLS material for purpose " + purpose, cause);
         }
     }
 
@@ -480,6 +521,12 @@ public final class JettyTlsFactory {
 
         private final PulsarTlsFactory factory;
         private final TlsPurpose purpose;
+        // Where publish() runs. The companion request is composed, never joined — but for the DEFAULT
+        // factory it completes synchronously (SSLParameters is an unsupported class, so createInstance
+        // returns an already-completed empty future), which would run the whole Jetty reload inline on the
+        // delivery thread, i.e. while the factory holds its source monitor. Dispatching keeps the source
+        // monitor out of the Jetty lock chain and honours the delivery contract's "cheap non-blocking store".
+        private final Executor reloadExecutor;
         private final SslContextFactory target;
         // Applies the rotated context + (nullable) companion baseline inside Jetty's reload lambda.
         private final BiConsumer<SSLContext, SSLParameters> applyReload;
@@ -496,10 +543,12 @@ public final class JettyTlsFactory {
         // Reloading a stopped/abandoned factory then would be a pointless mutation at best.
         private final AtomicBoolean disposed = new AtomicBoolean();
 
-        JettyReloadCoordinator(PulsarTlsFactory factory, TlsPurpose purpose, SslContextFactory target,
-                               SSLParameters initialBaseline, BiConsumer<SSLContext, SSLParameters> applyReload) {
+        JettyReloadCoordinator(PulsarTlsFactory factory, TlsPurpose purpose, Executor reloadExecutor,
+                               SslContextFactory target, SSLParameters initialBaseline,
+                               BiConsumer<SSLContext, SSLParameters> applyReload) {
             this.factory = factory;
             this.purpose = purpose;
+            this.reloadExecutor = reloadExecutor == null ? Runnable::run : reloadExecutor;
             this.target = target;
             this.lastBaseline = initialBaseline;
             this.applyReload = applyReload;
@@ -546,8 +595,9 @@ public final class JettyTlsFactory {
             // build-time baseline; only the mechanism used to apply the result differs (see publish). The
             // generation guard in publish drops a superseded companion; the last-good baseline is maintained
             // there, never here, so a superseded companion completing late cannot regress it.
-            factory.createInstance(purpose, SSLParameters.class).whenComplete((companion, err) ->
-                    publish(newContext, err != null ? null : extractBaseline(companion), generation, err == null));
+            factory.createInstance(purpose, SSLParameters.class).whenCompleteAsync((companion, err) ->
+                    publish(newContext, err != null ? null : extractBaseline(companion), generation, err == null),
+                    reloadExecutor);
         }
 
         // Apply the rotation for `generation`, dropping a result already superseded by a newer delivery.
@@ -569,14 +619,15 @@ public final class JettyTlsFactory {
             }
             final SSLParameters effectiveBaseline = baseline;
             try {
-                if (target.isStarted()) {
-                    target.reload(f -> applyReload.accept(newContext, effectiveBaseline));
-                } else {
-                    // Not started yet: Jetty's reload() is for a live factory, and there is nothing to swap under
-                    // its lock — apply the same context + configuration directly, so the connector starts with
-                    // this rotation's material AND its companion policy.
-                    applyReload.accept(newContext, effectiveBaseline);
-                }
+                // Always go through reload(), started or not. Checking isStarted() and then applying directly
+                // was a TOCTOU: a connector starting in that window takes its load()-time snapshot before the
+                // direct setters land, so the rotated context is silently not served — no exception, the
+                // delivery counted a success, and the listener stays on pre-rotation material until the NEXT
+                // material change, which at a 90-day renewal cadence can outlive the certificate.
+                // reload() takes the same internal lock as Jetty's doStart()/load(), so the check and the
+                // apply stop being separable; on a not-yet-started factory it applies the configuration and
+                // start() loads from it afterwards.
+                target.reload(f -> applyReload.accept(newContext, effectiveBaseline));
             } catch (Exception e) {
                 log.warn().attr("purpose", purpose).exception(e)
                         .log("Failed to reload Jetty SslContextFactory; keeping the running context");
