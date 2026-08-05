@@ -350,6 +350,15 @@ public final class JcaProviders {
      * {@code new BouncyCastleJsseProvider("fips:BCFIPS")}, with the provider registering under the plain
      * name {@code BCJSSE} either way — can reach Pulsar.
      *
+     * <p>Two properties of the {@code ServiceLoader} step are worth stating. It <em>constructs</em> each
+     * candidate provider as it iterates, because the name being matched lives on the instance
+     * ({@link Provider#getName()}) rather than on the service descriptor — {@code ServiceLoader.stream()}
+     * would defer construction but cannot answer a name without it, so the construction is unavoidable
+     * here. And a provider resolved this way is returned <em>without</em> {@code Security.addProvider}:
+     * resolution deliberately does not mutate global provider state, and every consumer hands the
+     * resolved object straight to {@code getInstance(algorithm, provider)}. The consequence is that such
+     * an instance is not the one a later {@link Security#getProvider(String)} would return.
+     *
      * <p>Unlike {@link #resolveProvider(String)} (which falls back to the default provider), this never
      * returns {@code null} for a non-blank name: an unresolvable name is a configuration error.
      *
@@ -376,7 +385,7 @@ public final class JcaProviders {
         // Iterate defensively: a single broken META-INF/services/java.security.Provider entry (an unrelated
         // provider whose class fails to load) throws ServiceConfigurationError from hasNext()/next(). Skipping
         // it — rather than aborting the whole loop — lets a good provider still resolve here, and otherwise
-        // still falls through to the Security.getProvider fallback (step 2) rather than failing early.
+        // still falls through to the remaining steps rather than failing early.
         Iterator<Provider> it = ServiceLoader.load(Provider.class, classLoader).iterator();
         while (true) {
             Provider provider;
