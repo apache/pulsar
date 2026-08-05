@@ -271,6 +271,7 @@ public class TlsMaterialSourceTest {
         TlsMaterial good = source.refresh().material();
         assertThat(good.trustCerts()).isNotEmpty();
         FileTime goodMtime = Files.getLastModifiedTime(trustStore);
+        byte[] goodBytes = Files.readAllBytes(trustStore);
 
         KeyStore empty = KeyStore.getInstance("JKS");
         empty.load(null, null);
@@ -287,6 +288,10 @@ public class TlsMaterialSourceTest {
         // pre-rotation mtime makes the source see "no change since the last successful load", so it serves its
         // cache without reloading — and what it serves must still be the good, non-empty trust material (a
         // source that had dropped its cache on the failed load would reload the now-empty store and fail).
+        // Content restored, not just the mtime: the baseline snapshot covers size and file identity too, so
+        // that a replacement whose mtime was preserved is still detected. Rewriting the same path keeps the
+        // inode, so restoring the bytes and the mtime restores the whole stamp.
+        Files.write(trustStore, goodBytes);
         Files.setLastModifiedTime(trustStore, goodMtime);
         TlsMaterialSource.RefreshOutcome afterFailure = source.refresh();
         assertThat(afterFailure.changed()).isFalse();
@@ -389,7 +394,7 @@ public class TlsMaterialSourceTest {
 
     /**
      * Rotating a good keystore to one without a usable key entry keeps the last-good material: the failed load
-     * leaves both the cached material and the mtime baseline untouched, so the next refresh retries.
+     * leaves both the cached material and the file-stamp baseline untouched, so the next refresh retries.
      */
     @Test
     public void rotationToAKeylessKeyStoreKeepsTheLastGoodMaterial() throws Exception {
@@ -399,6 +404,7 @@ public class TlsMaterialSourceTest {
         TlsMaterial good = source.refresh().material();
         assertThat(good.hasKeyMaterial()).isTrue();
         FileTime goodMtime = Files.getLastModifiedTime(keyStore);
+        byte[] goodBytes = Files.readAllBytes(keyStore);
 
         KeyStore certsOnly = KeyStore.getInstance("PKCS12");
         certsOnly.load(null, null);
@@ -413,9 +419,14 @@ public class TlsMaterialSourceTest {
         assertThatThrownBy(source::refresh).isInstanceOf(KeyStoreException.class);
 
         // The property the name promises: the last-good identity SURVIVED the failed rotation. Restoring the
-        // pre-rotation mtime makes the source serve its cache without reloading, and that cache must still
+        // pre-rotation file makes the source serve its cache without reloading, and that cache must still
         // carry the key material (a source that dropped its cache on the failed load would reload the
         // keyless store and fail).
+        //
+        // The content is restored, not just the mtime: the baseline snapshot covers size and file identity
+        // as well, precisely so that a replacement whose mtime was preserved is still detected. Rewriting the
+        // same path in place keeps the inode, so restoring the bytes and the mtime restores the whole stamp.
+        Files.write(keyStore, goodBytes);
         Files.setLastModifiedTime(keyStore, goodMtime);
         TlsMaterialSource.RefreshOutcome afterFailure = source.refresh();
         assertThat(afterFailure.changed()).isFalse();

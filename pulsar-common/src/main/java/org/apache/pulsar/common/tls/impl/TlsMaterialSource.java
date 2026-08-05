@@ -20,6 +20,7 @@ package org.apache.pulsar.common.tls.impl;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -50,7 +51,7 @@ import org.apache.pulsar.tls.TlsPolicy;
  * location is used. PEM material is loaded via {@link PemReader}; keystores (PKCS12/JKS) are read
  * with the raw {@link KeyStore} API and an alias walk.
  *
- * <p><b>Rotation detection (fixed mtime baseline).</b> Change detection snapshots the modification
+ * <p><b>Rotation detection (fixed file-stamp baseline).</b> Change detection snapshots the modification
  * times of every configured file, and — unlike the old {@code FileModifiedTimeUpdater}-based scheme,
  * which advanced the baseline <em>before</em> the load and so never retried a failed rotation until the
  * next mtime change — commits the new baseline <strong>only after a successful load</strong>. A load
@@ -76,8 +77,23 @@ import org.apache.pulsar.tls.TlsPolicy;
 @CustomLog
 final class TlsMaterialSource implements MaterialSource {
 
-    /** Sentinel modification time recorded for a path that is currently missing or unreadable. */
-    private static final FileTime MISSING = FileTime.fromMillis(Long.MIN_VALUE);
+    /** Snapshot recorded for a path that is currently missing or unreadable. */
+    private static final FileStamp MISSING = new FileStamp(FileTime.fromMillis(Long.MIN_VALUE), -1L, null);
+
+    /**
+     * What is compared to decide whether a watched file changed. Modification time alone misses a
+     * certificate replaced twice within one filesystem mtime granularity (1s on some filesystems) or
+     * restored with a preserved mtime. {@link java.nio.file.attribute.BasicFileAttributes} yields all three
+     * of these in the single {@code stat} the poll was doing anyway: {@code size} catches a
+     * different-length replacement, and {@code fileKey} (the inode, where the filesystem supplies one)
+     * catches the write-to-temp-and-rename pattern that same-length rotations otherwise defeat.
+     *
+     * @param modifiedAt last modification time
+     * @param size       size in bytes, or {@code -1} when unknown
+     * @param fileKey    the filesystem's unique file identity, or {@code null} when it supplies none
+     */
+    private record FileStamp(FileTime modifiedAt, long size, Object fileKey) {
+    }
 
     private final TlsPolicy policy;
     private final List<String> watchedPaths;
@@ -86,7 +102,7 @@ final class TlsMaterialSource implements MaterialSource {
     // per-load path and fails loudly at factory init for an unresolvable name.
     private final Provider jcaProvider;
 
-    private Map<String, FileTime> baseline;
+    private Map<String, FileStamp> baseline;
     private TlsMaterial cached;
 
     TlsMaterialSource(TlsPolicy policy) {
@@ -117,7 +133,7 @@ final class TlsMaterialSource implements MaterialSource {
      */
     @Override
     public MaterialSource.RefreshOutcome refresh() throws Exception {
-        Map<String, FileTime> snapshot = snapshotModificationTimes();
+        Map<String, FileStamp> snapshot = snapshotWatchedFiles();
         if (cached != null && snapshot.equals(baseline)) {
             return new MaterialSource.RefreshOutcome(cached, false);
         }
@@ -228,16 +244,18 @@ final class TlsMaterialSource implements MaterialSource {
         return List.of();
     }
 
-    private Map<String, FileTime> snapshotModificationTimes() {
-        Map<String, FileTime> snapshot = new LinkedHashMap<>();
+    private Map<String, FileStamp> snapshotWatchedFiles() {
+        Map<String, FileStamp> snapshot = new LinkedHashMap<>();
         for (String path : watchedPaths) {
-            FileTime mtime;
+            FileStamp stamp;
             try {
-                mtime = Files.getLastModifiedTime(Paths.get(path));
+                BasicFileAttributes attributes =
+                        Files.readAttributes(Paths.get(path), BasicFileAttributes.class);
+                stamp = new FileStamp(attributes.lastModifiedTime(), attributes.size(), attributes.fileKey());
             } catch (Exception e) {
-                mtime = MISSING;
+                stamp = MISSING;
             }
-            snapshot.put(path, mtime);
+            snapshot.put(path, stamp);
         }
         return snapshot;
     }
