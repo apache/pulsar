@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.tls;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,7 +99,7 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         TlsPolicy serverPolicy = serverPolicy(conf);
         policies.put(TlsPurpose.BROKER, serverPolicy);
         policies.put(TlsPurpose.PROXY, serverPolicy);
-        policies.put(TlsPurpose.WEB, serverPolicy);
+        policies.put(TlsPurpose.WEB, webPolicy(conf));
         policies.put(TlsPurpose.BROKER_CLIENT, brokerClientPolicy(conf));
 
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
@@ -117,7 +118,43 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         return new DefaultBrokerTlsFactory(policies, settings, authSuppliers);
     }
 
-    private static TlsPolicy serverPolicy(ServiceConfiguration conf) {
+    /**
+     * The {@link TlsPurpose#WEB} policy. The web listener has its own provider/protocol/cipher keys, and
+     * they take precedence over the binary-listener ones when set — {@code webServiceTlsProvider},
+     * {@code webServiceTlsProtocols}, {@code webServiceTlsCiphers} — falling back to {@code tlsProvider},
+     * {@code tlsProtocols}, {@code tlsCiphers} when they are not. Material (PEM or keystore) and the
+     * insecure flag are shared with the binary listener, as they are today.
+     *
+     * <p>Note the fallback is what makes the precedence safe to apply now: {@code webServiceTlsProvider}
+     * ships a non-blank default of {@code Conscrypt}, so it always wins over {@code tlsProvider} unless an
+     * operator blanks it. That matches the key's documented meaning — it names the JSSE (SSLContext)
+     * provider for the Jetty web listener — and Conscrypt is shipped in the server distribution. On a
+     * platform where the Conscrypt native library cannot load, the provider is not registered and pinning
+     * it fails loudly at startup rather than silently ignoring the configuration.
+     */
+    @VisibleForTesting
+    static TlsPolicy webPolicy(ServiceConfiguration conf) {
+        return serverPolicy(conf,
+                firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider()),
+                firstNonEmpty(conf.getWebServiceTlsProtocols(), conf.getTlsProtocols()),
+                firstNonEmpty(conf.getWebServiceTlsCiphers(), conf.getTlsCiphers()));
+    }
+
+    @VisibleForTesting
+    static TlsPolicy serverPolicy(ServiceConfiguration conf) {
+        return serverPolicy(conf, conf.getTlsProvider(), conf.getTlsProtocols(), conf.getTlsCiphers());
+    }
+
+    private static String firstNonBlank(String preferred, String fallback) {
+        return StringUtils.isNotBlank(preferred) ? preferred : fallback;
+    }
+
+    private static Set<String> firstNonEmpty(Set<String> preferred, Set<String> fallback) {
+        return preferred != null && !preferred.isEmpty() ? preferred : fallback;
+    }
+
+    private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, Set<String> protocols,
+                                          Set<String> ciphers) {
         // enableHostnameVerification is pinned OFF on server-role policies rather than mapped from
         // tlsHostnameVerificationEnabled, which is the broker's OUTBOUND setting ("whether the hostname is
         // validated when the broker creates a TLS connection with other brokers") and belongs on
@@ -129,12 +166,12 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         TlsPolicy.Builder builder = TlsPolicy.builder()
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
                 .enableHostnameVerification(false)
-                .protocols(toList(conf.getTlsProtocols()))
-                .ciphers(toList(conf.getTlsCiphers()))
-                // v4 parity: tlsProvider is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
+                .protocols(toList(protocols))
+                .ciphers(toList(ciphers))
+                // v4 parity: the provider key is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
                 // selects the Netty engine above and yields null here; any other value is a JSSE provider
                 // name (e.g. Conscrypt), which v4 used to build the SSLContext, so route it to that axis.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, conf.getTlsProvider()));
+                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, provider));
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
