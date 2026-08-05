@@ -17,7 +17,7 @@ shown `field?` is optional.
 
 ## 1. Command catalog
 
-The scalable-topic command family occupies `BaseCommand` field numbers 70–81:
+The scalable-topic command family occupies `BaseCommand` field numbers 70–82:
 
 | Command | # | Direction | Purpose |
 |---------|---|-----------|---------|
@@ -33,6 +33,7 @@ The scalable-topic command family occupies `BaseCommand` field numbers 70–81:
 | `CommandWatchTcAssignments` | 79 | C→B | Open the transaction-coordinator discovery watch. |
 | `CommandWatchTcAssignmentsUpdate` | 80 | B→C | Full TC `partition → leader` snapshot, or error. |
 | `CommandWatchTcAssignmentsClose` | 81 | C→B | Close the TC discovery watch. |
+| `CommandScalableTopicUnsubscribe` | 82 | C→B | Cleanly leave a subscription; the controller unregisters and rebalances immediately. Acked with `CommandSuccess`. |
 
 Reused (standard) commands applied at the segment level: `CommandProducer`/`CommandSend`,
 `CommandSubscribe`/`CommandFlow`/`CommandMessage`/`CommandAck`, the reader commands, the transaction
@@ -236,6 +237,16 @@ lookup → connect-to-controller → register → subscribe with backoff. Within
 period the broker re-attaches the existing registration and returns the **same** assignment (no
 listener-visible change); past grace, the controller rebalances and the client applies the diff (detach
 removed, attach added).
+
+**Clean leave.** Closing a consumer MUST send `CommandScalableTopicUnsubscribe { request_id,
+consumer_id }` on the registration's connection: the controller deletes the registration and
+rebalances the remaining consumers immediately, instead of holding the session for the grace period.
+This is REQUIRED, not an optimization — the controller connection is pooled, so a consumer's close is
+otherwise invisible while its client process lives (no `channelInactive`), and the registration would
+linger indefinitely. The command is acknowledged with `CommandSuccess` and is idempotent (an unknown
+`consumer_id` — e.g. already swept by a disconnect — still succeeds); the client treats it as
+best-effort and MUST NOT fail the close if it errors, since the grace period remains the fallback for
+unclean departures.
 
 ### 6.3 Ungrouped checkpoint consumer
 

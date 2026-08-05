@@ -117,7 +117,11 @@ A client MUST:
   §4);
 - on connection loss, re-run lookup → connect → register → subscribe with backoff; within the
   controller grace period the same assignment returns unchanged, past it the client applies the
-  rebalanced diff.
+  rebalanced diff;
+- on close, send `CommandScalableTopicUnsubscribe` (best-effort — never fail the close on it) so the
+  controller unregisters and rebalances immediately; without it the registration lingers for the
+  grace period, or indefinitely while the client process lives ([Wire Protocol](wire-protocol.md)
+  §6.2, *Clean leave*).
 
 ## 9. Resilience and resource lifetime
 
