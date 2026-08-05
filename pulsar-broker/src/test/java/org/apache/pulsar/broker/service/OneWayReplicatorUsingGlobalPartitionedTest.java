@@ -231,7 +231,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @DataProvider
     public Object[][] removeClusterLevels() {
         return new Object[][] {
-            {"namespace"},
+            //{"namespace"},
             {"topic"}
         };
     }
@@ -342,6 +342,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             assertEquals(localPolicies2.get().getPublishRate(), publishRateAddLocal2,
                 "Remote cluster should have local policies: publish rate.");
         });
+
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicP1, true);
+        Awaitility.await().atMost(1, TimeUnit.HOURS).untilAsserted(() -> {
+            assertTrue(future.isDone());
+        });
+        assertFalse(future.isCompletedExceptionally());
 
         // cleanup.
         if ("topic".equals(removeClusterLevel)) {

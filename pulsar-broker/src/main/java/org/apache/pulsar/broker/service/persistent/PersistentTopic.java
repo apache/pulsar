@@ -340,6 +340,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // For active topics, the ledger provides the timestamp directly, so this cache is cleared.
     private volatile long cachedLastPublishTimestamp;
 
+    @Getter
+    private final CompletableFuture<Void> initializedReplicationCheck = new CompletableFuture<Void>();
+    private final AtomicBoolean replicationInitialized = new AtomicBoolean(false);
+
     /***
      * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
      * the in-progress one when it is called the second time.
@@ -2023,8 +2027,39 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    public CompletableFuture<Boolean> initCheckReplication() {
+        tryInitializeReplicationCheck();
+        return initializedReplicationCheck.thenApply(__ -> {
+            return this.isClosingOrDeleting;
+        });
+    }
+
+    public boolean tryInitializeReplicationCheck() {
+        if (replicationInitialized.compareAndSet(false, true)) {
+            CompletableFuture<Void> future = internalCheckReplication();
+            future.whenComplete((res, ex) -> {
+                if (ex != null) {
+                    initializedReplicationCheck.completeExceptionally(ex);
+                } else {
+                    initializedReplicationCheck.complete(null);
+                }
+            });
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     @Override
     public CompletableFuture<Void> checkReplication() {
+        if (tryInitializeReplicationCheck()) {
+            return initializedReplicationCheck;
+        } else {
+            return internalCheckReplication();
+        }
+    }
+
+    public CompletableFuture<Void> internalCheckReplication() {
         TopicName name = TopicName.get(topic);
         if (NamespaceService.isHeartbeatNamespace(name)
                 || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
