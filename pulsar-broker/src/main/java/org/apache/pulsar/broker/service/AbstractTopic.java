@@ -633,8 +633,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         // Begin a fresh initialization phase: updates are buffered until initialization completes below. This resets
         // any previous phase so the method can be run again.
         topicPolicyListener.startInitialization();
-        CompletableFuture<Void> initTopicPolicyFuture =
-                topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
+        return topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
                         .thenCompose(registered -> {
                             if (!registered) {
                                 return CompletableFuture.completedFuture(null);
@@ -654,7 +653,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                             return globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
                                 // finally update the topic policies with the latest value or loaded value
                                 return CompletableFuture.runAsync(() ->
-                                                topicPolicyListener.completeInitialization(global.orElse(null),
+                                                topicPolicyListener.initIfNotUpdated(global.orElse(null),
                                                         local.orElse(null)),
                                         getPoliciesNotifyThread());
                             }).thenCompose(Function.identity());
