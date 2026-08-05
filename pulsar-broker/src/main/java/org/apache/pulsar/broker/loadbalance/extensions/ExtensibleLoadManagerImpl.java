@@ -100,6 +100,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 @CustomLog
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerSelectionStrategyFactory {
@@ -1041,8 +1042,34 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
         metricsCollection.addAll(getIgnoredCommandMetrics(pulsar.getAdvertisedAddress()));
+        if (conf.isExposeBundlesMetricsInPrometheus()) {
+            metricsCollection.addAll(getBundleMetrics(pulsar.getAdvertisedAddress()));
+        }
 
         return metricsCollection;
+    }
+
+    private List<Metrics> getBundleMetrics(String advertisedBrokerAddress) {
+        List<Metrics> metrics = new ArrayList<>();
+        for (Map.Entry<String, NamespaceBundleStats> entry
+                : pulsar.getBrokerService().getBundleStats().entrySet()) {
+            final String bundle = entry.getKey();
+            final NamespaceBundleStats stats = entry.getValue();
+            Map<String, String> dimensions = new HashMap<>();
+            dimensions.put("broker", advertisedBrokerAddress);
+            dimensions.put("bundle", bundle);
+            dimensions.put("metric", "bundle");
+            Metrics m = Metrics.create(dimensions);
+            m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
+            m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
+            m.put("brk_bundle_topics_count", stats.topics);
+            m.put("brk_bundle_consumer_count", stats.consumerCount);
+            m.put("brk_bundle_producer_count", stats.producerCount);
+            m.put("brk_bundle_msg_throughput_in", stats.msgThroughputIn);
+            m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
+            metrics.add(m);
+        }
+        return metrics;
     }
 
     private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {

@@ -25,6 +25,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -78,6 +79,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
@@ -965,6 +967,60 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);
+    }
+
+    @Test
+    public void testBundlesMetricsWithExtensibleLoadManager() throws Exception {
+        cleanup();
+        conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        conf.setExposeBundlesMetricsInPrometheus(true);
+        setup();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/elm-bundle-metrics")
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/elm-bundle-metrics")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+
+        pulsar.getBrokerService().updateRates();
+        Awaitility.await().until(() -> !pulsar.getBrokerService().getBundleStats().isEmpty());
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        Multimap<String, Metric> metrics = parseMetrics(statsOut.toString());
+
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_rate_in"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_rate_out"));
+        assertTrue(metrics.containsKey("pulsar_bundle_topics_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_consumer_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_producer_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_throughput_in"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_throughput_out"));
+
+        conf.setExposeBundlesMetricsInPrometheus(false);
+        statsOut.reset();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        Multimap<String, Metric> metricsDisabled = parseMetrics(statsOut.toString());
+
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_msg_rate_in"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_msg_rate_out"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_topics_count"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_consumer_count"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_producer_count"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_msg_throughput_in"));
+        assertFalse(metricsDisabled.containsKey("pulsar_bundle_msg_throughput_out"));
     }
 
     @Test
