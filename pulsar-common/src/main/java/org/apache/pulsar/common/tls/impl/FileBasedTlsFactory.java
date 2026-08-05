@@ -94,6 +94,8 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     private volatile RegisteredSource systemDefaultSource;
     private volatile ScheduledFuture<?> pollFuture;
     private volatile boolean closed;
+    // Stands in for scheduleWithFixedDelay's no-overlap guarantee once the poll body is dispatched.
+    private final AtomicBoolean pollInFlight = new AtomicBoolean();
 
     /**
      * Construct an immutable file-based factory.
@@ -190,8 +192,13 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
             this.metrics = TlsReloadMetrics.create(context.openTelemetry(), context.clock());
             int interval = settings.refreshIntervalSeconds();
             if (interval > 0 && context.scheduler() != null) {
+                // The scheduler only TRIGGERS the poll; the work runs on the blocking executor. The poll
+                // stats files, parses PEM/keystores and rebuilds contexts, which is exactly the work this
+                // method refuses to run without a blocking executor a few lines above — running it on a
+                // shared framework scheduler thread would occupy that thread for the duration, and with
+                // material on slow or network-backed storage that is not bounded by anything.
                 this.pollFuture = context.scheduler().scheduleWithFixedDelay(
-                        this::pollSafely, interval, interval, TimeUnit.SECONDS);
+                        this::triggerPoll, interval, interval, TimeUnit.SECONDS);
             }
             log.debug().attr("purposes", registry.keySet()).attr("refreshIntervalSeconds", interval)
                     .log("Initialized FileBasedTlsFactory");
@@ -401,6 +408,36 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
             }
             return this.systemDefaultSource;
         }
+    }
+
+    /**
+     * Hand the poll to the blocking executor, preserving {@code scheduleWithFixedDelay}'s no-overlap
+     * property: dispatching breaks the scheduler's own guarantee that one run finishes before the next is
+     * scheduled, so an in-flight flag stands in for it. A poll slower than the interval therefore skips
+     * ticks rather than queueing them up behind itself.
+     */
+    private void triggerPoll() {
+        if (closed || !pollInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            pollExecutor().execute(() -> {
+                try {
+                    pollSafely();
+                } finally {
+                    pollInFlight.set(false);
+                }
+            });
+        } catch (Throwable t) {
+            // Rejected (executor shutting down, queue full): clear the flag so a later tick can retry.
+            pollInFlight.set(false);
+            log.debug().exception(t).log("Could not dispatch the TLS material poll");
+        }
+    }
+
+    private Executor pollExecutor() {
+        TlsFactoryInitContext context = this.initContext;
+        return context != null ? context.blockingExecutor() : Runnable::run;
     }
 
     private void pollSafely() {
