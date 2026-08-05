@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -47,6 +49,7 @@ import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -56,6 +59,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -764,49 +768,151 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory.shutdown();
     }
 
-    @Test
-    public void rollEmptyLedgerClosedInMetadata() throws Exception {
-        MockClock clock = new MockClock();
+    @DataProvider(name = "emptyLedgerMetadataStates")
+    public Object[][] emptyLedgerMetadataStates() {
+        return new Object[][] {
+                {LedgerMetadata.State.OPEN, false},
+                {LedgerMetadata.State.CLOSED, true},
+                {LedgerMetadata.State.IN_RECOVERY, true},
+        };
+    }
+
+    @Test(dataProvider = "emptyLedgerMetadataStates", timeOut = 60000)
+    public void verifyEmptyLedgerMetadataBeforeFirstWrite(
+            LedgerMetadata.State metadataState, boolean shouldRollLedger) throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setClock(clock);
-        config.setMaximumRolloverTime(1, TimeUnit.HOURS);
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + testName + metadataState, config);
         ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+        if (metadataState != LedgerMetadata.State.OPEN) {
+            Versioned<LedgerMetadata> versionedMetadata =
+                    bkc.getLedgerManager().readLedgerMetadata(ledgerId).get();
+            LedgerMetadataBuilder metadataBuilder = LedgerMetadataBuilder.from(versionedMetadata.getValue());
+            if (metadataState == LedgerMetadata.State.CLOSED) {
+                metadataBuilder.withClosedState().withLastEntryId(-1).withLength(0);
+            } else {
+                metadataBuilder.withInRecoveryState();
+            }
+            bkc.getLedgerManager()
+                    .writeLedgerMetadata(ledgerId, metadataBuilder.build(), versionedMetadata.getVersion()).get();
+        }
+
+        assertThat(ledger.currentLedger.getLedgerMetadata().getState())
+                .as("the broker's write handle should still consider the ledger open")
+                .isEqualTo(LedgerMetadata.State.OPEN);
+
+        List<String> messages = new ArrayList<>();
+        List<CompletableFuture<Position>> addFutures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String message = "msg-" + i;
+            messages.add(message);
+            CompletableFuture<Position> addFuture = new CompletableFuture<>();
+            addFutures.add(addFuture);
+            ledger.asyncAddEntry(message.getBytes(StandardCharsets.UTF_8), new AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    addFuture.complete(position);
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    addFuture.completeExceptionally(exception);
+                }
+            }, null);
+        }
+
+        CompletableFuture.allOf(addFutures.toArray(CompletableFuture[]::new)).get(30, TimeUnit.SECONDS);
+        assertThat(addFutures).allSatisfy(addFuture -> {
+            if (shouldRollLedger) {
+                assertThat(addFuture.join().getLedgerId())
+                        .as("queued entries should be written to a new ledger")
+                        .isNotEqualTo(ledgerId);
+            } else {
+                assertThat(addFuture.join().getLedgerId())
+                        .as("a healthy ledger should not be rolled over")
+                        .isEqualTo(ledgerId);
+            }
+        });
+
+        List<Entry> entries = cursor.readEntries(messages.size());
+        try {
+            assertThat(entries)
+                    .extracting(entry -> new String(entry.getData(), StandardCharsets.UTF_8))
+                    .containsExactlyElementsOf(messages);
+        } finally {
+            entries.forEach(Entry::release);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void rollExpiredEmptyLedgerBeforeFirstWrite() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        config.setClock(clock).setMaximumRolloverTime(1, TimeUnit.HOURS);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + testName + "expired", config);
 
         long ledgerId = ledger.currentLedger.getId();
         clock.advance(1, TimeUnit.HOURS);
 
-        ledger.rollCurrentLedgerIfFull();
-        Awaitility.await().during(1, TimeUnit.SECONDS).untilAsserted(() -> assertThat(ledger.currentLedger.getId())
-                .as("an empty ledger that is still open in metadata should not be rolled over")
-                .isEqualTo(ledgerId));
+        Position position = ledger.addEntry("msg".getBytes(StandardCharsets.UTF_8));
 
-        Versioned<LedgerMetadata> versionedMetadata =
-                bkc.getLedgerManager().readLedgerMetadata(ledgerId).get();
-        LedgerMetadata closedMetadata = LedgerMetadataBuilder.from(versionedMetadata.getValue())
-                .withClosedState()
-                .withLastEntryId(-1)
-                .withLength(0)
-                .build();
-        bkc.getLedgerManager()
-                .writeLedgerMetadata(ledgerId, closedMetadata, versionedMetadata.getVersion()).get();
+        assertThat(position.getLedgerId()).isNotEqualTo(ledgerId);
+    }
 
-        assertThat(ledger.currentLedger.getLedgerMetadata().isClosed())
-                .as("the broker's write handle should still consider the ledger open")
-                .isFalse();
+    @Test(timeOut = 30000)
+    public void rollEmptyLedgerWhenMetadataCheckFails() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        ManagedLedgerImpl ledger =
+                spy((ManagedLedgerImpl) factory.open("my_test_ledger" + testName + "metadata-failure", config));
+        long ledgerId = ledger.currentLedger.getId();
+        doReturn(CompletableFuture.<ReadHandle>failedFuture(new RuntimeException("metadata read failed")))
+                .when(ledger).openLedgerForMetadataCheck(ledger.currentLedger);
 
-        // Trigger the scheduled check and immediately produce to exercise the race with the metadata lookup.
-        ledger.rollCurrentLedgerIfFull();
-        Position position = ledger.addEntry("msg1".getBytes(StandardCharsets.UTF_8));
+        Position position = ledger.addEntry("msg".getBytes(StandardCharsets.UTF_8));
 
-        assertThat(position.getLedgerId()).as("the first entry should be written to a new ledger")
-                .isNotEqualTo(ledgerId);
-        List<Entry> entries = cursor.readEntries(1);
-        assertThat(entries).singleElement().extracting(entry -> new String(entry.getData(), StandardCharsets.UTF_8))
-                .isEqualTo("msg1");
-        entries.forEach(Entry::release);
+        assertThat(position.getLedgerId()).isNotEqualTo(ledgerId);
+    }
+
+    @Test(timeOut = 30000)
+    public void terminateWhileEmptyLedgerMetadataCheckIsPending() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        ManagedLedgerImpl ledger =
+                spy((ManagedLedgerImpl) factory.open("my_test_ledger" + testName + "terminate", config));
+        CompletableFuture<ReadHandle> metadataFuture = new CompletableFuture<>();
+        doReturn(metadataFuture).when(ledger).openLedgerForMetadataCheck(ledger.currentLedger);
+
+        CompletableFuture<ManagedLedgerException> addFailure = new CompletableFuture<>();
+        ledger.asyncAddEntry("msg".getBytes(StandardCharsets.UTF_8), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addFailure.completeExceptionally(new AssertionError("add should not complete after termination"));
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addFailure.complete(exception);
+            }
+        }, null);
+
+        Awaitility.await().untilAsserted(() -> assertThat(ledger.pendingAddEntries).hasSize(1));
+        ledger.terminate();
+
+        assertThat(addFailure.get(10, TimeUnit.SECONDS)).isInstanceOf(ManagedLedgerTerminatedException.class);
+        metadataFuture.completeExceptionally(new RuntimeException("test metadata check completed after termination"));
     }
 }
