@@ -274,6 +274,30 @@ public class JcaProviderPinningTest {
 
     // ---------------------------------------------------------------- helpers
 
+    /**
+     * Rotation suppression rests on {@link TlsMaterial}'s record equality, which delegates to
+     * {@code PrivateKey.equals}. That is an implicit contract on a provider-supplied object, on the one
+     * axis whose whole point is that the provider is swappable — a provider whose keys used identity
+     * semantics would make every reparse look like a rotation.
+     *
+     * <p>Asserted against {@code BC} rather than {@code BCFIPS}: the two cannot share a classpath
+     * (mismatched jar signers), so FIPS coverage belongs to the separate bcfips test module. They share
+     * the encoding-equality implementation, so the property under test is the same one.
+     */
+    @Test
+    public void keysParsedTwiceThroughThePinnedProviderCompareEqual() throws Exception {
+        TlsMaterial first = new TlsMaterialSource(pemPolicy("BC")).refresh().material();
+        TlsMaterial second = new TlsMaterialSource(pemPolicy("BC")).refresh().material();
+
+        assertThat(first.privateKey().getClass().getName()).contains("bouncycastle");
+        assertThat(first.privateKey())
+                .as("value equality, not identity — otherwise every refresh would look like a rotation")
+                .isEqualTo(second.privateKey());
+        assertThat(first)
+                .as("so the whole material compares equal and rotation suppression holds")
+                .isEqualTo(second);
+    }
+
     // ------------------------------------------------- the Netty engine path honors the pins too
 
     /**
