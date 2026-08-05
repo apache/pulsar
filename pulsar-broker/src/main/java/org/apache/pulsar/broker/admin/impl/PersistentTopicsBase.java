@@ -3102,9 +3102,8 @@ public class PersistentTopicsBase extends AdminResource {
                     PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
                     entry = repl.peekNthMessage(messagePosition);
                 } else {
-                    PersistentSubscription sub =
-                            (PersistentSubscription) getSubscriptionReference(subName, (PersistentTopic) topic);
-                    entry = sub.peekNthMessage(messagePosition);
+                    entry = findOrCreateSubscriptionAsync(subName, (PersistentTopic) topic)
+                            .thenCompose(sub -> sub.peekNthMessage(messagePosition));
                 }
             }
             return entry.thenApply(e -> Pair.of(e, (PersistentTopic) topic));
@@ -4729,20 +4728,35 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * Get the Subscription object reference from the Topic reference.
+     * Find the subscription or create it when automatic subscription creation is allowed.
      */
-    private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
-        try {
-            Subscription sub = topic.getSubscription(subName);
-            if (sub == null) {
-                sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false, null).get();
-            }
-
-            return checkNotNull(sub);
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, getSubNotFoundErrorMessage(topicName.toString(), subName));
+    private CompletableFuture<Subscription> findOrCreateSubscriptionAsync(String subName, PersistentTopic topic) {
+        Subscription subscription = topic.getSubscription(subName);
+        if (subscription != null) {
+            return CompletableFuture.completedFuture(subscription);
         }
+
+        return pulsar().getBrokerService().isAllowAutoSubscriptionCreationAsync(topicName)
+                .thenCompose(isAllowed -> {
+                    Subscription existingSubscription = topic.getSubscription(subName);
+                    if (existingSubscription != null) {
+                        return CompletableFuture.completedFuture(existingSubscription);
+                    }
+                    if (!isAllowed) {
+                        return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                String.format("Subscription %s does not exist for topic %s and automatic "
+                                                + "subscription creation is disabled",
+                                        subName, topicName)));
+                    }
+                    return topic.createSubscription(subName, InitialPosition.Earliest, false, null)
+                            .handle((createdSubscription, ex) -> {
+                                if (ex != null || createdSubscription == null) {
+                                    throw new RestException(Status.NOT_FOUND,
+                                            getSubNotFoundErrorMessage(topicName.toString(), subName));
+                                }
+                                return createdSubscription;
+                            });
+                });
     }
 
     /**
