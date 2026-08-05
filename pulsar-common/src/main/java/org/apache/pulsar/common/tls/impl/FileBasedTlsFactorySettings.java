@@ -31,7 +31,10 @@ import java.util.Objects;
  *       (JDK, or an OpenSSL-based provider where the {@code netty-tcnative} binding is present);</li>
  *   <li><b>server client-auth requirement</b> — whether server contexts require (vs. merely request) a
  *       trusted client certificate; a single flag mirroring the broker-wide
- *       {@code tlsRequireTrustedClientCert} property, applied to every server purpose;</li>
+ *       {@code tlsRequireTrustedClientCertOnConnect} property, applied to every server purpose. That it
+ *       is one flag for the binary, proxy and web listeners is deliberate PIP-337 parity rather than a
+ *       simplification: v4 keyed all three off that same property, {@code JettySslContextFactory}
+ *       included, so per-listener client-auth was never configurable;</li>
  *   <li><b>refresh interval</b> — how often the factory polls its material sources for rotation; a
  *       value {@code <= 0} disables background polling.</li>
  * </ul>
