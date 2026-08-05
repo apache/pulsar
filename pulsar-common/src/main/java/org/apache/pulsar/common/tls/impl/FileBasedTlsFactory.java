@@ -736,7 +736,11 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     private static final class SubscriptionHandle<T> implements TlsHandle<T> {
         private final RegisteredSource source;
         private final Subscription<T> subscription;
-        private volatile boolean disposed;
+        // AtomicBoolean rather than a plain volatile check-then-set, matching OneShotHandle. The release is
+        // in fact idempotent without it — removeSubscription() only releases when subscriptions.remove()
+        // returns true, which exactly one racing disposer sees — but leaving the two handles with opposite
+        // patterns, one of them carrying a comment calling the other a bug, is a trap for the next reader.
+        private final AtomicBoolean disposed = new AtomicBoolean();
 
         SubscriptionHandle(RegisteredSource source, Subscription<T> subscription) {
             this.source = source;
@@ -750,8 +754,7 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
 
         @Override
         public void dispose() {
-            if (!disposed) {
-                disposed = true;
+            if (disposed.compareAndSet(false, true)) {
                 source.removeSubscription(subscription);
             }
         }
