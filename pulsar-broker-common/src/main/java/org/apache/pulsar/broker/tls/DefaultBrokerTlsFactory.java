@@ -118,9 +118,17 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
     }
 
     private static TlsPolicy serverPolicy(ServiceConfiguration conf) {
+        // enableHostnameVerification is pinned OFF on server-role policies rather than mapped from
+        // tlsHostnameVerificationEnabled, which is the broker's OUTBOUND setting ("whether the hostname is
+        // validated when the broker creates a TLS connection with other brokers") and belongs on
+        // brokerClientPolicy() alone. It is inert either way today — only the client context builders read
+        // the flag — but a server policy carrying it would invite a future consumer to enable endpoint
+        // identification on a server engine, i.e. verify the CLIENT's hostname. It has to be set
+        // explicitly: TlsPolicy.Builder defaults the flag to true (secure-by-default for clients), so
+        // simply omitting it would leave every server policy claiming hostname verification is on.
         TlsPolicy.Builder builder = TlsPolicy.builder()
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
-                .enableHostnameVerification(conf.isTlsHostnameVerificationEnabled())
+                .enableHostnameVerification(false)
                 .protocols(toList(conf.getTlsProtocols()))
                 .ciphers(toList(conf.getTlsCiphers()))
                 // v4 parity: tlsProvider is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
