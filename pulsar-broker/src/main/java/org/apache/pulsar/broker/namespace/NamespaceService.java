@@ -1070,12 +1070,24 @@ public class NamespaceService implements AutoCloseable {
                 // success updateNamespaceBundles
                 // disable old bundle in memory
                 getOwnershipCache().updateBundleState(bundle, false)
-                        .thenRun(() -> {
+                        .thenCompose(__ -> {
                             // update bundled_topic cache for load-report-generation
                             pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                             loadManager.get().setLoadReportForceUpdateFlag();
-                            // release old bundle from ownership cache
-                            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                            // Release old bundle from ownership cache. Compose on the returned future instead of
+                            // discarding it, so a delayed or failed release is observed here rather than letting
+                            // completionFuture complete while the release may still be in flight; a release
+                            // failure is logged and does not fail the split, which has already succeeded.
+                            return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle)
+                                    .exceptionally(ex1 -> {
+                                        log.warn()
+                                                .attr("bundle", bundle.toString())
+                                                .exception(ex1)
+                                                .log("Failed to release ownership of the old bundle after split");
+                                        return null;
+                                    });
+                        })
+                        .thenRun(() -> {
                             completionFuture.complete(null);
                             if (unload) {
                                 // Unload new split bundles, in background. This will not
@@ -1087,7 +1099,7 @@ public class NamespaceService implements AutoCloseable {
                         .exceptionally(e -> {
                             String msg1 = format(
                                     "failed to disable bundle %s under namespace [%s] with error %s",
-                                    bundle.getNamespaceObject().toString(), bundle, ex.getMessage());
+                                    bundle.getNamespaceObject().toString(), bundle, e.getMessage());
                             log.warn().exception(e).log(msg1);
                             completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                             return null;

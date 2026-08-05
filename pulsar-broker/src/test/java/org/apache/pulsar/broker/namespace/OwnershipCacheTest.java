@@ -27,12 +27,16 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +54,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
@@ -97,9 +103,14 @@ public class OwnershipCacheTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
+        doReturn(CompletableFuture.completedFuture(null)).when(nsService)
+                .unloadNamespaceBundle(any(NamespaceBundle.class));
         brokerService = mock(BrokerService.class);
         doReturn(CompletableFuture.completedFuture(1)).when(brokerService)
                 .unloadServiceUnit(any(), anyBoolean(), anyBoolean(), anyLong(), any());
+        doReturn(CompletableFuture.completedFuture(1)).when(brokerService)
+                .unloadServiceUnit(any(), anyBoolean(), anyBoolean(), anyLong(), any(), any());
+        doReturn(Map.of()).when(brokerService).getTopicFuturesInBundle(any());
 
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
@@ -405,6 +416,242 @@ public class OwnershipCacheTest {
         assertEquals(data2.getNativeUrl(), selfBrokerUrl);
         assertFalse(data2.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
+    }
+
+    @Test
+    public void testStaleUnloadDoesNotReleaseReacquiredOwnership() throws Exception {
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        doReturn(cache).when(nsService).getOwnershipCache();
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-stale-unload"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        cache.tryAcquiringOwnership(bundle).get();
+        OwnedBundle staleOwnedBundle = cache.getOwnedBundle(bundle);
+        assertNotNull(staleOwnedBundle);
+
+        // Simulate the lock-expiry self-heal path: the expiry callback invalidated the local cache while the
+        // unload it triggered is still in flight, and a concurrent lookup re-acquires the bundle in between.
+        cache.invalidateLocalOwnerCache(bundle);
+        cache.tryAcquiringOwnership(bundle).get();
+        OwnedBundle reacquiredOwnedBundle = cache.getOwnedBundle(bundle);
+        assertNotNull(reacquiredOwnedBundle);
+        assertNotSame(reacquiredOwnedBundle, staleOwnedBundle);
+        ResourceLock<NamespaceEphemeralData> reacquiredLock = cache.getLocallyAcquiredLocks().get(bundle);
+        assertNotNull(reacquiredLock);
+
+        // The stale unload chain now runs its remaining steps against the old OwnedBundle instance.
+        staleOwnedBundle.handleUnloadRequest(pulsar, 5, TimeUnit.SECONDS).join();
+
+        // The re-acquired ownership must survive the stale unload untouched.
+        assertSame(cache.getLocallyAcquiredLocks().get(bundle), reacquiredLock);
+        assertTrue(store.exists(ServiceUnitUtils.path(bundle)).join());
+        assertTrue(reacquiredOwnedBundle.isActive());
+        assertTrue(cache.checkOwnershipAsync(bundle).get());
+    }
+
+    @Test
+    public void testTryAcquiringOwnershipWaitsForInFlightOwnedBundleRelease() throws Exception {
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-ownedbundle-release-inflight"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        cache.tryAcquiringOwnership(bundle).get();
+        OwnedBundle gen1 = cache.getOwnedBundle(bundle);
+        assertNotNull(gen1);
+
+        // Mirror what OwnedBundle.handleUnloadRequest does at the very end of a normal unload: release via the
+        // generation-aware, OwnedBundle-keyed overload. Do NOT wait for it to finish before racing an acquire
+        // against it below.
+        CompletableFuture<Void> removeFuture = cache.removeOwnership(gen1);
+
+        // A concurrent lookup racing the in-flight release must be queued behind it by the barrier, not see the
+        // stale, concurrently-releasing generation.
+        NamespaceEphemeralData reacquired = cache.tryAcquiringOwnership(bundle).get();
+        OwnedBundle afterReacquire = cache.getOwnedBundle(bundle);
+
+        removeFuture.get(10, TimeUnit.SECONDS);
+
+        assertNotSame(afterReacquire, gen1,
+                "tryAcquiringOwnership returned the stale, concurrently-releasing generation instead of a fresh one");
+        assertTrue(afterReacquire.isActive(), "reacquired OwnedBundle should be active");
+        assertSame(cache.getLocallyAcquiredLocks().get(bundle), afterReacquire.getResourceLock());
+    }
+
+    @Test
+    public void testRemoveOwnershipWithAcquisitionInFlight() throws Exception {
+        // Gate the lock acquisition so the test can invoke removeOwnership while the acquisition is in flight
+        LockManager<NamespaceEphemeralData> realLockManager =
+                coordinationService.getLockManager(NamespaceEphemeralData.class);
+        CompletableFuture<Void> gate = new CompletableFuture<>();
+        LockManager<NamespaceEphemeralData> gatedLockManager = new LockManager<NamespaceEphemeralData>() {
+            @Override
+            public CompletableFuture<Optional<NamespaceEphemeralData>> readLock(String path) {
+                return realLockManager.readLock(path);
+            }
+
+            @Override
+            public CompletableFuture<ResourceLock<NamespaceEphemeralData>> acquireLock(String path,
+                                                                                       NamespaceEphemeralData value) {
+                return gate.thenCompose(__ -> realLockManager.acquireLock(path, value));
+            }
+
+            @Override
+            public CompletableFuture<List<String>> listLocks(String path) {
+                return realLockManager.listLocks(path);
+            }
+
+            @Override
+            public CompletableFuture<Void> asyncClose() {
+                return realLockManager.asyncClose();
+            }
+
+            @Override
+            public void close() throws Exception {
+                realLockManager.close();
+            }
+        };
+        CoordinationService gatedCoordinationService = mock(CoordinationService.class);
+        doReturn(gatedLockManager).when(gatedCoordinationService).getLockManager(NamespaceEphemeralData.class);
+        doReturn(gatedCoordinationService).when(pulsar).getCoordinationService();
+
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-inflight-remove"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        CompletableFuture<NamespaceEphemeralData> acquireFuture = cache.tryAcquiringOwnership(bundle);
+        assertFalse(acquireFuture.isDone());
+
+        CompletableFuture<Void> removeFuture = cache.removeOwnership(bundle);
+        gate.complete(null);
+        acquireFuture.join();
+        removeFuture.get(10, TimeUnit.SECONDS);
+
+        // After removeOwnership reported success and the in-flight acquisition settled, the broker must not
+        // silently retain (zombie) ownership.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(cache.getLocallyAcquiredLocks().isEmpty());
+            assertTrue(cache.getOwnedBundles().isEmpty());
+            assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+        });
+    }
+
+    @Test
+    public void testExpiredLockIsRemovedFromLocallyAcquiredLocks() throws Exception {
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-expired-lock"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        cache.tryAcquiringOwnership(bundle).get();
+        ResourceLock<NamespaceEphemeralData> lock = cache.getLocallyAcquiredLocks().get(bundle);
+        assertNotNull(lock);
+
+        // The lock dies without going through removeOwnership, like on a metadata session expiry
+        lock.release().join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(cache.getOwnedBundles().isEmpty());
+            assertTrue(cache.getLocallyAcquiredLocks().isEmpty());
+        });
+    }
+
+    @Test
+    public void testExpiryBeforePublicationDoesNotLeaveActiveZombieOwnership() throws Exception {
+        // A ResourceLock whose expiry future is *already* completed by the time the loader attaches its
+        // lock-expiry listener: this deterministically forces the listener to run synchronously, inside the
+        // cache loader's thenApply, before the loader returns and the cache's own future for this bundle is
+        // published as done.
+        ResourceLock<NamespaceEphemeralData> alreadyExpiredLock = new ResourceLock<>() {
+            @Override
+            public String getPath() {
+                return "/dummy";
+            }
+
+            @Override
+            public NamespaceEphemeralData getValue() {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<Void> updateValue(NamespaceEphemeralData newValue) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> release() {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> getLockExpiredFuture() {
+                return CompletableFuture.completedFuture(null);
+            }
+        };
+        // Gate the lock acquisition itself so it settles only after tryAcquiringOwnership(bundle) has already
+        // returned to the caller: this ensures the cache has genuinely registered its (not yet done) future for
+        // the bundle before the loader's thenApply — and the already-expired lock's listener inside it — runs,
+        // matching how a real ZK acquisition callback fires on a different thread than the initial get() call.
+        CompletableFuture<Void> gate = new CompletableFuture<>();
+        LockManager<NamespaceEphemeralData> raceyLockManager = new LockManager<>() {
+            @Override
+            public CompletableFuture<Optional<NamespaceEphemeralData>> readLock(String path) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+
+            @Override
+            public CompletableFuture<ResourceLock<NamespaceEphemeralData>> acquireLock(String path,
+                    NamespaceEphemeralData value) {
+                return gate.thenApply(ignore -> alreadyExpiredLock);
+            }
+
+            @Override
+            public CompletableFuture<List<String>> listLocks(String path) {
+                return CompletableFuture.completedFuture(List.of());
+            }
+
+            @Override
+            public CompletableFuture<Void> asyncClose() {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        CoordinationService raceyCoordinationService = mock(CoordinationService.class);
+        doReturn(raceyLockManager).when(raceyCoordinationService).getLockManager(NamespaceEphemeralData.class);
+        doReturn(raceyCoordinationService).when(pulsar).getCoordinationService();
+
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-expiry-before-publication"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        CompletableFuture<NamespaceEphemeralData> acquireFuture = cache.tryAcquiringOwnership(bundle);
+        assertFalse(acquireFuture.isDone());
+
+        gate.complete(null);
+
+        // Expiry won the race: the acquisition itself must fail instead of publishing an OwnedBundle whose lock
+        // is already gone.
+        try {
+            acquireFuture.get(10, TimeUnit.SECONDS);
+            fail("acquisition should fail when the lock expired before ownership could be published");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+        }
+
+        // A failed load must not leave any trace behind: no cache entry claiming ownership, and no lock
+        // bookkeeping.
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(cache.getOwnedBundle(bundle),
+                    "cache still claims active ownership for a bundle whose lock expired before publication");
+            assertTrue(cache.getLocallyAcquiredLocks().isEmpty());
+            assertFalse(cache.checkOwnershipAsync(bundle).get());
+        });
     }
 
 }

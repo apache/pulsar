@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -1357,8 +1358,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         };
         brokerService.addTopicEventListener(listener);
         try {
+            Map<String, CompletableFuture<Optional<Topic>>> topicFutures = Map.of(topicName, oldTopicFuture);
             CompletableFuture<Void> cleanupFuture = CompletableFuture.runAsync(
-                    () -> brokerService.cleanUnloadedTopicFromCache(bundle));
+                    () -> brokerService.cleanUnloadedTopicFromCache(bundle, topicFutures));
             assertTrue(oldTopicFuture.awaitIsDone(5, TimeUnit.SECONDS),
                     "cleanup should capture the old future before it is replaced");
 
@@ -1501,7 +1503,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).get(5, TimeUnit.SECONDS);
         ((AbstractTopic) topic).isFenced = true;
         try {
-            brokerService.cleanUnloadedTopicFromCache(bundle);
+            brokerService.cleanUnloadedTopicFromCache(bundle, brokerService.getTopicFuturesInBundle(bundle));
 
             assertFalse(brokerService.getTopics().containsKey(topicName),
                     "Inactive bundle cleanup should remove the matching topic future");
@@ -2230,6 +2232,87 @@ public class BrokerServiceTest extends BrokerTestBase {
         MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
         @Cleanup final var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
         assertFalse(MockTopicPoliciesService.FAILED_TOPICS.contains(topicName));
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheIsGenerationSafe() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        // Generation 1: load the topic and capture its future the way a real unload snapshot would.
+        Topic staleGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        CompletableFuture<Optional<Topic>> staleGenerationFuture =
+                CompletableFuture.completedFuture(Optional.of(staleGenerationTopic));
+
+        // Simulate re-acquisition: the topic is closed and reloaded, installing a *new* generation's future/topic
+        // under the same name, while this broker still owns and serves the bundle.
+        admin.topics().unload(topicName);
+        Topic newGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        assertNotSame(newGenerationTopic, staleGenerationTopic);
+
+        // A stale cleanup call for the old generation's unload arrives late. It must only ever act on the exact
+        // future it captured at unload start, never on a newer generation's entry for the same topic name.
+        brokerService.cleanUnloadedTopicFromCache(bundle, Map.of(topicName, staleGenerationFuture));
+
+        assertTrue(brokerService.getTopicReference(topicName).isPresent(),
+                "stale cleanup wrongly evicted the newer generation's topic from the cache");
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheIsGenerationSafeForBookkeeping() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupBookkeepingTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        // Generation 1: load the topic and capture its future the way a real unload snapshot would.
+        Topic staleGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        CompletableFuture<Optional<Topic>> staleGenerationFuture =
+                CompletableFuture.completedFuture(Optional.of(staleGenerationTopic));
+
+        // Simulate re-acquisition: the topic is closed and reloaded, installing a *new* generation's future/topic
+        // under the same name, while this broker still owns and serves the bundle.
+        admin.topics().unload(topicName);
+        brokerService.getTopic(topicName, true).get().orElseThrow();
+        // addTopicToStatsMaps() runs asynchronously off the topic-load future, so wait for it to land.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(brokerService.getTopicStats(bundle).containsKey(topicName),
+                        "the newer generation should be tracked in the per-bundle stats index after reload"));
+
+        // A stale cleanup call for the old generation's unload arrives late. The topics-map removal is a
+        // guarded no-op (proven by testCleanUnloadedTopicFromCacheIsGenerationSafe above), but the surrounding
+        // bookkeeping around it must be gated on that same guard too, not run unconditionally.
+        brokerService.cleanUnloadedTopicFromCache(bundle, Map.of(topicName, staleGenerationFuture));
+
+        assertTrue(brokerService.getTopicStats(bundle).containsKey(topicName),
+                "stale cleanup wrongly stripped the still-live newer generation's topic from the per-bundle "
+                        + "stats index (multiLayerTopicsMap), even though the topics-map removal itself was "
+                        + "correctly skipped");
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheRemovesMatchingSnapshot() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupMatchTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        Topic topic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        // The bundle cleanup only ever runs after unloadServiceUnit has attempted to close the topic, which
+        // fences it synchronously even on a failed/incomplete close. Mirror that precondition here.
+        ((AbstractTopic) topic).isFenced = true;
+
+        // A snapshot that matches exactly what is currently cached must still be cleaned up: this is the
+        // legitimate backstop case (a topic whose close() failed to remove itself from the cache).
+        Map<String, CompletableFuture<Optional<Topic>>> currentSnapshot = brokerService.getTopicFuturesInBundle(bundle);
+        brokerService.cleanUnloadedTopicFromCache(bundle, currentSnapshot);
+
+        assertFalse(brokerService.getTopicReference(topicName).isPresent(),
+                "cleanup should still remove a topic future that matches what was captured");
     }
 
     private static class BlockingCompletedFuture<T> extends CompletableFuture<T> {
