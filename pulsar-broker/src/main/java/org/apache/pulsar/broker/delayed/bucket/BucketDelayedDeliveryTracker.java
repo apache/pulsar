@@ -675,16 +675,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
             long timestamp = sharedBucketPriorityQueue.peekN1();
-            long ledgerId = sharedBucketPriorityQueue.peekN2();
-            long entryId = sharedBucketPriorityQueue.peekN3();
-            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId) {
-                sharedBucketPriorityQueue.pop();
-                removeIndexBit(ledgerId, entryId);
-                continue;
-            }
             if (timestamp > cutoffTime) {
                 break;
             }
+
+            long ledgerId = sharedBucketPriorityQueue.peekN2();
+            long entryId = sharedBucketPriorityQueue.peekN3();
 
             SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
 
@@ -765,6 +761,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
 
             sharedBucketPriorityQueue.pop();
+
+            boolean orphaned = firstLiveLedgerId != null && ledgerId < firstLiveLedgerId;
+            if (orphaned) {
+                removeIndexBit(ledgerId, entryId);
+                continue;
+            }
+
             // Dedup: queue may carry the same position twice (initial seal + merge); only the
             // first delivery of each position decrements the counter via removeIndexBit.
             if (removeIndexBit(ledgerId, entryId)) {
@@ -882,7 +885,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         // subRangeMap returns clipped intersection ranges. Snapshot deletion must use the original
         // bucket range, so only select buckets whose complete range precedes the first live ledger.
         immutableBuckets.asMapOfRanges().forEach((range, bucket) -> {
-            if (range.upperEndpoint() < firstLedgerId) {
+            if (range.upperEndpoint() < firstLedgerId
+                    && bucket.getSnapshotCreateFuture()
+                    .map(f -> f.isDone() && !f.isCancelled() && !f.isCompletedExceptionally()).orElse(false)) {
                 toBeDeletedBuckets.put(range, bucket);
             }
         });
