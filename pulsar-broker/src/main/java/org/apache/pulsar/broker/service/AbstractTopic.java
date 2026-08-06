@@ -623,9 +623,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      * topic load, which removes the need to broadcast every topic's policy when a namespace's policy cache finishes
      * loading (see {@code topicPolicyListenerReplayEnabled}).
      *
-     * <p>Each call re-initializes the listener wrapper and, whatever the outcome, always completes its initialization
-     * afterwards, so the wrapper never stays in the buffering phase (dropping updates) even if policy loading fails.
-     * This makes the method safe to run again (e.g. a future retry); runs are expected to be serialized.
+     * <p>This method is invoked once during topic initialization. The listener wrapper is one-shot for a topic
+     * instance and does not support re-initialization.
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();

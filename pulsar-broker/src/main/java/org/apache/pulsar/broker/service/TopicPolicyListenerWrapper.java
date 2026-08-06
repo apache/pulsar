@@ -78,6 +78,7 @@ public class TopicPolicyListenerWrapper implements TopicPolicyListener {
         if (data == null) {
             // Now we got the both newest value of global and local policy, we can trigger initialize.
             doInitPolicies(null, null);
+            return;
         } else if (data.isGlobalPolicies()) {
             latestGlobalPolicies = data;
         } else {
