@@ -99,7 +99,7 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
      */
     @Test
     public void testCreateScalableTopicWithSurroundingWhitespaceIsRejected() throws Exception {
-        String topicWithWhitespace = "topic://" + namespace() + "/scalable-with-whitespace "
+        String topicWithWhitespace = "topic://" + namespace() + "/ scalable-with-whitespace-"
                 + UUID.randomUUID().toString().substring(0, 8);
         PulsarAdminException.PreconditionFailedException e = expectThrows(
                 PulsarAdminException.PreconditionFailedException.class,
