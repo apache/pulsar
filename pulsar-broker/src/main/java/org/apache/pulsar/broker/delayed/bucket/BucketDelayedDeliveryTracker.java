@@ -682,10 +682,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
 
+            boolean orphaned = firstLiveLedgerId != null && ledgerId < firstLiveLedgerId;
             SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
-
             ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
-            if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+            boolean shouldLoadNextSegment = bucket != null
+                    && immutableBuckets.asMapOfRanges().containsValue(bucket)
+                    && (!orphaned || bucket.getEndLedgerId() >= firstLiveLedgerId);
+            if (shouldLoadNextSegment) {
                 // All message of current snapshot segment are scheduled, try load next snapshot segment
                 if (bucket.merging) {
                     log.info()
@@ -762,7 +765,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             sharedBucketPriorityQueue.pop();
 
-            boolean orphaned = firstLiveLedgerId != null && ledgerId < firstLiveLedgerId;
             if (orphaned) {
                 removeIndexBit(ledgerId, entryId);
                 continue;

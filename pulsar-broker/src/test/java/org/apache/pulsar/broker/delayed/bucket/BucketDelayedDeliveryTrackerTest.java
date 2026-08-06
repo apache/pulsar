@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -165,7 +167,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
             }};
             case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage",
-                     "testExpiredTrackedMessageDecrementsCount" -> new Object[][]{{
+                 "testExpiredTrackedMessageDecrementsCount",
+                 "testLoadsNextSnapshotSegmentAfterCutoff",
+                 "testDoesNotLoadNextSnapshotSegmentBeforeCutoff" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
             }};
@@ -258,22 +262,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         tracker.close();
 
-        AbstractPersistentDispatcherMultipleConsumers localDispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        MockManagedCursor localCursor = spy(new MockManagedCursor("testDoesNotLoadNextSnapshotSegmentBeforeCutoff"));
-        doReturn(localCursor).when(localDispatcher).getCursor();
-        doReturn("persistent://public/default/testDelay" + " / " + localCursor.getName())
-                .when(localDispatcher).getName();
-        doReturn(PositionFactory.create(3, 0)).when(localCursor).getMarkDeletedPosition();
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
 
         clockTime.set(1);
-
-        @Cleanup
         MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
         @Cleanup
         BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
-                localDispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
 
+        // Recovery loads segment 1; reset so the assertion observes only getScheduledMessages-driven loads.
+        clearInvocations(localStorage);
         assertTrue(tracker2.getScheduledMessages(10).isEmpty());
 
         Awaitility.await().during(3, TimeUnit.SECONDS).untilAsserted(() ->
@@ -293,24 +293,22 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         tracker.close();
 
-        AbstractPersistentDispatcherMultipleConsumers localDispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        MockManagedCursor localCursor = spy(new MockManagedCursor("testLoadsNextSnapshotSegmentAfterCutoff"));
-        doReturn(localCursor).when(localDispatcher).getCursor();
-        doReturn("persistent://public/default/testDelay" + " / " + localCursor.getName())
-                .when(localDispatcher).getName();
-        doReturn(PositionFactory.create(3, 0)).when(localCursor).getMarkDeletedPosition();
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
 
-        clockTime.set(100);
+        clockTime.set(0);
         MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
+        @Cleanup
         BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
-                localDispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
 
         // Trigger the segment loading
+        clockTime.set(600);
         tracker2.getScheduledMessages(10);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(tracker2.getScheduledMessages(10).contains(PositionFactory.create(4, 4)));
-            verify(localStorage).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong());
+            verify(localStorage, atLeastOnce()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong());
         });
     }
 
