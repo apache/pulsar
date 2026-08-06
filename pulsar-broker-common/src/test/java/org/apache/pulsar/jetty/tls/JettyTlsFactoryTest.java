@@ -609,13 +609,6 @@ public class JettyTlsFactoryTest {
     }
 
     /**
-     * PIP-478: a rotation delivered BEFORE the connector starts must still refresh the companion. Only the very
-     * first (pre-fetched, synchronous) delivery reuses the build-time baseline; a later delivery that lands while
-     * the factory is still unstarted re-requests the companion and applies it directly (Jetty's {@code reload()}
-     * is for a live factory), so the started factory runs the rotation's engine policy — protocols, cipher suites
-     * and client-auth — rather than the stale build-time one.
-     */
-    /**
      * The reload must not run on the thread that delivered the rotation.
      *
      * <p>For the default factory the companion request completes synchronously — {@code SSLParameters} is
@@ -692,6 +685,13 @@ public class JettyTlsFactoryTest {
         }
     }
 
+    /**
+     * PIP-478: a rotation delivered BEFORE the connector starts must still refresh the companion. Only the very
+     * first (pre-fetched, synchronous) delivery reuses the build-time baseline; a later delivery that lands while
+     * the factory is still unstarted re-requests the companion and applies it directly (Jetty's {@code reload()}
+     * is for a live factory), so the started factory runs the rotation's engine policy — protocols, cipher suites
+     * and client-auth — rather than the stale build-time one.
+     */
     @Test
     public void preStartRotationRefreshesCompanionBeforeStart() throws Exception {
         SSLContext initial = JdkSslContexts.createSslContext(false, CA, BROKER_CERT, BROKER_KEY, null);
