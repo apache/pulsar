@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.jetty.tls;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -154,6 +155,13 @@ public final class JettyTlsFactory {
                                                                    boolean requireTrustedClientCert,
                                                                    boolean allowInsecureConnection,
                                                                    Set<String> ciphers, Set<String> protocols) {
+        // Required, not optional: a null here used to mean inline execution, which is the very thing the
+        // parameter exists to prevent — the reload would run on the delivery thread, under the factory's
+        // source monitor. Validated at the entry point rather than in the coordinator, because the
+        // native-factory path below never constructs one and a null would sail through undetected.
+        // A caller that genuinely wants same-thread execution passes Runnable::run, which is greppable.
+        Objects.requireNonNull(reloadExecutor, "reloadExecutor must not be null: the Jetty reload must not "
+                + "run inline on the delivery thread (pass Runnable::run explicitly for same-thread execution)");
         // Ask the factory first: a custom factory may natively supply the Jetty server factory (a
         // well-known class). When it does, hand it back unstarted with the factory owning its reload and
         // configuration; the framework overlays no consumer config on it. The default file-based factory
@@ -228,6 +236,9 @@ public final class JettyTlsFactory {
                                                                    Executor reloadExecutor,
                                                                    String sslProviderString,
                                                                    boolean enableHostnameVerification) {
+        // Required — see createReloadingServerFactory.
+        Objects.requireNonNull(reloadExecutor, "reloadExecutor must not be null: the Jetty reload must not "
+                + "run inline on the delivery thread (pass Runnable::run explicitly for same-thread execution)");
         // Ask the factory first: a custom factory may natively supply the Jetty client factory (a well-known
         // class, mirroring the Server variant) to customize proxy->broker admin TLS. When it does, hand it
         // back unstarted with the factory owning its reload and its own endpoint identification; the
@@ -548,7 +559,7 @@ public final class JettyTlsFactory {
                                BiConsumer<SSLContext, SSLParameters> applyReload) {
             this.factory = factory;
             this.purpose = purpose;
-            this.reloadExecutor = reloadExecutor == null ? Runnable::run : reloadExecutor;
+            this.reloadExecutor = reloadExecutor;
             this.target = target;
             this.lastBaseline = initialBaseline;
             this.applyReload = applyReload;
