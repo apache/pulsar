@@ -123,7 +123,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     // Wraps this topic as a TopicPolicyListener so topic-policy updates received while the initial policy is still
     // loading are buffered and applied in order once initTopicPolicy() completes initialization.
-    protected final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
+    protected final TopicPolicyListenerWrapper topicPolicyListener;
 
     // Prefix for replication cursors
     protected final String replicatorPrefix;
@@ -211,6 +211,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.topicPolicyListener = new TopicPolicyListenerWrapper(this, topic);
         this.log = LOG.with().attr("topic", topic).build();
         this.namespace = TopicName.get(topic).getNamespaceObject();
         // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
