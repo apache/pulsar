@@ -47,7 +47,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldApplyLoadedWhenNoLiveUpdates() {
+    public void shouldApplyLoadedLocalBeforeGlobalWhenNoLiveUpdates() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -99,7 +99,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldSkipLoadedPoliciesWhenDeletedBeforeInit() {
+    public void shouldSkipLoadedPoliciesWhenDeletedBeforeInitialization() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -111,7 +111,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldApplyPerScopeUpdatesAfterDeleteBeforeInit() {
+    public void shouldApplyPerScopeUpdatesAfterDeleteBeforeInitialization() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -126,7 +126,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldForwardLiveUpdatesAfterInit() {
+    public void shouldForwardLiveUpdatesAfterInitialization() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -143,7 +143,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldApplyOnlyGlobalWhenLocalIsNull() {
+    public void shouldApplyLocalBeforeGlobalWhenOnlyGlobalLoaded() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -153,7 +153,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldApplyOnlyLocalWhenGlobalIsNull() {
+    public void shouldApplyLocalBeforeGlobalWhenOnlyLocalLoaded() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -163,7 +163,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldBeNoopWhenBothLoadedAreNull() {
+    public void shouldStillApplyLocalBeforeGlobalWhenBothLoadedAreNull() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
@@ -184,7 +184,7 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldBeNoopWhenInitCalledAgain() {
+    public void shouldBeNoopWhenInitializationCalledAgain() {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
