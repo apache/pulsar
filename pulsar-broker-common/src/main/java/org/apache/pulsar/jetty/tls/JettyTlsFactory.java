@@ -139,6 +139,11 @@ public final class JettyTlsFactory {
      *
      * @param factory                  the TLS factory to subscribe to
      * @param purpose                  the server purpose (e.g. {@link TlsPurpose#WEB})
+     * @param reloadExecutor           where a rotation's reload is dispatched; must not be null. It must
+     *                                 not run the task inline on the calling thread — that is the
+     *                                 delivery thread, which holds the factory's source monitor. Pass
+     *                                 {@code Runnable::run} explicitly only where inline execution is
+     *                                 intended (tests).
      * @param sslProviderString        the legacy engine/JSSE provider string passed to Jetty's
      *                                 {@code SslContextFactory}, or {@code null}/empty for the default. Jetty is
      *                                 handed a pre-built {@code SSLContext}, so it never loads key material
@@ -223,6 +228,9 @@ public final class JettyTlsFactory {
      *
      * @param factory                   the TLS factory to acquire from / subscribe to
      * @param purpose                   the client purpose (e.g. {@link TlsPurpose#BROKER_CLIENT})
+     * @param reloadExecutor            where a rotation's reload is dispatched; must not be null and must
+     *                                  not run the task inline on the delivery thread (see
+     *                                  {@link #createReloadingServerFactory}).
      * @param sslProviderString         the legacy engine/JSSE provider string passed to Jetty's
      *                                 {@code SslContextFactory}, or {@code null}/empty for the default. Jetty is
      *                                 handed a pre-built {@code SSLContext}, so it never loads key material
