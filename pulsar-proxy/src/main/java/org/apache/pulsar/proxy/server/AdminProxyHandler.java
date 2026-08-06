@@ -286,7 +286,7 @@ class AdminProxyHandler extends ProxyServlet {
                     // rotated broker-client material reaches new connections. Hostname verification is applied
                     // on the synthesized path only; a native client owns it.
                     JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
-                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT,
+                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT, sslContextRefresher,
                             config.getBrokerClientSslProvider(), config.isTlsHostnameVerificationEnabled());
                     // Replace any prior subscription (newHttpClient may be invoked more than once).
                     disposeBrokerClientTlsSubscription();

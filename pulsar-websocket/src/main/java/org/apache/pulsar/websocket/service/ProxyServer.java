@@ -249,6 +249,7 @@ public class ProxyServer {
                 scheduledExecutorService, scheduledExecutorService);
         TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
         this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                scheduledExecutorService,
                 config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
                 config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                 config.getWebServiceTlsProtocols());

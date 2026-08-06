@@ -462,6 +462,7 @@ public class WebServer {
                 sslRefreshScheduledExecutor, sslRefreshScheduledExecutor, openTelemetry);
         TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
         this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                sslRefreshScheduledExecutor,
                 config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
                 config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                 config.getWebServiceTlsProtocols());
