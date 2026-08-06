@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import lombok.Cleanup;
@@ -69,11 +70,11 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
         String trimmedTopic = "persistent://public/default/testCreatePartitionedTopicWithTrailingWhitespace";
         String topicWithWhitespace = trimmedTopic + " ";
 
-        PulsarAdminException e1 = assertThrows(PulsarAdminException.class,
+        PulsarAdminException e1 = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().createPartitionedTopic(topicWithWhitespace, 2));
         assertTrue(e1.getMessage().contains("whitespace"),
                 "expected the surrounding-whitespace rejection, got: " + e1.getMessage());
-        PulsarAdminException e2 = assertThrows(PulsarAdminException.class,
+        PulsarAdminException e2 = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().createNonPartitionedTopic(topicWithWhitespace));
         assertTrue(e2.getMessage().contains("whitespace"),
                 "expected the surrounding-whitespace rejection, got: " + e2.getMessage());

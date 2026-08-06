@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
@@ -101,7 +102,7 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
     public void testCreateScalableTopicWithSurroundingWhitespaceIsRejected() throws Exception {
         String topicWithWhitespace = "topic://" + namespace() + "/scalable-with-whitespace "
                 + UUID.randomUUID().toString().substring(0, 8);
-        PulsarAdminException.PreconditionFailedException e = assertThrows(
+        PulsarAdminException.PreconditionFailedException e = expectThrows(
                 PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.scalableTopics().createScalableTopic(topicWithWhitespace, 1,
                         Map.of("owner", "test")));
