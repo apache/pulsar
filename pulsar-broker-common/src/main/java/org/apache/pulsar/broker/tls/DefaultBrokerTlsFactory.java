@@ -156,13 +156,17 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
     private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, Set<String> protocols,
                                           Set<String> ciphers) {
         // enableHostnameVerification is pinned OFF on server-role policies rather than mapped from
-        // tlsHostnameVerificationEnabled, which is the broker's OUTBOUND setting ("whether the hostname is
-        // validated when the broker creates a TLS connection with other brokers") and belongs on
-        // brokerClientPolicy() alone. It is inert either way today — only the client context builders read
-        // the flag — but a server policy carrying it would invite a future consumer to enable endpoint
-        // identification on a server engine, i.e. verify the CLIENT's hostname. It has to be set
-        // explicitly: TlsPolicy.Builder defaults the flag to true (secure-by-default for clients), so
-        // simply omitting it would leave every server policy claiming hostname verification is on.
+        // tlsHostnameVerificationEnabled. That key is the broker's OUTBOUND setting ("whether the hostname
+        // is validated when the broker creates a TLS connection with other brokers"), and every existing
+        // consumer of it in the codebase configures an outbound client; it IS honored here, on the
+        // TlsPurpose.BROKER_CLIENT policy composed by brokerClientPolicy() below. Mapping it onto a
+        // server-role policy (BROKER / PROXY / WEB) would mean the opposite thing — verifying the peer's
+        // hostname where the peer is the connecting CLIENT. It is inert either way today, since only the
+        // client context builders read the flag, but a server policy carrying it would invite a future
+        // consumer to turn endpoint identification on for a server engine. It has to be set explicitly:
+        // TlsPolicy.Builder defaults the flag to true (secure-by-default for clients), so simply omitting
+        // it would leave every server policy claiming hostname verification is on. Locked down by
+        // DefaultBrokerTlsPolicyTest#hostnameVerificationIsAnOutboundSettingAppliedToTheBrokerClientPolicy.
         TlsPolicy.Builder builder = TlsPolicy.builder()
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())
                 .enableHostnameVerification(false)
@@ -189,7 +193,8 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         return builder.build();
     }
 
-    private static TlsPolicy brokerClientPolicy(ServiceConfiguration conf) {
+    @VisibleForTesting
+    static TlsPolicy brokerClientPolicy(ServiceConfiguration conf) {
         // Outbound broker-client connections reuse the shared insecure/hostname-verification flags.
         TlsPolicy.Builder builder = TlsPolicy.builder()
                 .allowInsecureConnection(conf.isTlsAllowInsecureConnection())

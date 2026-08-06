@@ -90,15 +90,22 @@ public class DefaultBrokerTlsPolicyTest {
     }
 
     @Test
-    public void serverPoliciesDoNotCarryTheOutboundHostnameVerificationFlag() {
-        // tlsHostnameVerificationEnabled is the broker's OUTBOUND setting; only brokerClientPolicy may
-        // carry it. A server-role policy carrying it would invite endpoint identification on a server
-        // engine, i.e. verifying the client's hostname.
-        ServiceConfiguration conf = conf();
-        conf.setTlsHostnameVerificationEnabled(true);
+    public void hostnameVerificationIsAnOutboundSettingAppliedToTheBrokerClientPolicy() {
+        // tlsHostnameVerificationEnabled is the broker's OUTBOUND setting ("whether the hostname is
+        // validated when the broker creates a TLS connection with other brokers"), so it must reach the
+        // client-role BROKER_CLIENT policy in both positions — and only that one. A server-role policy
+        // carrying it would invite endpoint identification on a server engine, i.e. verifying the
+        // connecting client's hostname.
+        ServiceConfiguration enabled = conf();
+        enabled.setTlsHostnameVerificationEnabled(true);
+        assertThat(DefaultBrokerTlsFactory.brokerClientPolicy(enabled).enableHostnameVerification()).isTrue();
 
-        assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).enableHostnameVerification()).isFalse();
-        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).enableHostnameVerification()).isFalse();
+        ServiceConfiguration disabled = conf();
+        disabled.setTlsHostnameVerificationEnabled(false);
+        assertThat(DefaultBrokerTlsFactory.brokerClientPolicy(disabled).enableHostnameVerification()).isFalse();
+
+        assertThat(DefaultBrokerTlsFactory.serverPolicy(enabled).enableHostnameVerification()).isFalse();
+        assertThat(DefaultBrokerTlsFactory.webPolicy(enabled).enableHostnameVerification()).isFalse();
     }
 
     @Test
