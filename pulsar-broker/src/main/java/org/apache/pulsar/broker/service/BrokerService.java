@@ -1324,50 +1324,13 @@ public class BrokerService implements Closeable {
                     final var lastStep = context.getLastTimepointName();
                     final var latency = context.traceAndGetLatency("fail").description();
                     final var unwrapped = FutureUtil.unwrapCompletionException(t);
-                    final String reason;
+                    final var reason = getTopicLoadFailureReason(unwrapped, lastStep);
                     if (unwrapped instanceof TimeoutException) {
-                        reason = getTimeoutReason(lastStep);
                         log.warn()
                                 .attr("topic", topicName)
                                 .attr("latency", latency)
                                 .log("Failed to load topic within " + timeoutSeconds + " s");
-                    } else if (unwrapped instanceof TopicMigratedException) {
-                        reason = "bundle_unloading";
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
-                    } else if (unwrapped instanceof TopicPolicyException) {
-                        reason = "failed_load_policies";
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
-                    } else if (unwrapped instanceof TopicInitException) {
-                        reason = "failed_init";
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
-                    } else if (unwrapped instanceof PersistenceException) {
-                        reason = "failed_load_ml";
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
-                    } else if (unwrapped instanceof MetadataStoreException) {
-                        reason = "failed_access_metadata_store";
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
                     } else {
-                        reason = "others";
                         log.warn()
                                 .attr("topic", topicName)
                                 .attr("latency", latency)
@@ -1476,24 +1439,31 @@ public class BrokerService implements Closeable {
         topicFuture.completeExceptionally(rc);
     }
 
-    private static String getTimeoutReason(String lastStep) {
-        if (lastStep == null) {
-            return "timeout";
-        }
-        switch (lastStep) {
-            case "system topic":
-                return "timeout_load_policies";
-            case "open-ml":
-                return "timeout_load_ml";
-            case "deduplication":
-                return "timeout_dedup";
-            case "init":
-            case "replication":
-            case "pre-create compacted sub":
-                return "timeout_init";
-            default:
+    @VisibleForTesting
+    static String getTopicLoadFailureReason(Throwable throwable, String lastStep) {
+        if (throwable instanceof TimeoutException) {
+            if (lastStep == null) {
                 return "timeout";
+            }
+            return switch (lastStep) {
+                case "system topic" -> "timeout_load_policies";
+                case "open-ml" -> "timeout_load_ml";
+                case "deduplication" -> "timeout_dedup";
+                case "init", "replication", "pre-create compacted sub" -> "timeout_init";
+                default -> "timeout";
+            };
+        } else if (throwable instanceof TopicMigratedException) {
+            return "bundle_unloading";
+        } else if (throwable instanceof TopicPolicyException) {
+            return "failed_load_policies";
+        } else if (throwable instanceof TopicInitException) {
+            return "failed_init";
+        } else if (throwable instanceof PersistenceException) {
+            return "failed_load_ml";
+        } else if (throwable instanceof MetadataStoreException) {
+            return "failed_access_metadata_store";
         }
+        return "others";
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,

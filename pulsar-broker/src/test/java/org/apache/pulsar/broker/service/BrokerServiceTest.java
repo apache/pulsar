@@ -85,6 +85,9 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicInitException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicPolicyException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -130,6 +133,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -144,6 +148,31 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
+
+    @Test
+    public void testTopicLoadFailureReason() {
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), null), "timeout");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "system topic"),
+                "timeout_load_policies");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "open-ml"), "timeout_load_ml");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "deduplication"),
+                "timeout_dedup");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "init"), "timeout_init");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "replication"), "timeout_init");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "pre-create compacted sub"),
+                "timeout_init");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicMigratedException("migrated"), null),
+                "bundle_unloading");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicPolicyException(new RuntimeException()), null),
+                "failed_load_policies");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicInitException(new RuntimeException()), null),
+                "failed_init");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new PersistenceException(new RuntimeException()), null),
+                "failed_load_ml");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new MetadataStoreException("metadata failure"), null),
+                "failed_access_metadata_store");
+        assertEquals(BrokerService.getTopicLoadFailureReason(new IllegalStateException(), null), "others");
+    }
 
     @BeforeClass
     @Override
@@ -1943,7 +1972,9 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
                 topicLoadFailedCount += metric.value;
             }
-            return topicLoadFailedCount >= 1D;
+            return topicLoadFailedCount >= 1D
+                    && metricMap.get("topic_load_failed_total").stream()
+                    .anyMatch(metric -> "others".equals(metric.tags.get("reason")) && metric.value >= 1D);
         });
 
         // Remove the injection.

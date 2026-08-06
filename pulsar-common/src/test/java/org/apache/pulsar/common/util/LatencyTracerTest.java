@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -60,6 +61,7 @@ public class LatencyTracerTest {
                 70_000_000L, 80_000_000L));
         tracer.trace("A");
         tracer.trace("B");
+        assertEquals(tracer.getLastTimepointName(), "B");
         var snapshot = tracer.getLatency();
         assertEquals(snapshot.description(), "total: 60 ms, A: 20 ms, B: 40 ms");
         assertEquals(snapshot.elapsedInMillis(), 60);
@@ -73,6 +75,7 @@ public class LatencyTracerTest {
     @Test
     public void testEmpty() {
         final var tracer = new LatencyTracer(new LinkedList<>(), testNanoTimeSupplier(0L, 20_000_000L));
+        assertNull(tracer.getLastTimepointName());
         final var snapshot = tracer.getLatency();
         assertEquals(snapshot.description(), "total: 0 ms");
         assertEquals(snapshot.elapsedInMillis(), 0);
