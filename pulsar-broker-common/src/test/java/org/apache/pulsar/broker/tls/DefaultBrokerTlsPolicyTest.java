@@ -109,6 +109,19 @@ public class DefaultBrokerTlsPolicyTest {
     }
 
     @Test
+    public void theDefaultConfigurationPinsNoJsseProviderOnAnyPurpose() {
+        // A configured JSSE provider is pinned and fails startup when it cannot be resolved, so no purpose
+        // may pin one out of the box. webServiceTlsProvider used to default to Conscrypt, whose uber jar
+        // ships x86_64 natives only — that default broke the web listener on aarch64 and s390x as soon as
+        // the key became authoritative here.
+        ServiceConfiguration conf = conf();
+
+        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider()).isNull();
+        assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).jsseProvider()).isNull();
+        assertThat(DefaultBrokerTlsFactory.brokerClientPolicy(conf).jsseProvider()).isNull();
+    }
+
+    @Test
     public void anEngineLiteralInTheWebProviderSelectsNoJsseProvider() {
         // The provider key is overloaded across two axes; an engine literal must not land on the JSSE one.
         ServiceConfiguration conf = conf();

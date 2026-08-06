@@ -208,9 +208,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.\n"
                     + "This names a JSSE (SSLContext) security provider for the Jetty-based web service, which has\n"
                     + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
-                    + "provider names here."
+                    + "provider names here. Leave unset (the default) to use the JVM's default provider; a\n"
+                    + "configured name is pinned and startup fails if it cannot be resolved. Note that Conscrypt\n"
+                    + "ships native libraries for x86_64 only, so pinning it is not portable to aarch64 or s390x."
     )
-    private String webServiceTlsProvider = "Conscrypt";
+    private String webServiceTlsProvider = "";
 
     @FieldContext(
             category = CATEGORY_TLS,
