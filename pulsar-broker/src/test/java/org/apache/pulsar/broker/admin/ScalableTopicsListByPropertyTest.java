@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
