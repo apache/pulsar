@@ -21,8 +21,8 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.assertTrue;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;

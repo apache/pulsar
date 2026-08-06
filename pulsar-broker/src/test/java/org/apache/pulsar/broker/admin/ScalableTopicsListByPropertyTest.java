@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.expectThrows;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
 import java.util.List;
