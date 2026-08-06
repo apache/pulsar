@@ -319,32 +319,38 @@ class ImmutableBucket {
         long deleteStartTime = System.currentTimeMillis();
         stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
-        long bucketId = getAndUpdateBucketId();
+        CompletableFuture<Long> bucketIdFuture = getSnapshotCreateFuture()
+                .map(future -> future.thenApply(bucketId -> {
+                    setBucketId(bucketId);
+                    return bucketId;
+                }))
+                .orElseGet(() -> CompletableFuture.completedFuture(getAndUpdateBucketId()));
 
-        return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(bucketId),
-                BucketSnapshotPersistenceException.class, MaxRetryTimes)
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        log.error()
-                                .attr("dispatcher", ctx.dispatcherName())
-                                .attr("bucketId", bucketId)
-                                .attr("bucketKey", bucketKey)
-                                .exception(ex)
-                                .log("Failed to delete bucket snapshot");
+        return bucketIdFuture.thenCompose(bucketId ->
+                executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(bucketId),
+                        BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                        .whenComplete((__, ex) -> {
+                            if (ex != null) {
+                                log.error()
+                                        .attr("dispatcher", ctx.dispatcherName())
+                                        .attr("bucketId", bucketId)
+                                        .attr("bucketKey", bucketKey)
+                                        .exception(ex)
+                                        .log("Failed to delete bucket snapshot");
 
-                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
-                    } else {
-                        log.info()
-                                .attr("dispatcher", ctx.dispatcherName())
-                                .attr("bucketId", bucketId)
-                                .attr("bucketKey", bucketKey)
-                                .log("Delete bucket snapshot finish");
+                                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                            } else {
+                                log.info()
+                                        .attr("dispatcher", ctx.dispatcherName())
+                                        .attr("bucketId", bucketId)
+                                        .attr("bucketKey", bucketKey)
+                                        .log("Delete bucket snapshot finish");
 
-                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
-                                System.currentTimeMillis() - deleteStartTime);
-                    }
-                })
-                .thenCompose(__ -> removeBucketCursorProperty(bucketKey));
+                                stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                        System.currentTimeMillis() - deleteStartTime);
+                            }
+                        })
+                        .thenCompose(__ -> removeBucketCursorProperty(bucketKey)));
     }
 
     CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {

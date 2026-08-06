@@ -887,9 +887,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         // subRangeMap returns clipped intersection ranges. Snapshot deletion must use the original
         // bucket range, so only select buckets whose complete range precedes the first live ledger.
         immutableBuckets.asMapOfRanges().forEach((range, bucket) -> {
-            if (range.upperEndpoint() < firstLedgerId
-                    && bucket.getSnapshotCreateFuture()
-                    .map(f -> f.isDone() && !f.isCancelled() && !f.isCompletedExceptionally()).orElse(false)) {
+            if (range.upperEndpoint() < firstLedgerId) {
                 toBeDeletedBuckets.put(range, bucket);
             }
         });
