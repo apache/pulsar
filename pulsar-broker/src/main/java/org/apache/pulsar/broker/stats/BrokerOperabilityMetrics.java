@@ -38,8 +38,29 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 /**
  */
 public class BrokerOperabilityMetrics implements AutoCloseable {
+    private static final String[] TOPIC_LOAD_FAILURE_REASONS = {
+            "bundle_unloading",
+            "failed_load_policies",
+            "failed_load_ml",
+            "failed_access_metadata_store",
+            "failed_init",
+            "timeout",
+            "timeout_load_policies",
+            "timeout_load_ml",
+            "timeout_init",
+            "timeout_dedup",
+            "others"
+    };
     private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-")
             .labelNames("reason").create().register();
+    private static final LongAdder TOPIC_LOAD_FAILED_COUNT = new LongAdder();
+
+    static {
+        for (String reason : TOPIC_LOAD_FAILURE_REASONS) {
+            TOPIC_LOAD_FAILED.labels(reason);
+        }
+    }
+
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
@@ -163,7 +184,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     Metrics getTopicLoadMetrics() {
         Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
-        metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
+        metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED_COUNT.sum());
         return metrics;
     }
 
@@ -193,7 +214,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     }
 
     public void recordTopicLoadFailed(String reason) {
-        this.TOPIC_LOAD_FAILED.labels(reason).inc();
+        TOPIC_LOAD_FAILED.labels(reason).inc();
+        TOPIC_LOAD_FAILED_COUNT.increment();
     }
 
     public void recordConnectionCreate() {
