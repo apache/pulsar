@@ -44,11 +44,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -631,32 +629,66 @@ public class JettyTlsFactoryTest {
     public void rotationReloadRunsOnTheSuppliedExecutorNotTheDeliveryThread() throws Exception {
         SSLContext initial = JdkSslContexts.createSslContext(false, CA, BROKER_CERT, BROKER_KEY, null);
         SSLContext rotated = JdkSslContexts.createSslContext(false, CA, PROXY_CERT, PROXY_KEY, null);
+        // The companion resolves synchronously here (no deferCompanions()), which is exactly the default
+        // factory's behaviour: SSLParameters is an unsupported class, so createInstance returns an
+        // already-completed future. That is the case where an inline whenComplete would run the whole Jetty
+        // reload on the delivery thread.
         ScriptableFactory factory = new ScriptableFactory(initial, null);
-        ExecutorService reloadExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "reload-executor"));
+        HoldingExecutor reloadExecutor = new HoldingExecutor();
+        JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
+                factory, TlsPurpose.WEB, reloadExecutor, null, false, false, null, null);
+        SslContextFactory.Server target = reloadable.sslContextFactory();
+        target.start();
         try {
-            JettyTlsFactory.ReloadableServerTls reloadable = JettyTlsFactory.createReloadingServerFactory(
-                    factory, TlsPurpose.WEB, reloadExecutor, null, false, false, null, null);
-            SslContextFactory.Server target = reloadable.sslContextFactory();
-            target.start();
+            // The first delivery bypasses the executor (it fires synchronously during subscribe and only
+            // sets the context), so holding from here is race-free.
+            reloadExecutor.hold();
+            factory.deliver(rotated);
 
-            AtomicReference<String> reloadThread = new AtomicReference<>();
-            Thread deliveringThread = new Thread(() -> factory.deliver(rotated), "delivery-thread");
-            // Capture the thread the applied context lands on by observing the factory after the reload.
-            deliveringThread.start();
-            deliveringThread.join(TimeUnit.SECONDS.toMillis(10));
+            // The discriminator: the delivery call has returned, and the rotation has NOT been applied,
+            // because publish is parked on the executor. Under an inline whenComplete the reload would
+            // already have run inside deliver(...) and this would be `rotated`.
+            assertThat(target.getSslContext())
+                    .as("the reload must be dispatched, not run inline on the delivery thread")
+                    .isSameAs(initial);
+            assertThat(reloadExecutor.heldCount()).as("exactly one reload was dispatched").isEqualTo(1);
 
-            Awaitility.await().atMost(Duration.ofSeconds(10))
-                    .untilAsserted(() -> assertThat(target.getSslContext()).isSameAs(rotated));
-            reloadExecutor.submit(() -> reloadThread.set(Thread.currentThread().getName()))
-                    .get(10, TimeUnit.SECONDS);
-
-            assertThat(reloadThread.get()).as("the reload executor is the one that ran publish")
-                    .isEqualTo("reload-executor");
-            assertThat(deliveringThread.isAlive())
-                    .as("the delivery thread was not held for the duration of the reload").isFalse();
+            reloadExecutor.runHeld();
+            assertThat(target.getSslContext()).as("released reload applies the rotation").isSameAs(rotated);
             reloadable.subscription().dispose();
         } finally {
-            reloadExecutor.shutdownNow();
+            target.stop();
+            factory.close();
+        }
+    }
+
+    /** An {@link Executor} that can park submitted tasks so a test can observe that dispatch happened. */
+    private static final class HoldingExecutor implements Executor {
+        private volatile boolean holding;
+        private final List<Runnable> held = new CopyOnWriteArrayList<>();
+
+        void hold() {
+            holding = true;
+        }
+
+        int heldCount() {
+            return held.size();
+        }
+
+        void runHeld() {
+            holding = false;
+            List<Runnable> tasks = List.copyOf(held);
+            held.clear();
+            tasks.forEach(Runnable::run);
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            if (holding) {
+                held.add(command);
+            } else {
+                command.run();
+            }
         }
     }
 
