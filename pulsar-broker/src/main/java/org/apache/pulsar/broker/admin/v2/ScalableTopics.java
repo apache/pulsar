@@ -179,6 +179,7 @@ public class ScalableTopics extends AdminResource {
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        validateCreateTopic(tn);
 
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CREATE_TOPIC)
                 .thenCompose(__ -> {
