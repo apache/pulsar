@@ -651,7 +651,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                             return globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
                                 // finally update the topic policies with the latest value or loaded value
                                 return CompletableFuture.runAsync(() ->
-                                                topicPolicyListener.initIfNotUpdated(global.orElse(null),
+                                                topicPolicyListener.completeInitialization(global.orElse(null),
                                                         local.orElse(null)),
                                         getPoliciesNotifyThread());
                             }).thenCompose(Function.identity());

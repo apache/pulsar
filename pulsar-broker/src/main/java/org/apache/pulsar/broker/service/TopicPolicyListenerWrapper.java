@@ -102,7 +102,7 @@ public class TopicPolicyListenerWrapper implements TopicPolicyListener {
      * Initializes policies (including local and global policies) when a topic is created; skips if a live update
      * has already been received.
      */
-    public synchronized void initIfNotUpdated(@Nullable TopicPolicies globalLoaded,
+    public synchronized void completeInitialization(@Nullable TopicPolicies globalLoaded,
                                               @Nullable TopicPolicies localLoaded) {
         if (initialized) {
             return;

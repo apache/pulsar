@@ -53,7 +53,7 @@ public class TopicPolicyListenerWrapperTest {
 
         TopicPolicies loadedGlobal = globalPolicies();
         TopicPolicies loadedLocal = localPolicies();
-        wrapper.initIfNotUpdated(loadedGlobal, loadedLocal);
+        wrapper.completeInitialization(loadedGlobal, loadedLocal);
         assertThat(real.updates).containsExactly(loadedLocal, loadedGlobal);
     }
 
@@ -66,7 +66,7 @@ public class TopicPolicyListenerWrapperTest {
         wrapper.onUpdate(liveLocal);
 
         TopicPolicies loadedGlobal = globalPolicies();
-        wrapper.initIfNotUpdated(loadedGlobal, localPolicies());
+        wrapper.completeInitialization(loadedGlobal, localPolicies());
         assertThat(real.updates).containsExactly(liveLocal, loadedGlobal);
     }
 
@@ -79,7 +79,7 @@ public class TopicPolicyListenerWrapperTest {
         wrapper.onUpdate(liveGlobal);
 
         TopicPolicies loadedLocal = localPolicies();
-        wrapper.initIfNotUpdated(globalPolicies(), loadedLocal);
+        wrapper.completeInitialization(globalPolicies(), loadedLocal);
         assertThat(real.updates).containsExactly(loadedLocal, liveGlobal);
     }
 
@@ -94,7 +94,7 @@ public class TopicPolicyListenerWrapperTest {
         wrapper.onUpdate(liveLocal);
         assertThat(real.updates).containsExactly(liveLocal, liveGlobal);
 
-        wrapper.initIfNotUpdated(globalPolicies(), localPolicies());
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
         assertThat(real.updates).containsExactly(liveLocal, liveGlobal);
     }
 
@@ -106,7 +106,7 @@ public class TopicPolicyListenerWrapperTest {
         wrapper.onUpdate(null);
         assertThat(real.updates).containsExactly(null, null);
 
-        wrapper.initIfNotUpdated(globalPolicies(), localPolicies());
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
         assertThat(real.updates).containsExactly(null, null);
     }
 
@@ -121,7 +121,7 @@ public class TopicPolicyListenerWrapperTest {
 
         TopicPolicies globalLoaded = globalPolicies();
         TopicPolicies localLoaded = localPolicies();
-        wrapper.initIfNotUpdated(globalLoaded, localLoaded);
+        wrapper.completeInitialization(globalLoaded, localLoaded);
         assertThat(real.updates).containsExactly(null, null, newerGlobal);
     }
 
@@ -130,7 +130,7 @@ public class TopicPolicyListenerWrapperTest {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        wrapper.initIfNotUpdated(globalPolicies(), localPolicies());
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
         real.updates.clear();
 
         TopicPolicies liveLocal = localPolicies();
@@ -148,7 +148,7 @@ public class TopicPolicyListenerWrapperTest {
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
         TopicPolicies loadedGlobal = globalPolicies();
-        wrapper.initIfNotUpdated(loadedGlobal, null);
+        wrapper.completeInitialization(loadedGlobal, null);
         assertThat(real.updates).containsExactly(null, loadedGlobal);
     }
 
@@ -158,7 +158,7 @@ public class TopicPolicyListenerWrapperTest {
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
         TopicPolicies loadedLocal = localPolicies();
-        wrapper.initIfNotUpdated(null, loadedLocal);
+        wrapper.completeInitialization(null, loadedLocal);
         assertThat(real.updates).containsExactly(loadedLocal, null);
     }
 
@@ -167,7 +167,7 @@ public class TopicPolicyListenerWrapperTest {
         RecordingListener real = new RecordingListener();
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        wrapper.initIfNotUpdated(null, null);
+        wrapper.completeInitialization(null, null);
         assertThat(real.updates).containsExactly(null, null);
     }
 
@@ -179,7 +179,7 @@ public class TopicPolicyListenerWrapperTest {
         TopicPolicies liveLocal = localPolicies();
         wrapper.onUpdate(liveLocal);
 
-        wrapper.initIfNotUpdated(null, localPolicies());
+        wrapper.completeInitialization(null, localPolicies());
         assertThat(real.updates).containsExactly(liveLocal, null);
     }
 
@@ -189,10 +189,10 @@ public class TopicPolicyListenerWrapperTest {
         TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
         TopicPolicies loadedLocal = localPolicies();
-        wrapper.initIfNotUpdated(null, loadedLocal);
+        wrapper.completeInitialization(null, loadedLocal);
         assertThat(real.updates).containsExactly(loadedLocal, null);
 
-        wrapper.initIfNotUpdated(globalPolicies(), localPolicies());
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
         assertThat(real.updates).containsExactly(loadedLocal, null);
     }
 }
