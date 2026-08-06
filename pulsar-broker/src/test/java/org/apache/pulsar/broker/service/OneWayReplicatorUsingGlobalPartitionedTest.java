@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCA
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -347,7 +348,18 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         Awaitility.await().atMost(1, TimeUnit.HOURS).untilAsserted(() -> {
             assertTrue(future.isDone());
         });
-        assertFalse(future.isCompletedExceptionally());
+        if ("topic".equals(removeClusterLevel)) {
+            assertFalse(future.isCompletedExceptionally());
+        } else {
+            assertTrue(future.isCompletedExceptionally());
+            try {
+                future.get();
+                fail("Should have thrown an exception since the __change_event topic can not be access anymore");
+            } catch (Exception e) {
+                assertTrue(e.getMessage().contains("Namespace missing local cluster name"));
+            }
+        }
+
 
         // cleanup.
         if ("topic".equals(removeClusterLevel)) {
