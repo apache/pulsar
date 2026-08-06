@@ -74,14 +74,6 @@ public class LatencyTracer {
         return getLatency();
     }
 
-    public String getLastTimepointName() {
-        final var list = new ArrayList<>(timepoints);
-        if (list.isEmpty()) {
-            return null;
-        }
-        return list.get(list.size() - 1).name();
-    }
-
     public interface NanoTimeSupplier {
 
         long getNanos();
