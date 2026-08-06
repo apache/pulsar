@@ -234,9 +234,22 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
         if (closed) {
             return CompletableFuture.failedFuture(new IllegalStateException("FileBasedTlsFactory is closed"));
         }
+        // Resolve and check for re-entrancy on the CALLER's thread, before the hop to the blocking executor.
+        // Doing it inside the task cannot work: the monitor is held by the callback's thread, so a task that
+        // runs on any other thread sees holdsLock == false and then blocks on the monitor anyway, and on a
+        // single-threaded executor the task never starts at all because it is queued behind the callback.
+        // resolve() itself can throw (null purpose, unconfigured server purpose), and the SPI forbids
+        // throwing on the calling thread, so its failure becomes a failed future too.
+        final RegisteredSource source;
+        try {
+            source = resolve(purpose);
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+        if (Thread.holdsLock(source)) {
+            return CompletableFuture.failedFuture(reentrantAcquisition(purpose));
+        }
         return runAsync(() -> {
-            RegisteredSource source = resolve(purpose);
-            rejectReentrantAcquisition(source, purpose);
             synchronized (source) {
                 // FIX F: close() runs releaseAll() under this same source lock, and may have completed after
                 // the outer closed-check but before this task acquired the lock. Re-check here so we never
@@ -262,9 +275,22 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
         if (closed) {
             return CompletableFuture.failedFuture(new IllegalStateException("FileBasedTlsFactory is closed"));
         }
+        // Resolve and check for re-entrancy on the CALLER's thread, before the hop to the blocking executor.
+        // Doing it inside the task cannot work: the monitor is held by the callback's thread, so a task that
+        // runs on any other thread sees holdsLock == false and then blocks on the monitor anyway, and on a
+        // single-threaded executor the task never starts at all because it is queued behind the callback.
+        // resolve() itself can throw (null purpose, unconfigured server purpose), and the SPI forbids
+        // throwing on the calling thread, so its failure becomes a failed future too.
+        final RegisteredSource source;
+        try {
+            source = resolve(purpose);
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+        if (Thread.holdsLock(source)) {
+            return CompletableFuture.failedFuture(reentrantAcquisition(purpose));
+        }
         return runAsync(() -> {
-            RegisteredSource source = resolve(purpose);
-            rejectReentrantAcquisition(source, purpose);
             synchronized (source) {
                 // FIX F: re-check under the source lock (see createInstance above) so a task racing a
                 // concurrent close()/releaseAll() never builds+retains a context that then leaks past shutdown.
@@ -503,25 +529,36 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     }
 
     /**
-     * Fail an acquisition that re-enters the factory from inside a reload callback for the same purpose.
+     * The failure returned for an acquisition that re-enters the factory from inside a reload callback for
+     * the same purpose.
      *
      * <p>Consumer callbacks run while the source monitor is held (see
      * {@link RegisteredSource#deliverToSubscribers}), so a callback that acquires the same purpose and
      * blocks on the returned future deadlocks: the acquisition task needs the monitor its own caller is
      * holding. The contract has always said not to do that, but a documented constraint that fails as a
-     * hang is a poor contract — this turns it into an immediate, self-describing error.
+     * hang is a poor contract, so callers turn this into an immediate, self-describing failed future.
      *
-     * <p>Only same-purpose re-entry is caught, because that is the case that cannot succeed. A callback
-     * acquiring a DIFFERENT purpose takes a different monitor and is merely inadvisable.
+     * <p>The detection has to happen on the CALLER's thread, before the acquisition is dispatched to the
+     * blocking executor — {@code Thread.holdsLock} is per-thread, so a task running anywhere else sees
+     * {@code false} and simply blocks on the monitor instead, and on a single-threaded executor the task
+     * never runs at all because it is queued behind the very callback that is waiting for it.
+     *
+     * <p>Only same-purpose re-entry is detected, because that is the case that can never succeed whatever
+     * the executor. A callback that acquires a DIFFERENT purpose takes a different monitor, so it avoids
+     * this deadlock — but note it can still starve on a single-threaded blocking executor, where its task
+     * queues behind the callback regardless of which monitor is involved. Blocking in a callback is
+     * unsupported either way; the callback contract is a cheap, non-blocking store.
+     *
+     * <p>This also rejects a non-blocking same-purpose acquisition from a callback, which would have
+     * completed once the callback returned. That is a deliberate tightening: it cannot be distinguished
+     * from the deadlocking case at the point of the call.
      */
-    private static void rejectReentrantAcquisition(RegisteredSource source, TlsPurpose purpose) {
-        if (Thread.holdsLock(source)) {
-            throw new IllegalStateException("Re-entrant TLS acquisition for purpose " + purpose
-                    + ": a reload callback must not call createInstance(...) for the purpose it is being "
-                    + "delivered for and block on the result — the callback already holds that purpose's "
-                    + "monitor, so the acquisition could never complete. Do the work outside the callback; "
-                    + "the callback contract is a cheap, non-blocking store.");
-        }
+    private static IllegalStateException reentrantAcquisition(TlsPurpose purpose) {
+        return new IllegalStateException("Re-entrant TLS acquisition for purpose " + purpose
+                + ": a reload callback must not call createInstance(...) for the purpose it is being "
+                + "delivered for and block on the result — the callback already holds that purpose's "
+                + "monitor, so the acquisition could never complete. Do the work outside the callback; "
+                + "the callback contract is a cheap, non-blocking store.");
     }
 
     private static void retain(Object instance) {
@@ -654,8 +691,9 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
          * ordering. The cost is a reentrancy constraint on consumers: a reload callback must not call
          * {@code createInstance} for the same purpose and block on the returned future, because that
          * acquisition needs this same monitor. That is now enforced rather than merely documented —
-         * {@link FileBasedTlsFactory#rejectReentrantAcquisition} fails such an acquisition immediately with
-         * an actionable message instead of letting it hang. Consumers are expected to do only a volatile
+         * the acquisition entry points fail such a call immediately, on the caller's thread, with the
+         * message from {@link FileBasedTlsFactory#reentrantAcquisition} instead of letting it hang.
+         * Consumers are expected to do only a volatile
          * store in the callback (swap the context they hand to new connections) and never to block in it.
          */
         synchronized boolean deliverToSubscribers(TlsMaterial material, FileBasedTlsFactorySettings settings) {

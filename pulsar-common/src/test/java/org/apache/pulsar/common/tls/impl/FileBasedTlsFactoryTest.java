@@ -47,12 +47,14 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -718,25 +720,70 @@ public class FileBasedTlsFactoryTest {
     @Test
     public void reentrantAcquisitionFromAReloadCallbackFailsLoudlyInsteadOfDeadlocking() throws Exception {
         // Reload callbacks run while the source monitor is held, so a callback that acquires the SAME
-        // purpose and blocks on the result can never complete. That was documented but unenforced; it now
-        // fails the returned future with an actionable message instead of hanging.
+        // purpose and blocks on the result can never complete. It now fails with an actionable message
+        // instead of hanging.
+        //
+        // This deliberately uses a REAL single-threaded blocking executor, which is the configuration that
+        // actually deadlocks and the one a broker would run: the nested acquisition's task would queue
+        // behind the callback that is waiting for it, so it would never start. A direct executor cannot
+        // stand in — there the nested acquisition simply succeeds inline (monitors are reentrant), so the
+        // deadlock this guards against is not even reachable. The timeouts below are what turn a
+        // regression into a failure rather than a hung suite.
         TlsPolicy policy = copyServerCertsToTemp(BROKER_CERT, BROKER_KEY);
-        FileBasedTlsFactory factory = factory(Map.of(TlsPurpose.BROKER, policy),
-                FileBasedTlsFactorySettings.defaults());
+        ExecutorService blocking = Executors.newSingleThreadExecutor(r -> new Thread(r, "tls-blocking"));
+        FileBasedTlsFactory factory = new FileBasedTlsFactory(Map.of(TlsPurpose.BROKER, policy),
+                FileBasedTlsFactorySettings.builder().refreshIntervalSeconds(1).build());
+        factory.initialize(initContext(scheduler, blocking)).join();
+        try {
+            List<SslContext> deliveries = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> fromCallback = new AtomicReference<>();
+            CountDownLatch reentered = new CountDownLatch(1);
 
-        AtomicReference<Throwable> fromCallback = new AtomicReference<>();
-        factory.createInstance(TlsPurpose.BROKER, SslContext.class, ctx -> {
-            try {
-                factory.createInstance(TlsPurpose.BROKER, SslContext.class).join();
-            } catch (Throwable t) {
-                fromCallback.set(t);
-            }
-        }).join();
+            factory.createInstance(TlsPurpose.BROKER, SslContext.class, ctx -> {
+                deliveries.add(ctx);
+                try {
+                    factory.createInstance(TlsPurpose.BROKER, SslContext.class).get(15, TimeUnit.SECONDS);
+                } catch (Throwable t) {
+                    fromCallback.set(t);
+                } finally {
+                    reentered.countDown();
+                }
+            }).get(15, TimeUnit.SECONDS);
 
-        assertThat(fromCallback.get()).as("the re-entrant acquisition must not hang").isNotNull();
-        assertThat(fromCallback.get()).hasRootCauseInstanceOf(IllegalStateException.class);
-        assertThat(fromCallback.get().getCause()).hasMessageContaining("Re-entrant TLS acquisition");
-        factory.close();
+            assertThat(reentered.await(15, TimeUnit.SECONDS))
+                    .as("the callback must not be stuck waiting on its own acquisition").isTrue();
+            assertThat(fromCallback.get()).as("the re-entrant acquisition must fail, not hang").isNotNull();
+            assertThat(fromCallback.get()).hasRootCauseInstanceOf(IllegalStateException.class);
+            assertThat(fromCallback.get().getCause()).hasMessageContaining("Re-entrant TLS acquisition");
+
+            // The same must hold on a ROTATION delivery, not only the initial one: the initial delivery
+            // happens inside the acquisition task, whereas a rotation is delivered from the poll.
+            fromCallback.set(null);
+            CountDownLatch reenteredOnRotation = new CountDownLatch(1);
+            deliveries.clear();
+            factory.createInstance(TlsPurpose.BROKER, SslContext.class, ctx -> {
+                if (deliveries.isEmpty()) {
+                    deliveries.add(ctx);
+                    return;
+                }
+                try {
+                    factory.createInstance(TlsPurpose.BROKER, SslContext.class).get(15, TimeUnit.SECONDS);
+                } catch (Throwable t) {
+                    fromCallback.set(t);
+                } finally {
+                    reenteredOnRotation.countDown();
+                }
+            }).get(15, TimeUnit.SECONDS);
+
+            overwriteServerCerts(PROXY_CERT, PROXY_KEY);
+            assertThat(reenteredOnRotation.await(30, TimeUnit.SECONDS))
+                    .as("a rotation callback must not be stuck waiting on its own acquisition").isTrue();
+            assertThat(fromCallback.get()).as("the re-entrant acquisition must fail on rotation too").isNotNull();
+            assertThat(fromCallback.get()).hasRootCauseInstanceOf(IllegalStateException.class);
+        } finally {
+            factory.close();
+            blocking.shutdownNow();
+        }
     }
 
     @Test
