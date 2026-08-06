@@ -85,12 +85,11 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicInitException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicPolicyException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
+import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -133,7 +132,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -150,28 +148,35 @@ import org.testng.annotations.Test;
 public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
-    public void testTopicLoadFailureReason() {
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), null), "timeout");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "system topic"),
-                "timeout_load_policies");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "open-ml"), "timeout_load_ml");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "deduplication"),
-                "timeout_dedup");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "init"), "timeout_init");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "replication"), "timeout_init");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TimeoutException(), "pre-create compacted sub"),
-                "timeout_init");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicMigratedException("migrated"), null),
-                "bundle_unloading");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicPolicyException(new RuntimeException()), null),
-                "failed_load_policies");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new TopicInitException(new RuntimeException()), null),
-                "failed_init");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new PersistenceException(new RuntimeException()), null),
-                "failed_load_ml");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new MetadataStoreException("metadata failure"), null),
-                "failed_access_metadata_store");
-        assertEquals(BrokerService.getTopicLoadFailureReason(new IllegalStateException(), null), "others");
+    public void testTopicLoadTimeoutReason() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>());
+        assertEquals(context.getTopicLoadTimeoutReason(), TopicLoadFailureReason.TIMEOUT);
+
+        assertTimeoutReason(context, TopicLoadingStage.NAMESPACE_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReason(context, TopicLoadingStage.TOPIC_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+        assertTimeoutReason(context, TopicLoadingStage.OPEN_ML, TopicLoadFailureReason.TIMEOUT_LOAD_ML);
+        assertTimeoutReason(context, TopicLoadingStage.INITIALIZE, TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingStage.PRE_CREATE_COMPACTED_SUB, TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingStage.REPLICATION, TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingStage.DEDUPLICATION, TopicLoadFailureReason.TIMEOUT_DEDUP);
+
+        context.start(TopicLoadingStage.INITIALIZE);
+        assertTimeoutReason(context, TopicLoadingStage.NAMESPACE_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReason(context, TopicLoadingStage.TOPIC_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+        context.finish(TopicLoadingStage.INITIALIZE);
+    }
+
+    private void assertTimeoutReason(TopicLoadingContext context, TopicLoadingStage stage,
+                                     TopicLoadFailureReason expected) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        context.trace(stage, future);
+        assertEquals(context.getTopicLoadTimeoutReason(), expected);
+        future.complete(null);
     }
 
     @BeforeClass

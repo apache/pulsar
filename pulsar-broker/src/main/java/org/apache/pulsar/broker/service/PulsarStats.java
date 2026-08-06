@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.BrokerStats;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -269,7 +270,7 @@ public class PulsarStats implements Closeable {
         }
     }
 
-    public void recordTopicLoadFailed(String reason) {
+    public void recordTopicLoadFailed(TopicLoadFailureReason reason) {
         brokerOperabilityMetrics.recordTopicLoadFailed(reason);
     }
 
