@@ -39,8 +39,8 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
-import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Utility for test clients.
@@ -99,11 +99,6 @@ public class PerfClientUtils {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            clientBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
-        }
-
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
@@ -127,9 +122,8 @@ public class PerfClientUtils {
      *
      * <p>A few v4 settings have no direct V5 equivalent and are dropped here: {@code --stats-
      * interval-seconds} (V5 stats are OpenTelemetry-driven), {@code --max-lookup-request} (V5
-     * does not expose a public knob), {@code --ssl-factory-plugin*} (V5 does not have a pluggable
-     * SSL factory yet), and {@code --busy-wait} (no V5 equivalent). All other relevant flags map
-     * 1:1.
+     * does not expose a public knob), and {@code --busy-wait} (no V5 equivalent). All other
+     * relevant flags map 1:1.
      */
     public static PulsarClientBuilder createV5ClientBuilderFromArguments(PerformanceBaseArguments arguments)
             throws org.apache.pulsar.client.api.v5.PulsarClientException {
@@ -201,11 +195,6 @@ public class PerfClientUtils {
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
-
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            pulsarAdminBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
         }
 
         if (arguments.tlsAllowInsecureConnection != null) {

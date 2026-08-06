@@ -57,6 +57,11 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the proxy server
+        // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). TLS hostname
+        // verification is on by default (PIP-478, SAN-only), and the default advertised address resolves
+        // to the machine's canonical hostname/IP, which is not in the cert SAN. Keeps verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(false);
         proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);

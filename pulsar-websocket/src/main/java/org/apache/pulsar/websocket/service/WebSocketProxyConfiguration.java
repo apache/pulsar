@@ -147,8 +147,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     // Note: name matches the ServiceConfiguration name to ensure correct mapping
-    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
-    private boolean tlsHostnameVerificationEnabled = false;
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker. Enabled by default since "
+            + "Pulsar 5.0 (PIP-478): a broker whose certificate does not match its hostname/SAN is rejected.")
+    private boolean tlsHostnameVerificationEnabled = true;
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
@@ -217,6 +218,26 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's web "
+            + "server TLS (purpose WEB). When set, the new PIP-478 TLS SPI is used instead of the built-in "
+            + "file-based TLS loading: an empty value or the literal 'default' selects the built-in default "
+            + "factory composed from these tls* settings, otherwise the named class is instantiated via its "
+            + "public no-arg constructor. This is the WebSocket proxy's first TLS-factory pluggability.")
+    private String tlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or "
+            + "a comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
+
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's own "
+            + "outbound (websocket-to-broker) client connections (purpose BROKER_CLIENT). An empty value or "
+            + "the literal 'default' selects the built-in default factory composed from the broker-client "
+            + "tls* settings, otherwise the named class is instantiated via its public no-arg constructor. "
+            + "This is the only outbound-client TLS-factory path for the WebSocket proxy.")
+    private String brokerClientTlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+            + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             doc = "Enable TLS with KeyStore type configuration for WebSocket"
@@ -227,6 +248,17 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
     )
     private String tlsProvider = "Conscrypt";
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "WebSocket service's web-listener TLS SSLContext. When set, the default factory builds the "
+                    + "JDK engine with this provider as the SSLContext provider. Resolved via the ServiceLoader "
+                    + "mechanism (with a fallback to an already-registered provider), failing loudly when "
+                    + "unresolvable."
+    )
+    private String jsseProvider = null;
 
     @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"

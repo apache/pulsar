@@ -24,22 +24,27 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
-import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.apache.pulsar.common.tls.impl.FileBasedTlsFactory;
+import org.apache.pulsar.common.tls.impl.FileBasedTlsFactorySettings;
+import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
@@ -70,8 +75,10 @@ public class ProxyServer {
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
-    private PulsarSslFactory sslFactory;
     private ScheduledExecutorService scheduledExecutorService;
+    // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
+    private PulsarTlsFactory tlsFactory;
+    private JettyTlsFactory.ReloadableServerTls reloadableServerTls;
 
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
@@ -105,23 +112,12 @@ public class ProxyServer {
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
-                this.sslFactory = new DefaultPulsarSslFactory();
-                this.sslFactory.initialize(sslConfiguration);
-                this.sslFactory.createInternalSslContext();
                 this.scheduledExecutorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
                                 .ExtendedThreadFactory("proxy-websocket-ssl-refresh"));
-                if (config.getTlsCertRefreshCheckDurationSec() > 0) {
-                    this.scheduledExecutorService.scheduleWithFixedDelay(this::refreshSslContext,
-                            config.getTlsCertRefreshCheckDurationSec(),
-                            config.getTlsCertRefreshCheckDurationSec(),
-                            TimeUnit.SECONDS);
-                }
-                SslContextFactory.Server sslCtxFactory =
-                        JettySslContextFactory.createSslContextFactory(config.getTlsProvider(),
-                                sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
-                                config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols());
+                // PIP-478: the websocket proxy web listener uses the PulsarTlsFactory SPI (the built-in
+                // file-based factory by default, or a custom tlsFactoryClassName).
+                SslContextFactory.Server sslCtxFactory = createTlsFactoryWebServer(config);
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -211,6 +207,15 @@ public class ProxyServer {
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
+        // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
+        if (this.reloadableServerTls != null) {
+            this.reloadableServerTls.subscription().dispose();
+            this.reloadableServerTls = null;
+        }
+        if (this.tlsFactory != null) {
+            this.tlsFactory.close();
+            this.tlsFactory = null;
+        }
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -229,32 +234,64 @@ public class ProxyServer {
         }
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(WebSocketProxyConfiguration config) {
-        return PulsarSslConfiguration.builder()
-                .tlsKeyStoreType(config.getTlsKeyStoreType())
-                .tlsKeyStorePath(config.getTlsKeyStore())
-                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getTlsTrustStoreType())
-                .tlsTrustStorePath(config.getTlsTrustStore())
-                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
-                .tlsCiphers(config.getWebServiceTlsCiphers())
-                .tlsProtocols(config.getWebServiceTlsProtocols())
-                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
-                .tlsKeyFilePath(config.getTlsKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
-                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
-                .serverMode(true)
-                .isHttps(true)
-                .build();
+    // PIP-478: build the PulsarTlsFactory for the WEB purpose and drive a vanilla Jetty
+    // SslContextFactory.Server via the SSLContext subscription (no cert refresh task).
+    private SslContextFactory.Server createTlsFactoryWebServer(WebSocketProxyConfiguration config) throws Exception {
+        this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
+                () -> buildDefaultWebTlsFactory(config));
+        // PIP-478: the standalone WebSocket proxy has no OpenTelemetry infrastructure (no
+        // OpenTelemetryService / metrics root on its classpath), so the TLS-reload instruments stay no-ops
+        // here — unlike the proxy / functions-worker, which now thread their real OpenTelemetry root. (When
+        // the WebSocket service runs embedded in a broker, the broker's own listeners already emit the
+        // metrics.)
+        TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
+                scheduledExecutorService, scheduledExecutorService);
+        TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+        this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
+                config.getWebServiceTlsProtocols());
+        return this.reloadableServerTls.sslContextFactory();
     }
 
-    protected void refreshSslContext() {
-        try {
-            this.sslFactory.update();
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
+    private static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
+        TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .protocols(toList(config.getWebServiceTlsProtocols()))
+                .ciphers(toList(config.getWebServiceTlsCiphers()))
+                // PIP-478: pin the JSSE (SSLContext) provider for the websocket web listener (Goal #5). A
+                // non-engine tlsProvider value (e.g. Conscrypt) is also routed here for v4 keystore parity,
+                // mirroring the broker's two-axis split.
+                .jsseProvider(TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()));
+        if (config.isTlsEnabledWithKeyStore()) {
+            policyBuilder.format(TlsPolicy.Format.KEYSTORE)
+                    .keyStoreType(config.getTlsKeyStoreType())
+                    .trustStoreType(config.getTlsTrustStoreType())
+                    .keyStorePath(config.getTlsKeyStore())
+                    .keyStorePassword(config.getTlsKeyStorePassword())
+                    .trustStorePath(config.getTlsTrustStore())
+                    .trustStorePassword(config.getTlsTrustStorePassword());
+        } else {
+            policyBuilder.format(TlsPolicy.Format.PEM)
+                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
+                    .certificateFilePath(config.getTlsCertificateFilePath())
+                    .keyFilePath(config.getTlsKeyFilePath());
         }
+        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
+        long refresh = config.getTlsCertRefreshCheckDurationSec();
+        // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here; the
+        // FileBasedTlsFactorySettings default (JDK engine) applies and keeps netty-handler off this module's
+        // compile classpath.
+        FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
+                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .refreshIntervalSeconds(refresh <= 0 ? FileBasedTlsFactorySettings.DEFAULT_REFRESH_INTERVAL_SECONDS
+                        : (int) Math.min(refresh, Integer.MAX_VALUE))
+                .build();
+        return new FileBasedTlsFactory(policies, settings);
+    }
+
+    private static List<String> toList(Set<String> values) {
+        return values == null ? List.of() : List.copyOf(values);
     }
 }

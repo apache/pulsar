@@ -151,6 +151,7 @@ import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -339,6 +340,8 @@ public class BrokerService implements Closeable {
     private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
 
     private final List<Channel> listenChannels = new ArrayList<>(2);
+    // PIP-478: the channel initializers that own a PulsarTlsFactory (new-SPI TLS path); closed on shutdown.
+    private final List<PulsarChannelInitializer> pulsarChannelInitializers = new ArrayList<>(2);
     private Channel listenChannel;
     private Channel listenChannelTls;
 
@@ -655,8 +658,10 @@ public class BrokerService implements Closeable {
                             .listenerName(a.getListenerName()).build();
 
             ServerBootstrap b = defaultServerBootstrap.clone();
-            b.childHandler(
-                    pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, opts));
+            PulsarChannelInitializer channelInitializer =
+                    pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, opts);
+            pulsarChannelInitializers.add(channelInitializer);
+            b.childHandler(channelInitializer);
             try {
                 Channel ch = b.bind(addr).sync().channel();
                 listenChannels.add(ch);
@@ -1004,6 +1009,9 @@ public class BrokerService implements Closeable {
                                         asyncCloseFutures.add(closeChannel(ch));
                                     }
                                 });
+
+                                // PIP-478: dispose any PulsarTlsFactory subscriptions held by the listeners.
+                                pulsarChannelInitializers.forEach(PulsarChannelInitializer::close);
 
                                 maxTopicListInFlightLimiter.close();
 
@@ -1632,7 +1640,6 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
-    @SuppressWarnings("deprecation")
     public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
@@ -1681,9 +1688,7 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
-                            data.getBrokerClientSslFactoryPlugin(),
-                            data.getBrokerClientSslFactoryPluginParams()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
@@ -1698,9 +1703,7 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
                             pulsar.getConfiguration().getBrokerClientKeyFilePath(),
                             pulsar.getConfiguration().getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
-                            pulsar.getConfiguration().getBrokerClientSslFactoryPlugin(),
-                            pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 } else {
                     clientBuilder.serviceUrl(
@@ -1733,16 +1736,24 @@ public class BrokerService implements Closeable {
                                    String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
                                    String brokerClientTrustCertsFilePath,
                                    String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
-                                   boolean isTlsHostnameVerificationEnabled, String brokerClientSslFactoryPlugin,
-                                   String brokerClientSslFactoryPluginParams) {
+                                   boolean isTlsHostnameVerificationEnabled) {
+        // PIP-478: the PIP-337 sslFactoryPlugin config is removed. A stale broker-level key with a
+        // non-default value is rejected at config-file load by PulsarConfigurationLoader; the removed
+        // per-cluster ClusterData field is lenient-dropped on metadata read (the one place a stale value
+        // cannot fail loud), so a stale custom per-cluster factory value is silently dropped. Broker-client
+        // factory-class selection is broker-level (brokerClientTlsFactoryClassName).
         clientBuilder
                 .serviceUrl(serviceUrl)
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
-        if (StringUtils.isNotBlank(brokerClientSslFactoryPlugin)) {
-            clientBuilder.sslFactoryPlugin(brokerClientSslFactoryPlugin)
-                    .sslFactoryPluginParams(brokerClientSslFactoryPluginParams);
-        }
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
+                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
+                // (jsseProvider) so geo-replication clients honor them, mirroring
+                // PulsarService.createClientConfigurationData. Without this the replication client silently
+                // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
+                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        // jsseProvider has no ClientBuilder setter; set it on the underlying config like sslProvider above.
+        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData()
+                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1765,8 +1776,8 @@ public class BrokerService implements Closeable {
                                         String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
                                         String brokerClientTrustCertsFilePath,
                                         String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
-                                        boolean isTlsHostnameVerificationEnabled, String brokerClientSslFactoryPlugin,
-                                        String brokerClientSslFactoryPluginParams) {
+                                        boolean isTlsHostnameVerificationEnabled) {
+        // PIP-478: the PIP-337 sslFactoryPlugin config is removed (see configTlsSettings).
         if (brokerClientTlsEnabledWithKeyStore) {
             adminBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1782,8 +1793,14 @@ public class BrokerService implements Closeable {
         }
         adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
-                .sslFactoryPlugin(brokerClientSslFactoryPlugin)
-                .sslFactoryPluginParams(brokerClientSslFactoryPluginParams);
+                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
+                // (jsseProvider) so cross-cluster admin clients honor them, mirroring
+                // PulsarService.createClientConfigurationData. Without this the cluster admin silently builds
+                // TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
+                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        // jsseProvider has no PulsarAdminBuilder setter; set it on the underlying config like sslProvider.
+        ((PulsarAdminBuilderImpl) adminBuilder).getConf()
+                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -1830,9 +1847,7 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
-                            data.getBrokerClientSslFactoryPlugin(),
-                            data.getBrokerClientSslFactoryPluginParams()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 } else if (conf.isBrokerClientTlsEnabled()) {
                     configAdminTlsSettings(builder,
@@ -1847,15 +1862,16 @@ public class BrokerService implements Closeable {
                             conf.getBrokerClientTrustCertsFilePath(),
                             conf.getBrokerClientKeyFilePath(),
                             conf.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
-                            conf.getBrokerClientSslFactoryPlugin(),
-                            conf.getBrokerClientSslFactoryPluginParams()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
                 // zk-operation timeout
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+
+                // PIP-478: route this per-cluster admin client onto the new TLS SPI when opted in.
+                pulsar.applyBrokerClientTlsFactoryToAdmin(builder);
 
                 PulsarAdmin adminClient = builder.build();
                 log.info().attr("adminApiUrl", adminApiUrl).log("Created client admin instance");

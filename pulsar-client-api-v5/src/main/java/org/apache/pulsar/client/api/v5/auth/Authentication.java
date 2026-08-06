@@ -18,53 +18,83 @@
  */
 package org.apache.pulsar.client.api.v5.auth;
 
-import java.io.Closeable;
-import org.apache.pulsar.client.api.v5.PulsarClientException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Pluggable authentication provider for Pulsar clients.
+ * Pluggable authentication provider for the Pulsar v5 client (PIP-478).
  *
- * <p>Implementations must be thread-safe.
+ * <p>The core interface carries only lifecycle. The actual credential work lives on opt-in
+ * <em>capability</em> interfaces — segregated by transport (Pulsar binary protocol vs HTTP) and by
+ * style (single-pass vs multi-round challenge/response) — that an implementation declares only when it
+ * supports them:
+ * <ul>
+ *   <li>{@link BinaryAuthDataProvider} — single-pass credential for the binary protocol</li>
+ *   <li>{@link HttpAuthHeadersProvider} — single-pass credential for HTTP</li>
+ *   <li>{@link BinaryAuthChallengeHandler} — multi-round challenge/response for the binary protocol</li>
+ *   <li>{@link HttpAuthChallengeHandler} — SASL-style multi-round over HTTP</li>
+ * </ul>
+ * The convenience composite {@link SinglePassAuthentication} bundles the common single-pass
+ * combination.
+ *
+ * <p>All capability methods are asynchronous ({@link CompletableFuture}), so credential acquisition
+ * never blocks the Netty event loop.
  */
-public interface Authentication extends Closeable {
+public interface Authentication extends AutoCloseable {
 
     /**
-     * The authentication method name (e.g., "token", "tls").
+     * Configuration step. Called once by the framework AFTER no-arg construction when the plugin was
+     * loaded reflectively from {@code authPluginClassName} + {@code authParams}. NOT called when the
+     * plugin was constructed programmatically by the user — that path presumes the instance is already
+     * configured. Default: no-op. Implementations override to read their parameters.
      *
-     * @return the authentication method identifier string
+     * <p>Configuration is intentionally separate from {@link #initializeAsync}: configuration is static
+     * plugin-level data (file paths, URLs, scopes); initialization gives the plugin runtime services
+     * and may do I/O.
+     *
+     * @param authParams the parsed authentication parameters
      */
-    String authMethodName();
-
-    /**
-     * Get the authentication data to be sent to the broker.
-     *
-     * @return the authentication data containing credentials for the broker
-     * @throws PulsarClientException if the authentication data could not be obtained
-     */
-    AuthenticationData authData() throws PulsarClientException;
-
-    /**
-     * Get the authentication data for a specific broker host.
-     *
-     * <p>The default implementation delegates to {@link #authData()}.
-     *
-     * @param brokerHostName the hostname of the broker to authenticate against
-     * @return the authentication data containing credentials for the specified broker
-     * @throws PulsarClientException if the authentication data could not be obtained
-     */
-    default AuthenticationData authData(String brokerHostName) throws PulsarClientException {
-        return authData();
+    default void configure(Map<String, String> authParams) {
     }
 
     /**
-     * Initialize the authentication provider. Called once when the client is created.
+     * Initialization step. Called once by the framework with runtime services after configuration. May
+     * do I/O; the returned future completes when the implementation is ready to serve credentials.
+     * Never throws synchronously: all failures are reported by completing the returned future
+     * exceptionally, never by throwing on the calling thread.
      *
-     * @throws PulsarClientException if initialization fails
+     * @param ctx the runtime services context
+     * @return a future completing when the plugin is ready
      */
-    default void initialize() throws PulsarClientException {
+    CompletableFuture<Void> initializeAsync(AuthenticationInitContext ctx);
+
+    /**
+     * Capability factory — the framework's ONLY discovery mechanism. The framework never uses
+     * {@code instanceof} on a plugin instance; it asks this method for each capability it may drive. An
+     * implementation may therefore serve a capability from a separate internal class, or forward a
+     * wrapped delegate's capability, rather than implementing it on this type. The default
+     * implementation returns {@code this} when the plugin implements the requested interface directly,
+     * covering the common case with no override.
+     *
+     * <p>Contract: results are STABLE once {@link #initializeAsync} has completed — the framework may
+     * look a capability up once and cache it for the client's lifetime. The framework never queries
+     * capabilities before {@code initializeAsync} completes; a result returned before initialization is
+     * unspecified. One object may serve several
+     * capabilities. Capability objects are owned by this plugin and released by {@link #close()}; the
+     * framework never closes them individually. All capability methods must tolerate concurrent
+     * invocation (multiple connections authenticate in parallel); only the rounds of a single exchange
+     * are serialized by the framework.
+     *
+     * @param kind the capability interface to look up
+     * @param <T>  the capability type
+     * @return the capability if supported, otherwise {@link Optional#empty()}
+     */
+    default <T> Optional<T> capability(Class<T> kind) {
+        return kind.isInstance(this) ? Optional.of(kind.cast(this)) : Optional.empty();
     }
 
     @Override
-    default void close() {
+    default void close() throws Exception {
     }
 }

@@ -21,11 +21,30 @@ import org.gradle.api.publish.tasks.GenerateModuleMetadata
 
 plugins {
     id("pulsar.public-java-library-conventions")
+    // PIP-478 stage 4a: the OAuth2 IdP-TLS fold test stands up a WireMock HTTPS IdP with the shared CA test
+    // certs (tests/certificate-authority), proving plugin-carried trustCerts reach the IdP via the framework
+    // HTTP client.
+    id("pulsar.test-certs-conventions")
     alias(libs.plugins.protobuf)
 }
 
 dependencies {
     api(project(":pulsar-client-api"))
+    // PIP-478: the built-in credential-fetching v4 auth plugins (Token/Basic/OAuth2) drive v5-native
+    // implementations of the org.apache.pulsar.client.api.v5.auth SPI on the async binary path, so the v5
+    // auth API (Tier 0, no internal deps) is on the compile/runtime path. NOTE: this folds the v5 auth API
+    // into pulsar-client-shaded / -all, which PIP-478 flagged as a follow-up; accepted here as an
+    // intentional deviation pending the stage-4 module split.
+    api(project(":pulsar-client-api-v5"))
+    // PIP-478: the TLS/HTTP SPIs are used directly by this module's impl classes, and those classes surface
+    // the SPI types on their exported ABI, so both are `api` (not `implementation`):
+    //   - tls-factory-api: ClientConfigurationData (@Data, public) exposes getTlsFactory():PulsarTlsFactory
+    //     and getTlsPolicyMap():Map<TlsPurpose,TlsPolicy>, which pulsar-broker / -client-v5 / -client-admin /
+    //     -proxy call.
+    //   - http-client-api: FrameworkHttpClientFactory (public, implements PulsarHttpClientFactory) and
+    //     DefaultClientAuthenticationServices are referenced by pulsar-client-admin.
+    api(project(":pulsar-tls-factory-api"))
+    api(project(":pulsar-http-client-api"))
     api(project(":pulsar-common")) {
         exclude(group = "io.prometheus", module = "simpleclient_caffeine")
     }

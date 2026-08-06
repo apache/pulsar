@@ -65,8 +65,19 @@ public interface ClusterData {
 
     String getBrokerClientTlsKeyStore();
 
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained in the cluster
+     *     metadata schema for wire/metadata compatibility, but a configured value is ignored (with a WARN);
+     *     factory-class selection is broker-level ({@code brokerClientTlsFactoryClassName}).
+     */
+    @Deprecated
     String getBrokerClientSslFactoryPlugin();
 
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained for metadata
+     *     compatibility but ignored.
+     */
+    @Deprecated
     String getBrokerClientSslFactoryPluginParams();
 
     String getListenerName();
@@ -116,8 +127,19 @@ public interface ClusterData {
 
         Builder listenerName(String listenerName);
 
+        /**
+         * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Setting it writes a
+         *     metadata field retained only for compatibility; the value is ignored (with a WARN) and
+         *     factory-class selection is broker-level ({@code brokerClientTlsFactoryClassName}).
+         */
+        @Deprecated
         Builder brokerClientSslFactoryPlugin(String sslFactoryPlugin);
 
+        /**
+         * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained for
+         *     metadata compatibility but ignored.
+         */
+        @Deprecated
         Builder brokerClientSslFactoryPluginParams(String sslFactoryPluginParams);
 
         ClusterData build();

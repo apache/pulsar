@@ -348,10 +348,27 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
-# Whether server hostname must match the common name of the certificate
-tlsEnableHostnameVerification: false
+# Whether the server hostname is verified against the subject alternative names (SANs) of the
+# server certificate (RFC 2818/6125; CN matching is not supported).
+# Enabled by default since Pulsar 5.0 (PIP-478).
+tlsEnableHostnameVerification: true
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
+# PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker web server TLS (purpose WEB).
+# When set, the new PIP-478 TLS SPI is used instead of the built-in file-based TLS loading: an empty value
+# or the literal 'default' selects the built-in default factory composed from these tls* settings, otherwise
+# the named class is instantiated via its public no-arg constructor.
+tlsFactoryClassName: ""
+# PIP-478 configuration parameters for tlsFactoryClassName (JSON object or comma-separated key=value list)
+tlsFactoryConfig: ""
+# PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker's own outbound
+# (worker-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the literal 'default'
+# selects the built-in default factory composed from the broker-client tls* settings, otherwise the named
+# class is instantiated via its public no-arg constructor.
+brokerClientTlsFactoryClassName: ""
+# PIP-478 configuration parameters for brokerClientTlsFactoryClassName (JSON object or comma-separated
+# key=value list)
+brokerClientTlsFactoryConfig: ""
 # Whether client certificates are required for TLS. Connections are rejected if the client
 # certificate isn't trusted.
 tlsRequireTrustedClientCertOnConnect: false
