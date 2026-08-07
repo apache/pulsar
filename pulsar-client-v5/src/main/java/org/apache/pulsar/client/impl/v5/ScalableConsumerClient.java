@@ -83,6 +83,8 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private volatile AssignmentChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    /** The in-flight (or last) subscribe attempt; close() awaits it before unsubscribing. */
+    private volatile CompletableFuture<ScalableConsumerAssignment> lastSubscribeResult;
 
     ScalableConsumerClient(PulsarClientImpl v4Client,
                            TopicName topicName,
@@ -136,6 +138,11 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
      */
     private CompletableFuture<ScalableConsumerAssignment> connectAndSubscribe() {
         CompletableFuture<ScalableConsumerAssignment> result = new CompletableFuture<>();
+        // Published before the closed-flag check below: close() chains its clean unsubscribe on
+        // this attempt, so either the attempt observes closed and never subscribes, or close()
+        // observes the attempt and waits for its outcome — never an unsubscribe that overtakes
+        // the in-flight registration (which would no-op and leave a ghost registration behind).
+        lastSubscribeResult = result;
 
         DagWatchClient watch = new DagWatchClient(v4Client, topicName);
         watch.start()
@@ -374,11 +381,47 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
             return;
         }
         closed = true;
+        CompletableFuture<ScalableConsumerAssignment> pending = lastSubscribeResult;
+        if (pending == null) {
+            // Never attempted to subscribe: nothing registered anywhere.
+            return;
+        }
+        // Clean leave: tell the controller to unregister this consumer and rebalance the group
+        // immediately, instead of holding the registration for the disconnect grace period (the
+        // controller connection is pooled, so closing this consumer does not close the channel
+        // and the broker would otherwise never notice the departure while the client lives).
+        // Chained on the in-flight subscribe outcome so the unsubscribe can never overtake the
+        // registration (the broker records it before sending the subscribe response). Sent even
+        // when the subscribe failed — the command is idempotent, and skipping on a razor-edge
+        // failure would risk leaving a registration behind. Best-effort throughout: on any
+        // failure the grace period remains the fallback for the eventual real disconnect.
+        pending.whenComplete((__, subscribeEx) -> sendUnsubscribe());
+    }
+
+    private void sendUnsubscribe() {
         ClientCnx c = cnx;
-        if (c != null) {
-            c.removeScalableConsumerSession(consumerId);
-            // No close command for now — broker reaps registrations via grace timer on
-            // disconnect. A future refactor can add an explicit unsubscribe.
+        if (c == null) {
+            return;
+        }
+        c.removeScalableConsumerSession(consumerId);
+        try {
+            long requestId = v4Client.newRequestId();
+            var responseFuture = new TimedCompletableFuture<Void>();
+            c.getPendingRequests().put(requestId, responseFuture);
+            c.ctx().writeAndFlush(Commands.newScalableTopicUnsubscribe(requestId, consumerId))
+                    .addListener(writeFuture -> {
+                        if (!writeFuture.isSuccess()) {
+                            c.getPendingRequests().remove(requestId);
+                        }
+                    });
+            responseFuture.exceptionally(ex -> {
+                log.debug().exceptionMessage(ex)
+                        .log("Clean unsubscribe failed; relying on the grace period");
+                return null;
+            });
+        } catch (Exception e) {
+            log.debug().exceptionMessage(e)
+                    .log("Clean unsubscribe failed; relying on the grace period");
         }
     }
 

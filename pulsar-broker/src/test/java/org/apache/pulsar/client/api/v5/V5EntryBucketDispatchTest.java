@@ -444,21 +444,6 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         // watermark) must not leak into the last flip's drain: with everything acked and nothing
         // outstanding, a stale delivered-vs-acked pair would make the drain wait forever and the
         // rejoining consumer could never attach.
-        // A consumer's clean close is a disconnect to the controller, which holds its session for
-        // the grace period before rebalancing. Shrink it (read at coordinator creation, i.e. on
-        // this subscription's first register) so B1's departure hands the segment back promptly.
-        int defaultGrace = getPulsar().getConfiguration()
-                .getScalableTopicConsumerSessionGracePeriodSeconds();
-        getPulsar().getConfiguration().setScalableTopicConsumerSessionGracePeriodSeconds(1);
-        try {
-            runRejoinAfterLeaveScenario();
-        } finally {
-            getPulsar().getConfiguration()
-                    .setScalableTopicConsumerSessionGracePeriodSeconds(defaultGrace);
-        }
-    }
-
-    private void runRejoinAfterLeaveScenario() throws Exception {
         String topic = newScalableTopic(1);
         admin.scalableTopics().setAutoScalePolicy(topic,
                 AutoScalePolicyOverride.builder().enabled(false).build());
@@ -497,12 +482,12 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         }
         a.acknowledgeCumulative(last.id());
 
-        // Phase 2 — B1 joins (shared, individual acks), both drain, then B1 leaves. B1 gets its
-        // own client: a departure is only visible to the controller as a connection drop, so
-        // leaving means closing the whole client (the shared client's pooled connection would
-        // keep B1's registration alive indefinitely).
-        PulsarClient b1Client = newV5Client();
-        StreamConsumer<String> b1 = b1Client.newStreamConsumer(Schema.string())
+        // Phase 2 — B1 joins (shared, individual acks), both drain, then B1 leaves. B1 uses the
+        // shared client on purpose: its close must reach the controller through the explicit
+        // unsubscribe (the pooled controller connection stays open, so without it the
+        // registration would linger for the full disconnect grace period and the segment
+        // would never be handed back within this test's window).
+        StreamConsumer<String> b1 = v5Client.newStreamConsumer(Schema.string())
                 .topic(topic)
                 .subscriptionName(subscription)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
@@ -515,9 +500,9 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         tb1.join();
         assertFalse(b1Got.isEmpty(), "consumer B1 received nothing — the segment did not fan out");
         b1.close();
-        b1Client.close();
-        // Wait until the controller has handed the whole segment back to A and A completed the
-        // flip back to Exclusive — the stale-watermark state only matters once that is done.
+        // The clean leave unregisters immediately (no grace wait): the controller hands the
+        // whole segment back to A, which flips back to Exclusive. Only once that is done does
+        // the stale-watermark state matter for B2's rejoin.
         String segmentTopic = admin.scalableTopics().getStats(topic)
                 .getSegments().values().iterator().next().name();
         Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {

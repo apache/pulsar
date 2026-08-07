@@ -316,6 +316,21 @@ public class ScalableTopicService {
         }
     }
 
+    /**
+     * Explicit clean leave: forwards to the locally-held controller, which deletes the
+     * persisted registration and rebalances the remaining consumers immediately. No-op when
+     * the controller is not held locally (e.g. leadership moved) — the disconnect grace
+     * period covers that case.
+     */
+    public CompletableFuture<Void> unregisterConsumer(TopicName topic, String subscription,
+                                                      String consumerName) {
+        CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
+        if (future == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return future.thenCompose(c -> c.unregisterConsumer(subscription, consumerName));
+    }
+
     // --- Internal helpers ---
 
     private CompletableFuture<Void> createUnderlyingSegmentTopic(TopicName parentTopic, SegmentInfo segment) {
