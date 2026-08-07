@@ -206,7 +206,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.\n"
+                    + "This names a JSSE (SSLContext) security provider for the Jetty-based web service, which has\n"
+                    + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
+                    + "provider names here."
     )
     private String webServiceTlsProvider = "Conscrypt";
 
@@ -4239,7 +4242,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt\n"
+                    + "and etc.\n"
+                    + "Leave unset (the default) to let Pulsar choose the engine: the native OpenSSL engine when a\n"
+                    + "netty-tcnative binary is available for the platform, otherwise the JDK engine.\n"
+                    + "This key is overloaded across two axes. An engine literal (JDK, OPENSSL, OPENSSL_REFCNT)\n"
+                    + "selects the TLS engine; any other value is read as a JSSE (SSLContext) provider name (e.g.\n"
+                    + "Conscrypt) and selects no native engine."
     )
     private String tlsProvider = null;
 
