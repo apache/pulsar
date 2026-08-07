@@ -273,7 +273,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
                     for (String key : primaryKeys) {
                         chain = chain
-                                .thenCompose(__ -> storeGet(key, opts))
+                                .thenCompose(__ -> storeGet(key, OptionsHelper.withResolvedPartitionKey(opts, key)))
                                 .thenAccept(opt -> opt.ifPresent(consumer::onNext));
                     }
                     return chain;
