@@ -38,7 +38,7 @@ Configuration:
       name: File
       fileName: ${filename}
       PatternLayout:
-        Pattern: "%d %p %c{1.} [%t] %m%n"
+        Pattern: "%d %p %c{1.} [%t] %msg%equals{ %X}{ {}}{}%n"
       Filters:
         ThresholdFilter:
           level: error
