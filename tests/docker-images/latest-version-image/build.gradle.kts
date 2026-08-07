@@ -21,6 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerInstallAsyncProfiler = providers.gradleProperty("docker.install.asyncprofiler").getOrElse("false")
 val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.25-alpine")
 
 // Ensure the parent project is configured before resolving cross-project task references.
@@ -115,6 +116,7 @@ val dockerBuild by tasks.registering(Exec::class) {
         "-t", imageName,
         "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
         "--build-arg", "GOLANG_IMAGE=${golangImage}",
+        "--build-arg", "INSTALL_ASYNC_PROFILER=${dockerInstallAsyncProfiler}",
     )
 
     if (dockerPlatforms.isNotEmpty()) {
