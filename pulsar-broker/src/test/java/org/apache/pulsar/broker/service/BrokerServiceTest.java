@@ -2225,6 +2225,43 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testNonPersistentTopicPolicyLoadFailureCleansUpListener() throws Exception {
+        final TopicName topicName = TopicName.get(
+                "non-persistent://prop/ns-abc/test-policy-load-cleanup-" + UUID.randomUUID());
+        final BrokerService brokerService = pulsar.getBrokerService();
+
+        admin.lookups().lookupTopic(topicName.toString());
+
+        MockTopicPoliciesService.TRACKED_TOPICS.add(topicName);
+        MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
+
+        try {
+            ExecutionException exception = Assert.expectThrows(ExecutionException.class,
+                    () -> brokerService.getTopic(topicName.toString(), true)
+                            .get(5, TimeUnit.SECONDS));
+            assertTrue(exception.getCause().getMessage().contains("injected failure"));
+
+            Awaitility.await().untilAsserted(() -> {
+                assertFalse(brokerService.getTopics().containsKey(topicName.toString()));
+                assertFalse(MockTopicPoliciesService.LISTENERS.containsKey(topicName));
+            });
+
+            Optional<Topic> retriedTopic = brokerService.getTopic(topicName.toString(), true)
+                    .get(5, TimeUnit.SECONDS);
+            assertTrue(retriedTopic.isPresent());
+
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(MockTopicPoliciesService.LISTENERS.containsKey(topicName));
+                assertEquals(MockTopicPoliciesService.LISTENERS.get(topicName).size(), 1);
+            });
+        } finally {
+            MockTopicPoliciesService.FAILED_TOPICS.remove(topicName);
+            MockTopicPoliciesService.TRACKED_TOPICS.remove(topicName);
+            MockTopicPoliciesService.LISTENERS.remove(topicName);
+        }
+    }
+
+    @Test
     public void testGetTopicWhenTopicPoliciesFail() throws Exception {
         final var topicName = TopicName.get("prop/ns-abc/test-get-topic-when-topic-policies-fail");
         MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
@@ -2266,6 +2303,25 @@ public class BrokerServiceTest extends BrokerTestBase {
     static class MockTopicPoliciesService extends TopicPoliciesService.TopicPoliciesServiceDisabled {
 
         static final Set<TopicName> FAILED_TOPICS = ConcurrentHashMap.newKeySet();
+        static final Set<TopicName> TRACKED_TOPICS = ConcurrentHashMap.newKeySet();
+        static final Map<TopicName, Set<TopicPolicyListener>> LISTENERS = new ConcurrentHashMap<>();
+
+        @Override
+        public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
+            if (!TRACKED_TOPICS.contains(topicName)) {
+                return false;
+            }
+            LISTENERS.computeIfAbsent(topicName, ignored -> ConcurrentHashMap.newKeySet()).add(listener);
+            return true;
+        }
+
+        @Override
+        public void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
+            LISTENERS.computeIfPresent(topicName, (ignored, listeners) -> {
+                listeners.remove(listener);
+                return listeners.isEmpty() ? null : listeners;
+            });
+        }
 
         @Override
         public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {

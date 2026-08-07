@@ -187,13 +187,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 }, getPoliciesNotifyThread())
                 // Load the topic's initial policies (global and local) and register the policy listener, so a
                 // non-persistent topic applies its own policies on load, the same as a persistent topic does.
-                .thenCompose(ignore -> initTopicPolicy())
-                // a failure to load the initial topic policies must not fail topic loading.
-                .exceptionally(ex -> {
-                    log.warn().attr("topic", topic).exception(ex)
-                            .log("Error loading topic policies during initialization. Ignoring the failure.");
-                    return null;
-                });
+                .thenCompose(ignore -> initTopicPolicy()
+                        .whenComplete((__, ex) -> {
+                            if (ex != null) {
+                                log.error().attr("topic", topic).exception(ex)
+                                        .log("Failed to initialize topic policies");
+                            }
+                        }));
     }
 
     @Override
