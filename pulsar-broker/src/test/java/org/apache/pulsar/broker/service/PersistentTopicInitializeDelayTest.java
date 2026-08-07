@@ -76,6 +76,7 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
 
         Optional<Topic> topic = optionalFuture.get(15, TimeUnit.SECONDS);
         assertTrue(topic.isPresent());
+        assertEquals(MyPersistentTopic.checkReplicationInvocationCount.get(), 1);
     }
 
     public static class MyTopicFactory implements TopicFactory {
