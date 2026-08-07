@@ -50,6 +50,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -61,6 +62,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
@@ -671,6 +674,21 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class BlockingCreateStorage extends RecordingDeleteStorage {
+        final CompletableFuture<Void> unblockCreate = new CompletableFuture<>();
+        final AtomicInteger createCalls = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            createCalls.incrementAndGet();
+            return unblockCreate.thenCompose(__ ->
+                    super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                            cursorName));
+        }
+    }
+
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
         ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
@@ -706,6 +724,42 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             @Override
             public Position getMarkDeletedPosition() {
                 return PositionFactory.create(firstLedgerId, -1);
+            }
+        };
+
+        AbstractPersistentDispatcherMultipleConsumers disp =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock mockClock = mock(Clock.class);
+        AtomicLong mockClockTime = new AtomicLong();
+        when(mockClock.millis()).then(x -> mockClockTime.get());
+        doReturn(mockCursor).when(disp).getCursor();
+        doReturn("persistent://public/default/testDelay" + " / " + mockCursor.getName()).when(disp).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(disp, mock(Timer.class),
+                100000, mockClock, true, storage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, maxNumBuckets);
+        return new TrackerWithStorage(tracker, storage, mockClockTime);
+    }
+
+    private TrackerWithStorage createTrackerWithDynamicMarkDelete(AtomicLong firstLedgerId, int maxNumBuckets,
+                                                                  MockBucketSnapshotStorage storage)
+            throws Exception {
+        storage.start();
+
+        ManagedLedger mockLedger = mock(ManagedLedger.class);
+        NavigableMap<Long, LedgerInfo> ledgerInfo = new TreeMap<>();
+        ledgerInfo.put(0L, mock(LedgerInfo.class));
+        when(mockLedger.getLedgersInfo()).thenReturn(ledgerInfo);
+        when(mockLedger.getName()).thenReturn("test-ledger");
+
+        ManagedCursor mockCursor = new MockManagedCursor("test-cursor") {
+            @Override
+            public ManagedLedger getManagedLedger() {
+                return mockLedger;
+            }
+
+            @Override
+            public Position getMarkDeletedPosition() {
+                return PositionFactory.create(firstLedgerId.get(), -1);
             }
         };
 
@@ -793,6 +847,64 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimDefersDeleteUntilSnapshotCreateCompletes() throws Exception {
+        long firstLedgerId = 50L;
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+
+            Awaitility.await().untilAsserted(() -> assertTrue(storage.createCalls.get() > 0));
+            Awaitility.await().during(3, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(storage.deleteCalls.get(), 0L,
+                            "Trim must not delete while snapshot create is still blocked"));
+
+            storage.unblockCreate.complete(null);
+
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().orElseThrow().isDone())));
+            Awaitility.await().untilAsserted(() -> assertTrue(storage.deleteCalls.get() > 0));
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().size() <= 5));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testTrimDeletesAfterCreateCompletesDespiteMarkDeleteChange() throws Exception {
+        AtomicLong markDeleteLedger = new AtomicLong(100L);
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithDynamicMarkDelete(markDeleteLedger, 4, storage);
+        try {
+            for (long ledgerId = 1; ledgerId <= 26; ledgerId++) {
+                ts.tracker.addMessage(ledgerId, 0L, 1000L);
+            }
+
+            Awaitility.await().untilAsserted(() -> assertTrue(storage.createCalls.get() > 0));
+            Awaitility.await().during(3, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(storage.deleteCalls.get(), 0L));
+
+            // Make prior trim decisions stale while snapshot creation is pending.
+            markDeleteLedger.set(3L);
+            storage.unblockCreate.complete(null);
+
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().orElseThrow().isDone())));
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(storage.deleteCalls.get() > 0));
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 0));
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
