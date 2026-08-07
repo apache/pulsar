@@ -34,7 +34,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
-import org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.v5.auth;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
@@ -36,7 +36,7 @@ public class TlsAuthenticationTest {
         auth.initializeAsync(null).get();
 
         BinaryAuthData data = auth.capability(BinaryAuthDataProvider.class).orElseThrow()
-                .getAuthDataAsync(new SimpleAuthCallContext("broker")).get();
+                .getAuthDataAsync(V5AuthContexts.binaryCallContext("broker")).get();
         assertThat(data.bytes()).isEmpty();
     }
 }

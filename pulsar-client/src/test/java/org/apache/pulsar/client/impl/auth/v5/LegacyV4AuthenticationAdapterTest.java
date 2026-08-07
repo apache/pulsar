@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.v5.auth;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
+import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
@@ -290,12 +291,16 @@ public class LegacyV4AuthenticationAdapterTest {
         }
     }
 
-    private SimpleAuthInitContext initContext() {
-        return new SimpleAuthInitContext(null, blockingExecutor, blockingExecutor, Clock.systemUTC(),
-                OpenTelemetry.noop(), "test-client");
+    private AuthenticationInitContext initContext() {
+        // SimpleAuthInitContext lives in pulsar-client-v5, which this module cannot depend on; the
+        // in-module V5AuthContexts factory builds the same thing from the public services record.
+        return V5AuthContexts.initContext(
+                new DefaultClientAuthenticationServices(null, null, blockingExecutor, Clock.systemUTC(),
+                        OpenTelemetry.noop(), "test-client"),
+                "test-client");
     }
 
     private AuthenticationCallContext callContext() {
-        return new SimpleAuthCallContext("broker-1.example.com");
+        return V5AuthContexts.binaryCallContext("broker-1.example.com");
     }
 }

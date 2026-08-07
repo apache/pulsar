@@ -30,8 +30,9 @@ import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
 import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter;
-import org.apache.pulsar.client.impl.v5.auth.TlsAuthentication;
+import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.TlsAuthentication;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 
 /**
  * ServiceLoader-registered implementation of PulsarClientProvider.

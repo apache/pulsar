@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.v5;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import java.io.IOException;
 import java.util.Map;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
-import org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter;
 
 /**
  * Loads an {@code authPluginClassName} into a v5 {@link Authentication}, detecting the v5-native case
@@ -37,7 +36,7 @@ import org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter;
  * {@link ClassCastException} — the flagship "implement a v5 plugin, deploy it by class name" story worked
  * only when the instance was passed programmatically.
  */
-final class V5AuthenticationLoader {
+public final class V5AuthenticationLoader {
 
     private V5AuthenticationLoader() {
     }
@@ -52,7 +51,7 @@ final class V5AuthenticationLoader {
      * @return the configured v5 authentication
      * @throws PulsarClientException if the plugin cannot be loaded, instantiated, or configured
      */
-    static Authentication create(String authPluginClassName, String authParamsString)
+    public static Authentication create(String authPluginClassName, String authParamsString)
             throws PulsarClientException {
         Class<?> v5Class = v5NativeClassOrNull(authPluginClassName);
         if (v5Class != null) {
@@ -70,7 +69,7 @@ final class V5AuthenticationLoader {
      * @return the configured v5 authentication
      * @throws PulsarClientException if the plugin cannot be loaded, instantiated, or configured
      */
-    static Authentication create(String authPluginClassName, Map<String, String> authParams)
+    public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws PulsarClientException {
         Class<?> v5Class = v5NativeClassOrNull(authPluginClassName);
         if (v5Class != null) {

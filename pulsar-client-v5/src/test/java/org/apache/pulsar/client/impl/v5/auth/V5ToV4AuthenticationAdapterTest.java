@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.v5.auth.ChallengeResponse;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
+import org.apache.pulsar.client.impl.auth.v5.TlsAuthentication;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 

@@ -30,7 +30,8 @@ import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.SinglePassAuthentication;
-import org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
 import org.testng.annotations.Test;
 

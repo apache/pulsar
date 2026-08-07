@@ -20,9 +20,9 @@
 /**
  * v5 client authentication bridges and the built-in mTLS plugin (PIP-478).
  *
- * <p>Contains the built-in {@link org.apache.pulsar.client.impl.v5.auth.TlsAuthentication} plugin and
+ * <p>Contains the built-in {@link org.apache.pulsar.client.impl.auth.v5.TlsAuthentication} plugin and
  * the compatibility adapters between the v4 and v5 authentication SPIs:
- * {@link org.apache.pulsar.client.impl.v5.auth.LegacyV4AuthenticationAdapter} (v4 plugin exposed as v5)
+ * {@link org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter} (v4 plugin exposed as v5)
  * and {@link org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter} (v5 plugin exposed
  * through the v4 interface that {@code ClientCnx} drives).
  */

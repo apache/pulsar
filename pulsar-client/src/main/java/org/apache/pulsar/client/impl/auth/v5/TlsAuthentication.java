@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.v5.auth;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.auth.Authentication;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.v5.auth;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.HashMap;
@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.AuthChallenge;
@@ -38,8 +39,6 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
 import org.apache.pulsar.common.api.AuthData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Bridges an arbitrary v4 {@link org.apache.pulsar.client.api.Authentication} plugin so it can be used
@@ -67,9 +66,9 @@ import org.slf4j.LoggerFactory;
  */
 // Bridges to the deprecated v4 Authentication SPI by design (getAuthData()/configure(Map)).
 @SuppressWarnings("deprecation")
+@CustomLog
 public abstract class LegacyV4AuthenticationAdapter implements Authentication {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LegacyV4AuthenticationAdapter.class);
 
     /**
      * The wrapped v4 authentication plugin.
@@ -279,8 +278,9 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
                 supportsCommand = probe != null && probe.hasDataFromCommand();
                 supportsHttp = probe != null && probe.hasDataForHttp();
             } catch (Exception e) {
-                LOG.debug("Could not probe v4 auth plugin {} for supported capabilities; assuming binary "
-                        + "command only", v4.getClass().getName(), e);
+                log.debug().attr("plugin", v4.getClass().getName()).exception(e)
+                        .log("Could not probe v4 auth plugin for supported capabilities; assuming binary "
+                                + "command only");
                 supportsCommand = true;
                 supportsHttp = false;
             }
