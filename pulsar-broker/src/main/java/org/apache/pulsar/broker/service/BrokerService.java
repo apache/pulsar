@@ -2055,7 +2055,7 @@ public class BrokerService implements Closeable {
                                         .thenCompose(__ -> context.trace("pre-create compacted sub",
                                                 persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
                                         .thenCompose(__ -> context.trace("replication",
-                                                persistentTopic.initCheckReplication()))
+                                                persistentTopic.initializeCheckReplication()))
                                         .thenCompose(v -> context.trace("deduplication",
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {

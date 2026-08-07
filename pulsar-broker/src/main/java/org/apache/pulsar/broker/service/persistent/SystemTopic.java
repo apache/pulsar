@@ -71,18 +71,6 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public CompletableFuture<Boolean> initCheckReplication() {
-        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
-            return super.initCheckReplication();
-        }
-        // Since the txn system topic is not allowed to access anymore, we should delete data.
-        if (SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(TopicName.get(topic))) {
-            return super.removeTopicIfLocalClusterNotAllowed().thenApply(__ -> true);
-        }
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
     public CompletableFuture<Void> checkReplication() {
         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
             return super.checkReplication();

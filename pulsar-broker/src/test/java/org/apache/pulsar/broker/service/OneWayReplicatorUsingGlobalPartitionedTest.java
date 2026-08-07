@@ -345,7 +345,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         });
 
         CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicP1, true);
-        Awaitility.await().atMost(1, TimeUnit.HOURS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             assertTrue(future.isDone());
         });
         if ("topic".equals(removeClusterLevel)) {

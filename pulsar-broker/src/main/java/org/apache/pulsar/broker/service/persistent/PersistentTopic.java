@@ -340,9 +340,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // For active topics, the ledger provides the timestamp directly, so this cache is cleared.
     private volatile long cachedLastPublishTimestamp;
 
-    @Getter
-    private final CompletableFuture<Void> initializedReplicationCheck = new CompletableFuture<Void>();
-    private final AtomicBoolean replicationInitialized = new AtomicBoolean(false);
+    private final CompletableFuture<Void> initialReplicationCheck = new CompletableFuture<>();
+    private final AtomicBoolean initialReplicationCheckInitialized = new AtomicBoolean(false);
 
     /***
      * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
@@ -2027,39 +2026,48 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    public CompletableFuture<Boolean> initCheckReplication() {
-        tryInitializeReplicationCheck();
-        return initializedReplicationCheck.thenApply(__ -> {
-            return this.isClosingOrDeleting;
-        });
-    }
-
-    public boolean tryInitializeReplicationCheck() {
-        if (replicationInitialized.compareAndSet(false, true)) {
-            CompletableFuture<Void> future = internalCheckReplication();
-            future.whenComplete((res, ex) -> {
-                if (ex != null) {
-                    initializedReplicationCheck.completeExceptionally(ex);
-                } else {
-                    initializedReplicationCheck.complete(null);
-                }
-            });
-            return true;
-        } else {
-            return false;
+    /**
+     * Starts the replication check used while loading a topic.
+     *
+     * <p>The initialization state is tracked separately from regular replication checks so that a concurrent
+     * policy update does not start a second initial check. The check itself is still dispatched through
+     * {@link #checkReplication()} to preserve overrides supplied by {@link org.apache.pulsar.broker.service.TopicFactory}.
+     */
+    public CompletableFuture<Void> initializeCheckReplication() {
+        if (initialReplicationCheckInitialized.compareAndSet(false, true)) {
+            try {
+                checkReplication().whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        initialReplicationCheck.completeExceptionally(ex);
+                    } else {
+                        initialReplicationCheck.complete(null);
+                    }
+                });
+            } catch (Throwable t) {
+                // checkReplication is overridable, so an implementation can fail before returning its future.
+                initialReplicationCheck.completeExceptionally(t);
+            }
         }
+        // Do not expose the mutable internal future: callers can cancel or complete a CompletableFuture.
+        return initialReplicationCheck.thenApply(__ -> null);
     }
 
     @Override
     public CompletableFuture<Void> checkReplication() {
-        if (tryInitializeReplicationCheck()) {
-            return initializedReplicationCheck;
-        } else {
-            return internalCheckReplication();
+        if (initialReplicationCheckInitialized.compareAndSet(false, true)) {
+            internalCheckReplication().whenComplete((__, ex) -> {
+                if (ex != null) {
+                    initialReplicationCheck.completeExceptionally(ex);
+                } else {
+                    initialReplicationCheck.complete(null);
+                }
+            });
+            return initialReplicationCheck.thenApply(__ -> null);
         }
+        return internalCheckReplication();
     }
 
-    public CompletableFuture<Void> internalCheckReplication() {
+    private CompletableFuture<Void> internalCheckReplication() {
         TopicName name = TopicName.get(topic);
         if (NamespaceService.isHeartbeatNamespace(name)
                 || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
