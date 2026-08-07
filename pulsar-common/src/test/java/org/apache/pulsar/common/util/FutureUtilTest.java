@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.PrintWriter;
@@ -34,6 +35,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import org.assertj.core.util.Lists;
@@ -250,6 +252,90 @@ public class FutureUtilTest {
 
         for (int i = 0; i < 2; i++) {
             Assert.assertEquals(list3.get(i), (Integer) i);
+        }
+    }
+
+    @Test
+    public void testSequencerReturnsFailedFutureWhenTaskThrowsSynchronously() throws Exception {
+        FutureUtil.Sequencer<String> sequencer = FutureUtil.Sequencer.create();
+
+        CompletableFuture<String> future = sequencer.sequential(() -> {
+            throw new IllegalStateException("sync fail");
+        });
+
+        try {
+            future.get(2, TimeUnit.SECONDS);
+            fail("Should have failed.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+            assertEquals(e.getCause().getMessage(), "sync fail");
+        }
+    }
+
+    @Test
+    public void testSupplySafelyReturnsSupplierFuture() throws Exception {
+        CompletableFuture<String> expected = CompletableFuture.completedFuture("ok");
+        CompletableFuture<String> future = FutureUtil.supplySafely(() -> expected);
+
+        assertSame(future, expected);
+        assertEquals(future.get(2, TimeUnit.SECONDS), "ok");
+    }
+
+    @Test
+    public void testSupplySafelyReturnsFailedFutureWhenSupplierIsNull() throws Exception {
+        CompletableFuture<String> future = FutureUtil.supplySafely(null);
+
+        try {
+            future.get(2, TimeUnit.SECONDS);
+            fail("Should have failed.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof NullPointerException);
+        }
+    }
+
+    @Test
+    public void testSupplySafelyReturnsFailedFutureWhenSupplierThrowsSynchronously() throws Exception {
+        RuntimeException expected = new IllegalStateException("sync fail");
+
+        CompletableFuture<String> future = FutureUtil.supplySafely(() -> {
+            throw expected;
+        });
+
+        try {
+            future.get(2, TimeUnit.SECONDS);
+            fail("Should have failed.");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause(), expected);
+        }
+    }
+
+    @Test
+    public void testSupplySafelyReturnsFailedFutureWhenSupplierReturnsNull() throws Exception {
+        CompletableFuture<String> future = FutureUtil.supplySafely(() -> null);
+
+        try {
+            future.get(2, TimeUnit.SECONDS);
+            fail("Should have failed.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof NullPointerException);
+        }
+    }
+
+    @Test
+    public void testComposeAsyncReturnsFailedFutureWhenSupplierThrowsSynchronously() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+        CompletableFuture<String> future = FutureUtil.composeAsync(() -> {
+            throw new IllegalStateException("sync fail");
+        }, executor);
+
+        try {
+            future.get(2, TimeUnit.SECONDS);
+            fail("Should have failed.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+            assertEquals(e.getCause().getMessage(), "sync fail");
         }
     }
 }
