@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.MessageBuilder;
+import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
@@ -94,8 +95,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * Currently in-flight async sends. {@link #flushAsync()} snapshots and
      * awaits these (each user-visible send future completes on broker ack —
      * exactly the flush guarantee).
+     *
+     * <p>These are the very futures handed back to the caller by
+     * {@code AsyncMessageBuilder.send()}, not upstream stages of them. Tracking an
+     * upstream stage instead would break the flush contract: {@code allOf} and the
+     * caller-facing stage would both be dependents of that upstream future, and the JDK
+     * fires dependents of a completing future in unspecified order — so flush() could
+     * complete while a send future the caller holds is still not {@code isDone()}.
      */
-    private final Set<CompletableFuture<MessageIdV5>> inFlightSends =
+    private final Set<CompletableFuture<MessageId>> inFlightSends =
             ConcurrentHashMap.newKeySet();
 
     // Current active segments (volatile for visibility across threads)
@@ -261,15 +269,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /**
      * Send a message asynchronously with routing. Called by AsyncMessageBuilderV5.
      * Returns a future of MessageIdV5 that includes the segment ID.
+     *
+     * <p>The returned future is handed to the caller as-is — no identity {@code thenApply}
+     * stage in between — so that {@link #flushAsync()} awaits exactly the futures the caller
+     * observes. See {@link #inFlightSends}.
      */
-    CompletableFuture<MessageIdV5> sendInternalAsync(
+    CompletableFuture<MessageId> sendInternalAsync(
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
             java.util.List<String> replicationClusters,
             org.apache.pulsar.client.api.v5.Transaction txn) {
 
-        CompletableFuture<MessageIdV5> userFuture = new CompletableFuture<>();
+        CompletableFuture<MessageId> userFuture = new CompletableFuture<>();
         inFlightSends.add(userFuture);
         userFuture.whenComplete((__, ___) -> inFlightSends.remove(userFuture));
         dispatchSendAttempt(userFuture, key, value, properties, eventTime, sequenceId,
@@ -278,7 +290,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     private void dispatchSendAttempt(
-            CompletableFuture<MessageIdV5> userFuture,
+            CompletableFuture<MessageId> userFuture,
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
@@ -334,7 +346,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * run {@code retry}; otherwise fail the user-visible future. Covers both the v4 send
      * failure and the per-segment producer-creation failure.
      */
-    private void handleAsyncSegmentFailure(CompletableFuture<MessageIdV5> userFuture, long segmentId,
+    private void handleAsyncSegmentFailure(CompletableFuture<MessageId> userFuture, long segmentId,
                                            int attempt, Throwable ex, Runnable retry) {
         Throwable cause = ex instanceof java.util.concurrent.CompletionException ? ex.getCause() : ex;
         if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS) {
