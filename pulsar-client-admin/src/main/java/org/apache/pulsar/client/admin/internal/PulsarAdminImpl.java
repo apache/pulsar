@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -463,8 +464,40 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * private client did); the TLS factory supplier reads the admin's attached factory (broker admin path)
      * when present.
      */
+    /**
+     * Whether an OAuth2 plugin carrying its own IdP TLS material must be left unbound (PIP-478, issue
+     * #24944).
+     *
+     * <p>The framework HTTP client factory built below reads its TLS material from
+     * {@code conf.getTlsFactory()}, and nothing on the admin path ever sets one: {@code AsyncHttpConnector}
+     * keeps the factory it resolves in its own field, and it is built after {@code auth.start()} in any case.
+     * The framework client therefore takes its legacy branch, which applies material only for
+     * {@code CLIENT_DEFAULT} — while OAuth2 requests {@code CLIENT_OAUTH2} — so the IdP connection would fall
+     * back to the platform default trust store, silently ignoring {@code trustCertsFilePath} /
+     * {@code tlsCertFile} / {@code tlsKeyFile}. v4 honoured them.
+     *
+     * <p>Binding is also the only thing that disables the path that does work: {@code FlowBase} falls back to
+     * {@code StandaloneOAuth2HttpClientFactory} — the sole consumer of {@code idpTlsPolicy()} — precisely when
+     * no factory is bound. So for this case, not binding is the fix, and it covers a plaintext {@code http://}
+     * admin URL too, where no client TLS factory is ever resolved.
+     *
+     * <p>Package-private and static so the decision can be asserted directly (VisibleForTesting).
+     *
+     * @param auth the configured authentication plugin
+     * @param conf the admin client configuration
+     * @return whether to skip binding so the OAuth2 flow self-provisions its IdP-aware HTTP client
+     */
+    static boolean leaveOAuth2Standalone(Authentication auth, ClientConfigurationData conf) {
+        return conf.getTlsFactory() == null
+                && auth instanceof AuthenticationOAuth2 oauth2
+                && oauth2.idpTlsPolicy().isPresent();
+    }
+
     private void bindAuthenticationServices(ClientConfigurationData conf) {
         if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
+            return;
+        }
+        if (leaveOAuth2Standalone(auth, conf)) {
             return;
         }
         String clientInstanceId = "pulsar-admin-" + Integer.toHexString(System.identityHashCode(this));
