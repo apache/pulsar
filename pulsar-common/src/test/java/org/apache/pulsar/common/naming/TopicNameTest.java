@@ -195,6 +195,39 @@ public class TopicNameTest {
     }
 
     @Test
+    public void testValidateTopicNameForCreation() {
+        // Leading or trailing whitespace makes the topic unreachable: clients trim topic names, so they would
+        // look up the trimmed name instead of the one the topic was created with.
+        String[] invalidNames = {
+                "persistent://myprop/myns/mytopic ",
+                "persistent://myprop/myns/ mytopic",
+                "persistent://myprop/myns/ mytopic ",
+                "persistent://myprop/myns/mytopic\t",
+                "persistent://myprop/myns/mytopic\n",
+                "non-persistent://myprop/myns/mytopic ",
+        };
+        for (String invalidName : invalidNames) {
+            TopicName topicName = TopicName.get(invalidName);
+            assertFalse(TopicName.isValidForCreation(topicName), invalidName);
+            assertThrows(IllegalArgumentException.class,
+                    () -> TopicName.validateTopicNameForCreation(topicName));
+        }
+
+        // Whitespace inside the local name round-trips correctly and stays allowed.
+        String[] validNames = {
+                "persistent://myprop/myns/my topic",
+                "persistent://myprop/myns/mytopic",
+                "persistent://myprop/myns/mytopic-partition-0",
+                "non-persistent://myprop/myns/my topic",
+        };
+        for (String validName : validNames) {
+            TopicName topicName = TopicName.get(validName);
+            assertTrue(TopicName.isValidForCreation(topicName), validName);
+            TopicName.validateTopicNameForCreation(topicName);
+        }
+    }
+
+    @Test
     public void testDecodeEncode() throws Exception {
         String encodedName = "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A";
         String rawName = "a:en-in_in_business_content_item_20150312173022_https\\:";

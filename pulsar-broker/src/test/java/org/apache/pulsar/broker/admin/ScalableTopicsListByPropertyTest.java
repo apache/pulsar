@@ -20,12 +20,14 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.annotations.Test;
 
 /**
@@ -88,5 +90,22 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         Set<String> all = new HashSet<>(admin.scalableTopics().listScalableTopics(namespace()));
         assertTrue(all.containsAll(Set.of(aliceTopic, bobTopic, carolTopic)),
                 "expected all three created topics to appear in the unfiltered list, got " + all);
+    }
+
+    /**
+     * A scalable topic created with surrounding whitespace could never be reached: clients trim topic names, so
+     * they would look up the trimmed name instead. Creation must be rejected with a 412 (PreconditionFailedException)
+     * on both the client-side fast-fail path and the server-side validation in ScalableTopics.createScalableTopic.
+     */
+    @Test
+    public void testCreateScalableTopicWithSurroundingWhitespaceIsRejected() throws Exception {
+        String topicWithWhitespace = "topic://" + namespace() + "/ scalable-with-whitespace-"
+                + UUID.randomUUID().toString().substring(0, 8);
+        PulsarAdminException.PreconditionFailedException e = expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.scalableTopics().createScalableTopic(topicWithWhitespace, 1,
+                        Map.of("owner", "test")));
+        assertTrue(e.getMessage().contains("whitespace"), "expected the surrounding-whitespace rejection, got: "
+                + e.getMessage());
     }
 }

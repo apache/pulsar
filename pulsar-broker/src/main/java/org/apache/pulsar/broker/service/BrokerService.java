@@ -4068,6 +4068,17 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(false);
         }
 
+        // A topic whose local name has leading or trailing whitespace could never be used: Pulsar clients trim
+        // topic names, so producing to or consuming from it would target the trimmed name instead. Refuse to
+        // auto-create it, which also covers clients that do not trim the name themselves.
+        // Note that topics which already have such a name are unaffected: they are loaded, not created here.
+        if (!TopicName.isValidForCreation(topicName)) {
+            log.warn()
+                    .attr("topic", topicName)
+                    .log("Preventing AutoTopicCreation of a topic whose local name has leading or trailing whitespace");
+            return CompletableFuture.completedFuture(false);
+        }
+
         // ExtensibleLoadManagerImpl.internal topics expects to be non-partitioned-topics now.
         // We don't allow the auto-creation here.
         // ExtensibleLoadManagerImpl.start() is responsible to create the internal system topics.

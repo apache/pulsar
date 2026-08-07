@@ -107,6 +107,35 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    /**
+     * Checks whether a topic name can be used to create a new topic.
+     *
+     * <p>The local name must not have leading or trailing whitespace. Pulsar clients trim topic names (see
+     * {@link org.apache.pulsar.client.api.ConsumerBuilder#topic(String...)}), so a topic created with whitespace
+     * could never be produced to or consumed from: the creation would target one name while the client targets
+     * the trimmed one.
+     *
+     * <p>This is only meant to be checked on topic creation paths, so that topics which already have such a
+     * name remain listable, readable and deletable.
+     */
+    public static boolean isValidForCreation(TopicName topicName) {
+        String localName = topicName.getLocalName();
+        return localName.equals(StringUtils.trim(localName));
+    }
+
+    /**
+     * Validates that a topic name can be used to create a new topic.
+     *
+     * @throws IllegalArgumentException if the topic name cannot be used to create a topic
+     * @see #isValidForCreation(TopicName)
+     */
+    public static void validateTopicNameForCreation(TopicName topicName) {
+        if (!isValidForCreation(topicName)) {
+            throw new IllegalArgumentException("Invalid topic name: '" + topicName
+                    + "'. Topic local name must not have leading or trailing whitespace.");
+        }
+    }
+
     public static String getPartitionPattern(String topic) {
         return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
     }
