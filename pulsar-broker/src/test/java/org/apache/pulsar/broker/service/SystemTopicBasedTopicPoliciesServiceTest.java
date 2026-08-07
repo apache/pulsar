@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -165,6 +166,99 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 threadName.contains("broker-client-shared-internal-executor"));
         assertTrue("listener.onUpdate should run on the per-topic ordered executor, but ran on: " + threadName,
                 threadName.contains("broker-topic-workers"));
+    }
+
+    @Test
+    public void testEventListenerReceivesLiveUpdatesAndDeletesWithDefensiveCopies() throws Exception {
+        CompletableFuture<TopicName> updatedTopic = new CompletableFuture<>();
+        CompletableFuture<Integer> observedValue = new CompletableFuture<>();
+        CompletableFuture<Void> deleted = new CompletableFuture<>();
+
+        assertTrue(systemTopicBasedTopicPoliciesService.registerEventListener((topicName, policies) -> {
+            throw new RuntimeException("injected failure");
+        }));
+        assertTrue(systemTopicBasedTopicPoliciesService.registerEventListener((topicName, policies) -> {
+            if (policies != null) {
+                policies.setMaxConsumerPerTopic(999);
+            }
+        }));
+        assertTrue(systemTopicBasedTopicPoliciesService.registerEventListener((topicName, policies) -> {
+            if (policies == null) {
+                deleted.complete(null);
+            } else {
+                updatedTopic.complete(topicName);
+                observedValue.complete(policies.getMaxConsumerPerTopic());
+            }
+        }));
+
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false,
+                policies -> policies.setMaxConsumerPerTopic(20)).get();
+
+        assertEquals(updatedTopic.get(30, TimeUnit.SECONDS), TOPIC1);
+        assertEquals(observedValue.get(30, TimeUnit.SECONDS).intValue(), 20);
+
+        systemTopicBasedTopicPoliciesService.deleteTopicPoliciesAsync(TOPIC1).get();
+        deleted.get(30, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testEventListenerIsNotCalledByCacheReplayAndCanBeUnregistered() throws Exception {
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false,
+                policies -> policies.setMaxConsumerPerTopic(10)).get();
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                .getPoliciesCacheInit(TOPIC1.getNamespaceObject()).isDone()));
+
+        CompletableFuture<Void> called = new CompletableFuture<>();
+        TopicPoliciesEventListener listener = (topicName, policies) -> called.complete(null);
+        assertTrue(systemTopicBasedTopicPoliciesService.registerEventListener(listener));
+
+        systemTopicBasedTopicPoliciesService.replayTopicPolicyListeners(TOPIC1.getNamespaceObject()).get();
+        assertFalse(called.isDone());
+
+        systemTopicBasedTopicPoliciesService.unregisterEventListener(listener);
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, false, false,
+                policies -> policies.setMaxConsumerPerTopic(30)).get();
+        pulsar.getBrokerService().getTopicPoliciesNotifyThread(TOPIC1).submit(() -> { }).get();
+        assertFalse(called.isDone());
+    }
+
+    @Test
+    public void testEventUsesListenerSnapshotTakenWhenNotificationIsAccepted() throws Exception {
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        pulsar.getBrokerService().getTopicPoliciesNotifyThread(TOPIC1).execute(() -> {
+            executorBlocked.countDown();
+            try {
+                releaseExecutor.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(executorBlocked.await(30, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> originalListenerCalled = new CompletableFuture<>();
+        systemTopicBasedTopicPoliciesService.registerEventListener((topicName, policies) ->
+                originalListenerCalled.complete(null));
+        systemTopicBasedTopicPoliciesService.notifyListenersForTopic(TOPIC1, new TopicPolicies());
+
+        CompletableFuture<Void> lateListenerCalled = new CompletableFuture<>();
+        systemTopicBasedTopicPoliciesService.registerEventListener((topicName, policies) ->
+                lateListenerCalled.complete(null));
+        releaseExecutor.countDown();
+
+        originalListenerCalled.get(30, TimeUnit.SECONDS);
+        pulsar.getBrokerService().getTopicPoliciesNotifyThread(TOPIC1).submit(() -> { }).get();
+        assertFalse(lateListenerCalled.isDone());
+    }
+
+    @Test
+    public void testEventListenerRegistrationIsRejectedAfterClose() throws Exception {
+        SystemTopicBasedTopicPoliciesService service = new SystemTopicBasedTopicPoliciesService(pulsar);
+        assertTrue(service.registerEventListener((topicName, policies) -> { }));
+
+        service.close();
+
+        assertFalse(service.registerEventListener((topicName, policies) -> { }));
     }
 
     @Test

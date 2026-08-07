@@ -125,6 +125,28 @@ public interface TopicPoliciesService extends AutoCloseable {
      */
     void unregisterListener(TopicName topicName, TopicPolicyListener listener);
 
+    /**
+     * Registers a listener for live topic policies changes across all topics observed by this service.
+     *
+     * <p>The listener is not called for policies loaded while initializing a cache. A {@code null} policies value
+     * represents a deletion. Implementations that support this listener must isolate callback failures and must not
+     * expose their mutable cached policy objects to listeners.
+     *
+     * @param listener the event listener
+     * @return {@code true} when the service supports and accepts the listener, otherwise {@code false}
+     */
+    default boolean registerEventListener(TopicPoliciesEventListener listener) {
+        return false;
+    }
+
+    /**
+     * Unregisters a listener previously registered with {@link #registerEventListener(TopicPoliciesEventListener)}.
+     *
+     * @param listener the event listener
+     */
+    default void unregisterEventListener(TopicPoliciesEventListener listener) {
+    }
+
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override

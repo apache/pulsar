@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +53,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
+    private final List<TopicPoliciesEventListener> eventListeners = new CopyOnWriteArrayList<>();
     private MetadataCache<TopicPolicies> localPoliciesCache;
     private MetadataCache<TopicPolicies> globalPoliciesCache;
 
@@ -156,9 +158,29 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     }
 
     @Override
+    public boolean registerEventListener(TopicPoliciesEventListener listener) {
+        Objects.requireNonNull(listener);
+        if (closed.get()) {
+            return false;
+        }
+        eventListeners.add(listener);
+        if (closed.get()) {
+            eventListeners.remove(listener);
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public void unregisterEventListener(TopicPoliciesEventListener listener) {
+        eventListeners.remove(listener);
+    }
+
+    @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
             listeners.clear();
+            eventListeners.clear();
             if (localPoliciesCache != null) {
                 localPoliciesCache.invalidateAll();
             }
@@ -204,10 +226,11 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         if (topicName.isEmpty()) {
             return;
         }
+        List<TopicPoliciesEventListener> eventListenersSnapshot = List.copyOf(eventListeners);
         MetadataCache<TopicPolicies> cache = cache(isGlobalPolicy);
         cache.invalidate(path);
         if (notification.getType() == NotificationType.Deleted) {
-            notifyListeners(topicName.get(), null);
+            notifyListeners(topicName.get(), null, eventListenersSnapshot);
             return;
         }
         cache.get(path).whenComplete((policies, error) -> {
@@ -219,20 +242,32 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
                 return;
             }
             notifyListeners(topicName.get(),
-                    policies.map(policy -> cloneWithScope(policy, isGlobalPolicy)).orElse(null));
+                    policies.map(policy -> cloneWithScope(policy, isGlobalPolicy)).orElse(null),
+                    eventListenersSnapshot);
         });
     }
 
-    private void notifyListeners(TopicName topicName, @Nullable TopicPolicies policies) {
+    private void notifyListeners(TopicName topicName, @Nullable TopicPolicies policies,
+                                 List<TopicPoliciesEventListener> eventListenersSnapshot) {
         List<TopicPolicyListener> topicListeners = listeners.get(topicName);
-        if (topicListeners == null) {
+        if (topicListeners != null) {
+            for (TopicPolicyListener listener : topicListeners) {
+                try {
+                    listener.onUpdate(policies == null ? null : policies.clone());
+                } catch (Throwable error) {
+                    log.error().attr("topic", topicName).exception(error).log("Call topic policy listener error");
+                }
+            }
+        }
+        if (closed.get()) {
             return;
         }
-        for (TopicPolicyListener listener : topicListeners) {
+        for (TopicPoliciesEventListener listener : eventListenersSnapshot) {
             try {
-                listener.onUpdate(policies == null ? null : policies.clone());
+                listener.onUpdate(topicName, policies == null ? null : policies.clone());
             } catch (Throwable error) {
-                log.error().attr("topic", topicName).exception(error).log("Call topic policy listener error");
+                log.error().attr("topic", topicName).attr("listener", listener).exception(error)
+                        .log("Call topic policy event listener error");
             }
         }
     }

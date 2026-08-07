@@ -136,6 +136,28 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
         systemTopicService.unregisterListener(topicName, listener);
     }
 
+    @Override
+    public boolean registerEventListener(TopicPoliciesEventListener listener) {
+        boolean configuredRegistered = configuredService.registerEventListener(listener);
+        boolean systemTopicRegistered = systemTopicService.registerEventListener(listener);
+        if (configuredRegistered && systemTopicRegistered) {
+            return true;
+        }
+        if (configuredRegistered) {
+            configuredService.unregisterEventListener(listener);
+        }
+        if (systemTopicRegistered) {
+            systemTopicService.unregisterEventListener(listener);
+        }
+        return false;
+    }
+
+    @Override
+    public void unregisterEventListener(TopicPoliciesEventListener listener) {
+        configuredService.unregisterEventListener(listener);
+        systemTopicService.unregisterEventListener(listener);
+    }
+
     @VisibleForTesting
     CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
         return isLegacyNamespace.get(namespace)

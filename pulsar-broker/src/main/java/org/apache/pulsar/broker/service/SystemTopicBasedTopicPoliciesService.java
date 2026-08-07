@@ -118,6 +118,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
+    private final List<TopicPoliciesEventListener> eventListeners = new CopyOnWriteArrayList<>();
 
     private final Map<NamespaceName, TopicPolicyMessageHandlerTracker> topicPolicyMessageHandlerTrackers =
             new ConcurrentHashMap<>();
@@ -522,16 +523,37 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * namespace (issue #26037). Keying {@code executeOrdered} by {@code topicName} preserves per-topic
      * notification ordering.
      */
-    private void notifyListenersForTopic(TopicName topicName, @Nullable TopicPolicies policies) {
+    @VisibleForTesting
+    void notifyListenersForTopic(TopicName topicName, @Nullable TopicPolicies policies) {
         // The per-topic value is a CopyOnWriteArrayList, so iterating it later on the executor thread stays
         // safe even if a listener is registered/unregistered between dispatch and execution.
         List<TopicPolicyListener> topicListeners = listeners.get(topicName);
-        if (topicListeners == null || topicListeners.isEmpty()) {
+        List<TopicPoliciesEventListener> eventListenersSnapshot = List.copyOf(eventListeners);
+        boolean hasTopicListeners = topicListeners != null && !topicListeners.isEmpty();
+        if (!hasTopicListeners && eventListenersSnapshot.isEmpty()) {
             return;
         }
         pulsarService.getBrokerService().getTopicPoliciesNotifyThread(topicName).execute(() -> {
-            internalNotifyTopicListeners(topicName, policies, topicListeners);
+            if (closed.get()) {
+                return;
+            }
+            if (hasTopicListeners) {
+                internalNotifyTopicListeners(topicName, policies, topicListeners);
+            }
+            notifyEventListeners(topicName, policies, eventListenersSnapshot);
         });
+    }
+
+    private void notifyEventListeners(TopicName topicName, @Nullable TopicPolicies policies,
+                                      List<TopicPoliciesEventListener> eventListenersSnapshot) {
+        for (TopicPoliciesEventListener listener : eventListenersSnapshot) {
+            try {
+                listener.onUpdate(topicName, policies == null ? null : policies.clone());
+            } catch (Throwable error) {
+                log.error().attr("topic", topicName).attr("listener", listener).exception(error)
+                        .log("Error in notifying listener on topic policy event.");
+            }
+        }
     }
 
     // this method should only be called from the topic ordered executor thread
@@ -1177,6 +1199,25 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
+    @Override
+    public boolean registerEventListener(TopicPoliciesEventListener listener) {
+        requireNonNull(listener);
+        if (closed.get()) {
+            return false;
+        }
+        eventListeners.add(listener);
+        if (closed.get()) {
+            eventListeners.remove(listener);
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public void unregisterEventListener(TopicPoliciesEventListener listener) {
+        eventListeners.remove(listener);
+    }
+
     @VisibleForTesting
     protected Map<TopicName, TopicPolicies> getPoliciesCache() {
         return policiesCache;
@@ -1219,6 +1260,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // fast instead of hanging until the awaited future is completed indirectly (issue #25294).
             policyCacheInitMap.forEach(this::failPendingPolicyCacheInit);
             policyCacheInitMap.clear();
+            eventListeners.clear();
         }
     }
 

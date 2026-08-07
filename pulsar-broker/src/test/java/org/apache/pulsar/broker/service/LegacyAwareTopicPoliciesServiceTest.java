@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -167,6 +169,45 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
             assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
             assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
         }
+    }
+
+    @Test(dataProvider = "namespaces")
+    public void testEventListenerReceivesChangesFromEveryBackend(String namespace) throws Exception {
+        final var topicName = TopicName.get(namespace + "/test-event-listener");
+
+        CompletableFuture<TopicName> updated = new CompletableFuture<>();
+        CompletableFuture<Void> deleted = new CompletableFuture<>();
+        TopicPoliciesEventListener failingListener = (changedTopic, policies) -> {
+            throw new RuntimeException("injected failure");
+        };
+        TopicPoliciesEventListener mutatingListener = (changedTopic, policies) -> {
+            if (policies != null) {
+                policies.setCompactionThreshold(999L);
+            }
+        };
+        TopicPoliciesEventListener listener = (changedTopic, policies) -> {
+            if (!changedTopic.equals(topicName)) {
+                return;
+            }
+            if (policies == null) {
+                deleted.complete(null);
+            } else if (policies.getCompactionThreshold() == 123) {
+                updated.complete(changedTopic);
+            }
+        };
+
+        assertTrue(pulsar.getTopicPoliciesService().registerEventListener(failingListener));
+        assertTrue(pulsar.getTopicPoliciesService().registerEventListener(mutatingListener));
+        assertTrue(pulsar.getTopicPoliciesService().registerEventListener(listener));
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, false, false,
+                policies -> policies.setCompactionThreshold(123L)).get();
+        assertEquals(updated.get(30, TimeUnit.SECONDS), topicName);
+
+        pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(topicName).get();
+        deleted.get(30, TimeUnit.SECONDS);
+        pulsar.getTopicPoliciesService().unregisterEventListener(failingListener);
+        pulsar.getTopicPoliciesService().unregisterEventListener(mutatingListener);
+        pulsar.getTopicPoliciesService().unregisterEventListener(listener);
     }
 
     @Test
