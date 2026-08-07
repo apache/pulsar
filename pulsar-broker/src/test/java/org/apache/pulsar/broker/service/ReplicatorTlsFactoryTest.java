@@ -26,6 +26,8 @@ import java.util.Optional;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -102,8 +104,14 @@ public class ReplicatorTlsFactoryTest extends ReplicatorTestBase {
                     .build();
             PulsarClient overrides = ns1.getReplicationClient(
                     BrokerTestUtil.newUniqueName(cluster2 + "-per-cluster"), Optional.of(clusterSelects));
-            assertEquals(((PulsarClientImpl) overrides).getConfiguration().getTlsFactoryClassName(), "default",
+            ClientConfigurationData overrideConf = ((PulsarClientImpl) overrides).getConfiguration();
+            assertEquals(overrideConf.getTlsFactoryClassName(), "default",
                     "the cluster's brokerClientTlsFactoryClassName must select the factory on its own");
+            // The name reaching the config is not enough: PulsarService.maybeApplyBrokerClientTlsFactory has
+            // to act on it, or the selection is silently dropped and a custom BROKER_CLIENT-only factory is
+            // later resolved unwrapped — which answers CLIENT_DEFAULT with empty and fails the connection.
+            assertNotNull(overrideConf.getTlsFactory(),
+                    "the per-cluster selection must actually build (and purpose-wrap) the factory");
 
             config1.setBrokerClientTlsFactoryClassName("default");
             ClusterData clusterSilent = admin1.clusters().getCluster(cluster2).clone()
@@ -131,6 +139,29 @@ public class ReplicatorTlsFactoryTest extends ReplicatorTestBase {
             } finally {
                 config1.setBrokerClientTlsFactoryConfig(brokerConfig);
             }
+        } finally {
+            config1.setBrokerClientTlsFactoryClassName(brokerLevel);
+        }
+    }
+
+    @Test
+    public void perClusterTlsFactoryAlsoDrivesTheCrossClusterAdminClient() throws Exception {
+        // A cluster entry drives two outbound legs. getClusterPulsarAdmin() is the second one, and it went
+        // through a different apply method that read the broker-level key only, so the cluster's selection
+        // never reached the admin client.
+        String brokerLevel = config1.getBrokerClientTlsFactoryClassName();
+        try {
+            config1.setBrokerClientTlsFactoryClassName("");
+            ClusterData clusterSelects = admin1.clusters().getCluster(cluster2).clone()
+                    .brokerClientTlsFactoryClassName("default")
+                    .build();
+            PulsarAdmin clusterAdmin = ns1.getClusterPulsarAdmin(
+                    BrokerTestUtil.newUniqueName(cluster2 + "-admin"), Optional.of(clusterSelects));
+            ClientConfigurationData conf = ((PulsarAdminImpl) clusterAdmin).getClientConfigData();
+            assertEquals(conf.getTlsFactoryClassName(), "default",
+                    "the cluster's factory selection must reach the admin client configuration");
+            assertNotNull(conf.getTlsFactory(),
+                    "the per-cluster selection must build the admin client's factory too");
         } finally {
             config1.setBrokerClientTlsFactoryClassName(brokerLevel);
         }

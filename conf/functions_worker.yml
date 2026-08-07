@@ -382,6 +382,14 @@ tlsRequireTrustedClientCertOnConnect: false
 # it is not portable to aarch64 or s390x.
 tlsProvider:
 
+# PIP-478: name of a JSSE (SSLContext) java.security.Provider used to build the function worker's
+# web-service TLS SSLContext, e.g. BCJSSE for FIPS (with the BC-FIPS crypto provider registered
+# separately). A distinct axis from tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the
+# default factory builds the JDK engine with this provider as the SSLContext provider, overriding the
+# engine choice. Resolved via the ServiceLoader mechanism with a fallback to an already-registered
+# provider, failing loudly when unresolvable.
+# jsseProvider:
+
 # Enable TLS with KeyStore type configuration in function worker.
 tlsEnabledWithKeyStore: false
 

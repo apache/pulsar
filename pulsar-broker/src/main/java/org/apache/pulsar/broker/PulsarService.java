@@ -1883,7 +1883,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @param conf the outbound client configuration (mutated to carry the TLS factory when opted in)
      */
     private void maybeApplyBrokerClientTlsFactory(ClientConfigurationData conf) {
-        String factoryClassName = getConfiguration().getBrokerClientTlsFactoryClassName();
+        String factoryClassName = brokerClientTlsFactorySelection(conf);
         if (!isNotBlank(factoryClassName)) {
             return;
         }
@@ -1893,8 +1893,43 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
         // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context
         // params (parsed the same way as the server-side tlsFactoryConfig).
-        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(
-                getConfiguration().getBrokerClientTlsFactoryConfig()));
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(brokerClientTlsFactoryConfig(conf)));
+    }
+
+    /**
+     * The {@code PulsarTlsFactory} class name for an outbound broker-client connection: the value
+     * {@code BrokerService} already resolved onto this configuration from the target
+     * {@link org.apache.pulsar.common.policies.data.ClusterData} when the cluster names one, else the
+     * broker-level {@code brokerClientTlsFactoryClassName} (PIP-478).
+     *
+     * <p>Reading the config rather than the {@code ServiceConfiguration} directly is what makes per-cluster
+     * selection work: a cluster entry that names its own factory must both win over the broker-level value
+     * <em>and</em> be routed through {@link ClientTlsFactorySupport#brokerClientTlsFactory}, which wraps a
+     * custom factory so it answers the transport's {@code CLIENT_DEFAULT} request from its
+     * {@code BROKER_CLIENT} material. Resolving it by name later, outside that wrapper, makes a compliant
+     * {@code BROKER_CLIENT}-only factory return empty and the connection fail.
+     *
+     * @param conf the outbound client configuration
+     * @return the selected factory class name, or blank when neither level selects one
+     */
+    private String brokerClientTlsFactorySelection(ClientConfigurationData conf) {
+        return isNotBlank(conf.getTlsFactoryClassName())
+                ? conf.getTlsFactoryClassName()
+                : getConfiguration().getBrokerClientTlsFactoryClassName();
+    }
+
+    /**
+     * The init params for {@link #brokerClientTlsFactorySelection}. The pair resolves <em>atomically</em>:
+     * when the cluster selects the factory class, its config wins even if blank, so factory A's parameters
+     * are never handed to factory B.
+     *
+     * @param conf the outbound client configuration
+     * @return the factory configuration string for the selected factory
+     */
+    private String brokerClientTlsFactoryConfig(ClientConfigurationData conf) {
+        return isNotBlank(conf.getTlsFactoryClassName())
+                ? conf.getTlsFactoryConfig()
+                : getConfiguration().getBrokerClientTlsFactoryConfig();
     }
 
     /**
@@ -1913,11 +1948,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      *                left untouched)
      */
     public void applyBrokerClientTlsFactoryToAdmin(PulsarAdminBuilder builder) {
-        String factoryClassName = getConfiguration().getBrokerClientTlsFactoryClassName();
-        if (!isNotBlank(factoryClassName) || !(builder instanceof PulsarAdminBuilderImpl adminBuilder)) {
+        if (!(builder instanceof PulsarAdminBuilderImpl adminBuilder)) {
             return;
         }
         ClientConfigurationData conf = adminBuilder.getConf();
+        String factoryClassName = brokerClientTlsFactorySelection(conf);
+        if (!isNotBlank(factoryClassName)) {
+            return;
+        }
         if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null) {
             return;
         }
@@ -1929,8 +1967,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
         // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context
         // params (parsed the same way as the server-side tlsFactoryConfig).
-        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(
-                getConfiguration().getBrokerClientTlsFactoryConfig()));
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(brokerClientTlsFactoryConfig(conf)));
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
