@@ -758,34 +758,47 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle.toString());
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
-        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, splitAlgorithm, boundaries)
-                .thenCompose(splitBundlesPair -> {
-                    if (splitBundlesPair == null) {
-                        String msg = format("Bundle %s not found under namespace", namespaceBundle);
-                        log.error(msg);
-                        return FutureUtil.failedFuture(new IllegalStateException(msg));
+        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, boundaries, splitAlgorithm)
+                .thenCompose(splitBoundaries -> {
+                    if (splitBoundaries == null || splitBoundaries.isEmpty()) {
+                        log.info("[{}] No valid boundary found in {} to split bundle {}",
+                                namespaceBundle.getNamespaceObject(), boundaries, namespaceBundle.getBundleRange());
+                        return CompletableFuture.completedFuture(null);
                     }
-
-                    return getOwnershipAsync(Optional.empty(), bundle)
-                            .thenCompose(brokerOpt -> {
-                                if (brokerOpt.isEmpty()) {
-                                    String msg = String.format("Namespace bundle: %s is not owned by any broker.",
-                                            bundle);
-                                    log.warn(msg);
-                                    throw new IllegalStateException(msg);
+                    return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .splitBundles(namespaceBundle, splitBoundaries.size() + 1, splitBoundaries)
+                            .thenCompose(splitBundlesPair -> {
+                                if (splitBundlesPair == null) {
+                                    String msg = format("Bundle %s not found under namespace", namespaceBundle);
+                                    log.error(msg);
+                                    return FutureUtil.failedFuture(new IllegalStateException(msg));
                                 }
-                                String sourceBroker = brokerOpt.get();
-                                SplitDecision splitDecision = new SplitDecision();
-                                List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
-                                Map<String, Optional<String>> splitServiceUnitToDestBroker = new HashMap<>();
-                                splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
-                                        .put(splitBundle.getBundleRange(), Optional.empty()));
-                                splitDecision.setSplit(
-                                        new Split(bundle.toString(), sourceBroker, splitServiceUnitToDestBroker));
-                                splitDecision.setLabel(Success);
-                                splitDecision.setReason(Admin);
-                                return splitAsync(splitDecision,
-                                        conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+
+                                return getOwnershipAsync(Optional.empty(), bundle)
+                                        .thenCompose(brokerOpt -> {
+                                            if (brokerOpt.isEmpty()) {
+                                                String msg = String.format(
+                                                        "Namespace bundle: %s is not owned by any broker.",
+                                                        bundle);
+                                                log.warn(msg);
+                                                throw new IllegalStateException(msg);
+                                            }
+                                            String sourceBroker = brokerOpt.get();
+                                            SplitDecision splitDecision = new SplitDecision();
+                                            List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+                                            Map<String, Optional<String>> splitServiceUnitToDestBroker =
+                                                    new HashMap<>();
+                                            splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
+                                                    .put(splitBundle.getBundleRange(), Optional.empty()));
+                                            splitDecision.setSplit(
+                                                    new Split(bundle.toString(), sourceBroker,
+                                                            splitServiceUnitToDestBroker));
+                                            splitDecision.setLabel(Success);
+                                            splitDecision.setReason(Admin);
+                                            return splitAsync(splitDecision,
+                                                    conf.getNamespaceBundleUnloadingTimeoutMs(),
+                                                    TimeUnit.MILLISECONDS);
+                                        });
                             });
                 });
     }
