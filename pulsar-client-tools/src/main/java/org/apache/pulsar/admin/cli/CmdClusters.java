@@ -365,6 +365,18 @@ public class CmdClusters extends CmdBase {
                 description = "path for the TLS certificate file", required = false)
         protected String brokerClientCertificateFilePath;
 
+        @Option(names = "--tls-factory-class-name",
+                description = "PulsarTlsFactory class name used for outbound connections to this cluster — both "
+                        + "the binary-protocol replication client and the cross-cluster admin client. "
+                        + "Leave unset to inherit the broker's brokerClientTlsFactoryClassName.")
+        protected String brokerClientTlsFactoryClassName;
+
+        @Option(names = "--tls-factory-config",
+                description = "Configuration passed to --tls-factory-class-name as its init params, either a "
+                        + "JSON object or a key=value list. Leave unset to inherit the broker's "
+                        + "brokerClientTlsFactoryConfig.")
+        protected String brokerClientTlsFactoryConfig;
+
         @Option(names = "--listener-name",
                 description = "listenerName when client would like to connect to cluster", required = false)
         protected String listenerName;
@@ -440,6 +452,14 @@ public class CmdClusters extends CmdBase {
             }
             if (brokerClientCertificateFilePath != null) {
                 builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
+            }
+
+            if (brokerClientTlsFactoryClassName != null) {
+                builder.brokerClientTlsFactoryClassName(brokerClientTlsFactoryClassName);
+            }
+
+            if (brokerClientTlsFactoryConfig != null) {
+                builder.brokerClientTlsFactoryConfig(brokerClientTlsFactoryConfig);
             }
 
             if (listenerName != null) {

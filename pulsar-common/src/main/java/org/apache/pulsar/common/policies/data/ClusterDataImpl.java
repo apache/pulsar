@@ -169,16 +169,29 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     + "used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientCertificateFilePath;
+    @Schema(
+            name = "brokerClientTlsFactoryClassName",
+            description = "PulsarTlsFactory class name for outbound connections to this cluster — both the "
+                    + "binary-protocol replication client and the cross-cluster admin (HTTPS) client. Blank "
+                    + "inherits the broker-level brokerClientTlsFactoryClassName."
+    )
+    private String brokerClientTlsFactoryClassName;
+    @Schema(
+            name = "brokerClientTlsFactoryConfig",
+            description = "Configuration passed to brokerClientTlsFactoryClassName as its init params (JSON "
+                    + "object or key=value list). Blank inherits the broker-level brokerClientTlsFactoryConfig."
+    )
+    private String brokerClientTlsFactoryConfig;
     /**
      * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained in the cluster
-     *     metadata schema for wire/metadata compatibility, but a configured value is ignored with a WARN;
-     *     factory-class selection is broker-level ({@code brokerClientTlsFactoryClassName}).
+     *     metadata schema for wire/metadata compatibility, but a configured value is ignored with a WARN.
+     *     Use {@code brokerClientTlsFactoryClassName} instead.
      */
     @Deprecated
     @Schema(
             name = "brokerClientSslFactoryPlugin",
             description = "Deprecated (PIP-478): removed in Pulsar 5.0. Retained for metadata compatibility but "
-                    + "ignored (with a WARN); factory selection is broker-level."
+                    + "ignored (with a WARN); use brokerClientTlsFactoryClassName instead."
     )
     private String brokerClientSslFactoryPlugin;
     /**
@@ -227,6 +240,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
+                .brokerClientTlsFactoryClassName(brokerClientTlsFactoryClassName)
+                .brokerClientTlsFactoryConfig(brokerClientTlsFactoryConfig)
                 .brokerClientSslFactoryPlugin(brokerClientSslFactoryPlugin)
                 .brokerClientSslFactoryPluginParams(brokerClientSslFactoryPluginParams)
                 .listenerName(listenerName);
@@ -255,6 +270,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientCertificateFilePath;
         private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
+        private String brokerClientTlsFactoryClassName;
+        private String brokerClientTlsFactoryConfig;
         private String brokerClientSslFactoryPlugin;
         private String brokerClientSslFactoryPluginParams;
         private String listenerName;
@@ -380,6 +397,18 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         @Override
+        public ClusterDataImplBuilder brokerClientTlsFactoryClassName(String tlsFactoryClassName) {
+            this.brokerClientTlsFactoryClassName = tlsFactoryClassName;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsFactoryConfig(String tlsFactoryConfig) {
+            this.brokerClientTlsFactoryConfig = tlsFactoryConfig;
+            return this;
+        }
+
+        @Override
         @Deprecated
         public ClusterDataImplBuilder brokerClientSslFactoryPluginParams(String sslFactoryPluginParams) {
             this.brokerClientSslFactoryPluginParams = sslFactoryPluginParams;
@@ -414,6 +443,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTrustCertsFilePath,
                     brokerClientKeyFilePath,
                     brokerClientCertificateFilePath,
+                    brokerClientTlsFactoryClassName,
+                    brokerClientTlsFactoryConfig,
                     brokerClientSslFactoryPlugin,
                     brokerClientSslFactoryPluginParams,
                     listenerName);

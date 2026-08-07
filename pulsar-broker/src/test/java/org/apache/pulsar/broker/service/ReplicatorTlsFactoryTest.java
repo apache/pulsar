@@ -26,9 +26,11 @@ import java.util.Optional;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -82,6 +84,55 @@ public class ReplicatorTlsFactoryTest extends ReplicatorTestBase {
                 assertEquals(conf.getTlsKeyFilePath(), clientKeyFilePath);
                 assertEquals(conf.getTlsCertificateFilePath(), clientCertFilePath);
             });
+        }
+    }
+
+    @Test
+    public void perClusterTlsFactorySelectsTheFactoryWhenTheBrokerLevelSettingIsUnset() throws Exception {
+        // PIP-478: a ClusterData entry may name its own PulsarTlsFactory, so a deployment can drive
+        // connections to one remote cluster through a different factory than the rest. Prove the cluster's
+        // value alone is enough — with the broker-level key blank, which is how it ships.
+        // The blank side of each case is what makes it discriminating: if precedence were inverted, the
+        // resolved name would come back empty rather than "default".
+        String brokerLevel = config1.getBrokerClientTlsFactoryClassName();
+        try {
+            config1.setBrokerClientTlsFactoryClassName("");
+            ClusterData clusterSelects = admin1.clusters().getCluster(cluster2).clone()
+                    .brokerClientTlsFactoryClassName("default")
+                    .build();
+            PulsarClient overrides = ns1.getReplicationClient(
+                    BrokerTestUtil.newUniqueName(cluster2 + "-per-cluster"), Optional.of(clusterSelects));
+            assertEquals(((PulsarClientImpl) overrides).getConfiguration().getTlsFactoryClassName(), "default",
+                    "the cluster's brokerClientTlsFactoryClassName must select the factory on its own");
+
+            config1.setBrokerClientTlsFactoryClassName("default");
+            ClusterData clusterSilent = admin1.clusters().getCluster(cluster2).clone()
+                    .brokerClientTlsFactoryClassName("")
+                    .build();
+            PulsarClient inherits = ns1.getReplicationClient(
+                    BrokerTestUtil.newUniqueName(cluster2 + "-inherits"), Optional.of(clusterSilent));
+            assertEquals(((PulsarClientImpl) inherits).getConfiguration().getTlsFactoryClassName(), "default",
+                    "a cluster that names no factory must inherit the broker-level one rather than silently "
+                            + "reverting to the default factory");
+
+            // With both sides set, the cluster wins. Asserted on tlsFactoryConfig because it is an opaque
+            // string: two distinct values can be compared without either having to resolve to a real class.
+            String brokerConfig = config1.getBrokerClientTlsFactoryConfig();
+            try {
+                config1.setBrokerClientTlsFactoryConfig("scope=broker");
+                ClusterData bothSet = admin1.clusters().getCluster(cluster2).clone()
+                        .brokerClientTlsFactoryClassName("default")
+                        .brokerClientTlsFactoryConfig("scope=cluster")
+                        .build();
+                PulsarClient wins = ns1.getReplicationClient(
+                        BrokerTestUtil.newUniqueName(cluster2 + "-both-set"), Optional.of(bothSet));
+                assertEquals(((PulsarClientImpl) wins).getConfiguration().getTlsFactoryConfig(), "scope=cluster",
+                        "the cluster's setting must take precedence over the broker-level one");
+            } finally {
+                config1.setBrokerClientTlsFactoryConfig(brokerConfig);
+            }
+        } finally {
+            config1.setBrokerClientTlsFactoryClassName(brokerLevel);
         }
     }
 
