@@ -67,7 +67,7 @@ Configuration:
         - propertyName: pulsar.log.format
           propertyValue: text
           PatternLayout:
-            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
 
     # Rolling file appender configuration
     RollingFile:
@@ -83,7 +83,7 @@ Configuration:
         - propertyName: pulsar.log.format
           propertyValue: text
           PatternLayout:
-            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
@@ -128,7 +128,7 @@ Configuration:
                         - propertyName: pulsar.log.format
                           propertyValue: text
                           PatternLayout:
-                            Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                            Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%equals{ %X}{ {}}{}%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
