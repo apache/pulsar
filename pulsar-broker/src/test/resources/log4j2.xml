@@ -37,7 +37,7 @@
                  filePattern="${sys:pulsar.test.logging.file}-%i.log"
                  immediateFlush="${sys:pulsar.test.logging.file.immediateFlush}"
                  createOnDemand="true">
-      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"/>
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"/>
       <Policies>
         <SizeBasedTriggeringPolicy size="10MB"/>
       </Policies>

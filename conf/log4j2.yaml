@@ -58,7 +58,7 @@ Configuration:
       - name: Console
         target: SYSTEM_OUT
         PatternLayout:
-          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
       - name: ConsoleJson
         target: SYSTEM_OUT
         JsonTemplateLayout:
@@ -71,7 +71,7 @@ Configuration:
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
       immediateFlush: ${sys:pulsar.log.immediateFlush}
       PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
@@ -109,7 +109,7 @@ Configuration:
                       fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/${ctx:functionname}-${ctx:instance}.log"
                       filePattern : "${sys:pulsar.log.dir}/functions/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
                       PatternLayout:
-                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg %X%n"
+                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance:%X{instance}] %logger{1} - %msg%equals{ %X}{ {}}{}%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
