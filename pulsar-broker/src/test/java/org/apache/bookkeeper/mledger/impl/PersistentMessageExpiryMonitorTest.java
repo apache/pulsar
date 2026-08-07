@@ -27,6 +27,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -34,6 +35,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -197,5 +199,71 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         // cleanup.
         producer.close();
         admin.topics().delete(topicName);
+    }
+
+    @Test
+    void testExpireMessagesRaceWithTopicCloseDoesNotMarkDelete() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp-closing-expiry");
+        final String subName = "closing-expiry-sub";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < 3; i++) {
+            producer.send("message-" + i);
+        }
+        producer.close();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription subscription = topic.getSubscription(subName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+        Position markDeleteBeforeExpiry = cursor.getMarkDeletedPosition();
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(2));
+        BlockingPersistentMessageExpiryMonitor monitor =
+                new BlockingPersistentMessageExpiryMonitor(topic, subName, cursor, subscription);
+        CompletableFuture<Boolean> expireFuture = CompletableFuture.supplyAsync(() -> monitor.expireMessages(1));
+        monitor.awaitBeforeCursorMarkDelete();
+
+        CompletableFuture<Void> closeFuture = topic.close(false);
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topic.isClosingOrDeleting()));
+        monitor.allowCursorMarkDelete();
+
+        Assert.assertTrue(expireFuture.get(30, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(monitor.isExpirationCheckInProgress()));
+        assertEquals(cursor.getMarkDeletedPosition(), markDeleteBeforeExpiry);
+        closeFuture.get(30, TimeUnit.SECONDS);
+    }
+
+    private static class BlockingPersistentMessageExpiryMonitor extends PersistentMessageExpiryMonitor {
+        private final CountDownLatch beforeCursorMarkDelete = new CountDownLatch(1);
+        private final CountDownLatch continueCursorMarkDelete = new CountDownLatch(1);
+        private final AtomicBoolean blocked = new AtomicBoolean();
+
+        BlockingPersistentMessageExpiryMonitor(PersistentTopic topic, String subscriptionName, ManagedCursorImpl cursor,
+                                               PersistentSubscription subscription) {
+            super(topic, subscriptionName, cursor, subscription);
+        }
+
+        @Override
+        protected void beforeCursorMarkDelete(Position position) {
+            if (!blocked.compareAndSet(false, true)) {
+                return;
+            }
+            beforeCursorMarkDelete.countDown();
+            try {
+                Assert.assertTrue(continueCursorMarkDelete.await(30, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+
+        void awaitBeforeCursorMarkDelete() throws InterruptedException {
+            Assert.assertTrue(beforeCursorMarkDelete.await(30, TimeUnit.SECONDS));
+        }
+
+        void allowCursorMarkDelete() {
+            continueCursorMarkDelete.countDown();
+        }
     }
 }
