@@ -162,6 +162,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.configuration.FieldContextValidator;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -3541,10 +3542,27 @@ public class BrokerService implements Closeable {
     }
 
     public boolean validateDynamicConfiguration(String key, String value) {
-        if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
-            return dynamicConfigurationMap.get(key).validator.test(value);
+        return getDynamicConfigurationValidationError(key, value).isEmpty();
+    }
+
+    /**
+     * @return validation error message if the value is invalid, otherwise empty
+     */
+    public Optional<String> getDynamicConfigurationValidationError(String key, String value) {
+        ConfigField configField = dynamicConfigurationMap.get(key);
+        if (configField == null) {
+            return Optional.of("Unknown dynamic configuration: " + key);
         }
-        return true;
+        if (configField.field != null) {
+            Optional<String> fieldValidationError = FieldContextValidator.validateString(configField.field, value);
+            if (fieldValidationError.isPresent()) {
+                return fieldValidationError;
+            }
+        }
+        if (configField.validator != null && !configField.validator.test(value)) {
+            return Optional.of("Invalid dynamic-config value for " + key);
+        }
+        return Optional.empty();
     }
 
     private Map<String, ConfigField> prepareDynamicConfigurationMap() {

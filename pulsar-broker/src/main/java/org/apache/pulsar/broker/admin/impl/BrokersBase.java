@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
@@ -338,9 +339,10 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue) {
-        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
-            return FutureUtil
-                    .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
+        Optional<String> validationError = pulsar().getBrokerService()
+                .getDynamicConfigurationValidationError(configName, configValue);
+        if (validationError.isPresent()) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, validationError.get()));
         }
         if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {

@@ -29,10 +29,10 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.TreeMap;
 import lombok.CustomLog;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -135,37 +135,14 @@ public class PulsarConfigurationLoader {
                         .attr("field", field.getName())
                         .attr("value", value)
                         .log("Validating configuration field");
-                boolean isRequired = field.getAnnotation(FieldContext.class).required();
-                long minValue = field.getAnnotation(FieldContext.class).minValue();
-                long maxValue = field.getAnnotation(FieldContext.class).maxValue();
-                if (isRequired && isEmpty(value)) {
-                    error.append(String.format("Required %s is null,", field.getName()));
-                }
-
-                if (value != null && Number.class.isAssignableFrom(value.getClass())) {
-                    long fieldVal = ((Number) value).longValue();
-                    boolean valid = fieldVal >= minValue && fieldVal <= maxValue;
-                    if (!valid) {
-                        error.append(String.format("%s value %d doesn't fit in given range (%d, %d),", field.getName(),
-                                fieldVal, minValue, maxValue));
-                    }
-                }
+                Optional<String> validationError = FieldContextValidator.validateParsedValue(field, value);
+                validationError.ifPresent(err -> error.append(err).append(","));
             }
         }
         if (error.length() > 0) {
             throw new IllegalArgumentException(error.substring(0, error.length() - 1));
         }
         return true;
-    }
-
-    private static boolean isEmpty(Object obj) {
-        if (obj == null) {
-            return true;
-        } else if (obj instanceof String) {
-            return StringUtils.isBlank((String) obj);
-        } else {
-            return false;
-        }
     }
 
     /**
