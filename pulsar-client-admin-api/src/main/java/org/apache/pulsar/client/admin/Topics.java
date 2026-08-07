@@ -1499,6 +1499,8 @@ public interface Topics {
      *             Don't have admin permission
      * @throws NotFoundException
      *             Topic or subscription does not exist
+     * @throws PreconditionFailedException
+     *             Subscription does not exist and automatic subscription creation is disabled
      * @throws PulsarAdminException
      *             Unexpected error
      */
@@ -1532,6 +1534,8 @@ public interface Topics {
      *             Don't have admin permission
      * @throws NotFoundException
      *             Topic or subscription does not exist
+     * @throws PreconditionFailedException
+     *             Subscription does not exist and automatic subscription creation is disabled
      * @throws PulsarAdminException
      *             Unexpected error
      */

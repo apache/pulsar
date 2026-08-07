@@ -100,6 +100,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1146,9 +1147,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             producer.send("test" + i);
         }
 
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(false).build());
+        PulsarAdminException.PreconditionFailedException exception = Assert.expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topics().peekMessages(partitionedTopic, subscriptionName, 3));
+        Assert.assertEquals(exception.getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(admin.topics().getSubscriptions(partitionedTopic).isEmpty());
+
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build());
         List<Message<byte[]>> messages = admin.topics().peekMessages(partitionedTopic, subscriptionName, 3);
 
         Assert.assertEquals(messages.size(), 3);
+        Assert.assertEquals(admin.topics().getSubscriptions(partitionedTopic), List.of(subscriptionName));
 
         producer.close();
     }

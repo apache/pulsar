@@ -2007,7 +2007,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not"
                     + " exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
-            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 412,
+                    message = "Topic name is not valid, or the subscription does not exist and automatic "
+                            + "subscription creation is disabled"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
     public void peekNthMessage(
