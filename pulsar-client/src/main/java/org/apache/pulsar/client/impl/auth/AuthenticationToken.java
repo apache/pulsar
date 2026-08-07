@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.net.URI;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
@@ -107,5 +109,57 @@ public class AuthenticationToken
                 .newAuthenticationExchange(brokerHostName);
     }
 
+    /**
+     * Deserialization shim for an {@code AuthenticationToken} serialized by Pulsar 4.x, whose token supplier
+     * was this inner class. The supplier itself now lives on the v5 body
+     * ({@link TokenAuthenticationV5.LiteralTokenSupplier}), and Java serialization resolves by class name, so
+     * without this shim a 4.x blob fails to deserialize with {@code ClassNotFoundException}. It carries the
+     * original {@code serialVersionUID} and resolves to the new supplier on read.
+     *
+     * @deprecated since 5.0.0; only reachable through deserialization of pre-5.0 data.
+     */
+    @Deprecated
+    private static class SerializableTokenSupplier implements Supplier<String>, Serializable {
 
+        private static final long serialVersionUID = 5095234161799506913L;
+        private final String token;
+
+        SerializableTokenSupplier(final String token) {
+            this.token = token;
+        }
+
+        @Override
+        public String get() {
+            return token;
+        }
+
+        private Object readResolve() {
+            return new TokenAuthenticationV5.LiteralTokenSupplier(token);
+        }
+    }
+
+    /**
+     * Deserialization shim for the 4.x file-backed token supplier; see {@link SerializableTokenSupplier}.
+     *
+     * @deprecated since 5.0.0; only reachable through deserialization of pre-5.0 data.
+     */
+    @Deprecated
+    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 3160666668166028760L;
+        private final URI uri;
+
+        SerializableURITokenSupplier(final URI uri) {
+            this.uri = uri;
+        }
+
+        @Override
+        public String get() {
+            return new TokenAuthenticationV5.FileTokenSupplier(uri).get();
+        }
+
+        private Object readResolve() {
+            return new TokenAuthenticationV5.FileTokenSupplier(uri);
+        }
+    }
 }
