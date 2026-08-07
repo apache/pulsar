@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.client.impl.auth.v5;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
+import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +60,84 @@ public class TokenAuthenticationV5 implements SinglePassAuthentication, Serializ
     public static final String HTTP_HEADER_NAME = "Authorization";
     /** The Pulsar HTTP header that names the auth method. */
     public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+
+    /**
+     * Build the v5 token body from the v4-format {@code authParams} string, so a client configured with
+     * {@code authPluginClassName=...AuthenticationToken} resolves straight to this v5 plugin (PIP-478).
+     * The accepted forms are exactly the ones the v4 plugin accepted:
+     *
+     * <ul>
+     *   <li>{@code token:<literal>} — the literal token after the prefix</li>
+     *   <li>{@code file:<uri>} — the token is read from the file, re-read on every use so a rotated
+     *       token is picked up</li>
+     *   <li>a JSON object with a {@code token} member</li>
+     *   <li>anything else — the whole string is the token</li>
+     * </ul>
+     *
+     * @param encodedAuthParamString the v4-format parameter string
+     * @return a token body reading the configured credential
+     */
+    public static TokenAuthenticationV5 fromParams(String encodedAuthParamString) {
+        return new TokenAuthenticationV5(tokenSupplier(encodedAuthParamString));
+    }
+
+    /**
+     * The supplier behind {@link #fromParams(String)}, exposed so the v4 {@code AuthenticationToken} shim
+     * parses its parameters through exactly this code rather than a second copy of it.
+     *
+     * @param encodedAuthParamString the v4-format parameter string
+     * @return a serializable supplier of the token
+     */
+    public static Supplier<String> tokenSupplier(String encodedAuthParamString) {
+        if (encodedAuthParamString.startsWith("token:")) {
+            return new LiteralTokenSupplier(encodedAuthParamString.substring("token:".length()));
+        }
+        if (encodedAuthParamString.startsWith("file:")) {
+            return new FileTokenSupplier(URI.create(encodedAuthParamString));
+        }
+        try {
+            JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
+            return new LiteralTokenSupplier(authParams.get("token").getAsString());
+        } catch (JsonSyntaxException notJson) {
+            return new LiteralTokenSupplier(encodedAuthParamString);
+        }
+    }
+
+    /** A supplier of a literal token value; serializable for the v4 shim's Serializable contract. */
+    public static final class LiteralTokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 5095234161799506913L;
+        private final String token;
+
+        public LiteralTokenSupplier(final String token) {
+            this.token = token;
+        }
+
+        @Override
+        public String get() {
+            return token;
+        }
+    }
+
+    /** A supplier reading the token from a file on every call, so a rotated token is picked up. */
+    public static final class FileTokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 3160666668166028760L;
+        private final URI uri;
+
+        public FileTokenSupplier(final URI uri) {
+            this.uri = uri;
+        }
+
+        @Override
+        public String get() {
+            try {
+                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read token from file", e);
+            }
+        }
+    }
 
     private final Supplier<String> tokenSupplier;
 

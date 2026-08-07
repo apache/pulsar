@@ -18,15 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
-import java.io.Serializable;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
@@ -61,7 +53,7 @@ public class AuthenticationToken
     }
 
     public AuthenticationToken(String token) {
-        this(new SerializableTokenSupplier(token));
+        this(new TokenAuthenticationV5.LiteralTokenSupplier(token));
     }
 
     public AuthenticationToken(Supplier<String> tokenSupplier) {
@@ -86,23 +78,9 @@ public class AuthenticationToken
 
     @Override
     public void configure(String encodedAuthParamString) {
-        // Interpret the whole param string as the token. If the string contains the notation `token:xxxxx` then strip
-        // the prefix
-        if (encodedAuthParamString.startsWith("token:")) {
-            this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString.substring("token:".length()));
-        } else if (encodedAuthParamString.startsWith("file:")) {
-            // Read token from a file
-            URI filePath = URI.create(encodedAuthParamString);
-            this.tokenSupplier = new SerializableURITokenSupplier(filePath);
-        } else {
-            try {
-                // Read token from json string
-                JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
-                this.tokenSupplier = new SerializableTokenSupplier(authParams.get("token").getAsString());
-            } catch (JsonSyntaxException e) {
-                this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString);
-            }
-        }
+        // PIP-478: parse through the v5 body's parser, so `authPluginClassName=...AuthenticationToken`
+        // resolving straight to TokenAuthenticationV5 and this shim accept exactly the same forms.
+        this.tokenSupplier = TokenAuthenticationV5.tokenSupplier(encodedAuthParamString);
     }
 
     @SuppressWarnings("deprecation")
@@ -129,40 +107,5 @@ public class AuthenticationToken
                 .newAuthenticationExchange(brokerHostName);
     }
 
-    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
 
-        private static final long serialVersionUID = 3160666668166028760L;
-        private final URI uri;
-
-        public SerializableURITokenSupplier(final URI uri) {
-            super();
-            this.uri = uri;
-        }
-
-        @Override
-        public String get() {
-            try {
-                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to read token from file", e);
-            }
-        }
-    }
-
-    private static class SerializableTokenSupplier implements Supplier<String>, Serializable {
-
-        private static final long serialVersionUID = 5095234161799506913L;
-        private final String token;
-
-        public SerializableTokenSupplier(final String token) {
-            super();
-            this.token = token;
-        }
-
-        @Override
-        public String get() {
-            return token;
-        }
-
-    }
 }
