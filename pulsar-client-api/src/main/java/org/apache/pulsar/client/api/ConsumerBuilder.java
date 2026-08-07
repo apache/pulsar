@@ -664,6 +664,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .build())
      *          .subscribe();
      * </pre>
+     * The retry letter topic settings of {@link DeadLetterPolicy}, such as {@code retryLetterTopic} and
+     * {@code retryLetterProducerBuilderCustomizer}, take effect only when the retry feature is also enabled with
+     * {@link #enableRetry(boolean)}:
+     * <pre>
+     * client.newConsumer()
+     *          .enableRetry(true)
+     *          .deadLetterPolicy(DeadLetterPolicy
+     *              .builder()
+     *              .maxRedeliverCount(10)
+     *              .retryLetterTopic("your-retry-topic-name")
+     *              .build())
+     *          .subscribe();
+     * </pre>
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 
@@ -739,6 +752,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * If enabled, the consumer auto-retries messages.
      * Default: disabled.
+     *
+     * <p>This must be enabled for the retry letter topic settings of
+     * {@link #deadLetterPolicy(DeadLetterPolicy)} to take effect.
      *
      * @param retryEnable
      *            whether to auto retry message
