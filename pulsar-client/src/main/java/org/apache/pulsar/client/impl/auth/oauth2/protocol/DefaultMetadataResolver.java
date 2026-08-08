@@ -27,9 +27,10 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.client.api.AuthenticationHttpClient;
+import org.apache.pulsar.client.api.AuthenticationHttpRequest;
+import org.apache.pulsar.client.api.AuthenticationHttpResponse;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
@@ -45,9 +46,9 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
-    private final AsyncHttpClient httpClient;
+    private final AuthenticationHttpClient httpClient;
 
-    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient) {
+    public DefaultMetadataResolver(URL metadataUrl, AuthenticationHttpClient httpClient) {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
         this.httpClient = httpClient;
@@ -61,7 +62,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient,
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AuthenticationHttpClient httpClient,
                                                         String wellKnownMetadataPath) {
         return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
     }
@@ -106,14 +107,13 @@ public class DefaultMetadataResolver implements MetadataResolver {
     public Metadata resolve() throws IOException {
 
         try {
-            Response response = httpClient.prepareGet(metadataUrl.toString())
-                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON)
-                    .execute()
-                    .toCompletableFuture()
-                    .get();
+            AuthenticationHttpResponse response = httpClient.execute(AuthenticationHttpRequest.get(
+                            metadataUrl.toString())
+                    .header(HttpHeaderNames.ACCEPT.toString(), HttpHeaderValues.APPLICATION_JSON.toString())
+                    .build()).get();
 
             Metadata metadata;
-            try (InputStream inputStream = response.getResponseBodyAsStream()) {
+            try (InputStream inputStream = response.getBodyAsStream()) {
                 metadata = this.objectReader.readValue(inputStream);
             }
             return metadata;

@@ -83,6 +83,15 @@ public interface Authentication extends Closeable, Serializable {
     void start() throws PulsarClientException;
 
     /**
+     * Initialize the authentication provider with context provided by the container.
+     *
+     * @param context the initialization context
+     */
+    default void start(AuthenticationInitContext context) throws PulsarClientException {
+        start();
+    }
+
+    /**
      * An authentication Stage.
      * when authentication complete, passed-in authFuture will contains authentication related http request headers.
      */

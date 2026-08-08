@@ -27,9 +27,10 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.AuthenticationHttpClient;
+import org.apache.pulsar.client.api.AuthenticationHttpRequest;
+import org.apache.pulsar.client.api.AuthenticationHttpResponse;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
@@ -37,9 +38,9 @@ import org.asynchttpclient.Response;
 public class TokenClient implements ClientCredentialsExchanger {
 
     private final URL tokenUrl;
-    private final AsyncHttpClient httpClient;
+    private final AuthenticationHttpClient httpClient;
 
-    public TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+    public TokenClient(URL tokenUrl, AuthenticationHttpClient httpClient) {
         this.httpClient = httpClient;
         this.tokenUrl = tokenUrl;
     }
@@ -90,22 +91,21 @@ public class TokenClient implements ClientCredentialsExchanger {
         String body = buildClientCredentialsBody(req);
         try {
 
-            Response res = httpClient.preparePost(tokenUrl.toString())
-                    .setHeader("Accept", "application/json")
-                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .setBody(body)
-                    .execute()
-                    .get();
+            AuthenticationHttpResponse res = httpClient.execute(AuthenticationHttpRequest.post(tokenUrl.toString())
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .body(body)
+                    .build()).get();
 
             switch (res.getStatusCode()) {
                 case 200:
-                    return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.getBody(),
                             TokenResult.class);
 
                 case 400: // Bad request
                 case 401: // Unauthorized
                     throw new TokenExchangeException(
-                            ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                            ObjectMapperFactory.getMapper().reader().readValue(res.getBody(),
                                     TokenError.class));
 
                 default:

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.io.Serializable;
+import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
@@ -32,6 +33,16 @@ interface Flow extends Serializable, AutoCloseable {
      * @throws PulsarClientException if the flow could not be initialized.
      */
     void initialize() throws PulsarClientException;
+
+    /**
+     * Initializes the authorization flow with an authentication initialization context.
+     *
+     * @param context the authentication initialization context
+     * @throws PulsarClientException if the flow could not be initialized.
+     */
+    default void initialize(AuthenticationInitContext context) throws PulsarClientException {
+        initialize();
+    }
 
     /**
      * Acquires an access token from the OAuth 2.0 authorization server.
