@@ -291,6 +291,52 @@ public class ProxyService implements Closeable {
             proxyZeroCopyModeEnabled = true;
         }
 
+        // Build the broker-client TLS before binding any listener: a connection accepted while these
+        // were still being constructed would read a null brokerClientSslContext in DirectProxyHandler,
+        // or a null lookup factory from ProxyConnection.createClientConfiguration. Under PIP-337 no such
+        // window existed because DirectProxyHandler built its factory lazily per remote host.
+        // PIP-478: for the proxy->broker binary path, build one shared PulsarTlsFactory serving the
+        // BROKER_CLIENT purpose and subscribe to a volatile SslContext that DirectProxyHandler reads without
+        // blocking the event loop (rotation delivered by the subscription). This uses the subscribing overload
+        // rather than the client one-shot form on purpose: the proxy is a long-lived server holding outbound
+        // connections, and blocking createInstance().get() on the Netty event loop per connection is not
+        // acceptable. The endpoint hint is moot for the default file-based factory, which ignores it.
+        if (proxyConfig.isTlsEnabledWithBroker()) {
+            this.brokerClientTlsFactory = TlsFactorySupport.createFactory(
+                    proxyConfig.getBrokerClientTlsFactoryClassName(), null,
+                    () -> ProxyTlsFactories.brokerClientFactory(proxyConfig, proxyClientAuthentication));
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(proxyConfig.getBrokerClientTlsFactoryConfig()),
+                    statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry());
+            TlsFactorySupport.initializeBlocking(this.brokerClientTlsFactory, initContext);
+            this.brokerClientTlsSubscription = TlsContextAcquisition.acquireNettyContext(
+                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT,
+                            TlsSynthesisSpec.client(proxyConfig.isTlsHostnameVerificationEnabled()),
+                            ctx -> this.brokerClientSslContext = ctx)
+                    .get()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "TLS factory supplied no Netty SslContext for purpose " + TlsPurpose.BROKER_CLIENT));
+
+            // PIP-478: the proxy's binary lookup ConnectionPool uses a normal Pulsar client transport, whose
+            // PulsarChannelInitializer requests a CLIENT_DEFAULT SslContext from the factory stashed on its
+            // ClientConfigurationData. ProxyConnection builds that config per connection but does not run the
+            // PulsarClientImpl setup that resolves the client factory, so build one shared CLIENT_DEFAULT
+            // factory here (from the same broker-client tls* material, initialized off the event loop) and let
+            // ProxyConnection stash it on each config. Built from a representative config; the factory itself is
+            // still null at this point, so resolveClientTlsFactory takes the default (non-adopted) path.
+            // serviceUrl / serviceUrlTls are still null here — they need the actual bound port, which is why
+            // they are computed after the binds below. That is fine: this representative config is read only
+            // for its tls* fields (see createClientConfiguration's javadoc), and ClientTlsFactorySupport never
+            // looks at the service URL. Do not start depending on the URL here without moving this back.
+            ClientConfigurationData lookupClientConf = ProxyConnection.createClientConfiguration(this);
+            // brokerClientPurpose=true: this lookup transport reuses tlsFactoryClassName to carry the
+            // brokerClientTlsFactoryClassName selection, so a custom by-name factory is wrapped to resolve the
+            // transport's CLIENT_DEFAULT request under the fixed BROKER_CLIENT purpose (matches the direct path
+            // above, which requests BROKER_CLIENT).
+            this.lookupClientTlsFactory = ClientTlsFactorySupport.resolveClientTlsFactory(
+                    lookupClientConf, statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry(), true);
+        }
+
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false, null));
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
@@ -333,44 +379,6 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = String.format("pulsar+ssl://%s:%d/", hostname, getListenPortTls().get());
         } else {
             this.serviceUrlTls = null;
-        }
-
-        // PIP-478: for the proxy->broker binary path, build one shared PulsarTlsFactory serving the
-        // BROKER_CLIENT purpose and subscribe to a volatile SslContext that DirectProxyHandler reads without
-        // blocking the event loop (rotation delivered by the subscription). This uses the subscribing overload
-        // rather than the client one-shot form on purpose: the proxy is a long-lived server holding outbound
-        // connections, and blocking createInstance().get() on the Netty event loop per connection is not
-        // acceptable. The endpoint hint is moot for the default file-based factory, which ignores it.
-        if (proxyConfig.isTlsEnabledWithBroker()) {
-            this.brokerClientTlsFactory = TlsFactorySupport.createFactory(
-                    proxyConfig.getBrokerClientTlsFactoryClassName(), null,
-                    () -> ProxyTlsFactories.brokerClientFactory(proxyConfig, proxyClientAuthentication));
-            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
-                    TlsFactorySupport.parseFactoryConfig(proxyConfig.getBrokerClientTlsFactoryConfig()),
-                    statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry());
-            TlsFactorySupport.initializeBlocking(this.brokerClientTlsFactory, initContext);
-            this.brokerClientTlsSubscription = TlsContextAcquisition.acquireNettyContext(
-                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT,
-                            TlsSynthesisSpec.client(proxyConfig.isTlsHostnameVerificationEnabled()),
-                            ctx -> this.brokerClientSslContext = ctx)
-                    .get()
-                    .orElseThrow(() -> new IllegalStateException(
-                            "TLS factory supplied no Netty SslContext for purpose " + TlsPurpose.BROKER_CLIENT));
-
-            // PIP-478: the proxy's binary lookup ConnectionPool uses a normal Pulsar client transport, whose
-            // PulsarChannelInitializer requests a CLIENT_DEFAULT SslContext from the factory stashed on its
-            // ClientConfigurationData. ProxyConnection builds that config per connection but does not run the
-            // PulsarClientImpl setup that resolves the client factory, so build one shared CLIENT_DEFAULT
-            // factory here (from the same broker-client tls* material, initialized off the event loop) and let
-            // ProxyConnection stash it on each config. Built from a representative config; the factory itself is
-            // still null at this point, so resolveClientTlsFactory takes the default (non-adopted) path.
-            ClientConfigurationData lookupClientConf = ProxyConnection.createClientConfiguration(this);
-            // brokerClientPurpose=true: this lookup transport reuses tlsFactoryClassName to carry the
-            // brokerClientTlsFactoryClassName selection, so a custom by-name factory is wrapped to resolve the
-            // transport's CLIENT_DEFAULT request under the fixed BROKER_CLIENT purpose (matches the direct path
-            // above, which requests BROKER_CLIENT).
-            this.lookupClientTlsFactory = ClientTlsFactorySupport.resolveClientTlsFactory(
-                    lookupClientConf, statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry(), true);
         }
 
         createMetricsServlet();

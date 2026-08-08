@@ -291,6 +291,48 @@ public class LegacyV4AuthenticationAdapterTest {
         }
     }
 
+    @Test
+    public void aTlsMethodPluginIsStartedAndClosedThroughTheAdapter() throws Exception {
+        // LegacyV4TlsAdapter forwarded configure(...) but neither start() nor close(). The built-in
+        // AuthenticationTls has an empty start(), so a custom plugin reporting the "tls" method name was the
+        // only casualty: whatever it loads in start() never happened, and whatever it holds never got released.
+        LifecycleRecordingV4 v4 = new LifecycleRecordingV4();
+        Authentication adapted = LegacyV4AuthenticationAdapter.wrap(v4);
+
+        adapted.initializeAsync(initContext()).get();
+        assertThat(v4.started).as("the wrapped tls plugin must be started").isTrue();
+
+        adapted.close();
+        assertThat(v4.closed).as("the wrapped tls plugin must be closed").isTrue();
+    }
+
+    /** A v4 plugin reporting the {@code tls} method name, recording its lifecycle callbacks. */
+    private static final class LifecycleRecordingV4 implements org.apache.pulsar.client.api.Authentication {
+
+        private static final long serialVersionUID = 1L;
+        private transient boolean started;
+        private transient boolean closed;
+
+        @Override
+        public String getAuthMethodName() {
+            return "tls";
+        }
+
+        @Override
+        public void configure(java.util.Map<String, String> authParams) {
+        }
+
+        @Override
+        public void start() {
+            started = true;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
+    }
+
     private AuthenticationInitContext initContext() {
         // SimpleAuthInitContext lives in pulsar-client-v5, which this module cannot depend on; the
         // in-module V5AuthContexts factory builds the same thing from the public services record.

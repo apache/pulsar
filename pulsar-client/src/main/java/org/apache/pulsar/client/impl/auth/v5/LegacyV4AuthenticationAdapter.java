@@ -398,5 +398,39 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
         public void configure(Map<String, String> authParams) {
             v4.configure(authParams);
         }
+
+        /**
+         * Start the wrapped plugin. A custom plugin reporting the {@code tls} method name is adapted here and
+         * would otherwise never be started: its {@code configure(...)} was forwarded but its {@code start()}
+         * was not, so any credential loading it does in {@code start()} never happened. The built-in
+         * {@code AuthenticationTls} has an empty {@code start()}, which is why this went unnoticed.
+         *
+         * @param initContext the framework services
+         * @return completion of the v5 initialization
+         */
+        @Override
+        public CompletableFuture<Void> initializeAsync(AuthenticationInitContext initContext) {
+            try {
+                v4.start();
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+            return super.initializeAsync(initContext);
+        }
+
+        /**
+         * Close the wrapped plugin, mirroring {@link #initializeAsync}. Without this a custom {@code tls}
+         * plugin holding resources (a reloading key store, an HSM session) leaks for the client's lifetime.
+         *
+         * @throws Exception if the wrapped plugin fails to close
+         */
+        @Override
+        public void close() throws Exception {
+            try {
+                v4.close();
+            } finally {
+                super.close();
+            }
+        }
     }
 }
