@@ -258,6 +258,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
+                // Exclude permits from Flow tasks that have not updated the dispatcher total yet.
                 int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
                 totalAvailablePermits -= availablePermits;
                 log.debug()
@@ -307,6 +308,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
         consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
         if (!consumerSet.contains(consumer)) {
             log.debug()

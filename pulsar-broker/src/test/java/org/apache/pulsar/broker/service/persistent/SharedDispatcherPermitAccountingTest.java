@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -51,6 +52,56 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
 
     @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
     public void testFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(boolean classic) throws Exception {
+        TestContext context = createTestContext(classic);
+        Consumer remainingConsumer = context.remainingConsumer();
+        Consumer removedConsumer = context.removedConsumer();
+
+        remainingConsumer.flowPermits(10);
+        removedConsumer.flowPermits(20);
+        drainBrokerWorkerGroup(context.topic());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(30);
+
+        synchronized (context.dispatcher()) {
+            removedConsumer.flowPermits(400);
+            removedConsumer.flowPermits(600);
+            context.dispatcher().removeConsumer(removedConsumer);
+        }
+        drainBrokerWorkerGroup(context.topic());
+
+        assertThat(totalAvailablePermits(context.dispatcher()))
+                .isEqualTo(remainingConsumer.getAvailablePermits());
+    }
+
+    @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
+    public void testBlockedFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(boolean classic) throws Exception {
+        TestContext context = createTestContext(classic);
+        Consumer remainingConsumer = context.remainingConsumer();
+        Consumer removedConsumer = context.removedConsumer();
+
+        remainingConsumer.flowPermits(10);
+        drainBrokerWorkerGroup(context.topic());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
+
+        ConsumerStatsImpl blockedStats = new ConsumerStatsImpl();
+        blockedStats.blockedConsumerOnUnackedMsgs = true;
+        removedConsumer.updateStats(blockedStats);
+        assertThat(removedConsumer.isBlocked()).isTrue();
+        assertThat(removedConsumer.getMaxUnackedMessages()).isPositive();
+
+        removedConsumer.flowPermits(1_000);
+        assertThat(removedConsumer.getAvailablePermits()).isZero();
+
+        synchronized (context.dispatcher()) {
+            removedConsumer.updateBlockedConsumerOnUnackedMsgs(removedConsumer);
+            context.dispatcher().removeConsumer(removedConsumer);
+        }
+        drainBrokerWorkerGroup(context.topic());
+
+        assertThat(totalAvailablePermits(context.dispatcher()))
+                .isEqualTo(remainingConsumer.getAvailablePermits());
+    }
+
+    private TestContext createTestContext(boolean classic) throws Exception {
         String topicName = newTopicName();
         String subscriptionName = "shared-sub";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -75,18 +126,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         dispatcher.addConsumer(remainingConsumer).join();
         dispatcher.addConsumer(removedConsumer).join();
 
-        remainingConsumer.flowPermits(10);
-        drainBrokerWorkerGroup(topic);
-        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(10);
-
-        synchronized (dispatcher) {
-            removedConsumer.flowPermits(1_000);
-            dispatcher.removeConsumer(removedConsumer);
-        }
-        drainBrokerWorkerGroup(topic);
-
-        assertThat(totalAvailablePermits(dispatcher))
-                .isEqualTo(remainingConsumer.getAvailablePermits());
+        return new TestContext(topic, dispatcher, remainingConsumer, removedConsumer);
     }
 
     private Consumer createConsumer(Subscription subscription, String topicName, long consumerId) {
@@ -94,7 +134,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         when(cnx.isActive()).thenReturn(true);
         when(cnx.isWritable()).thenReturn(true);
         return new Consumer(subscription, Shared, topicName, consumerId, 0, "consumer-" + consumerId,
-                false, cnx, "role", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT),
+                true, cnx, "role", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT),
                 MessageId.latest, DEFAULT_CONSUMER_EPOCH);
     }
 
@@ -109,6 +149,10 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
             return pip379Dispatcher.totalAvailablePermits;
         }
         return ((PersistentDispatcherMultipleConsumersClassic) dispatcher).totalAvailablePermits;
+    }
+
+    private record TestContext(PersistentTopic topic, Dispatcher dispatcher,
+                               Consumer remainingConsumer, Consumer removedConsumer) {
     }
 
     private static class NoopReadDispatcher extends PersistentDispatcherMultipleConsumers {
