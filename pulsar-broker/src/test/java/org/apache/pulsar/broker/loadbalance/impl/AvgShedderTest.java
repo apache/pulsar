@@ -19,13 +19,19 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
+import java.util.Optional;
+import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
@@ -91,13 +97,11 @@ public class AvgShedderTest {
         // so 9000/(450+450)=10 bundles will be shed
         for (int i = 0; i < 11; i++) {
             brokerData1.getLocalData().getBundles().add("bundle-" + i);
-            BundleData bundle = new BundleData();
-            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+            // A nonzero history lets BundleData.update record the refreshed load-report sample below.
+            BundleData bundle = new BundleData(1, 1);
+            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData(1);
             timeAverageMessageData.setMsgRateIn(450);
             timeAverageMessageData.setMsgRateOut(450);
-            // as AvgShedder map BundleData to broker, the hashCode of different BundleData should be different
-            // so we need to set some different fields to make the hashCode different
-            timeAverageMessageData.setNumSamples(i);
             bundle.setShortTermData(timeAverageMessageData);
             loadData.getBundleData().put("bundle-" + i, bundle);
         }
@@ -117,9 +121,31 @@ public class AvgShedderTest {
         // assert that all the bundles are shed to broker2
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
-            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
-                    bundleData, loadData, conf).get(), "broker2");
+            assertEquals(avgShedder.selectBrokerForBundle(loadData.getBrokerData().keySet(),
+                    bundle, bundleData, loadData, conf).get(), "broker2");
         }
+
+        // The bundle data is updated in place by a load report. The plan must remain usable during the same
+        // unload attempt, even when selection temporarily falls back because the planned broker is unavailable.
+        String plannedBundle = bundlesToUnload.values().iterator().next();
+        BundleData plannedBundleData = loadData.getBundleData().get(plannedBundle);
+        NamespaceBundleStats updatedStats = new NamespaceBundleStats();
+        updatedStats.topics = plannedBundleData.getTopics() + 1;
+        plannedBundleData.update(updatedStats);
+        assertEquals(plannedBundleData.getTopics(), updatedStats.topics);
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.of("broker2"));
+        avgShedder.onActiveBrokersChange(Set.of("broker1", "broker3"));
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker3"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.of("broker3"));
+        assertTrue(avgShedder.hasPendingDestination(plannedBundle));
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.of("broker2"));
+
+        Set<String> plannedBundles = Set.copyOf(bundlesToUnload.values());
+        plannedBundles.forEach(bundle -> assertTrue(avgShedder.hasPendingDestination(bundle)));
+        avgShedder.onUnloadAttemptCompleted(plannedBundles);
+        plannedBundles.forEach(bundle -> assertFalse(avgShedder.hasPendingDestination(bundle)));
     }
 
     @Test
@@ -159,9 +185,6 @@ public class AvgShedderTest {
             TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
             timeAverageMessageData.setMsgRateIn(450);
             timeAverageMessageData.setMsgRateOut(450);
-            // as AvgShedder map BundleData to broker, the hashCode of different BundleData should be different
-            // so we need to set some different fields to make the hashCode different
-            timeAverageMessageData.setNumSamples(i);
             bundle.setShortTermData(timeAverageMessageData);
             loadData.getBundleData().put("bundle-" + i, bundle);
         }
@@ -184,8 +207,8 @@ public class AvgShedderTest {
         // assert that all the bundles are shed to broker2
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
-            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
-                    bundleData, loadData, conf).get(), "broker2");
+            assertEquals(avgShedder.selectBrokerForBundle(loadData.getBrokerData().keySet(),
+                    bundle, bundleData, loadData, conf).get(), "broker2");
         }
     }
 
@@ -235,9 +258,6 @@ public class AvgShedderTest {
             TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
             timeAverageMessageData.setMsgRateIn(450);
             timeAverageMessageData.setMsgRateOut(450);
-            // as AvgShedder map BundleData to broker, the hashCode of different BundleData should be different
-            // so we need to set some different fields to make the hashCode different
-            timeAverageMessageData.setNumSamples(i);
             bundle.setShortTermData(timeAverageMessageData);
             loadData.getBundleData().put("bundle1-" + i, bundle);
 
@@ -245,10 +265,12 @@ public class AvgShedderTest {
             timeAverageMessageData = new TimeAverageMessageData();
             timeAverageMessageData.setMsgRateIn(450);
             timeAverageMessageData.setMsgRateOut(450);
-            timeAverageMessageData.setNumSamples(i + 11);
             bundle.setShortTermData(timeAverageMessageData);
             loadData.getBundleData().put("bundle3-" + i, bundle);
         }
+
+        assertEquals(loadData.getBundleData().get("bundle1-0"), loadData.getBundleData().get("bundle3-0"));
+        assertNotSame(loadData.getBundleData().get("bundle1-0"), loadData.getBundleData().get("bundle3-0"));
 
         // do shedding for the first time, expect to shed nothing because hit count is not enough
         Multimap<String, String> bundlesToUnload = avgShedder.findBundlesForUnloading(loadData, conf);
@@ -274,10 +296,10 @@ public class AvgShedderTest {
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
             if (bundle.startsWith("bundle1-")) {
-                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                assertEquals(avgShedder.selectBrokerForBundle(loadData.getBrokerData().keySet(), bundle,
                         bundleData, loadData, conf).get(), "broker2");
             } else if (bundle.startsWith("bundle3-")) {
-                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                assertEquals(avgShedder.selectBrokerForBundle(loadData.getBrokerData().keySet(), bundle,
                         bundleData, loadData, conf).get(), "broker4");
             } else {
                 fail();
