@@ -20,11 +20,13 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.OpenTelemetry;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.net.URL;
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -60,8 +62,13 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
+import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
+import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.glassfish.jersey.client.ClientConfig;
@@ -108,6 +115,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final ScalableTopics scalableTopics;
     protected final WebTarget root;
     protected final Authentication auth;
+    // PIP-478: the framework HTTP client factory bound into a services-aware auth plugin
+    // (e.g. OAuth2) so an admin-only client acquires tokens over the framework client; null when the auth
+    // plugin does not implement ClientAuthenticationServicesAware. Closed with this admin.
+    private FrameworkHttpClientFactory authHttpClientFactory;
     @Getter
     private AsyncHttpConnectorProvider asyncConnectorProvider;
 
@@ -128,6 +139,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 .attr("authMethodName", auth.getAuthMethodName())
                 .log("created");
 
+        bindAuthenticationServices(clientConfigData);
         this.auth.start();
 
         if (clientConfigData != null && StringUtils.isBlank(clientConfigData.getServiceUrl())) {
@@ -442,6 +454,64 @@ public class PulsarAdminImpl implements PulsarAdmin {
     /**
      * Close the Pulsar admin client to release all the resources.
      */
+    /**
+     * PIP-478: bind the framework HTTP client factory into a services-aware auth plugin (e.g.
+     * OAuth2) before {@code auth.start()}, which eagerly acquires a token via the flow's HTTP client. A
+     * {@code PulsarAdmin} used without a {@code PulsarClient} previously rode the now-removed private OAuth2
+     * {@code AsyncHttpClient}; this mirrors {@code PulsarClientImpl.bindAuthenticationServices} so admin-only
+     * OAuth2 acquires tokens over the framework client. The admin transport is HTTP-only, so the shared event
+     * loop / timer / DNS resolver are not threaded here (AsyncHttpClient provisions its own, as the removed
+     * private client did); the TLS factory supplier reads the admin's attached factory (broker admin path)
+     * when present.
+     */
+    /**
+     * Whether an OAuth2 plugin carrying its own IdP TLS material must be left unbound (PIP-478, issue
+     * #24944).
+     *
+     * <p>The framework HTTP client factory built below reads its TLS material from
+     * {@code conf.getTlsFactory()}, and nothing on the admin path ever sets one: {@code AsyncHttpConnector}
+     * keeps the factory it resolves in its own field, and it is built after {@code auth.start()} in any case.
+     * The framework client therefore takes its legacy branch, which applies material only for
+     * {@code CLIENT_DEFAULT} — while OAuth2 requests {@code CLIENT_OAUTH2} — so the IdP connection would fall
+     * back to the platform default trust store, silently ignoring {@code trustCertsFilePath} /
+     * {@code tlsCertFile} / {@code tlsKeyFile}. v4 honoured them.
+     *
+     * <p>Binding is also the only thing that disables the path that does work: {@code FlowBase} falls back to
+     * {@code StandaloneOAuth2HttpClientFactory} — the sole consumer of {@code idpTlsPolicy()} — precisely when
+     * no factory is bound. So for this case, not binding is the fix, and it covers a plaintext {@code http://}
+     * admin URL too, where no client TLS factory is ever resolved.
+     *
+     * <p>Package-private and static so the decision can be asserted directly (VisibleForTesting).
+     *
+     * @param auth the configured authentication plugin
+     * @param conf the admin client configuration
+     * @return whether to skip binding so the OAuth2 flow self-provisions its IdP-aware HTTP client
+     */
+    static boolean leaveOAuth2Standalone(Authentication auth, ClientConfigurationData conf) {
+        return conf.getTlsFactory() == null
+                && auth instanceof AuthenticationOAuth2 oauth2
+                && oauth2.idpTlsPolicy().isPresent();
+    }
+
+    private void bindAuthenticationServices(ClientConfigurationData conf) {
+        if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
+            return;
+        }
+        if (leaveOAuth2Standalone(auth, conf)) {
+            return;
+        }
+        String clientInstanceId = "pulsar-admin-" + Integer.toHexString(System.identityHashCode(this));
+        this.authHttpClientFactory = new FrameworkHttpClientFactory(
+                () -> null, () -> null, () -> null, conf::getTlsFactory, conf, clientInstanceId);
+        OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
+                : OpenTelemetry.noop();
+        // The admin OAuth2 flow only uses the HTTP client factory; the scheduler / blocking executor of the
+        // (binary-protocol) auth services are unused on the HTTP-only admin path.
+        ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
+                authHttpClientFactory, null, null, Clock.systemDefaultZone(), openTelemetry, clientInstanceId);
+        aware.bindClientAuthenticationServices(services);
+    }
+
     @Override
     public void close() {
         try {
@@ -452,6 +522,9 @@ public class PulsarAdminImpl implements PulsarAdmin {
         client.close();
 
         asyncHttpConnector.close();
+        if (authHttpClientFactory != null) {
+            authHttpClientFactory.close();
+        }
     }
 
     @VisibleForTesting

@@ -42,7 +42,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 
 @Getter
@@ -335,9 +334,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "This names a JSSE (SSLContext) security provider for a Jetty-based web service, which has\n"
                     + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
                     + "provider names here. Note that the proxy's own HTTPS listener reads tlsProvider rather than\n"
-                    + "this setting."
+                    + "this setting. Leave unset (the default) to use the JVM's default provider; a configured name\n"
+                    + "is pinned and startup fails if it cannot be resolved. Note that Conscrypt ships native\n"
+                    + "libraries for x86_64 only, so pinning it is not portable to aarch64 or s390x."
     )
-    private String webServiceTlsProvider = "Conscrypt";
+    private String webServiceTlsProvider = "";
 
     @FieldContext(
             category = CATEGORY_TLS,
@@ -596,9 +597,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Whether the hostname is validated when the proxy creates a TLS connection with brokers"
+        doc = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+                + " Enabled by default since Pulsar 5.0 (PIP-478): a broker whose certificate does not match"
+                + " its hostname/SAN is rejected."
     )
-    private boolean tlsHostnameVerificationEnabled = false;
+    private boolean tlsHostnameVerificationEnabled = true;
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -643,6 +646,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String tlsProvider = null;
 
     @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "proxy's server-side (binary front-end / web) TLS SSLContext. A distinct axis from "
+                    + "tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the default factory builds the "
+                    + "JDK engine with this provider as the SSLContext provider, overriding the engine choice. "
+                    + "Resolved via the ServiceLoader mechanism (with a fallback to an already-registered "
+                    + "provider), failing loudly when unresolvable.")
+    private String jsseProvider = null;
+
+    @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore type configuration for proxy: JKS, PKCS12"
     )
@@ -680,13 +695,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
-                    + " class used is DefaultSslFactory.")
-    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the proxy's server-side TLS "
+                    + "(binary front-end and web server; purposes PROXY/WEB). An empty value or the literal "
+                    + "'default' selects the built-in default factory composed from these tls* settings, "
+                    + "otherwise the named class is instantiated via its public no-arg constructor. This is "
+                    + "the only server TLS path; the removed PIP-337 sslFactoryPlugin keys are rejected at "
+                    + "startup when set to a non-default value.")
+    private String tlsFactoryClassName = "";
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory plugin configuration parameters.")
-    private String sslFactoryPluginParams = "";
+            doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or a "
+                    + "comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
 
     /**
      * KeyStore TLS config variables used for proxy to auth with broker.
@@ -701,6 +721,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "proxy's own outbound (proxy-to-broker) client TLS SSLContext. When set, the default "
+                    + "factory builds the JDK engine with this provider as the SSLContext provider, overriding "
+                    + "the engine choice. Resolved via the ServiceLoader mechanism (with a fallback to an "
+                    + "already-registered provider), failing loudly when unresolvable.")
+    private String brokerClientJsseProvider = null;
 
     // needed when client auth is required
     @FieldContext(
@@ -759,13 +790,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
-                    + "The default class used is DefaultSslFactory.")
-    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the proxy's own outbound "
+                    + "(proxy-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the "
+                    + "literal 'default' selects the built-in default factory composed from the brokerClient "
+                    + "tls* settings, otherwise the named class is instantiated via its public no-arg "
+                    + "constructor. This is the only outbound-client TLS path; the removed PIP-337 "
+                    + "brokerClientSslFactoryPlugin keys are rejected at startup when set to a non-default "
+                    + "value.")
+    private String brokerClientTlsFactoryClassName = "";
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory plugin configuration parameters used by internal client.")
-    private String brokerClientSslFactoryPluginParams = "";
+            doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+                    + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
 
     // HTTP
 

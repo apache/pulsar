@@ -26,6 +26,11 @@ dependencies {
     api(project(":pulsar-client-admin-api"))
     api(project(":pulsar-client-original"))
     api(project(":pulsar-common"))
+    // PIP-478: AsyncHttpConnector (internal) uses the TLS factory SPI directly (PulsarTlsFactory / TlsHandle /
+    // TlsPurpose) but never surfaces it on this module's exported ABI, so it is `implementation`. The HTTP SPI
+    // is not named directly here (only pulsar-client's FrameworkHttpClientFactory is referenced), so no direct
+    // http-client-api dependency is needed.
+    implementation(project(":pulsar-tls-factory-api"))
     implementation(project(":pulsar-package-management:pulsar-package-core"))
     api(libs.jersey.client)
     implementation(libs.jersey.media.json.jackson)
@@ -42,6 +47,11 @@ dependencies {
     api(libs.asynchttpclient)
     implementation(libs.commons.lang3)
     implementation(libs.completable.futures)
+    // PIP-478 stage 4b: the admin AsyncHttpConnector rides the PIP-478 TLS SPI on the new path, whose init
+    // context carries an OpenTelemetry root (compile-only; the real root is supplied at runtime by the owning
+    // component, matching pulsar-common / pulsar-tls-factory-api).
+    compileOnly(libs.opentelemetry.api)
 
     testImplementation(libs.wiremock)
+    testImplementation(libs.opentelemetry.api)
 }

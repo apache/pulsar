@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.stats;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
@@ -32,6 +33,11 @@ public class PulsarProxyOpenTelemetry implements Closeable {
 
     private final OpenTelemetryService openTelemetryService;
 
+    // PIP-478: the OpenTelemetry root, so a component's TlsFactoryInitContext gets a real handle (the
+    // pulsar.tls.reload / last_reload_success instruments) instead of OpenTelemetry.noop().
+    @Getter
+    private final OpenTelemetry openTelemetry;
+
     @Getter
     private final Meter meter;
 
@@ -41,7 +47,8 @@ public class PulsarProxyOpenTelemetry implements Closeable {
                 .serviceName(SERVICE_NAME)
                 .serviceVersion(PulsarVersion.getVersion())
                 .build();
-        meter = openTelemetryService.getOpenTelemetry().getMeter(INSTRUMENTATION_SCOPE_NAME);
+        openTelemetry = openTelemetryService.getOpenTelemetry();
+        meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

@@ -348,10 +348,27 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
-# Whether server hostname must match the common name of the certificate
-tlsEnableHostnameVerification: false
+# Whether the server hostname is verified against the subject alternative names (SANs) of the
+# server certificate (RFC 2818/6125; CN matching is not supported).
+# Enabled by default since Pulsar 5.0 (PIP-478).
+tlsEnableHostnameVerification: true
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
+# PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker web server TLS (purpose WEB).
+# When set, the new PIP-478 TLS SPI is used instead of the built-in file-based TLS loading: an empty value
+# or the literal 'default' selects the built-in default factory composed from these tls* settings, otherwise
+# the named class is instantiated via its public no-arg constructor.
+tlsFactoryClassName: ""
+# PIP-478 configuration parameters for tlsFactoryClassName (JSON object or comma-separated key=value list)
+tlsFactoryConfig: ""
+# PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker's own outbound
+# (worker-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the literal 'default'
+# selects the built-in default factory composed from the broker-client tls* settings, otherwise the named
+# class is instantiated via its public no-arg constructor.
+brokerClientTlsFactoryClassName: ""
+# PIP-478 configuration parameters for brokerClientTlsFactoryClassName (JSON object or comma-separated
+# key=value list)
+brokerClientTlsFactoryConfig: ""
 # Whether client certificates are required for TLS. Connections are rejected if the client
 # certificate isn't trusted.
 tlsRequireTrustedClientCertOnConnect: false
@@ -360,7 +377,18 @@ tlsRequireTrustedClientCertOnConnect: false
 ## Note that some of the above TLS configs also apply to the KeyStore TLS configuration.
 
 # Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.
-tlsProvider: Conscrypt
+# Leave unset (the default) to use the JVM's default provider; a configured name is pinned and startup
+# fails if it cannot be resolved. Note that Conscrypt ships native libraries for x86_64 only, so pinning
+# it is not portable to aarch64 or s390x.
+tlsProvider:
+
+# PIP-478: name of a JSSE (SSLContext) java.security.Provider used to build the function worker's
+# web-service TLS SSLContext, e.g. BCJSSE for FIPS (with the BC-FIPS crypto provider registered
+# separately). A distinct axis from tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the
+# default factory builds the JDK engine with this provider as the SSLContext provider, overriding the
+# engine choice. Resolved via the ServiceLoader mechanism with a fallback to an already-registered
+# provider, failing loudly when unresolvable.
+# jsseProvider:
 
 # Enable TLS with KeyStore type configuration in function worker.
 tlsEnabledWithKeyStore: false

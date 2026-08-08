@@ -65,8 +65,38 @@ public interface ClusterData {
 
     String getBrokerClientTlsKeyStore();
 
+    /**
+     * The {@code PulsarTlsFactory} class name used for outbound connections to this cluster (PIP-478), or
+     * blank to inherit the broker-level {@code brokerClientTlsFactoryClassName}. It applies to both
+     * broker-client "purposes" the cluster entry drives: the binary-protocol replication client and the
+     * cross-cluster admin (HTTPS) client.
+     *
+     * @return the per-cluster TLS factory class name, or blank/null to inherit the broker-level setting
+     */
+    String getBrokerClientTlsFactoryClassName();
+
+    /**
+     * The configuration parameters passed to {@link #getBrokerClientTlsFactoryClassName()} as its init
+     * params (a JSON object or a {@code key=value} list), or blank to inherit the broker-level
+     * {@code brokerClientTlsFactoryConfig}.
+     *
+     * @return the per-cluster TLS factory configuration, or blank/null to inherit the broker-level setting
+     */
+    String getBrokerClientTlsFactoryConfig();
+
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained in the cluster
+     *     metadata schema for wire/metadata compatibility, but a configured value is ignored (with a WARN).
+     *     Use {@link #getBrokerClientTlsFactoryClassName()} instead.
+     */
+    @Deprecated
     String getBrokerClientSslFactoryPlugin();
 
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained for metadata
+     *     compatibility but ignored. Use {@link #getBrokerClientTlsFactoryConfig()} instead.
+     */
+    @Deprecated
     String getBrokerClientSslFactoryPluginParams();
 
     String getListenerName();
@@ -116,8 +146,39 @@ public interface ClusterData {
 
         Builder listenerName(String listenerName);
 
+        /**
+         * Select the {@code PulsarTlsFactory} used for outbound connections to this cluster (PIP-478) —
+         * both the binary-protocol replication client and the cross-cluster admin (HTTPS) client. Leave
+         * blank to inherit the broker-level {@code brokerClientTlsFactoryClassName}.
+         *
+         * @param tlsFactoryClassName the factory class name, or blank to inherit the broker-level setting
+         * @return this builder
+         */
+        Builder brokerClientTlsFactoryClassName(String tlsFactoryClassName);
+
+        /**
+         * Configuration passed to {@link #brokerClientTlsFactoryClassName(String)} as its init params (a
+         * JSON object or a {@code key=value} list). Leave blank to inherit the broker-level
+         * {@code brokerClientTlsFactoryConfig}.
+         *
+         * @param tlsFactoryConfig the factory configuration, or blank to inherit the broker-level setting
+         * @return this builder
+         */
+        Builder brokerClientTlsFactoryConfig(String tlsFactoryConfig);
+
+        /**
+         * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Setting it writes a
+         *     metadata field retained only for compatibility; the value is ignored (with a WARN). Use
+         *     {@link #brokerClientTlsFactoryClassName(String)} instead.
+         */
+        @Deprecated
         Builder brokerClientSslFactoryPlugin(String sslFactoryPlugin);
 
+        /**
+         * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained for
+         *     metadata compatibility but ignored. Use {@link #brokerClientTlsFactoryConfig(String)} instead.
+         */
+        @Deprecated
         Builder brokerClientSslFactoryPluginParams(String sslFactoryPluginParams);
 
         ClusterData build();

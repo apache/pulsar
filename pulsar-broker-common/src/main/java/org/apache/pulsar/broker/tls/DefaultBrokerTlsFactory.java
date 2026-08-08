@@ -125,12 +125,15 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
      * {@code tlsProtocols}, {@code tlsCiphers} when they are not. Material (PEM or keystore) and the
      * insecure flag are shared with the binary listener, as they are today.
      *
-     * <p>Note the fallback is what makes the precedence safe to apply now: {@code webServiceTlsProvider}
-     * ships a non-blank default of {@code Conscrypt}, so it always wins over {@code tlsProvider} unless an
-     * operator blanks it. That matches the key's documented meaning — it names the JSSE (SSLContext)
-     * provider for the Jetty web listener — and Conscrypt is shipped in the server distribution. On a
-     * platform where the Conscrypt native library cannot load, the provider is not registered and pinning
-     * it fails loudly at startup rather than silently ignoring the configuration.
+     * <p>A configured provider is <em>pinned</em>: if it cannot be resolved, startup fails rather than
+     * silently ignoring the configuration. That is why {@code webServiceTlsProvider} no longer ships a
+     * default of {@code Conscrypt}. Under PIP-337 the key only reached Jetty's
+     * {@code SslContextFactory.setProvider(...)}, which is inert on a factory that overrides
+     * {@code getSslContext()} with a pre-built context — so the shipped default never actually selected a
+     * provider. Honoring it here makes it real, and Conscrypt's uber jar carries native libraries for
+     * x86_64 only: keeping the default would break the web listener out of the box on aarch64 (Apple
+     * silicon, ARM servers) and s390x. Unset, the JVM default applies, which is what deployments have
+     * effectively been running all along; an operator who wants Conscrypt still sets it explicitly.
      */
     @VisibleForTesting
     static TlsPolicy webPolicy(ServiceConfiguration conf) {
