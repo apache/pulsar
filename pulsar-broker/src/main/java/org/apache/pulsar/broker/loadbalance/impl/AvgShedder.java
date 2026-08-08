@@ -209,7 +209,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public void onActiveBrokersChange(Set<String> activeBrokers) {
-        // Keep a stale pending destination so selection can replace it once and reuse the replacement on retry.
+        // Keep the original plan until the unload attempt completes. Selection can temporarily fall back when the
+        // planned destination is unavailable.
     }
 
     @Override
@@ -285,6 +286,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         return pairs;
     }
 
+    /**
+     * @deprecated This overload does not receive a stable bundle name and therefore cannot reuse a pending
+     *             load-shedding destination. Use {@link #selectBrokerForBundle(Set, String, BundleData, LoadData,
+     *             ServiceConfiguration)} when the bundle name is available.
+     */
+    @Deprecated
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
@@ -313,12 +320,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                 log.debug().attr("broker", pendingBroker).attr("candidates", candidates)
                         .log("expected broker is shutdown");
             }
-            String broker = getExpectedBroker(candidates, bundleToAssign);
-            if (pendingBroker != null) {
-                // Keep a replacement only for the remainder of this unload attempt, including the retry path.
-                pendingBundleToBroker.put(bundle, broker);
-            }
-            return Optional.of(broker);
+            return Optional.of(getExpectedBroker(candidates, bundleToAssign));
         } else {
             return Optional.of(pendingBroker);
         }

@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -126,7 +126,7 @@ public class AvgShedderTest {
         }
 
         // The bundle data is updated in place by a load report. The plan must remain usable during the same
-        // unload attempt, including when the first selected broker is no longer a candidate on the retry.
+        // unload attempt, even when selection temporarily falls back because the planned broker is unavailable.
         String plannedBundle = bundlesToUnload.values().iterator().next();
         BundleData plannedBundleData = loadData.getBundleData().get(plannedBundle);
         NamespaceBundleStats updatedStats = new NamespaceBundleStats();
@@ -140,10 +140,12 @@ public class AvgShedderTest {
                 plannedBundleData, loadData, conf), Optional.of("broker3"));
         assertTrue(avgShedder.hasPendingDestination(plannedBundle));
         assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
-                plannedBundleData, loadData, conf), Optional.of("broker3"));
+                plannedBundleData, loadData, conf), Optional.of("broker2"));
 
-        avgShedder.onUnloadAttemptCompleted(new HashSet<>(bundlesToUnload.values()));
-        assertFalse(avgShedder.hasPendingDestination(plannedBundle));
+        Set<String> plannedBundles = Set.copyOf(bundlesToUnload.values());
+        plannedBundles.forEach(bundle -> assertTrue(avgShedder.hasPendingDestination(bundle)));
+        avgShedder.onUnloadAttemptCompleted(plannedBundles);
+        plannedBundles.forEach(bundle -> assertFalse(avgShedder.hasPendingDestination(bundle)));
     }
 
     @Test
@@ -268,6 +270,7 @@ public class AvgShedderTest {
         }
 
         assertEquals(loadData.getBundleData().get("bundle1-0"), loadData.getBundleData().get("bundle3-0"));
+        assertNotSame(loadData.getBundleData().get("bundle1-0"), loadData.getBundleData().get("bundle3-0"));
 
         // do shedding for the first time, expect to shed nothing because hit count is not enough
         Multimap<String, String> bundlesToUnload = avgShedder.findBundlesForUnloading(loadData, conf);

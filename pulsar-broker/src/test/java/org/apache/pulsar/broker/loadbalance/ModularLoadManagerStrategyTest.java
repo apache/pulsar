@@ -83,8 +83,9 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(invocationCount.get(), 1);
     }
 
-    public void testAvgShedderWithoutBundleName() {
-        ModularLoadManagerStrategy strategy = new AvgShedder();
+    @SuppressWarnings("deprecation")
+    public void testDeprecatedAvgShedderSelectorIsUncachedFallback() {
+        AvgShedder strategy = new AvgShedder();
         BundleData bundleData = new BundleData();
         Set<String> candidates = new HashSet<>(Set.of("1", "2", "3"));
 

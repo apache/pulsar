@@ -58,6 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -204,78 +205,6 @@ public class ModularLoadManagerImplTest {
         @Override
         public void onUnloadAttemptCompleted(Set<String> bundles) {
             completedBundles.set(Set.copyOf(bundles));
-        }
-    }
-
-    public static class TrackingAvgShedder extends AvgShedder {
-        private static final AtomicReference<TrackingAvgShedder> INSTANCE = new AtomicReference<>();
-
-        private final AtomicReference<Set<String>> plannedBundles = new AtomicReference<>(Set.of());
-        private final AtomicReference<Set<String>> completedBundles = new AtomicReference<>(Set.of());
-        private final AtomicReference<Boolean> pendingAtLastSelection = new AtomicReference<>();
-        private final AtomicReference<String> lastSelectedBroker = new AtomicReference<>();
-
-        public TrackingAvgShedder() {
-            INSTANCE.set(this);
-        }
-
-        static void reset() {
-            INSTANCE.set(null);
-        }
-
-        static TrackingAvgShedder getInstance() {
-            return INSTANCE.get();
-        }
-
-        void resetObservations() {
-            plannedBundles.set(Set.of());
-            completedBundles.set(Set.of());
-            resetSelectionObservation();
-        }
-
-        void resetSelectionObservation() {
-            pendingAtLastSelection.set(null);
-            lastSelectedBroker.set(null);
-        }
-
-        Set<String> getPlannedBundles() {
-            return plannedBundles.get();
-        }
-
-        Set<String> getCompletedBundles() {
-            return completedBundles.get();
-        }
-
-        Boolean getPendingAtLastSelection() {
-            return pendingAtLastSelection.get();
-        }
-
-        String getLastSelectedBroker() {
-            return lastSelectedBroker.get();
-        }
-
-        @Override
-        public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
-            Multimap<String, String> bundles = super.findBundlesForUnloading(loadData, conf);
-            plannedBundles.set(Set.copyOf(bundles.values()));
-            return bundles;
-        }
-
-        @Override
-        public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
-                                                       BundleData bundleToAssign, LoadData loadData,
-                                                       ServiceConfiguration conf) {
-            pendingAtLastSelection.set(hasPendingDestination(bundle));
-            Optional<String> selectedBroker =
-                    super.selectBrokerForBundle(candidates, bundle, bundleToAssign, loadData, conf);
-            lastSelectedBroker.set(selectedBroker.orElse(null));
-            return selectedBroker;
-        }
-
-        @Override
-        public void onUnloadAttemptCompleted(Set<String> bundles) {
-            completedBundles.set(Set.copyOf(bundles));
-            super.onUnloadAttemptCompleted(bundles);
         }
     }
 
@@ -428,20 +357,6 @@ public class ModularLoadManagerImplTest {
 
     private String mockBundleName(final int i) {
         return String.format("%d/%d/0x00000000_0xffffffff", i, i);
-    }
-
-    private static BrokerData createBrokerData(double cpu, double messageRate, Set<String> bundles) {
-        LocalBrokerData localBrokerData = new LocalBrokerData();
-        localBrokerData.setCpu(new ResourceUsage(cpu, 100));
-        localBrokerData.setMemory(new ResourceUsage(0, 100));
-        localBrokerData.setDirectMemory(new ResourceUsage(0, 100));
-        localBrokerData.setBandwidthIn(new ResourceUsage(0, 100));
-        localBrokerData.setBandwidthOut(new ResourceUsage(0, 100));
-        localBrokerData.setMsgRateIn(messageRate);
-        localBrokerData.setMsgRateOut(messageRate);
-        localBrokerData.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        localBrokerData.setBundles(new HashSet<>(bundles));
-        return new BrokerData(localBrokerData);
     }
 
     // Test disabled since it's depending on CPU usage in the machine
@@ -782,86 +697,38 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
-    public void testAvgShedderPlanIsScopedToOneUnloadAttempt() throws Exception {
-        TrackingAvgShedder.reset();
-        // Configure one real AvgShedder instance for both load shedding and placement on the third broker.
-        String strategyClass = TrackingAvgShedder.class.getName();
-        ServiceConfiguration config = pulsar3.getConfiguration();
-        config.setLoadBalancerEnabled(true);
-        config.setLoadBalancerLoadPlacementStrategy(strategyClass);
-        config.setLoadBalancerLoadSheddingStrategy(strategyClass);
-        config.setLoadBalancerAvgShedderHighThreshold(40);
-        config.setLoadBalancerAvgShedderHitCountHighThreshold(1);
-        config.setMinUnloadMessage(1);
-        config.setMaxUnloadPercentage(0.5);
-        pulsar3.start();
+    public void testOverloadedBrokerIsExcludedFromRetry() throws Exception {
+        // Force every populated broker report through the overload retry branch without mutating live load data.
+        pulsar1.getConfiguration().setLoadBalancerBrokerOverloadedThresholdPercentage(-1);
+        LoadData loadData = primaryLoadManager.getLoadData();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(primaryLoadManager.getAvailableBrokers().size() > 1);
+            assertTrue(loadData.getBrokerData().keySet().containsAll(primaryLoadManager.getAvailableBrokers()));
+        });
+        AtomicInteger selectionCount = new AtomicInteger();
+        AtomicReference<String> firstSelectedBroker = new AtomicReference<>();
+        AtomicReference<Set<String>> retryCandidates = new AtomicReference<>();
+        ModularLoadManagerStrategy strategy = (candidates, bundleToAssign, data, conf) -> {
+            int invocation = selectionCount.incrementAndGet();
+            if (invocation == 1) {
+                String broker = candidates.iterator().next();
+                firstSelectedBroker.set(broker);
+                return Optional.of(broker);
+            }
+            if (invocation == 2) {
+                retryCandidates.set(Set.copyOf(candidates));
+                return candidates.stream().findFirst();
+            }
+            throw new AssertionError("Unexpected broker selection invocation " + invocation);
+        };
+        primaryLoadManager.setPlacementStrategy(strategy);
 
-        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar3.getLoadManager().get();
-        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
-        Awaitility.await().untilAsserted(() -> assertTrue(loadManager.getAvailableBrokers().size() > 2));
+        Optional<String> selectedBroker = primaryLoadManager.selectBroker(makeBundle("test", "overload-retry"));
 
-        String tenant = "test";
-        String namespace = tenant + "/avg-shedder-e2e";
-        String topic = "persistent://" + namespace + "/topic";
-        admin1.clusters().createCluster("use", ClusterData.builder()
-                .serviceUrl(pulsar1.getWebServiceAddress()).build());
-        admin1.tenants().createTenant(tenant,
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin1.namespaces().createNamespace(namespace);
-
-        NamespaceBundle bundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topic));
-        String bundleName = bundle.toString();
-
-        String topicOwner = admin1.lookups().lookupTopic(topic);
-        String sourceBrokerId;
-        String destinationBrokerId;
-        String otherBrokerId;
-        if (topicOwner.equals(pulsar1.getBrokerServiceUrl())) {
-            sourceBrokerId = primaryBrokerId;
-            destinationBrokerId = secondaryBrokerId;
-            otherBrokerId = pulsar3.getBrokerId();
-        } else if (topicOwner.equals(pulsar2.getBrokerServiceUrl())) {
-            sourceBrokerId = secondaryBrokerId;
-            destinationBrokerId = primaryBrokerId;
-            otherBrokerId = pulsar3.getBrokerId();
-        } else {
-            assertEquals(topicOwner, pulsar3.getBrokerServiceUrl());
-            sourceBrokerId = pulsar3.getBrokerId();
-            destinationBrokerId = primaryBrokerId;
-            otherBrokerId = secondaryBrokerId;
-        }
-
-        TrackingAvgShedder strategy = TrackingAvgShedder.getInstance();
-        assertTrue(strategy != null);
-        // Seed deterministic load reports so the real AvgShedder plans the owned bundle for destinationBrokerId.
-        LoadData loadData = loadManager.getLoadData();
-        loadData.getBrokerData().clear();
-        loadData.getBundleData().clear();
-        loadData.getRecentlyUnloadedBundles().clear();
-        loadData.getBrokerData().put(sourceBrokerId, createBrokerData(80, 10_000, Set.of(bundleName)));
-        loadData.getBrokerData().put(destinationBrokerId, createBrokerData(30, 1_000, Set.of()));
-        loadData.getBrokerData().put(otherBrokerId, createBrokerData(50, 5_000, Set.of()));
-        BundleData bundleData = new BundleData(1, 1);
-        TimeAverageMessageData shortTermData = new TimeAverageMessageData(1);
-        shortTermData.setMsgRateIn(450);
-        shortTermData.setMsgRateOut(450);
-        bundleData.setShortTermData(shortTermData);
-        loadData.getBundleData().put(bundleName, bundleData);
-        strategy.resetObservations();
-
-        loadManager.doLoadShedding();
-
-        assertEquals(strategy.getPlannedBundles(), Set.of(bundleName));
-        assertEquals(strategy.getPendingAtLastSelection(), Boolean.TRUE);
-        assertEquals(strategy.getLastSelectedBroker(), destinationBrokerId);
-        assertEquals(strategy.getCompletedBundles(), Set.of(bundleName));
-        assertFalse(strategy.hasPendingDestination(bundleName));
-        assertTrue(loadData.getRecentlyUnloadedBundles().containsKey(bundleName));
-
-        strategy.resetSelectionObservation();
-        // The completed unload attempt must not influence a subsequent ordinary placement decision.
-        assertTrue(loadManager.selectBroker(bundle).isPresent());
-        assertEquals(strategy.getPendingAtLastSelection(), Boolean.FALSE);
+        assertEquals(selectionCount.get(), 2);
+        assertTrue(selectedBroker.isPresent());
+        assertFalse(retryCandidates.get().contains(firstSelectedBroker.get()));
+        assertNotEquals(selectedBroker.get(), firstSelectedBroker.get());
     }
 
     @Test

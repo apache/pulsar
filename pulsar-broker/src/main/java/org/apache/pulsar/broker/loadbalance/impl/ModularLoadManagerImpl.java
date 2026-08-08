@@ -985,6 +985,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
+                brokerCandidateCache.remove(broker.get());
                 Optional<String> brokerTmp =
                         placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
@@ -998,6 +999,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @VisibleForTesting
     LoadData getLoadData() {
         return loadData;
+    }
+
+    @VisibleForTesting
+    void setPlacementStrategy(ModularLoadManagerStrategy placementStrategy) {
+        this.placementStrategy = placementStrategy;
     }
 
     /**
