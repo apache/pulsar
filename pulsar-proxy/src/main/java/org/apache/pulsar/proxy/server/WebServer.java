@@ -126,6 +126,7 @@ public class WebServer {
         }
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
         httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
+        httpConfig.setResponseHeaderSize(config.getHttpMaxResponseHeaderSize());
         httpConfig.setIdleTimeout(config.getHttpServerIdleTimeout());
 
         HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
