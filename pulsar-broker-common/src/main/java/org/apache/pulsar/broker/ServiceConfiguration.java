@@ -3569,6 +3569,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
+        category = CATEGORY_REPLICATION,
+        dynamic = true,
+        doc = "Broker-level maximum memory (in MB) used by in-flight replication entries across all replicators. "
+            + "When the total inflight bytes reaches this limit, new cursor reads are blocked until inflight "
+            + "bytes drop below the limit. 0 means no limit (backward compatible default)."
+    )
+    private int replicationMaxInflightMemorySizeMB = 0;
+    @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"

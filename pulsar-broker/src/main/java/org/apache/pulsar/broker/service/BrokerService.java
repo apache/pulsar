@@ -305,6 +305,9 @@ public class BrokerService implements Closeable {
 
     private DistributedIdGenerator producerNameGenerator;
 
+    @Getter
+    private final BrokerReplicationMemoryLimiter replicationMemoryLimiter;
+
     public static final String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
 
     private final BacklogQuotaManager backlogQuotaManager;
@@ -384,6 +387,7 @@ public class BrokerService implements Closeable {
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
                 pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
         this.workerGroup = eventLoopGroup;
+        this.replicationMemoryLimiter = new BrokerReplicationMemoryLimiter(workerGroup);
 
         this.statsUpdater = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-stats-updater");
         this.authorizationService = new AuthorizationService(
@@ -3305,6 +3309,10 @@ public class BrokerService implements Closeable {
         });
 
         // add more listeners here
+
+        registerConfigurationListener("replicationMaxInflightMemorySizeMB",
+                maxBytesMB -> replicationMemoryLimiter.setMaxBytes(
+                        (long) ((Integer) maxBytesMB) * 1024 * 1024));
 
         // (3) create dynamic-config if not exist.
         createDynamicConfigPathIfNotExist();
