@@ -471,9 +471,27 @@ public abstract class AbstractReplicator implements Replicator {
         return producer != null && producer.isWritable();
     }
 
-    public static String getRemoteCluster(String remoteCursor) {
-        String[] split = remoteCursor.split("\\.");
-        return split[split.length - 1];
+    /**
+     * Extract the remote cluster name from a replicator cursor/subscription name, which is the inverse of
+     * {@link #getReplicatorName(String, String)}: the name is {@code <replicatorPrefix>.<remoteCluster>}.
+     *
+     * <p>The known prefix is stripped instead of splitting the name on {@code '.'} and taking the last
+     * segment: cluster names are allowed to contain dots (see
+     * {@link org.apache.pulsar.common.naming.NamedEntity#NAMED_ENTITY_PATTERN}), and splitting returns only
+     * the part after the last dot for those — so a cluster named {@code us-east.prod} resolved to
+     * {@code prod}.
+     *
+     * @param replicatorPrefix      the configured replicator prefix (e.g. {@code pulsar.repl})
+     * @param replicatorCursorName  the replicator cursor / subscription name
+     * @return the remote cluster name, or {@code replicatorCursorName} unchanged when it does not carry the
+     *         prefix (the callers then fail their replicator lookup, as before)
+     */
+    public static String getRemoteCluster(String replicatorPrefix, String replicatorCursorName) {
+        String prefix = replicatorPrefix + ".";
+        if (replicatorCursorName.startsWith(prefix)) {
+            return replicatorCursorName.substring(prefix.length());
+        }
+        return replicatorCursorName;
     }
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {

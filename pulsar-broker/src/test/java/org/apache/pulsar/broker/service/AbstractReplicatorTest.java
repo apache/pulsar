@@ -133,6 +133,34 @@ public class AbstractReplicatorTest {
         });
     }
 
+    /**
+     * {@link AbstractReplicator#getRemoteCluster(String, String)} must be the exact inverse of
+     * {@link AbstractReplicator#getReplicatorName(String, String)} for every legal cluster name. Cluster names
+     * may contain dots ({@code NamedEntity#NAMED_ENTITY_PATTERN} allows {@code -=:.} plus word characters), so
+     * taking the segment after the last dot resolved {@code us-east.prod} to {@code prod}.
+     */
+    @Test
+    public void testGetRemoteClusterRoundTripsClusterNamesContainingDots() {
+        final String replicatorPrefix = "pulsar.repl";
+        for (String cluster : new String[]{"us-west", "us-east.prod", "a.b.c", "cluster:1", "r3"}) {
+            String cursorName = AbstractReplicator.getReplicatorName(replicatorPrefix, cluster);
+            Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, cursorName), cluster,
+                    "remote cluster not recovered from cursor name " + cursorName);
+        }
+    }
+
+    /**
+     * A prefix that is not the configured replicator prefix must not be stripped, so that callers keep failing
+     * their replicator lookup instead of resolving to some other cluster.
+     */
+    @Test
+    public void testGetRemoteClusterLeavesNonReplicatorNamesUnchanged() {
+        Assert.assertEquals(AbstractReplicator.getRemoteCluster("pulsar.repl", "my-subscription"),
+                "my-subscription");
+        Assert.assertEquals(AbstractReplicator.getRemoteCluster("pulsar.repl", "other.prefix.us-east"),
+                "other.prefix.us-east");
+    }
+
     private static class ReplicatorInTest extends AbstractReplicator {
 
         public ReplicatorInTest(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,

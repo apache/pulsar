@@ -561,7 +561,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
-                String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
+                String remoteCluster = PersistentReplicator.getRemoteCluster(replicatorPrefix, cursor.getName());
                 if (!replicationClusters.contains(remoteCluster)) {
                     log.warn()
                             .attr("remoteCluster", remoteCluster)

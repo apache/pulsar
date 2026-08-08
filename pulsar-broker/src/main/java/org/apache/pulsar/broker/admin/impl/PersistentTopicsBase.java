@@ -1979,7 +1979,8 @@ public class PersistentTopicsBase extends AdminResource {
                         }
                     };
                     if (subName.startsWith(topic.getReplicatorPrefix())) {
-                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                        String remoteCluster =
+                                PersistentReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
                         PersistentReplicator repl =
                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                         if (repl == null) {
@@ -2034,7 +2035,7 @@ public class PersistentTopicsBase extends AdminResource {
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
                  if (subName.startsWith(topic.getReplicatorPrefix())) {
-                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                     String remoteCluster = PersistentReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
                      PersistentReplicator repl =
                              (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                      if (repl == null) {
@@ -4210,7 +4211,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                 final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
                     messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 } else {
                     messageExpirer = topic.getSubscription(subName);
@@ -4326,7 +4327,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
                     messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 } else {
                     messageExpirer = topic.getSubscription(subName);
@@ -4764,7 +4765,7 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private PersistentReplicator getReplicatorReference(String replName, PersistentTopic topic) {
         try {
-            String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
+            String remoteCluster = PersistentReplicator.getRemoteCluster(topic.getReplicatorPrefix(), replName);
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
             return checkNotNull(repl);
         } catch (Exception e) {
