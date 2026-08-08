@@ -258,9 +258,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits");
                 if (notifyAddedToReplay.booleanValue()) {
@@ -306,6 +307,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
         if (!consumerSet.contains(consumer)) {
             log.debug()
                     .attr("consumer", consumer)

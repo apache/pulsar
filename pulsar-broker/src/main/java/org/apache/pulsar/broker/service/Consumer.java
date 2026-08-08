@@ -117,6 +117,10 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> MESSAGE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "messagePermits");
     private volatile int messagePermits = 0;
+    // Flow commands update the consumer before the dispatcher processes the update asynchronously. Track permits in
+    // between those steps so consumer removal only subtracts permits already included in the dispatcher total.
+    private final Object flowPermitAccountingLock = new Object();
+    private int pendingDispatcherFlowPermits = 0;
     // It starts keep tracking of messagePermits once consumer gets blocked, as consumer needs two separate counts:
     // messagePermits (1) before and (2) after being blocked: to dispatch only blockedPermit number of messages at the
     // time of redelivery
@@ -916,7 +920,7 @@ public class Consumer {
         }
         int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
-            oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+            oldPermits = addPermitsPendingDispatcherUpdate(additionalNumberOfMessages);
             log.debug()
                     .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                     .log("Added message permits before updating dispatcher");
@@ -943,7 +947,7 @@ public class Consumer {
     void flowConsumerBlockedPermits(Consumer consumer) {
         int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
         // add newly flow permits to actual consumer.messagePermits
-        MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
+        consumer.addPermitsPendingDispatcherUpdate(additionalNumberOfPermits);
         log.debug()
                 .attr("additionalNumberOfPermits", additionalNumberOfPermits)
                 .log("Added blocked permits");
@@ -953,6 +957,28 @@ public class Consumer {
 
     public int getAvailablePermits() {
         return MESSAGE_PERMITS_UPDATER.get(this);
+    }
+
+    private int addPermitsPendingDispatcherUpdate(int additionalNumberOfPermits) {
+        synchronized (flowPermitAccountingLock) {
+            pendingDispatcherFlowPermits += additionalNumberOfPermits;
+            return MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfPermits);
+        }
+    }
+
+    /** Marks an asynchronous Flow update as processed by the dispatcher. */
+    public void completePendingDispatcherFlow(int additionalNumberOfPermits) {
+        synchronized (flowPermitAccountingLock) {
+            pendingDispatcherFlowPermits = Math.max(0,
+                    pendingDispatcherFlowPermits - additionalNumberOfPermits);
+        }
+    }
+
+    /** Returns the permits already included in the dispatcher total when this consumer is removed. */
+    public int getAvailablePermitsForDispatcherRemoval() {
+        synchronized (flowPermitAccountingLock) {
+            return MESSAGE_PERMITS_UPDATER.get(this) - pendingDispatcherFlowPermits;
+        }
     }
 
     /**

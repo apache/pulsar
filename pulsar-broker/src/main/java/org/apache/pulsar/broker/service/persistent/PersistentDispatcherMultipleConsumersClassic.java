@@ -244,9 +244,10 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("availablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits by in PersistentDispatcherMultipleConsumers. "
                                 + "New dispatcher permit count is");
@@ -286,6 +287,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
         if (!consumerSet.contains(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
