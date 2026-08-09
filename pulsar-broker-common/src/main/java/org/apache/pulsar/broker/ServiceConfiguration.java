@@ -2554,6 +2554,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Set to a value greater than 0 to use that many MB.")
     private Long managedLedgerMaxReadsInFlightSizeInMB = null;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Whether managed ledger reads should use the in-flight reads limiter when the entry cache is "
+                    + "disabled (managedLedgerCacheSizeMB=0). When false, the existing cache-disabled read path "
+                    + "bypasses the limiter.")
+    private boolean enableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled = false;
+
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
     private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;

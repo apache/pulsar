@@ -95,6 +95,11 @@ public class ManagedLedgerFactoryConfig {
     private long managedLedgerMaxReadsInFlightSize = 0;
 
     /**
+     * Whether to apply the in-flight reads limiter when the entry cache is disabled.
+     */
+    private boolean enableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled = false;
+
+    /**
      * Maximum time to wait for acquiring permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is
      * set (>0) and the limit is reached.
      */

@@ -35,6 +35,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.InflightReadsLimiter;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
@@ -48,6 +50,45 @@ import org.testng.annotations.Test;
 
 @CustomLog
 public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCase {
+
+    @Test
+    public void testCacheDisabledReadsUseInflightReadsLimiterWhenEnabled() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled(true);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter",
+                    new ManagedLedgerConfig());
+            ml.addEntry(new byte[] {1});
+            EntryCache entryCache = ml.entryCache;
+            Assert.assertTrue(entryCache instanceof EntryCacheDisabled);
+
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            CompletableFuture<List<Entry>> entriesFuture = new CompletableFuture<>();
+            entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    entriesFuture.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    entriesFuture.completeExceptionally(exception);
+                }
+            }, new Object());
+
+            List<Entry> entries = entriesFuture.join();
+            Awaitility.await().untilAsserted(() -> Assert.assertTrue(limiter.getRemainingBytes() < totalCapacity));
+            entries.forEach(Entry::release);
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
+        } finally {
+            factory.shutdown();
+        }
+    }
 
     @DataProvider
     public Object[][] readMissingCases() {
