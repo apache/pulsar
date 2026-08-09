@@ -2031,9 +2031,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      *
      * <p>The initialization state is tracked separately from regular replication checks so that a concurrent
      * policy update does not start a second initial check. The check itself is still dispatched through
-     * {@link #checkReplication()} to preserve overrides supplied by {@link org.apache.pulsar.broker.service.TopicFactory}.
+     * {@link #checkReplication()} to preserve overrides supplied by
+     * {@link org.apache.pulsar.broker.service.TopicFactory}.
      */
-    public CompletableFuture<Void> initializeCheckReplication() {
+    public final CompletableFuture<Void> initializeCheckReplication() {
         if (initialReplicationCheckInitialized.compareAndSet(false, true)) {
             try {
                 checkReplication().whenComplete((__, ex) -> {
