@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.client.admin.internal.TopicsImpl.TXN_CONSUMABLE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -2011,10 +2012,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Message<byte[]> peekedMessage = admin.topics().peekMessages(topicName, "sub-peek", 1).get(0);
         assertEquals(new String(peekedMessage.getData()), "non-batch-message");
-        assertEquals(peekedMessage.getProperties().size(), 3);
+        assertEquals(peekedMessage.getProperties().size(), 4);
         assertEquals(peekedMessage.getProperties().get("key1"), "value1");
         assertEquals(peekedMessage.getProperties().get("KEY2"), "VALUE2");
         assertEquals(peekedMessage.getProperties().get("KeY3"), "VaLuE3");
+        assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
 
         admin.topics().truncate(topicName);
 
@@ -2049,10 +2051,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> batchMessage = peekedMessages.get(i);
             assertEquals(new String(batchMessage.getData()), "batch-message-" + (i + 1));
             assertEquals(batchMessage.getProperties().size(),
-                    3 + 2 // 3 properties from the message + 2 properties from the batch
+                    3 + 2 + 1 // 3 properties from the message + 2 properties from the batch + 1 property from TNX
             );
             assertEquals(batchMessage.getProperties().get("X-Pulsar-num-batch-message"), "2");
             assertNotNull(batchMessage.getProperties().get("X-Pulsar-batch-size"));
+            assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
             assertEquals(batchMessage.getProperties().get("batch-key1"), "batch-value1");
             assertEquals(batchMessage.getProperties().get("BATCH-KEY2"), "BATCH-VALUE2");
             assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");

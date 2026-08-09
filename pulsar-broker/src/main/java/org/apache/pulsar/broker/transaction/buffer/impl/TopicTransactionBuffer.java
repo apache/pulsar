@@ -685,6 +685,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
+    @Override
+    public synchronized boolean isTxnOngoing(TxnID txnID) {
+        return ongoingTxns.containsKey(txnID);
+    }
+
     /**
      * Sync max read position for normal publish.
      * @param position {@link Position} the position to sync.

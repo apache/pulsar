@@ -4754,6 +4754,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this.transactionBuffer.isTxnAborted(txnID, readPosition);
     }
 
+    public boolean isTxnOngoing(TxnID txnID) {
+        return this.transactionBuffer.isTxnOngoing(txnID);
+    }
+
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         return this.transactionBuffer.getTransactionInBufferStats(txnID);
     }
