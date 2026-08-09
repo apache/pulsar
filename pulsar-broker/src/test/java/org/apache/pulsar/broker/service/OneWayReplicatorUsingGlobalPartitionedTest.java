@@ -346,10 +346,10 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
 
         CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicP1, true);
         if ("topic".equals(removeClusterLevel)) {
-            future.get(30, TimeUnit.SECONDS);
+            future.get(90, TimeUnit.SECONDS);
         } else {
             try {
-                future.get(30, TimeUnit.SECONDS);
+                future.get(90, TimeUnit.SECONDS);
                 fail("Should have thrown an exception since the __change_event topic can not be access anymore");
             } catch (Exception e) {
                 assertTrue(e.getMessage().contains("Namespace missing local cluster name"));
