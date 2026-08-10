@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.tls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
@@ -80,20 +81,34 @@ public final class ClientTlsFactorySupport {
     }
 
     /**
-     * Map the v4 {@code sslProvider} string to the Netty engine provider. Only the literal OpenSSL
-     * providers select {@code OPENSSL}; every other value (JCE provider names, {@code null}) is JDK.
+     * Map the v4 {@code sslProvider} string to the Netty engine provider, matching the server-side
+     * {@code TlsFactorySupport.engineProvider} exactly (PIP-478).
+     *
+     * <p>An engine literal is honored verbatim — {@code OPENSSL_REFCNT} stays {@code OPENSSL_REFCNT} rather
+     * than collapsing to {@code OPENSSL}, which matters because only the reference-counted variant is free of
+     * the {@code finalize()} that JEP 421 deprecates. Any other non-blank value is a JSSE provider name, which
+     * belongs on the other axis and selects no native engine, so it maps to {@code JDK}.
+     *
+     * <p>Unset selects the native engine when a {@code netty-tcnative} binary is available for the platform,
+     * else the JDK engine. That preserves the historical default: the PIP-337 client passed a null provider to
+     * {@code SslContextBuilder}, which then picked the native engine wherever tcnative was present. Returning
+     * {@code JDK} for an unset value would have silently moved every client off the native engine.
      *
      * @param sslProvider the configured {@code sslProvider} string
      * @return the Netty {@link SslProvider}
      */
     public static SslProvider engineProvider(String sslProvider) {
-        if (sslProvider != null) {
-            String p = sslProvider.trim();
-            if ("OPENSSL".equalsIgnoreCase(p) || "OPENSSL_REFCNT".equalsIgnoreCase(p)) {
+        if (StringUtils.isNotBlank(sslProvider)) {
+            String provider = sslProvider.trim();
+            if ("OPENSSL".equalsIgnoreCase(provider)) {
                 return SslProvider.OPENSSL;
             }
+            if ("OPENSSL_REFCNT".equalsIgnoreCase(provider)) {
+                return SslProvider.OPENSSL_REFCNT;
+            }
+            return SslProvider.JDK;
         }
-        return SslProvider.JDK;
+        return OpenSsl.isAvailable() ? SslProvider.OPENSSL_REFCNT : SslProvider.JDK;
     }
 
     /**
