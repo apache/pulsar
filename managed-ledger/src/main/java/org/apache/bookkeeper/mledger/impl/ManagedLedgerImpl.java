@@ -2424,9 +2424,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // without issuing a ledger read.
             if (firstValidEntry == -1L) {
                 final Position lastScannedPosition = PositionFactory.create(ledger.getId(), lastEntry);
-                // If the last scanned position belongs to an individually deleted range, hop past its
-                // upper bound. Otherwise, getNextAvailablePosition() advances by one position. A hop can
-                // cross maxPosition safely because every position crossed by the hop is individually deleted.
+                // The whole scan window was skipped. If the last scanned position is individually deleted,
+                // hop over its deleted range instead of advancing one window at a time.
                 final Position nextReadPosition = opReadEntry.cursor.getNextAvailablePosition(lastScannedPosition);
                 opReadEntry.updateReadPosition(nextReadPosition);
                 opReadEntry.checkReadCompletion();
