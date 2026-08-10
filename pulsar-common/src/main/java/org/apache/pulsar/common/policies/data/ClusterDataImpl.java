@@ -179,7 +179,9 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @Schema(
             name = "brokerClientTlsFactoryConfig",
             description = "Configuration passed to brokerClientTlsFactoryClassName as its init params (JSON "
-                    + "object or key=value list). Blank inherits the broker-level brokerClientTlsFactoryConfig."
+                    + "object or key=value list). Follows brokerClientTlsFactoryClassName rather "
+                    + "than inheriting on its own: used verbatim when this cluster names a "
+                    + "factory, ignored otherwise."
     )
     private String brokerClientTlsFactoryConfig;
     /**

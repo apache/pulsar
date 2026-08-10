@@ -373,8 +373,9 @@ public class CmdClusters extends CmdBase {
 
         @Option(names = "--tls-factory-config",
                 description = "Configuration passed to --tls-factory-class-name as its init params, either a "
-                        + "JSON object or a key=value list. Leave unset to inherit the broker's "
-                        + "brokerClientTlsFactoryConfig.")
+                        + "JSON object or a key=value list. Follows --tls-factory-class-name rather than "
+                        + "inheriting on its own: used verbatim when this cluster names a factory, ignored "
+                        + "otherwise.")
         protected String brokerClientTlsFactoryConfig;
 
         @Option(names = "--listener-name",

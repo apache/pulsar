@@ -77,10 +77,14 @@ public interface ClusterData {
 
     /**
      * The configuration parameters passed to {@link #getBrokerClientTlsFactoryClassName()} as its init
-     * params (a JSON object or a {@code key=value} list), or blank to inherit the broker-level
-     * {@code brokerClientTlsFactoryConfig}.
+     * params (a JSON object or a {@code key=value} list).
      *
-     * @return the per-cluster TLS factory configuration, or blank/null to inherit the broker-level setting
+     * <p>This value follows the class name rather than inheriting on its own: when this cluster names a
+     * factory, this configuration is used even when blank, so factory A's parameters can never be handed to
+     * factory B. Only when the class name is blank — so the broker-level factory applies — does the
+     * broker-level {@code brokerClientTlsFactoryConfig} apply too.
+     *
+     * @return the per-cluster TLS factory configuration; used verbatim when this cluster names a factory
      */
     String getBrokerClientTlsFactoryConfig();
 
@@ -158,10 +162,13 @@ public interface ClusterData {
 
         /**
          * Configuration passed to {@link #brokerClientTlsFactoryClassName(String)} as its init params (a
-         * JSON object or a {@code key=value} list). Leave blank to inherit the broker-level
-         * {@code brokerClientTlsFactoryConfig}.
+         * JSON object or a {@code key=value} list).
          *
-         * @param tlsFactoryConfig the factory configuration, or blank to inherit the broker-level setting
+         * <p>It follows the class name rather than inheriting on its own: setting a class name here means
+         * this configuration is used even when blank, so one factory's parameters are never handed to
+         * another. It is ignored — with a warning — when no class name is set on this cluster.
+         *
+         * @param tlsFactoryConfig the factory configuration for this cluster's factory
          * @return this builder
          */
         Builder brokerClientTlsFactoryConfig(String tlsFactoryConfig);

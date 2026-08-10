@@ -240,6 +240,8 @@ public class BrokerService implements Closeable {
     private final Map<String, PulsarClient> replicationClients = new ConcurrentHashMap<>();
     // PIP-478: clusters already warned about a stale PIP-337 factory selection, so the WARN fires once.
     private final Set<String> stalePip337ClusterFactoryWarned = ConcurrentHashMap.newKeySet();
+    // Clusters already warned about factory config that names no factory; the WARN fires once.
+    private final Set<String> staleClusterFactoryConfigWarned = ConcurrentHashMap.newKeySet();
     private final Map<String, PulsarAdmin> clusterAdmins = new ConcurrentHashMap<>();
 
     // Multi-layer topics map:
@@ -1694,7 +1696,8 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
                             resolveBrokerClientTlsFactory(data.getBrokerClientTlsFactoryClassName(),
                                     pulsar.getConfiguration().getBrokerClientTlsFactoryClassName()),
-                            resolveBrokerClientTlsFactoryConfig(data.getBrokerClientTlsFactoryClassName(),
+                            resolveBrokerClientTlsFactoryConfig(cluster,
+                                    data.getBrokerClientTlsFactoryClassName(),
                                     data.getBrokerClientTlsFactoryConfig(),
                                     pulsar.getConfiguration().getBrokerClientTlsFactoryConfig())
                     );
@@ -1714,7 +1717,8 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
                             resolveBrokerClientTlsFactory(data.getBrokerClientTlsFactoryClassName(),
                                     pulsar.getConfiguration().getBrokerClientTlsFactoryClassName()),
-                            resolveBrokerClientTlsFactoryConfig(data.getBrokerClientTlsFactoryClassName(),
+                            resolveBrokerClientTlsFactoryConfig(cluster,
+                                    data.getBrokerClientTlsFactoryClassName(),
                                     data.getBrokerClientTlsFactoryConfig(),
                                     pulsar.getConfiguration().getBrokerClientTlsFactoryConfig())
                     );
@@ -1799,9 +1803,23 @@ public class BrokerService implements Closeable {
      * @param brokerConfig     the broker-level factory configuration
      * @return the configuration belonging to the selected factory
      */
-    private static String resolveBrokerClientTlsFactoryConfig(String clusterClassName, String clusterConfig,
-                                                              String brokerConfig) {
-        return StringUtils.isNotBlank(clusterClassName) ? clusterConfig : brokerConfig;
+    private String resolveBrokerClientTlsFactoryConfig(String cluster, String clusterClassName,
+                                                       String clusterConfig, String brokerConfig) {
+        if (StringUtils.isNotBlank(clusterClassName)) {
+            return clusterConfig;
+        }
+        if (StringUtils.isNotBlank(clusterConfig) && staleClusterFactoryConfigWarned.add(cluster)) {
+            // The cluster configured init params but named no factory, so the broker-level factory applies and
+            // these params are not its. Dropping them silently is the same failure shape as a stale PIP-337
+            // value, so say so rather than let the operator believe they took effect.
+            log.warn()
+                    .attr("cluster", cluster)
+                    .log("Ignoring ClusterData.brokerClientTlsFactoryConfig: the cluster sets no "
+                            + "brokerClientTlsFactoryClassName, so the broker-level factory and its own "
+                            + "configuration apply. Set the class name on the cluster to use this "
+                            + "configuration");
+        }
+        return brokerConfig;
     }
 
     private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
@@ -1934,7 +1952,8 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
                             resolveBrokerClientTlsFactory(data.getBrokerClientTlsFactoryClassName(),
                                     conf.getBrokerClientTlsFactoryClassName()),
-                            resolveBrokerClientTlsFactoryConfig(data.getBrokerClientTlsFactoryClassName(),
+                            resolveBrokerClientTlsFactoryConfig(cluster,
+                                    data.getBrokerClientTlsFactoryClassName(),
                                     data.getBrokerClientTlsFactoryConfig(),
                                     conf.getBrokerClientTlsFactoryConfig())
                     );
@@ -1954,7 +1973,8 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
                             resolveBrokerClientTlsFactory(data.getBrokerClientTlsFactoryClassName(),
                                     conf.getBrokerClientTlsFactoryClassName()),
-                            resolveBrokerClientTlsFactoryConfig(data.getBrokerClientTlsFactoryClassName(),
+                            resolveBrokerClientTlsFactoryConfig(cluster,
+                                    data.getBrokerClientTlsFactoryClassName(),
                                     data.getBrokerClientTlsFactoryConfig(),
                                     conf.getBrokerClientTlsFactoryConfig())
                     );
