@@ -493,6 +493,21 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 && oauth2.idpTlsPolicy().isPresent();
     }
 
+    /**
+     * Whether {@link #bindAuthenticationServices} actually bound the framework HTTP client factory into the
+     * authentication plugin.
+     *
+     * <p>Exists so a test can observe the decision at its real call site rather than by calling the
+     * predicate directly: review demonstrated that deleting the guard's invocation here left every test
+     * asserting {@code leaveOAuth2Standalone(...)} green, because none of them ran this method
+     * (VisibleForTesting).
+     *
+     * @return whether the framework HTTP client factory was bound
+     */
+    boolean boundAuthHttpClientFactoryForTest() {
+        return authHttpClientFactory != null;
+    }
+
     private void bindAuthenticationServices(ClientConfigurationData conf) {
         if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
             return;

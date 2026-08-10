@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -81,6 +82,47 @@ public class AdminOAuth2IdpTlsBindingTest {
      */
     private static AuthenticationOAuth2 oauth2(String params) {
         AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure(params);
+        return auth;
+    }
+
+    @Test
+    public void theGuardIsActuallyWiredIntoAdminConstruction() throws Exception {
+        // The other tests call leaveOAuth2Standalone(...) directly, so deleting its call site in
+        // bindAuthenticationServices left them all green — review demonstrated exactly that. This one drives a
+        // real PulsarAdmin and observes whether the framework factory was bound, so it fails if the guard is
+        // ever disconnected from the code path it guards. start() is stubbed out because it would otherwise
+        // fetch OAuth2 server metadata over the network; the binding decision runs before it and does not
+        // depend on it.
+        try (PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(offlineOAuth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"))
+                .build()) {
+            assertThat(admin.boundAuthHttpClientFactoryForTest())
+                    .as("an OAuth2 plugin carrying IdP TLS material must be left standalone")
+                    .isFalse();
+        }
+
+        try (PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(offlineOAuth2(ISSUER + "}"))
+                .build()) {
+            assertThat(admin.boundAuthHttpClientFactoryForTest())
+                    .as("with no IdP material to lose, the framework factory is still bound")
+                    .isTrue();
+        }
+    }
+
+    /** An OAuth2 plugin whose start() performs no IdP discovery, so the test stays hermetic. */
+    private static AuthenticationOAuth2 offlineOAuth2(String params) {
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public void start() {
+                // no IdP round-trip; the binding decision runs before start() and is independent of it
+            }
+        };
         auth.configure(params);
         return auth;
     }
