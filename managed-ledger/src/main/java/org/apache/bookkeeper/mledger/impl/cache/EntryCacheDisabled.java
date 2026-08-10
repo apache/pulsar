@@ -154,13 +154,13 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
                     return entries;
-                }, ml.getExecutor()).whenComplete((entries, exception) -> {
+                }, ml.getExecutor()).whenCompleteAsync((entries, exception) -> {
                     if (exception == null) {
                         callback.readEntriesComplete(entries, ctx);
                     } else {
                         callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                     }
-        });
+                }, ml.getExecutor());
     }
 
     @Override
