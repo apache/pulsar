@@ -127,7 +127,7 @@ public class EntryCacheDisabled implements EntryCache {
 
     private void readEntries(ReadHandle lh, long firstEntry, long lastEntry,
                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenApplyAsync(
                 ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
@@ -146,10 +146,13 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
-                    callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor()).exceptionally(exception -> {
-            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-            return null;
+                    return entries;
+                }, ml.getExecutor()).whenComplete((entries, exception) -> {
+                    if (exception == null) {
+                        callback.readEntriesComplete(entries, ctx);
+                    } else {
+                        callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                    }
         });
     }
 

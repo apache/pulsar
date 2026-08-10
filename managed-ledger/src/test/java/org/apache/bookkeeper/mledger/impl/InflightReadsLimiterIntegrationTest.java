@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -85,6 +87,47 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             Awaitility.await().untilAsserted(() -> Assert.assertTrue(limiter.getRemainingBytes() < totalCapacity));
             entries.forEach(Entry::release);
             Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    @Test
+    public void testCacheDisabledReadCallbackFailureDoesNotReleasePermitsTwice() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled(true);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_callback_failure",
+                    new ManagedLedgerConfig());
+            ml.addEntry(new byte[] {1});
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            CompletableFuture<Void> readCompleted = new CompletableFuture<>();
+            AtomicInteger failedCallbacks = new AtomicInteger();
+
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    entries.forEach(Entry::release);
+                    readCompleted.complete(null);
+                    throw new RuntimeException("Expected callback failure");
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    failedCallbacks.incrementAndGet();
+                }
+            }, new Object());
+
+            readCompleted.join();
+            Awaitility.await().pollDelay(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+                Assert.assertEquals(failedCallbacks.get(), 0);
+                Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity);
+            });
         } finally {
             factory.shutdown();
         }
