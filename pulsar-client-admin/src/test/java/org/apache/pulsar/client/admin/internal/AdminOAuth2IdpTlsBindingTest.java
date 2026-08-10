@@ -20,20 +20,21 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
 /**
  * PIP-478 / issue #24944: a {@code PulsarAdmin} using OAuth2 with its own IdP TLS material
  * ({@code trustCertsFilePath} / {@code tlsCertFile} / {@code tlsKeyFile}) must keep honouring it.
  *
- * <p>The admin path never sets {@code conf.tlsFactory}, so the framework HTTP client factory the admin binds
- * has no TLS material to serve, and its legacy branch applies material only for {@code CLIENT_DEFAULT} —
- * never for the {@code CLIENT_OAUTH2} purpose OAuth2 requests. Binding it is also what makes {@code FlowBase}
- * skip {@code StandaloneOAuth2HttpClientFactory}, the only consumer of {@code idpTlsPolicy()}. So such a
- * plugin has to be left unbound; v4 honoured the material and 5.0 must too.
+ * <p>The remedy mirrors {@code PulsarClientImpl}: fold the IdP policy into the admin's own TLS factory under
+ * {@link TlsPurpose#CLIENT_OAUTH2}, rather than leaving the plugin to self-provision a standalone factory.
+ * Folding preserves the admin's transport settings — notably its SOCKS5 proxy scope, which a fresh
+ * {@code ClientConfigurationData} would have reset to {@code BINARY_ONLY} — and avoids a duplicate factory
+ * and refresh scheduler per admin.
  */
 public class AdminOAuth2IdpTlsBindingTest {
 
@@ -43,84 +44,64 @@ public class AdminOAuth2IdpTlsBindingTest {
             + "\"audience\":\"test\"";
 
     @Test
-    public void anOAuth2PluginWithIdpTlsMaterialIsLeftStandalone() {
-        AuthenticationOAuth2 auth = oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}");
-        assertThat(auth.idpTlsPolicy()).as("precondition: the flow carries IdP TLS material").isPresent();
-
-        assertThat(PulsarAdminImpl.leaveOAuth2Standalone(auth, new ClientConfigurationData()))
-                .as("binding the framework factory would silently drop the IdP material")
-                .isTrue();
+    public void idpTrustMaterialIsFoldedIntoTheAdminFactory() throws Exception {
+        try (PulsarAdminImpl admin = adminWith(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"))) {
+            TlsPolicy idp = admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2);
+            assertThat(idp).as("the IdP policy must reach the admin's own factory").isNotNull();
+            assertThat(idp.trustCertsFilePath()).isEqualTo("/tls/idp-ca.pem");
+        }
     }
 
     @Test
-    public void mtlsMaterialAlsoLeavesThePluginStandalone() {
-        AuthenticationOAuth2 auth = oauth2(ISSUER
-                + ",\"tlsCertFile\":\"/tls/idp-client.pem\",\"tlsKeyFile\":\"/tls/idp-client.key\"}");
-        assertThat(PulsarAdminImpl.leaveOAuth2Standalone(auth, new ClientConfigurationData())).isTrue();
+    public void idpMtlsMaterialIsFoldedToo() throws Exception {
+        try (PulsarAdminImpl admin = adminWith(oauth2(ISSUER
+                + ",\"tlsCertFile\":\"/tls/idp-client.pem\",\"tlsKeyFile\":\"/tls/idp-client.key\"}"))) {
+            TlsPolicy idp = admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2);
+            assertThat(idp).isNotNull();
+            assertThat(idp.certificateFilePath()).isEqualTo("/tls/idp-client.pem");
+            assertThat(idp.keyFilePath()).isEqualTo("/tls/idp-client.key");
+        }
     }
 
     @Test
-    public void anOAuth2PluginWithoutIdpTlsMaterialIsStillBound() {
-        AuthenticationOAuth2 auth = oauth2(ISSUER + "}");
-        assertThat(auth.idpTlsPolicy()).as("precondition: no IdP TLS material").isEmpty();
-
-        assertThat(PulsarAdminImpl.leaveOAuth2Standalone(auth, new ClientConfigurationData()))
-                .as("with nothing to lose, the framework factory is bound as before")
-                .isFalse();
+    public void anExplicitOauth2PolicyWins() throws Exception {
+        // The fold is putIfAbsent, so a policy the caller supplied explicitly must not be overwritten by the
+        // one derived from authParams.
+        TlsPolicy explicit = TlsPolicy.builder().trustCertsFilePath("/tls/explicit-ca.pem").build();
+        PulsarAdminBuilder builder = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"));
+        ((PulsarAdminBuilderImpl) builder).getConf()
+                .setTlsPolicyMap(new java.util.LinkedHashMap<>(java.util.Map.of(TlsPurpose.CLIENT_OAUTH2, explicit)));
+        try (PulsarAdminImpl admin = (PulsarAdminImpl) builder.build()) {
+            assertThat(admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2)
+                    .trustCertsFilePath()).isEqualTo("/tls/explicit-ca.pem");
+        }
     }
 
     @Test
-    public void aNonOAuth2PluginIsAlwaysBound() {
-        assertThat(PulsarAdminImpl.leaveOAuth2Standalone(new AuthenticationToken("t"),
-                new ClientConfigurationData())).isFalse();
+    public void noIdpMaterialAddsNoPolicy() throws Exception {
+        try (PulsarAdminImpl admin = adminWith(oauth2(ISSUER + "}"))) {
+            var map = admin.getClientConfigData().getTlsPolicyMap();
+            assertThat(map == null || map.get(TlsPurpose.CLIENT_OAUTH2) == null)
+                    .as("nothing to fold, so no CLIENT_OAUTH2 policy is invented").isTrue();
+        }
     }
 
-    /**
-     * {@code configure(...)} is what builds the flow that {@code idpTlsPolicy()} reads; {@code start()} is
-     * deliberately not called, because it eagerly loads the configured cert files and the binding decision
-     * under test does not depend on it.
-     */
+    private static PulsarAdminImpl adminWith(AuthenticationOAuth2 auth) throws Exception {
+        return (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(auth)
+                .build();
+    }
+
+    /** start() is stubbed: it would fetch OAuth2 server metadata; the fold runs before it. */
     private static AuthenticationOAuth2 oauth2(String params) {
-        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
-        auth.configure(params);
-        return auth;
-    }
-
-    @Test
-    public void theGuardIsActuallyWiredIntoAdminConstruction() throws Exception {
-        // The other tests call leaveOAuth2Standalone(...) directly, so deleting its call site in
-        // bindAuthenticationServices left them all green — review demonstrated exactly that. This one drives a
-        // real PulsarAdmin and observes whether the framework factory was bound, so it fails if the guard is
-        // ever disconnected from the code path it guards. start() is stubbed out because it would otherwise
-        // fetch OAuth2 server metadata over the network; the binding decision runs before it and does not
-        // depend on it.
-        try (PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
-                .serviceHttpUrl("http://localhost:8080")
-                .authentication(offlineOAuth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"))
-                .build()) {
-            assertThat(admin.boundAuthHttpClientFactoryForTest())
-                    .as("an OAuth2 plugin carrying IdP TLS material must be left standalone")
-                    .isFalse();
-        }
-
-        try (PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
-                .serviceHttpUrl("http://localhost:8080")
-                .authentication(offlineOAuth2(ISSUER + "}"))
-                .build()) {
-            assertThat(admin.boundAuthHttpClientFactoryForTest())
-                    .as("with no IdP material to lose, the framework factory is still bound")
-                    .isTrue();
-        }
-    }
-
-    /** An OAuth2 plugin whose start() performs no IdP discovery, so the test stays hermetic. */
-    private static AuthenticationOAuth2 offlineOAuth2(String params) {
         AuthenticationOAuth2 auth = new AuthenticationOAuth2() {
             private static final long serialVersionUID = 1L;
 
             @Override
             public void start() {
-                // no IdP round-trip; the binding decision runs before start() and is independent of it
             }
         };
         auth.configure(params);

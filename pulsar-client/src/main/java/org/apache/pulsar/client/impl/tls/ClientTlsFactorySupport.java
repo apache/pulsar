@@ -396,7 +396,14 @@ public final class ClientTlsFactorySupport {
         if (auth != null && shouldFoldBrokerClientAuthTls(auth)) {
             authSuppliers = Map.of(TlsPurpose.CLIENT_DEFAULT, FileBasedTlsFactory.authMaterialSupplier(auth));
         }
-        return new FileBasedTlsFactory(Map.of(TlsPurpose.CLIENT_DEFAULT, policy), settings(conf), authSuppliers);
+        // Register CLIENT_OAUTH2 as well when the plugin carries IdP TLS material. Without it this factory
+        // serves only CLIENT_DEFAULT, and FileBasedTlsFactory resolves any other client purpose to the system
+        // default — so a broker or functions worker that presets this factory on an admin builder would send
+        // the OAuth2 token request to the platform trust store, silently ignoring trustCertsFilePath.
+        Map<TlsPurpose, TlsPolicy> policies = new LinkedHashMap<>();
+        policies.put(TlsPurpose.CLIENT_DEFAULT, policy);
+        foldOAuth2IdpPolicy(conf, policies);
+        return new FileBasedTlsFactory(policies, settings(conf), authSuppliers);
     }
 
     /**

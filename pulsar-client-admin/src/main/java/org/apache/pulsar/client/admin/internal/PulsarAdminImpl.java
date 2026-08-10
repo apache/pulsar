@@ -27,6 +27,7 @@ import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.net.URL;
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -71,6 +72,8 @@ import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -465,32 +468,34 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * when present.
      */
     /**
-     * Whether an OAuth2 plugin carrying its own IdP TLS material must be left unbound (PIP-478, issue
-     * #24944).
+     * Ensure the admin's TLS factory can serve {@link TlsPurpose#CLIENT_OAUTH2} when the configured OAuth2
+     * plugin carries its own IdP TLS material (PIP-478, issue #24944).
      *
-     * <p>The framework HTTP client factory built below reads its TLS material from
-     * {@code conf.getTlsFactory()}, and nothing on the admin path ever sets one: {@code AsyncHttpConnector}
-     * keeps the factory it resolves in its own field, and it is built after {@code auth.start()} in any case.
-     * The framework client therefore takes its legacy branch, which applies material only for
-     * {@code CLIENT_DEFAULT} — while OAuth2 requests {@code CLIENT_OAUTH2} — so the IdP connection would fall
-     * back to the platform default trust store, silently ignoring {@code trustCertsFilePath} /
-     * {@code tlsCertFile} / {@code tlsKeyFile}. v4 honoured them.
+     * <p>This mirrors what {@code PulsarClientImpl} does: the IdP policy is folded into the client's own
+     * factory rather than the plugin being left to self-provision a standalone one. Folding is the better of
+     * the two remedies because the standalone factory is built from a fresh
+     * {@code ClientConfigurationData} — losing the admin's SOCKS5 proxy scope and address, so IdP traffic
+     * stopped being proxied — and because it duplicates a {@code FileBasedTlsFactory} and its refresh
+     * scheduler per admin.
      *
-     * <p>Binding is also the only thing that disables the path that does work: {@code FlowBase} falls back to
-     * {@code StandaloneOAuth2HttpClientFactory} — the sole consumer of {@code idpTlsPolicy()} — precisely when
-     * no factory is bound. So for this case, not binding is the fix, and it covers a plaintext {@code http://}
-     * admin URL too, where no client TLS factory is ever resolved.
+     * <p>Called before the framework HTTP client factory is bound, so that factory has something to resolve
+     * {@code CLIENT_OAUTH2} against. A policy the caller supplied explicitly wins: the fold is
+     * {@code putIfAbsent}.
      *
-     * <p>Package-private and static so the decision can be asserted directly (VisibleForTesting).
-     *
-     * @param auth the configured authentication plugin
-     * @param conf the admin client configuration
-     * @return whether to skip binding so the OAuth2 flow self-provisions its IdP-aware HTTP client
+     * @param conf the admin client configuration, mutated to carry the IdP policy
      */
-    static boolean leaveOAuth2Standalone(Authentication auth, ClientConfigurationData conf) {
-        return conf.getTlsFactory() == null
-                && auth instanceof AuthenticationOAuth2 oauth2
-                && oauth2.idpTlsPolicy().isPresent();
+    private void foldOAuth2IdpPolicy(ClientConfigurationData conf) {
+        if (!(auth instanceof AuthenticationOAuth2 oauth2)) {
+            return;
+        }
+        oauth2.idpTlsPolicy().ifPresent(policy -> {
+            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
+            if (policies == null) {
+                policies = new LinkedHashMap<>();
+                conf.setTlsPolicyMap(policies);
+            }
+            policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy);
+        });
     }
 
     /**
@@ -512,9 +517,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
             return;
         }
-        if (leaveOAuth2Standalone(auth, conf)) {
-            return;
-        }
+        foldOAuth2IdpPolicy(conf);
         String clientInstanceId = "pulsar-admin-" + Integer.toHexString(System.identityHashCode(this));
         this.authHttpClientFactory = new FrameworkHttpClientFactory(
                 () -> null, () -> null, () -> null, conf::getTlsFactory, conf, clientInstanceId);
