@@ -1783,11 +1783,28 @@ public class BrokerService implements Closeable {
         log.warn()
                 .attr("cluster", cluster)
                 .attr("brokerClientSslFactoryPlugin", data.getBrokerClientSslFactoryPlugin())
-                .log("Ignoring the PIP-337 per-cluster SSL factory plugin: it was removed in Pulsar 5.0 "
+                .attr("brokerClientSslFactoryPluginParams", data.getBrokerClientSslFactoryPluginParams())
+                .log("Ignoring the PIP-337 per-cluster SSL factory settings: it was removed in Pulsar 5.0 "
                         + "(PIP-478). Set ClusterData.brokerClientTlsFactoryClassName (per cluster) or the "
                         + "broker-level brokerClientTlsFactoryClassName instead");
     }
 
+    /**
+     * Resolve the {@code PulsarTlsFactory} class name for outbound connections to a remote cluster: the
+     * cluster's own {@code brokerClientTlsFactoryClassName} when set, else the broker-level one (PIP-478).
+     *
+     * <p>Unlike the TLS <em>material</em> in a {@link ClusterData} entry — taken wholesale, so a cluster that
+     * enables broker-client TLS supplies all of its own certificates — the factory falls back. The factory
+     * selects the <em>mechanism</em> that loads material rather than the material itself, and a deployment
+     * that configured a custom broker-client factory (an HSM-backed one, say) must not silently revert to the
+     * default file-based factory because a cluster entry did not repeat the setting. That is the same
+     * reasoning that keeps {@code brokerClientSslProvider} / {@code brokerClientJsseProvider} broker-level in
+     * these helpers: a silent downgrade of the TLS mechanism is a security regression.
+     *
+     * @param clusterValue the cluster's value, possibly blank
+     * @param brokerValue  the broker-level value
+     * @return the cluster value when non-blank, else the broker-level value
+     */
     private static String resolveBrokerClientTlsFactory(String clusterValue, String brokerValue) {
         return StringUtils.isNotBlank(clusterValue) ? clusterValue : brokerValue;
     }
@@ -1832,9 +1849,10 @@ public class BrokerService implements Closeable {
                                    boolean isTlsHostnameVerificationEnabled,
                                    String tlsFactoryClassName, String tlsFactoryConfig) {
         // PIP-478: the PIP-337 sslFactoryPlugin config is removed. A stale broker-level key with a
-        // non-default value is rejected at config-file load by PulsarConfigurationLoader; the removed
-        // per-cluster ClusterData field is lenient-dropped on metadata read (the one place a stale value
-        // cannot fail loud). Its successor is ClusterData.brokerClientTlsFactoryClassName, resolved by
+        // non-default value is rejected at config-file load by PulsarConfigurationLoader; the
+        // per-cluster ClusterData field is retained but ignored, and warnOnStalePip337ClusterFactory
+        // logs it (the one place a stale value cannot fail loud). Its successor is
+        // ClusterData.brokerClientTlsFactoryClassName, resolved by
         // resolveBrokerClientTlsFactory below.
         clientBuilder
                 .serviceUrl(serviceUrl)

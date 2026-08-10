@@ -45,14 +45,12 @@ import org.apache.pulsar.client.api.v5.auth.SinglePassAuthentication;
  * {@code Authorization: Bearer <token>}. The built-in v4 {@code AuthenticationToken} drives this body on
  * the async binary path.
  *
- * <p>Although the v5 {@code Authentication} SPI deliberately does not extend {@link Serializable}, this
- * concrete built-in body is serializable so the v4 {@code AuthenticationToken} shim (whose interface
- * requires {@code Serializable}, for Functions/connector frameworks) round-trips. The token supplier is
- * itself serializable.
+ * <p>This body is deliberately NOT {@code Serializable}. The v4 {@code AuthenticationToken} shim holds a
+ * bare {@code Supplier}, never an instance of this class, and the instance it builds per exchange closes
+ * over a non-serializable lambda — so the claim could never have been met. New code does not depend on Java
+ * serialization; the suppliers below stay serializable only so a 4.x-serialized shim still deserializes.
  */
-public class TokenAuthenticationV5 implements SinglePassAuthentication, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class TokenAuthenticationV5 implements SinglePassAuthentication {
 
     /** The stable auth-method name. */
     public static final String AUTH_METHOD_NAME = "token";

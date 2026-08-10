@@ -121,15 +121,6 @@ public final class FrameworkHttpClientFactory implements PulsarHttpClientFactory
         this.clientInstanceId = clientInstanceId;
     }
 
-    /**
-     * @return whether a PIP-478 TLS factory is available (the owning client is on the new TLS path), so a
-     *         served {@link PulsarHttpClient} resolves its purpose's context from the factory — e.g. the
-     *         folded {@code CLIENT_OAUTH2} IdP material — rather than the platform default trust store
-     *         (PIP-478).
-     */
-    public boolean hasTlsFactory() {
-        return tlsFactory.get() != null;
-    }
 
     @Override
     public PulsarHttpClient newHttpClient(PulsarHttpClientConfig config) {

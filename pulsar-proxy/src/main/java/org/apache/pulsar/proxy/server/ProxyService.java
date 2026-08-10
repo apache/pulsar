@@ -136,7 +136,7 @@ public class ProxyService implements Closeable {
     // and the shared broker-client (proxy->broker) TLS. DirectProxyHandler reads the volatile SslContext
     // without blocking the event loop; the subscription delivers rotation.
     private ServiceChannelInitializer tlsServiceChannelInitializer;
-    private PulsarTlsFactory brokerClientTlsFactory;
+    private volatile PulsarTlsFactory brokerClientTlsFactory;
     private TlsHandle<SslContext> brokerClientTlsSubscription;
     private volatile SslContext brokerClientSslContext;
     // PIP-478: the shared client TLS factory serving the CLIENT_DEFAULT purpose for the proxy's binary
@@ -144,7 +144,7 @@ public class ProxyService implements Closeable {
     // proxy->broker lookup transport is a normal Pulsar client, whose PulsarChannelInitializer requests
     // CLIENT_DEFAULT — the BROKER_CLIENT-purpose brokerClientTlsFactory above cannot serve it, so this is a
     // second factory built from the same broker-client tls* material. Closed with the ProxyService.
-    private PulsarTlsFactory lookupClientTlsFactory;
+    private volatile PulsarTlsFactory lookupClientTlsFactory;
 
     static final Gauge ACTIVE_CONNECTIONS = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
