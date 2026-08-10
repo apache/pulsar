@@ -86,9 +86,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     public EntryCache getEntryCache(ManagedLedger ml) {
         if (maxSize == 0) {
             // Cache is disabled
-            return new EntryCacheDisabled((ManagedLedgerImpl) ml,
-                    mlFactory.getConfig().isEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled()
-                            ? inflightReadsLimiter : null);
+            return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
 
         EntryCache newEntryCache =

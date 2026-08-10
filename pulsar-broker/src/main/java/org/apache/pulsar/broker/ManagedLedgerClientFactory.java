@@ -121,8 +121,6 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             }
         }
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
-        managedLedgerFactoryConfig.setEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled(
-                conf.isEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled());
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(
                 conf.getManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis());
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize(

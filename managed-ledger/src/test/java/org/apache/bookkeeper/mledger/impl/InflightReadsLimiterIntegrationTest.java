@@ -54,10 +54,9 @@ import org.testng.annotations.Test;
 public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCase {
 
     @Test
-    public void testCacheDisabledReadsUseInflightReadsLimiterWhenEnabled() throws Exception {
+    public void testCacheDisabledReadsUseInflightReadsLimiter() throws Exception {
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setMaxCacheSize(0);
-        factoryConfig.setEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled(true);
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
@@ -96,7 +95,6 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
     public void testCacheDisabledReadCallbackFailureDoesNotReleasePermitsTwice() throws Exception {
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setMaxCacheSize(0);
-        factoryConfig.setEnableReadsInFlightLimiterEvenIfManagedLedgerCacheDisabled(true);
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
@@ -128,6 +126,103 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 Assert.assertEquals(failedCallbacks.get(), 0);
                 Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity);
             });
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    @Test
+    public void testCacheDisabledReadFailureReleasesInflightReadsPermit() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_read_failure",
+                    new ManagedLedgerConfig());
+            ml.addEntry(new byte[] {1});
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            HoldingReadEntriesCallback callback = new HoldingReadEntriesCallback();
+
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 1, 1, () -> 0, callback, new Object());
+
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertTrue(callback.entries.isCompletedExceptionally());
+                Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity);
+            });
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    @Test
+    public void testCacheDisabledQueuedReadRunsAfterEntriesAreReleased() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_queued_read",
+                    new ManagedLedgerConfig());
+            ml.addEntry(new byte[9_000]);
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            HoldingReadEntriesCallback firstCallback = new HoldingReadEntriesCallback();
+            HoldingReadEntriesCallback secondCallback = new HoldingReadEntriesCallback();
+
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, firstCallback, new Object());
+            List<Entry> firstEntries = firstCallback.entries.join();
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, secondCallback, new Object());
+            Assert.assertFalse(secondCallback.entries.isDone());
+
+            firstEntries.forEach(Entry::release);
+            List<Entry> secondEntries = secondCallback.entries.join();
+            secondEntries.forEach(Entry::release);
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    @Test
+    public void testCacheDisabledReadLimitFailureIncludesDiagnosticContext() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
+        factoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(100);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_timeout",
+                    new ManagedLedgerConfig());
+            ml.addEntry(new byte[9_000]);
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            HoldingReadEntriesCallback firstCallback = new HoldingReadEntriesCallback();
+            HoldingReadEntriesCallback secondCallback = new HoldingReadEntriesCallback();
+
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, firstCallback, new Object());
+            List<Entry> firstEntries = firstCallback.entries.join();
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, secondCallback, new Object());
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertTrue(secondCallback.entries.isCompletedExceptionally()));
+
+            Throwable exception = secondCallback.entries.handle((__, error) -> error).join();
+            Assert.assertTrue(exception instanceof ManagedLedgerException.TooManyRequestsException);
+            Assert.assertTrue(exception.getMessage().contains("ledger " + ml.currentLedger.getId()));
+            Assert.assertTrue(exception.getMessage().contains(ml.getName()));
+            Assert.assertTrue(exception.getMessage().contains("estimated read size"));
+            Assert.assertTrue(exception.getMessage()
+                    .contains("managedLedgerMaxReadsInFlightPermitsAcquireQueueSize"));
+            Assert.assertTrue(exception.getMessage()
+                    .contains("managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis"));
+            Assert.assertTrue(exception.getMessage().contains("managedLedgerMaxReadsInFlightSizeInMB"));
+
+            firstEntries.forEach(Entry::release);
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
         } finally {
             factory.shutdown();
         }
@@ -309,6 +404,21 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             this.entries.completeExceptionally(exception);
+        }
+    }
+
+    class HoldingReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {
+
+        CompletableFuture<List<Entry>> entries = new CompletableFuture<>();
+
+        @Override
+        public void readEntriesComplete(List<Entry> entriesRead, Object ctx) {
+            entries.complete(entriesRead);
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            entries.completeExceptionally(exception);
         }
     }
 }

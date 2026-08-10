@@ -95,8 +95,15 @@ public class EntryCacheDisabled implements EntryCache {
                                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
                                                 InflightReadsLimiter.Handle handle) {
         if (!handle.success()) {
-            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(
-                    "Couldn't acquire enough permits on the max reads in flight limiter"), ctx);
+            long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
+            String message = String.format(
+                    "Couldn't acquire enough permits on the max reads in flight limiter to read from ledger "
+                            + "%d, %s, estimated read size %d bytes for %d entries (check "
+                            + "managedLedgerMaxReadsInFlightPermitsAcquireQueueSize (direct config), "
+                            + "managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis and "
+                            + "managedLedgerMaxReadsInFlightSizeInMB)", lh.getId(), getName(), estimatedReadSize,
+                    (int) (lastEntry - firstEntry + 1));
+            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(message), ctx);
             return;
         }
         readEntries(lh, firstEntry, lastEntry, new AsyncCallbacks.ReadEntriesCallback() {
