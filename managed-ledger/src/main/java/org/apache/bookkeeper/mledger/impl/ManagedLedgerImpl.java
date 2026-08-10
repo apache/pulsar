@@ -2298,10 +2298,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
 
-            // If all messages in [firstEntry...lastEntry] are filter out,
-            // then manual call internalReadEntriesComplete to advance read position.
+            // If all positions in [firstEntry...lastEntry] are filtered out, advance the read position
+            // without issuing a ledger read.
             if (firstValidEntry == -1L) {
-                final var nextReadPosition = PositionFactory.create(ledger.getId(), lastEntry).getNext();
+                final Position lastScannedPosition = PositionFactory.create(ledger.getId(), lastEntry);
+                // The whole scan window was skipped. If the last scanned position is individually deleted,
+                // hop over its deleted range instead of advancing one window at a time.
+                final Position nextReadPosition = opReadEntry.cursor.getNextAvailablePosition(lastScannedPosition);
                 opReadEntry.updateReadPosition(nextReadPosition);
                 opReadEntry.checkReadCompletion();
                 return;
