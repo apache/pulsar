@@ -4022,6 +4022,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
+        ledger.getScheduledExecutor().schedule(() -> ledger.getExecutor().execute(callback), delay, unit);
+    }
+
+    @Override
     public Range<Position> getLastIndividualDeletedRange() {
         lock.readLock().lock();
         try {
