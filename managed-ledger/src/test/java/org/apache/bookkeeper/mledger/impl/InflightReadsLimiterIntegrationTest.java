@@ -83,7 +83,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             }, new Object());
 
             List<Entry> entries = entriesFuture.join();
-            Awaitility.await().untilAsserted(() -> Assert.assertTrue(limiter.getRemainingBytes() < totalCapacity));
+            long expectedReadSize = Math.max(1,
+                    ml.currentLedger.getLength() / (ml.currentLedger.getLastAddConfirmed() + 1))
+                    + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity - expectedReadSize));
             entries.forEach(Entry::release);
             Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
         } finally {
