@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.client.admin.internal.TopicsImpl.TXN_CONSUMABLE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -99,6 +100,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -1175,9 +1177,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             producer.send("test" + i);
         }
 
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(false).build());
+        PulsarAdminException.PreconditionFailedException exception = Assert.expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topics().peekMessages(partitionedTopic, subscriptionName, 3));
+        Assert.assertEquals(exception.getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(admin.topics().getSubscriptions(partitionedTopic).isEmpty());
+
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build());
         List<Message<byte[]>> messages = admin.topics().peekMessages(partitionedTopic, subscriptionName, 3);
 
         Assert.assertEquals(messages.size(), 3);
+        Assert.assertEquals(admin.topics().getSubscriptions(partitionedTopic), List.of(subscriptionName));
 
         producer.close();
     }
@@ -2033,10 +2046,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Message<byte[]> peekedMessage = admin.topics().peekMessages(topicName, "sub-peek", 1).get(0);
         assertEquals(new String(peekedMessage.getData()), "non-batch-message");
-        assertEquals(peekedMessage.getProperties().size(), 3);
+        assertEquals(peekedMessage.getProperties().size(), 4);
         assertEquals(peekedMessage.getProperties().get("key1"), "value1");
         assertEquals(peekedMessage.getProperties().get("KEY2"), "VALUE2");
         assertEquals(peekedMessage.getProperties().get("KeY3"), "VaLuE3");
+        assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
 
         admin.topics().truncate(topicName);
 
@@ -2071,10 +2085,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> batchMessage = peekedMessages.get(i);
             assertEquals(new String(batchMessage.getData()), "batch-message-" + (i + 1));
             assertEquals(batchMessage.getProperties().size(),
-                    3 + 2 // 3 properties from the message + 2 properties from the batch
+                    3 + 2 + 1 // 3 properties from the message + 2 properties from the batch + 1 property from TNX
             );
             assertEquals(batchMessage.getProperties().get("X-Pulsar-num-batch-message"), "2");
             assertNotNull(batchMessage.getProperties().get("X-Pulsar-batch-size"));
+            assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
             assertEquals(batchMessage.getProperties().get("batch-key1"), "batch-value1");
             assertEquals(batchMessage.getProperties().get("BATCH-KEY2"), "BATCH-VALUE2");
             assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");
