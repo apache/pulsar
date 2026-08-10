@@ -188,9 +188,6 @@ public class ManagedLedgerWriter extends CmdBase{
         mlConf.setWriteQuorumSize(this.writeQuorum);
         mlConf.setAckQuorumSize(this.ackQuorum);
         mlConf.setMinimumRolloverTime(10, TimeUnit.MINUTES);
-        mlConf.setMetadataEnsembleSize(this.ensembleSize);
-        mlConf.setMetadataWriteQuorumSize(this.writeQuorum);
-        mlConf.setMetadataAckQuorumSize(this.ackQuorum);
         mlConf.setDigestType(this.digestType);
         mlConf.setMaxSizePerLedgerMb(2048);
 

@@ -732,7 +732,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setMaxSizePerLedgerMb(1);
         config.setEnsembleSize(1);
         config.setWriteQuorumSize(1).setAckQuorumSize(1);
-        config.setMetadataWriteQuorumSize(1).setMetadataAckQuorumSize(1);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
         assertEquals(ledger.getNumberOfEntries(), 0);
@@ -1867,7 +1866,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testOpenRaceCondition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
-        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        config.setEnsembleSize(2).setAckQuorumSize(2);
         final ManagedLedger ledger = factory.open("my-ledger", config);
         final ManagedCursor c1 = ledger.openCursor("c1");
 
