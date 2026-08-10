@@ -286,7 +286,14 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         if (purpose == null || policy == null) {
             throw new IllegalArgumentException("tlsPolicy purpose and policy must not be null");
         }
-        conf.setUseTls(true);
+        // useTls governs the BINARY BROKER TRANSPORT only, so a policy for a different trust domain must not
+        // turn it on. Configuring CLIENT_OAUTH2 (the identity provider) against a plaintext pulsar:// broker
+        // is a legitimate combination — it was enabling TLS toward the broker and failing the connection.
+        // The policy map itself is what triggers TLS-factory creation, so a non-transport purpose still gets
+        // its factory without touching the transport.
+        if (purpose.role() == TlsPurpose.Role.CLIENT && !TlsPurpose.CLIENT_OAUTH2.equals(purpose)) {
+            conf.setUseTls(true);
+        }
         Map<TlsPurpose, TlsPolicy> map = conf.getTlsPolicyMap();
         if (map == null) {
             map = new LinkedHashMap<>();

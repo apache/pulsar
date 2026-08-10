@@ -447,4 +447,30 @@ public class PulsarClientBuilderV5Test {
             return e;
         }
     }
+
+    @Test
+    public void anIdpOnlyPolicyDoesNotEnableBrokerTls() {
+        // CLIENT_OAUTH2 is a separate trust domain (the identity provider); useTls governs the binary broker
+        // transport. Setting only an IdP policy against a plaintext pulsar:// broker used to turn broker TLS
+        // on, so the connection pool attempted TLS against a plaintext port.
+        PulsarClientBuilderV5 builder = (PulsarClientBuilderV5) PulsarClient.builder()
+                .serviceUrl("pulsar://my-pulsar:6650")
+                .tlsPolicy(TlsPurpose.CLIENT_OAUTH2, TlsPolicy.builder()
+                        .trustCertsFilePath("/tls/idp-ca.pem").build());
+
+        ClientConfigurationData conf = builder.getConfForTesting();
+        assertFalse(conf.isUseTls(), "an IdP-only policy must leave the broker transport plaintext");
+        assertNotNull(conf.getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2),
+                "the IdP policy must still be registered so its factory is built");
+    }
+
+    @Test
+    public void aTransportPolicyStillEnablesBrokerTls() {
+        PulsarClientBuilderV5 builder = (PulsarClientBuilderV5) PulsarClient.builder()
+                .serviceUrl("pulsar+ssl://my-pulsar:6651")
+                .tlsPolicy(TlsPolicy.builder().trustCertsFilePath("/tls/ca.pem").build());
+
+        assertTrue(builder.getConfForTesting().isUseTls(),
+                "a CLIENT_DEFAULT policy configures the broker transport and must enable TLS");
+    }
 }
