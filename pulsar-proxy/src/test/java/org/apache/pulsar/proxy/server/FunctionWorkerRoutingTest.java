@@ -20,6 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
@@ -45,7 +47,11 @@ public class FunctionWorkerRoutingTest {
         proxyClientAuthentication.start();
 
         BrokerDiscoveryProvider discoveryProvider = mock(BrokerDiscoveryProvider.class);
+        @Cleanup("destroy")
         AdminProxyHandler handler = new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication);
+        // rewriteTarget() delegates to Jetty's AbstractProxyServlet, which relies on state that the servlet
+        // container sets up, so initialize the servlet the same way ProxyServiceStarter's ServletHolder does.
+        handler.init(buildServletConfig());
 
         String funcUrl = handler.rewriteTarget(buildRequest("/admin/v3/functions/test/test"));
         Assert.assertEquals(funcUrl, String.format("%s/admin/v3/functions/%s/%s",
@@ -62,6 +68,16 @@ public class FunctionWorkerRoutingTest {
         String tenantUrl = handler.rewriteTarget(buildRequest("/admin/v2/tenants/test"));
         Assert.assertEquals(tenantUrl, String.format("%s/admin/v2/tenants/%s",
                 brokerUrl, "test"));
+    }
+
+    static ServletConfig buildServletConfig() {
+        ServletConfig servletConfig = mock(ServletConfig.class);
+        when(servletConfig.getServletName()).thenReturn("admin-proxy");
+        when(servletConfig.getServletContext()).thenReturn(mock(ServletContext.class));
+        // outside of a running Jetty server there is no server executor to borrow, so let the proxy servlet
+        // create a thread pool of its own
+        when(servletConfig.getInitParameter("maxThreads")).thenReturn("8");
+        return servletConfig;
     }
 
     static HttpServletRequest buildRequest(String url) {
