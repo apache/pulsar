@@ -324,6 +324,9 @@ class TopicStats {
             writeSubscriptionMetric(stream, "pulsar_subscription_back_log_no_delayed",
                 subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
                 customLabelsAndValues);
+            writeSubscriptionMetric(stream, "pulsar_subscription_storage_backlog_age_seconds",
+                subsStats.backlogAgeSeconds, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
+                customLabelsAndValues);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                 subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
                 customLabelsAndValues);

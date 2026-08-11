@@ -317,6 +317,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             PersistentTopic.class,
             OldestPositionInfo.class,
             "oldestPositionInfo");
+    private final Map<String, OldestPositionInfo> subscriptionOldestPositionInfos = new ConcurrentHashMap<>();
+
     @Value
     private static class OldestPositionInfo {
         Position oldestCursorMarkDeletePosition;
@@ -3952,6 +3954,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds(String subscriptionName) {
+        OldestPositionInfo positionInfo = subscriptionOldestPositionInfos.get(subscriptionName);
+        if (positionInfo == null) {
+            return -1;
+        } else {
+            return TimeUnit.MILLISECONDS.toSeconds(
+                    Clock.systemUTC().millis() - positionInfo.getPositionPublishTimestampInMillis());
+        }
+    }
+
     private void updateResultIfNewer(OldestPositionInfo updatedResult) {
         TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.updateAndGet(this,
                 existingResult -> {
@@ -3966,6 +3978,124 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     }
 
+    private void updateSubscriptionResultIfNewer(String subscriptionName, OldestPositionInfo updatedResult) {
+        subscriptionOldestPositionInfos.compute(subscriptionName,
+                (__, existingResult) -> {
+                    if (existingResult == null
+                            || ManagedCursorContainer.DataVersion.compareVersions(
+                                    updatedResult.getDataVersion(), existingResult.getDataVersion()) > 0) {
+                        return updatedResult;
+                    } else {
+                        return existingResult;
+                    }
+                });
+    }
+
+    private void clearSubscriptionResultIfNewer(String subscriptionName, long dataVersion) {
+        subscriptionOldestPositionInfos.computeIfPresent(subscriptionName,
+                (__, existingResult) ->
+                        ManagedCursorContainer.DataVersion.compareVersions(
+                                dataVersion, existingResult.getDataVersion()) >= 0 ? null : existingResult);
+    }
+
+    private CompletableFuture<Void> updateSubscriptionOldPositionInfos(ManagedCursorContainer managedCursorContainer,
+                                                                       boolean preciseTimeBasedBacklogQuotaCheck) {
+        Map<String, Boolean> activeSubscriptionNames = new HashMap<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        CursorInfo oldestCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
+        long dataVersion = oldestCursorInfo == null ? 0 : oldestCursorInfo.getVersion();
+
+        for (ManagedCursor cursor : managedCursorContainer) {
+            String subscriptionName = Codec.decode(cursor.getName());
+            activeSubscriptionNames.put(subscriptionName, true);
+            Position markDeletePosition = cursor.getMarkDeletedPosition();
+            if (markDeletePosition == null || !cursor.hasBacklog(preciseTimeBasedBacklogQuotaCheck)) {
+                clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                continue;
+            }
+
+            if (preciseTimeBasedBacklogQuotaCheck) {
+                futures.add(updateSubscriptionOldPositionInfoPrecise(
+                        subscriptionName, cursor, markDeletePosition, dataVersion));
+            } else {
+                try {
+                    EstimateTimeBasedBacklogQuotaCheckResult checkResult =
+                            estimatedTimeBasedBacklogQuotaCheck(markDeletePosition);
+                    if (checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp() != null) {
+                        updateSubscriptionResultIfNewer(subscriptionName,
+                                new OldestPositionInfo(
+                                        markDeletePosition,
+                                        cursor.getName(),
+                                        checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp(),
+                                        dataVersion));
+                    } else {
+                        clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                    }
+                } catch (Exception e) {
+                    log.error()
+                            .attr("subscriptionName", subscriptionName)
+                            .exceptionMessage(e)
+                            .log("Error updating subscription old position info");
+                    clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                }
+            }
+        }
+
+        subscriptionOldestPositionInfos.keySet().removeIf(subscriptionName ->
+                !activeSubscriptionNames.containsKey(subscriptionName));
+        if (futures.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> updateSubscriptionOldPositionInfoPrecise(String subscriptionName,
+                                                                             ManagedCursor cursor,
+                                                                             Position markDeletePosition,
+                                                                             long dataVersion) {
+        Position position = ledger.getNextValidPosition(markDeletePosition);
+        if (position.compareTo(ledger.getLastConfirmedEntry()) > 0) {
+            clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                try {
+                    updateSubscriptionResultIfNewer(subscriptionName,
+                            new OldestPositionInfo(
+                                    markDeletePosition,
+                                    cursor.getName(),
+                                    entry.getEntryTimestamp(),
+                                    dataVersion));
+                    future.complete(null);
+                } catch (Exception e) {
+                    log.error()
+                            .attr("subscriptionName", subscriptionName)
+                            .exceptionMessage(e)
+                            .log("Error deserializing message for subscription old position info");
+                    clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                    future.complete(null);
+                } finally {
+                    entry.release();
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error()
+                        .attr("subscriptionName", subscriptionName)
+                        .exceptionMessage(exception)
+                        .log("Error reading entry for subscription old position info");
+                clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                future.complete(null);
+            }
+        }, null);
+        return future;
+    }
+
     public CompletableFuture<Void> updateOldPositionInfo() {
         TopicName topicName = TopicName.get(getName());
 
@@ -3974,18 +4104,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
-        if (!hasBacklogs(brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck())) {
+        boolean preciseTimeBasedBacklogQuotaCheck =
+                brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck();
+        if (!hasBacklogs(preciseTimeBasedBacklogQuotaCheck)) {
             log.debug("No backlog. Update old position info is null");
             TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
+            subscriptionOldestPositionInfos.clear();
             return CompletableFuture.completedFuture(null);
         }
+
+        CompletableFuture<Void> subscriptionOldPositionInfoUpdateFuture =
+                updateSubscriptionOldPositionInfos(managedCursorContainer, preciseTimeBasedBacklogQuotaCheck);
 
         // If we have no durable cursor since `ledger.getCursors()` only managed durable cursors
         CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
         if (oldestMarkDeleteCursorInfo == null || oldestMarkDeleteCursorInfo.getPosition() == null) {
             log.debug("No durable cursor found. Update old position info is null");
             TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
-            return CompletableFuture.completedFuture(null);
+            subscriptionOldestPositionInfos.clear();
+            return subscriptionOldPositionInfoUpdateFuture;
         }
 
         Position oldestMarkDeletePosition = oldestMarkDeleteCursorInfo.getPosition();
@@ -4006,9 +4143,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .attr("name", oldestMarkDeleteCursorInfo.getCursor().getName())
                         .log("Updating cached old position info, " + "since cursor causing it has changed from to");
             }
-            return CompletableFuture.completedFuture(null);
+            return subscriptionOldPositionInfoUpdateFuture;
         }
-        if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+        if (preciseTimeBasedBacklogQuotaCheck) {
             CompletableFuture<Void> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
@@ -4054,7 +4191,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             future.completeExceptionally(exception);
                         }
                     }, null);
-            return future;
+            return FutureUtil.waitForAll(List.of(subscriptionOldPositionInfoUpdateFuture, future));
         } else {
             try {
                 EstimateTimeBasedBacklogQuotaCheckResult checkResult =
@@ -4070,7 +4207,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
                 }
 
-                return CompletableFuture.completedFuture(null);
+                return subscriptionOldPositionInfoUpdateFuture;
             } catch (Exception e) {
                 log.error().exceptionMessage(e)
                         .log("Error reading entry for update old position");

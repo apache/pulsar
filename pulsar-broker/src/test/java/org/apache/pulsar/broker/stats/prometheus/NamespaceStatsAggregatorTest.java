@@ -109,6 +109,7 @@ public class NamespaceStatsAggregatorTest {
 
         // Populate subscriptions stats
         subStats.blockedSubscriptionOnUnackedMsgs = true;
+        subStats.oldestBacklogMessageAgeSeconds = 123;
         consumerStats.blockedConsumerOnUnackedMsgs = false; // should not affect blockedSubscriptionOnUnackedMsgs
         consumerStats.unackedMessages = 1;
         consumerStats.msgRateRedeliver = 0.7;
@@ -124,6 +125,7 @@ public class NamespaceStatsAggregatorTest {
 
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_msg_rate_redeliver", 0.7);
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_unacked_messages", 1L);
+        verifySubscriptionMetric(metricStreams, "pulsar_subscription_storage_backlog_age_seconds", 123L);
     }
 
     private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {

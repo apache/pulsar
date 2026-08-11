@@ -57,6 +57,16 @@ public interface SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     long getEarliestMsgPublishTimeInBacklog();
 
+    /**
+     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * <p>
+     * The age of the oldest unacknowledged (i.e. backlog) message for this subscription, measured by the time elapsed
+     * from its published time, in seconds. This value is recorded every backlog quota check interval, hence it
+     * represents the value seen in the last check.
+     * </p>
+     */
+    long getOldestBacklogMessageAgeSeconds();
+
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();
 

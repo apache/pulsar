@@ -65,6 +65,16 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     public long earliestMsgPublishTimeInBacklog;
 
+    /**
+     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * <p>
+     * The age of the oldest unacknowledged (i.e. backlog) message for this subscription, measured by the time elapsed
+     * from its published time, in seconds. This value is recorded every backlog quota check interval, hence it
+     * represents the value seen in the last check.
+     * </p>
+     */
+    public long oldestBacklogMessageAgeSeconds = -1;
+
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
@@ -224,6 +234,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         earliestMsgPublishTimeInBacklog = 0L;
+        oldestBacklogMessageAgeSeconds = -1;
         delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
@@ -290,6 +301,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                     stats.earliestMsgPublishTimeInBacklog
             );
         }
+        this.oldestBacklogMessageAgeSeconds = Math.max(
+                this.oldestBacklogMessageAgeSeconds, stats.oldestBacklogMessageAgeSeconds);
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;

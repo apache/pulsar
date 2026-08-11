@@ -152,6 +152,7 @@ public class NamespaceStatsAggregator {
         subsStats.bytesOutCounter = subscriptionStats.bytesOutCounter;
         subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
+        subsStats.backlogAgeSeconds = subscriptionStats.oldestBacklogMessageAgeSeconds;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
         subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
