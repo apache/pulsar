@@ -18,33 +18,23 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import io.netty.handler.ssl.SslContextBuilder;
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLException;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.client.api.AuthenticationHttpClient;
+import org.apache.pulsar.client.api.AuthenticationHttpClientConfig;
+import org.apache.pulsar.client.api.AuthenticationHttpClientFactory;
+import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.DefaultAuthenticationHttpClientFactory;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.SslEngineFactory;
 
 /**
  * An abstract OAuth 2.0 authorization flow.
@@ -60,10 +50,6 @@ abstract class FlowBase implements Flow {
     public static final String CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION = "autoCertRefreshDuration";
     public static final String CONFIG_PARAM_WELL_KNOWN_METADATA_PATH = "wellKnownMetadataPath";
 
-    protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
-    protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
-    protected static final Duration DEFAULT_AUTO_CERT_REFRESH_DURATION = Duration.ofSeconds(300);
-
     private static final long serialVersionUID = 1L;
 
     protected final URL issuerUrl;
@@ -72,13 +58,12 @@ abstract class FlowBase implements Flow {
     private final String trustCertsFilePath;
     private final String certFile;
     private final String keyFile;
-    private final long autoCertRefreshSeconds;
+    private final Duration autoCertRefreshDuration;
     protected final String wellKnownMetadataPath;
 
-    protected transient PulsarSslFactory sslFactory;
-    protected transient ScheduledExecutorService sslRefreshScheduler;
     protected transient Metadata metadata;
-    private transient AsyncHttpClient httpClient;
+    private transient AuthenticationHttpClient httpClient;
+    private transient AuthenticationHttpClientFactory httpClientFactory;
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                        String certFile, String keyFile, Duration autoCertRefreshDuration,
@@ -89,105 +74,25 @@ abstract class FlowBase implements Flow {
         this.trustCertsFilePath = trustCertsFilePath;
         this.certFile = certFile;
         this.keyFile = keyFile;
-        this.autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
-                autoCertRefreshDuration, DEFAULT_AUTO_CERT_REFRESH_DURATION);
+        this.autoCertRefreshDuration = autoCertRefreshDuration;
         this.wellKnownMetadataPath = wellKnownMetadataPath;
-        getHttpClient();
     }
 
-    private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
-                                              String trustCertsFilePath, String certFile, String keyFile) {
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setCookieStore(null);
-        confBuilder.setUseProxyProperties(true);
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(getParameterDuration(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
-                        DEFAULT_CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout(getParameterDuration(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        boolean hasCertFile = StringUtils.isNotBlank(certFile);
-        boolean hasKeyFile = StringUtils.isNotBlank(keyFile);
-        if (hasCertFile != hasKeyFile) {
-            throw new IllegalArgumentException("Invalid TLS client certificate configuration: " + CONFIG_PARAM_CERT_FILE
-                    + " and " + CONFIG_PARAM_TLS_KEY_FILE + " must be provided together");
-        }
-        if (hasCertFile && hasKeyFile) {
-            try {
-                PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
-                        .tlsCertificateFilePath(certFile)
-                        .tlsKeyFilePath(keyFile)
-                        .tlsTrustCertsFilePath(trustCertsFilePath)
-                        .allowInsecureConnection(false)
-                        .serverMode(false)
-                        .isHttps(true)
-                        .build();
-                sslFactory = new org.apache.pulsar.common.util.DefaultPulsarSslFactory();
-                sslFactory.initialize(sslConfiguration);
-                sslFactory.createInternalSslContext();
-                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, null, true);
-                confBuilder.setSslEngineFactory(sslEngineFactory);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid TLS client certificate configuration", e);
-            }
-        } else if (StringUtils.isNotBlank(trustCertsFilePath)) {
-            try {
-                confBuilder.setSslContext(SslContextBuilder.forClient()
-                        .trustManager(new File(trustCertsFilePath))
-                        .build());
-            } catch (SSLException e) {
-                log.error().exception(e).log("Could not set " + CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
-            }
-        }
-        return new DefaultAsyncHttpClient(confBuilder.build());
-    }
-
-    protected synchronized AsyncHttpClient getHttpClient() {
+    protected synchronized AuthenticationHttpClient getHttpClient() throws PulsarClientException {
         if (httpClient == null) {
-            httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath, certFile, keyFile);
-            scheduleSslContextRefreshIfEnabled(autoCertRefreshSeconds);
+            AuthenticationHttpClientFactory factory = httpClientFactory == null
+                    ? new DefaultAuthenticationHttpClientFactory(null, null, null)
+                    : httpClientFactory;
+            httpClient = factory.create(AuthenticationHttpClientConfig.builder()
+                    .connectTimeout(connectTimeout)
+                    .readTimeout(readTimeout)
+                    .trustCertsFilePath(trustCertsFilePath)
+                    .tlsCertificateFilePath(certFile)
+                    .tlsKeyFilePath(keyFile)
+                    .autoCertRefreshDuration(autoCertRefreshDuration)
+                    .build());
         }
         return httpClient;
-    }
-
-    private void scheduleSslContextRefreshIfEnabled(long refreshSeconds) {
-        if (sslFactory == null || refreshSeconds <= 0 || sslRefreshScheduler != null) {
-            return;
-        }
-        sslRefreshScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("oauth2-tls-cert-refresher", true));
-        sslRefreshScheduler.scheduleWithFixedDelay(this::refreshSslContext,
-                refreshSeconds, refreshSeconds, TimeUnit.SECONDS);
-        log.info().attr("refreshSeconds", refreshSeconds).log("Scheduled TLS certificate refresh");
-    }
-
-    private void refreshSslContext() {
-        if (this.sslFactory == null) {
-            return;
-        }
-        try {
-            this.sslFactory.update();
-            log.debug("Successfully refreshed SSL context");
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
-        }
-    }
-
-    private long getParameterDurationToSeconds(String name, Duration value, Duration defaultValue) {
-        return getParameterDuration(name, value, defaultValue).getSeconds();
-    }
-
-    private Duration getParameterDuration(String name, Duration value, Duration defaultValue) {
-        Duration duration;
-        if (value == null) {
-            log.debug().attr("name", name)
-                    .attr("defaultValue", defaultValue)
-                    .log("Configuration is using the default value");
-            duration = defaultValue;
-        } else {
-            log.debug().attr("name", name).attr("value", value).log("Configuration");
-            duration = value;
-        }
-        return duration;
     }
 
     public void initialize() throws PulsarClientException {
@@ -199,7 +104,15 @@ abstract class FlowBase implements Flow {
         }
     }
 
-    protected MetadataResolver createMetadataResolver() {
+    @Override
+    public void initialize(AuthenticationInitContext context) throws PulsarClientException {
+        httpClientFactory = context == null
+                ? null
+                : context.getService(AuthenticationHttpClientFactory.class).orElse(null);
+        initialize();
+    }
+
+    protected MetadataResolver createMetadataResolver() throws PulsarClientException {
         return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, getHttpClient(), wellKnownMetadataPath);
     }
 
@@ -237,14 +150,8 @@ abstract class FlowBase implements Flow {
 
     @Override
     public void close() throws Exception {
-        if (sslRefreshScheduler != null) {
-            sslRefreshScheduler.shutdownNow();
-        }
         if (httpClient != null) {
             httpClient.close();
-        }
-        if (sslFactory != null) {
-            sslFactory.close();
         }
     }
 }

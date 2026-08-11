@@ -19,17 +19,16 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.asynchttpclient.BoundRequestBuilder;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.ListenableFuture;
-import org.asynchttpclient.Response;
+import org.apache.pulsar.client.api.AuthenticationHttpClient;
+import org.apache.pulsar.client.api.AuthenticationHttpRequest;
+import org.apache.pulsar.client.api.AuthenticationHttpResponse;
 import org.testng.annotations.Test;
 
 /**
@@ -38,12 +37,11 @@ import org.testng.annotations.Test;
 public class TokenClientTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void exchangeClientCredentialsSuccessByScopeTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
+        MockAuthenticationHttpClient httpClient = new MockAuthenticationHttpClient(successResponse());
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, httpClient);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
                 .clientId("test-client-id")
@@ -58,32 +56,17 @@ public class TokenClientTest {
                 .contains("client_secret=")
                 .contains("audience=")
                 .contains("scope=");
-        BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
-        Response response = mock(Response.class);
-        ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
-        when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type",
-                "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
-        when(listenableFuture.get()).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        TokenResult tokenResult = new TokenResult();
-        tokenResult.setAccessToken("test-access-token");
-        tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
         TokenResult tr = tokenClient.exchangeClientCredentials(request);
         assertNotNull(tr);
+        assertThat(new String(httpClient.request.getBody(), StandardCharsets.UTF_8)).isEqualTo(body);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
+        MockAuthenticationHttpClient httpClient = new MockAuthenticationHttpClient(successResponse());
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, httpClient);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")
@@ -93,32 +76,17 @@ public class TokenClientTest {
                 .contains("grant_type=")
                 .contains("client_id=")
                 .contains("client_secret=");
-        BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
-        Response response = mock(Response.class);
-        ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
-        when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type",
-                "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
-        when(listenableFuture.get()).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        TokenResult tokenResult = new TokenResult();
-        tokenResult.setAccessToken("test-access-token");
-        tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
         TokenResult tr = tokenClient.exchangeClientCredentials(request);
         assertNotNull(tr);
+        assertThat(new String(httpClient.request.getBody(), StandardCharsets.UTF_8)).isEqualTo(body);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void exchangeTlsClientAuthSuccessTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
+        MockAuthenticationHttpClient httpClient = new MockAuthenticationHttpClient(successResponse());
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, httpClient);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
                 .audience("test-audience")
@@ -132,32 +100,17 @@ public class TokenClientTest {
                 .contains("audience=")
                 .contains("scope=")
                 .doesNotContain("client_secret=");
-        BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
-        Response response = mock(Response.class);
-        ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
-        when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type",
-                "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
-        when(listenableFuture.get()).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        TokenResult tokenResult = new TokenResult();
-        tokenResult.setAccessToken("test-access-token");
-        tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
         TokenResult tr = tokenClient.exchangeClientCredentials(request);
         assertNotNull(tr);
+        assertThat(new String(httpClient.request.getBody(), StandardCharsets.UTF_8)).isEqualTo(body);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void exchangeTlsClientAuthSuccessWithoutOptionalParamsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
+        MockAuthenticationHttpClient httpClient = new MockAuthenticationHttpClient(successResponse());
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
+        TokenClient tokenClient = new TokenClient(url, httpClient);
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
                 .authMethod(TokenEndpointAuthMethod.TLS_CLIENT_AUTH)
@@ -167,22 +120,35 @@ public class TokenClientTest {
                 .contains("grant_type=")
                 .contains("client_id=")
                 .doesNotContain("client_secret=");
-        BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
-        Response response = mock(Response.class);
-        ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
-        when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Content-Type",
-                "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
-        when(listenableFuture.get()).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
+        TokenResult tr = tokenClient.exchangeClientCredentials(request);
+        assertNotNull(tr);
+        assertThat(new String(httpClient.request.getBody(), StandardCharsets.UTF_8)).isEqualTo(body);
+    }
+
+    private static AuthenticationHttpResponse successResponse() {
         TokenResult tokenResult = new TokenResult();
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
-        when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
-        TokenResult tr = tokenClient.exchangeClientCredentials(request);
-        assertNotNull(tr);
+        return new AuthenticationHttpResponse(200, "OK", new Gson().toJson(tokenResult).getBytes());
+    }
+
+    private static final class MockAuthenticationHttpClient implements AuthenticationHttpClient {
+        private final AuthenticationHttpResponse response;
+        private AuthenticationHttpRequest request;
+
+        private MockAuthenticationHttpClient(AuthenticationHttpResponse response) {
+            this.response = response;
+        }
+
+        @Override
+        public CompletableFuture<AuthenticationHttpResponse> execute(AuthenticationHttpRequest request) {
+            this.request = request;
+            return CompletableFuture.completedFuture(response);
+        }
+
+        @Override
+        public void close() throws IOException {
+            // No-op.
+        }
     }
 }

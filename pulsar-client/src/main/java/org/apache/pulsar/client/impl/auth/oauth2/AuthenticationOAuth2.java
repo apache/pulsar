@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
@@ -236,6 +237,11 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     @Override
     public void start() throws PulsarClientException {
         flow.initialize();
+    }
+
+    @Override
+    public void start(AuthenticationInitContext context) throws PulsarClientException {
+        flow.initialize(context);
     }
 
     /**

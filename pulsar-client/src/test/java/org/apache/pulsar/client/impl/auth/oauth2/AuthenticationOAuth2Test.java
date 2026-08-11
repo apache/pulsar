@@ -29,18 +29,28 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationHttpClient;
+import org.apache.pulsar.client.api.AuthenticationHttpClientConfig;
+import org.apache.pulsar.client.api.AuthenticationHttpClientFactory;
+import org.apache.pulsar.client.api.AuthenticationHttpRequest;
+import org.apache.pulsar.client.api.AuthenticationHttpResponse;
+import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
@@ -299,6 +309,28 @@ public class AuthenticationOAuth2Test {
     }
 
     @Test
+    public void testStartWithContext() throws Exception {
+        AuthenticationInitContext context = mock(AuthenticationInitContext.class);
+        this.auth.start(context);
+        verify(this.flow).initialize(context);
+    }
+
+    @Test
+    public void testConfiguredAuthUsesHttpClientFactoryFromContext() throws Exception {
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        RecordingAuthenticationHttpClientFactory factory = new RecordingAuthenticationHttpClientFactory();
+        auth.configure(minimalCredentialsJson());
+        try {
+            auth.start(new TestAuthenticationInitContext(factory));
+
+            assertNotNull(factory.config);
+            assertEquals(factory.client.request.getUrl(), "http://localhost/.well-known/openid-configuration");
+        } finally {
+            auth.close();
+        }
+    }
+
+    @Test
     public void testGetAuthDataNoEarlyRefresh() throws Exception {
         AuthenticationDataProvider data;
         TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
@@ -427,5 +459,54 @@ public class AuthenticationOAuth2Test {
         this.auth.close();
         verify(this.flow).close();
         assertThrows(PulsarClientException.AlreadyClosedException.class, () -> this.auth.getAuthData());
+    }
+
+    private static final class TestAuthenticationInitContext implements AuthenticationInitContext {
+        private final AuthenticationHttpClientFactory factory;
+
+        private TestAuthenticationInitContext(AuthenticationHttpClientFactory factory) {
+            this.factory = factory;
+        }
+
+        @Override
+        public <T> Optional<T> getService(Class<T> serviceClass) {
+            if (serviceClass == AuthenticationHttpClientFactory.class) {
+                return Optional.of(serviceClass.cast(factory));
+            }
+            return Optional.empty();
+        }
+
+        @Override
+        public <T> Optional<T> getServiceByName(Class<T> serviceClass, String name) {
+            return Optional.empty();
+        }
+    }
+
+    private static final class RecordingAuthenticationHttpClientFactory implements AuthenticationHttpClientFactory {
+        private final RecordingAuthenticationHttpClient client = new RecordingAuthenticationHttpClient();
+        private AuthenticationHttpClientConfig config;
+
+        @Override
+        public AuthenticationHttpClient create(AuthenticationHttpClientConfig config) {
+            this.config = config;
+            return client;
+        }
+    }
+
+    private static final class RecordingAuthenticationHttpClient implements AuthenticationHttpClient {
+        private AuthenticationHttpRequest request;
+
+        @Override
+        public CompletableFuture<AuthenticationHttpResponse> execute(AuthenticationHttpRequest request) {
+            this.request = request;
+            String response = "{\"token_endpoint\":\"http://localhost/token\"}";
+            return CompletableFuture.completedFuture(new AuthenticationHttpResponse(200, "OK",
+                    response.getBytes(StandardCharsets.UTF_8)));
+        }
+
+        @Override
+        public void close() throws IOException {
+            // No-op.
+        }
     }
 }

@@ -57,6 +57,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationHttpClientFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -72,6 +73,7 @@ import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.impl.auth.DefaultAuthenticationHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -99,6 +101,7 @@ import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.jspecify.annotations.Nullable;
 
 @CustomLog
@@ -130,8 +133,13 @@ public class PulsarClientImpl implements PulsarClient {
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
     private final DnsResolverGroupImpl dnsResolverGroupLocalInstance;
+    private final DnsResolverGroupImpl dnsResolverGroupForAuthentication;
     @Getter
     private final AddressResolver<InetSocketAddress> addressResolver;
+    private final AuthenticationHttpClientFactory authenticationHttpClientFactory;
+    private EventLoopGroup authenticationHttpEventLoopGroup;
+    private AddressResolver<InetSocketAddress> authenticationAddressResolver;
+    private NameResolver<InetAddress> authenticationNameResolver;
 
     public enum State {
         Open, Closing, Closed
@@ -229,16 +237,15 @@ public class PulsarClientImpl implements PulsarClient {
             this.eventLoopGroup = eventLoopGroupReference;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
-            conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     PulsarClientResourcesConfigurer.createScheduledExecutorProvider(conf);
+            DnsResolverGroupImpl dnsResolverGroupReference = dnsResolverGroup;
             if (connectionPool != null) {
                 connectionPoolReference = connectionPool;
                 dnsResolverGroupLocalInstance = null;
-                addressResolver = dnsResolverGroup != null
-                        ? dnsResolverGroup.createAddressResolver(eventLoopGroupReference) : null;
+                addressResolver = dnsResolverGroupReference != null
+                        ? dnsResolverGroupReference.createAddressResolver(eventLoopGroupReference) : null;
             } else {
-                DnsResolverGroupImpl dnsResolverGroupReference;
                 if (dnsResolverGroup == null) {
                     dnsResolverGroupReference =
                             dnsResolverGroupLocalInstance =
@@ -258,6 +265,7 @@ public class PulsarClientImpl implements PulsarClient {
                                 (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor())
                         .build();
             }
+            this.dnsResolverGroupForAuthentication = dnsResolverGroupReference;
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     PulsarClientResourcesConfigurer.createExternalExecutorProvider(conf);
@@ -271,6 +279,9 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 this.timer = timer;
             }
+            this.authenticationHttpClientFactory = DefaultAuthenticationHttpClientFactory.withLazyResources(
+                    this::authenticationHttpEventLoopGroup, this.timer, this::authenticationHttpNameResolver);
+            conf.getAuthentication().start(buildAuthenticationInitContext());
             lookup = createLookup(conf.getServiceUrl());
 
             if (conf.getServiceUrlProvider() != null) {
@@ -312,6 +323,34 @@ public class PulsarClientImpl implements PulsarClient {
             closeCnxPool(connectionPoolReference);
             throw t;
         }
+    }
+
+    private AuthenticationInitContextImpl buildAuthenticationInitContext() {
+        return new AuthenticationInitContextImpl()
+                .addService(AuthenticationHttpClientFactory.class, authenticationHttpClientFactory)
+                .addService("default", AuthenticationHttpClientFactory.class, authenticationHttpClientFactory);
+    }
+
+    // OAuth2 token exchange is synchronous today and can be triggered from a Pulsar IO thread.
+    // Keep authentication HTTP IO off the Pulsar client event loop while reusing the DNS resolver configuration.
+    private synchronized EventLoopGroup authenticationHttpEventLoopGroup() {
+        if (authenticationHttpEventLoopGroup == null) {
+            authenticationHttpEventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
+                    PulsarClientResourcesConfigurer.createThreadFactory("pulsar-client-authentication-http"));
+        }
+        return authenticationHttpEventLoopGroup;
+    }
+
+    private synchronized NameResolver<InetAddress> authenticationHttpNameResolver() {
+        if (dnsResolverGroupForAuthentication == null) {
+            return null;
+        }
+        if (authenticationNameResolver == null) {
+            authenticationAddressResolver =
+                    dnsResolverGroupForAuthentication.createAddressResolver(authenticationHttpEventLoopGroup());
+            authenticationNameResolver = DnsResolverUtil.adaptToNameResolver(authenticationAddressResolver);
+        }
+        return authenticationNameResolver;
     }
 
     private void reduceConsumerReceiverQueueSize() {
@@ -1070,6 +1109,29 @@ public class PulsarClientImpl implements PulsarClient {
                 conf.getServiceUrlProvider().close();
             }
 
+            if (conf != null && conf.getAuthentication() != null) {
+                try {
+                    conf.getAuthentication().close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close authentication");
+                    throwable = t;
+                }
+            }
+            if (authenticationAddressResolver != null) {
+                try {
+                    authenticationAddressResolver.close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close authentication address resolver");
+                    throwable = t;
+                }
+            }
+            try {
+                shutdownEventLoopGroup(authenticationHttpEventLoopGroup, true);
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to shutdown authentication http eventLoopGroup");
+                throwable = e;
+            }
+
             if (addressResolver != null) {
                 try {
                     addressResolver.close();
@@ -1129,14 +1191,6 @@ public class PulsarClientImpl implements PulsarClient {
                 memoryLimitController.deregisterTrigger(memoryLimitTrigger);
             }
 
-            if (conf != null && conf.getAuthentication() != null) {
-                try {
-                    conf.getAuthentication().close();
-                } catch (Throwable t) {
-                    log.warn().exception(t).log("Failed to close authentication");
-                    throwable = t;
-                }
-            }
             if (throwable != null) {
                 throw throwable;
             }
@@ -1157,7 +1211,12 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
+        shutdownEventLoopGroup(eventLoopGroup, createdEventLoopGroup);
+    }
+
+    private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup, boolean shouldShutdown)
+            throws PulsarClientException {
+        if (shouldShutdown && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
                 eventLoopGroup.shutdownGracefully().get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
@@ -1231,7 +1290,7 @@ public class PulsarClientImpl implements PulsarClient {
             conf.getAuthentication().close();
         }
         conf.setAuthentication(authentication);
-        conf.getAuthentication().start();
+        conf.getAuthentication().start(buildAuthenticationInitContext());
     }
 
     public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
