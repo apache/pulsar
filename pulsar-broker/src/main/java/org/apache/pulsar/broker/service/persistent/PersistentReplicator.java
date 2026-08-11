@@ -52,7 +52,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -404,7 +403,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
 
         // Retry to trigger read completes if it is not started.
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) cursor.getManagedLedger();
         Runnable retryReplicateEntries = () -> {
             long estimatedTimeStampProducerConnected = this.estimatedTimeStampProducerConnected;
             long delayMillis;
@@ -413,11 +411,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             } else {
                 delayMillis = 100;
             }
-            ml.getScheduledExecutor().schedule(() -> {
-                ml.getExecutor().execute(() -> {
-                    readEntriesComplete(entries, ctx);
-                });
-            }, delayMillis, TimeUnit.MILLISECONDS);
+            cursor.scheduleReadCallback(() -> readEntriesComplete(entries, ctx), delayMillis, TimeUnit.MILLISECONDS);
         };
 
         // Retry.

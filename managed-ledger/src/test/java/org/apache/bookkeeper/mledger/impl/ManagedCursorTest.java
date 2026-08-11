@@ -96,6 +96,7 @@ import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -133,6 +134,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -3827,6 +3829,35 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.markDelete(lastPosition);
 
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
+    }
+
+    @Test
+    public void testScheduleReadCallbackUsesManagedLedgerExecutionContext() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        OrderedScheduler scheduledExecutor = mock(OrderedScheduler.class);
+        ExecutorService executor = mock(ExecutorService.class);
+        when(ledger.getScheduledExecutor()).thenReturn(scheduledExecutor);
+        when(ledger.getExecutor()).thenReturn(executor);
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
+        Runnable callback = mock(Runnable.class);
+        ArgumentCaptor<Runnable> scheduledTask = ArgumentCaptor.forClass(Runnable.class);
+
+        cursor.scheduleReadCallback(callback, 100, TimeUnit.MILLISECONDS);
+
+        verify(scheduledExecutor).schedule(scheduledTask.capture(), eq(100L), eq(TimeUnit.MILLISECONDS));
+        scheduledTask.getValue().run();
+        verify(executor).execute(callback);
+    }
+
+    @Test
+    public void testDefaultScheduleReadCallback() throws InterruptedException {
+        ManagedCursor cursor = mock(ManagedCursor.class, Mockito.CALLS_REAL_METHODS);
+        CountDownLatch callbackExecuted = new CountDownLatch(1);
+
+        cursor.scheduleReadCallback(callbackExecuted::countDown, 0, TimeUnit.MILLISECONDS);
+
+        assertTrue(callbackExecuted.await(5, TimeUnit.SECONDS));
     }
 
     @Test
