@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertFalse;
+import com.google.common.collect.Range;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -37,6 +38,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Set;
@@ -57,6 +59,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
@@ -602,6 +606,23 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    /**
+     * Keeps every snapshot creation in flight until {@link #createGate} completes, so that bucket ids
+     * are still unknown while the trim runs.
+     */
+    private static class BlockingCreateStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> createGate = new CompletableFuture<>();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            CompletableFuture<Long> createFuture = super.createBucketSnapshot(snapshotMetadata,
+                    bucketSnapshotSegments, bucketKey, topicName, cursorName);
+            return createGate.thenCompose(__ -> createFuture);
+        }
+    }
+
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
         ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
@@ -704,17 +725,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         for (int i = 1; i <= messageCount; i++) {
             ts.tracker.addMessage(i, i, i * 10);
         }
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
-                        .noneMatch(x -> x.merging)));
-
-        int bucketCount = ts.tracker.getImmutableBuckets().asMapOfRanges().size();
-        assertTrue(bucketCount <= 5,
-                "Bucket count " + bucketCount + " should be <= maxNumBuckets=5 after trim+merge");
-
-        ts.tracker.getImmutableBuckets().asMapOfRanges().forEach((range, bucket) ->
-                assertTrue(range.lowerEndpoint() >= firstLedgerId,
-                        "Remaining bucket range " + range + " should be >= " + firstLedgerId));
+        // Trim and merge run asynchronously once the bucket exceeding maxNumBuckets is sealed.
+        Awaitility.await().untilAsserted(() -> {
+            synchronized (ts.tracker) {
+                Map<Range<Long>, ImmutableBucket> buckets = ts.tracker.getImmutableBuckets().asMapOfRanges();
+                Assert.assertTrue(buckets.values().stream().noneMatch(x -> x.merging));
+                assertTrue(buckets.size() <= 5,
+                        "Bucket count " + buckets.size() + " should be <= maxNumBuckets=5 after trim+merge");
+                buckets.forEach((range, bucket) ->
+                        assertTrue(range.lowerEndpoint() >= firstLedgerId,
+                                "Remaining bucket range " + range + " should be >= " + firstLedgerId));
+            }
+        });
 
         long messagesAfterTrim = ts.tracker.getNumberOfDelayedMessages();
         ts.clockTime.set(messageCount * 10);
@@ -724,6 +746,37 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimWaitsForInFlightSnapshotCreation() throws Exception {
+        long firstLedgerId = 31L;
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            // Sealing the sixth bucket exceeds maxNumBuckets and triggers the trim while the snapshot
+            // creations are still in flight, so no bucket id is known yet.
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+            synchronized (ts.tracker) {
+                assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 6,
+                        "No orphaned bucket can be deleted before its snapshot creation completes");
+            }
+
+            storage.createGate.complete(null);
+
+            // All six buckets precede the first active ledger, so the trim must delete every one of them.
+            Awaitility.await().untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    Map<Range<Long>, ImmutableBucket> buckets = ts.tracker.getImmutableBuckets().asMapOfRanges();
+                    assertTrue(buckets.isEmpty(),
+                            "Orphaned buckets " + buckets.keySet() + " should have been trimmed");
+                }
+            });
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
