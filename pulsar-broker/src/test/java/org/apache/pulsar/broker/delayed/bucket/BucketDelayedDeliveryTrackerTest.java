@@ -20,9 +20,13 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -48,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -167,7 +172,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), -1, 50)
             }};
             case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage",
-                     "testExpiredTrackedMessageDecrementsCount" -> new Object[][]{{
+                 "testExpiredTrackedMessageDecrementsCount",
+                 "testLoadsNextSnapshotSegmentAfterCutoff",
+                 "testDoesNotLoadNextSnapshotSegmentBeforeCutoff" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
             }};
@@ -245,6 +252,69 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 tracker2.addMessage(1, 1, 1000));
 
         tracker2.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testDoesNotLoadNextSnapshotSegmentBeforeCutoff(BucketDelayedDeliveryTracker tracker)
+            throws Exception {
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
+
+        clockTime.set(1);
+        MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+
+        // Recovery loads segment 1; reset so the assertion observes only getScheduledMessages-driven loads.
+        clearInvocations(localStorage);
+        assertTrue(tracker2.getScheduledMessages(10).isEmpty());
+
+        Awaitility.await().during(3, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(localStorage, never()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong()));
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testLoadsNextSnapshotSegmentAfterCutoff(BucketDelayedDeliveryTracker tracker)
+            throws Exception {
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 100);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
+
+        clockTime.set(0);
+        MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+
+        // Trigger the segment loading
+        clockTime.set(600);
+        tracker2.getScheduledMessages(10);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(tracker2.getScheduledMessages(10).contains(PositionFactory.create(4, 4)));
+            verify(localStorage, atLeastOnce()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong());
+        });
     }
 
     @Test(dataProvider = "delayedTracker")
