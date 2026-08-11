@@ -2766,8 +2766,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .attr("entriesRange", entriesRange)
                     .attr("deletedMessages", individualDeletedMessages)
                     .log("Filtering entries");
-            Range<Position> span = individualDeletedMessages.isEmpty() ? null : individualDeletedMessages.span();
-            if (span == null || !entriesRange.isConnected(span)) {
+            Position firstPosition = entriesRange.lowerEndpoint();
+            Position lastPosition = entriesRange.upperEndpoint();
+            boolean containsDeletedMessages = firstPosition.getLedgerId() != lastPosition.getLedgerId()
+                    || individualDeletedMessages.containsAny(firstPosition.getLedgerId(), firstPosition.getEntryId(),
+                    lastPosition.getEntryId());
+            if (!containsDeletedMessages) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 log.debug().attr("entriesRange", entriesRange).log("No filtering needed for entries");
                 return entries;

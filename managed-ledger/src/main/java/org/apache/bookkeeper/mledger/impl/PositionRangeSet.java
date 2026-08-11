@@ -136,6 +136,18 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         return false;
     }
 
+    boolean containsAny(long ledgerId, long lowerEntryId, long upperEntryId) {
+        if (rangeBitmapMap.isEmpty() || lowerEntryId > upperEntryId) {
+            return false;
+        }
+        LongBitmap bitmap = rangeBitmapMap.get(ledgerId);
+        if (bitmap == null) {
+            return false;
+        }
+        long nextPresentEntryId = bitmap.nextPresentValue(Math.max(0, lowerEntryId));
+        return nextPresentEntryId != -1 && nextPresentEntryId <= upperEntryId;
+    }
+
     @Override
     public Range<Position> rangeContaining(long ledgerId, long entryId) {
         LongBitmap rangeBitmap = rangeBitmapMap.get(ledgerId);
