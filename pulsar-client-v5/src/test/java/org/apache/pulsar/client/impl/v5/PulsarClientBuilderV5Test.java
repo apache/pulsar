@@ -465,6 +465,29 @@ public class PulsarClientBuilderV5Test {
     }
 
     @Test
+    public void anIdpOnlyPolicySurvivesTheClientBuild() throws Exception {
+        // Registering the policy on the config is only half of it: PulsarClientImpl separately decides whether
+        // to compose the client TLS factory at all, and used to gate that on broker TLS (or an auth plugin
+        // carrying its own IdP material). An explicit IdP policy on a plaintext broker therefore satisfied
+        // neither arm, so the factory stayed unset and the framework HTTP client fell back to platform-default
+        // trust — silently dropping the trust domain the caller configured. Assert through build().
+        PulsarClientBuilderV5 builder = (PulsarClientBuilderV5) PulsarClient.builder()
+                .serviceUrl("pulsar://my-pulsar:6650")
+                .tlsPolicy(TlsPurpose.CLIENT_OAUTH2, TlsPolicy.builder()
+                        .trustCertsFilePath("/tls/idp-ca.pem").build());
+
+        // build() hands this same config to PulsarClientImpl, so the composed factory lands back on it.
+        ClientConfigurationData conf = builder.getConfForTesting();
+        try (PulsarClient client = builder.build()) {
+            assertNotNull(client);
+            assertFalse(conf.isUseTls(), "an IdP-only policy must leave the broker transport plaintext");
+            assertNotNull(conf.getTlsFactory(),
+                    "an explicitly configured CLIENT_OAUTH2 policy must compose the client TLS factory, so the "
+                            + "framework HTTP client uses the configured IdP trust and not the platform default");
+        }
+    }
+
+    @Test
     public void aTransportPolicyStillEnablesBrokerTls() {
         PulsarClientBuilderV5 builder = (PulsarClientBuilderV5) PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://my-pulsar:6651")

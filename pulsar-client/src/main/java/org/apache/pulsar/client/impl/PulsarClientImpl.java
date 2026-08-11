@@ -111,6 +111,8 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.jspecify.annotations.Nullable;
 
 @CustomLog
@@ -411,10 +413,8 @@ public class PulsarClientImpl implements PulsarClient {
      * pool ({@code PulsarChannelInitializer}) and the HTTP lookup ({@code HttpClient}) build engines from it.
      * This is the only client TLS path since the PIP-337 removal. It normally runs only when broker TLS is
      * enabled (a plaintext client leaves {@code conf.getTlsFactory()} null, and its transports never request
-     * TLS), with one exception: an OAuth2 plugin whose HTTPS IdP carries its own TLS material still needs the
-     * factory composed so the framework HTTP client resolves the folded {@code CLIENT_OAUTH2} trust — the
-     * broker connection stays plaintext because binary-transport TLS is gated on {@code conf.isUseTls()}
-     * separately. On the v5-builder path a fail-fast probe of {@code CLIENT_DEFAULT} runs, so a
+     * TLS); {@link #needsClientTlsFactory()} lists the two configurations that also need it on an otherwise
+     * plaintext client. On the v5-builder path a fail-fast probe of {@code CLIENT_DEFAULT} runs, so a
      * bad configuration fails the client build.
      *
      * @throws PulsarClientException if the TLS factory cannot be built / initialized / probed
@@ -426,7 +426,7 @@ public class PulsarClientImpl implements PulsarClient {
         // when no factory is composed now, so a later updateAuthentication that introduces OAuth2 IdP TLS
         // material (a failover swap from a non-OAuth2 cluster) can still build one.
         this.clientTlsFactoryRebuildable = conf.getTlsFactory() == null && conf.getTlsPolicyMap() == null;
-        if (!conf.isUseTls() && !hasOAuth2IdpTlsMaterial()) {
+        if (!needsClientTlsFactory()) {
             return;
         }
         try {
@@ -437,6 +437,40 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Exception e) {
             throw new PulsarClientException.InvalidConfigurationException(e);
         }
+    }
+
+    /**
+     * Whether a client TLS factory must be composed. Broker TLS is the usual trigger, but two configurations
+     * need the factory even on a plaintext broker connection, because they describe a trust domain other than
+     * the binary transport that would otherwise fall back silently to the platform default:
+     *
+     * <ul>
+     *   <li>an explicit v5 {@code tlsPolicy(purpose, policy)} map — a policy for a non-transport purpose
+     *       (notably {@code CLIENT_OAUTH2}) deliberately leaves {@code useTls} false, so gating on the
+     *       transport flag alone would drop the very policy the caller configured; and</li>
+     *   <li>an OAuth2 plugin carrying its own IdP TLS material (see {@link #hasOAuth2IdpTlsMaterial()}),
+     *       which is the same trust domain reached through the plugin rather than the builder.</li>
+     * </ul>
+     *
+     * <p>The broker connection stays plaintext in both cases: binary-transport TLS is gated on
+     * {@code conf.isUseTls()} separately.
+     *
+     * @return whether the client TLS factory must be composed
+     */
+    private boolean needsClientTlsFactory() {
+        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial();
+    }
+
+    /**
+     * Whether the caller configured TLS policies explicitly. The map is populated only by the v5 builder's
+     * {@code tlsPolicy(...)}, so a non-empty map means the configuration carries trust material the client
+     * must honour regardless of whether the broker transport uses TLS.
+     *
+     * @return whether an explicit TLS policy map is configured
+     */
+    private boolean hasExplicitTlsPolicies() {
+        Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
+        return policies != null && !policies.isEmpty();
     }
 
     /**
@@ -462,7 +496,9 @@ public class PulsarClientImpl implements PulsarClient {
      * without it the mutation never reaches the transport (a v4-parity regression).
      *
      * <p>No-op unless the factory is the framework-built default (a v5-adopted custom factory / policy map owns
-     * its own material) and either broker TLS is enabled or an OAuth2 plugin carries IdP TLS material to fold —
+     * its own material) and {@link #needsClientTlsFactory()} still holds — in practice that means broker TLS is
+     * enabled or an OAuth2 plugin carries IdP TLS material to fold, since the explicit-policy arm of that
+     * predicate implies a policy map, which is exactly what makes the factory non-rebuildable —
      * so a plaintext-broker OAuth2 swap (a different-CA issuer on cluster failover) still recomposes the folded
      * {@code CLIENT_OAUTH2} trust for the framework HTTP client. The superseded factory is retained until the
      * client closes rather than closed here: existing binary connections keep their already-acquired contexts
@@ -472,7 +508,7 @@ public class PulsarClientImpl implements PulsarClient {
      * the new target then fail loudly at handshake rather than silently using the wrong trust.
      */
     private void rebuildClientTlsFactory() {
-        if ((!conf.isUseTls() && !hasOAuth2IdpTlsMaterial()) || !clientTlsFactoryRebuildable) {
+        if (!needsClientTlsFactory() || !clientTlsFactoryRebuildable) {
             return;
         }
         synchronized (tlsFactoryRebuildLock) {
