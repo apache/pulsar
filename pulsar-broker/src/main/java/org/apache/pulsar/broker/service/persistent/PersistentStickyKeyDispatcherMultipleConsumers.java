@@ -342,8 +342,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // (such as a consumer flow request) triggers another read, stalling dispatch (issue #21554).
             skipNextReplayToTriggerLookAhead = true;
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
-            // only skip the delay if there are more entries to read
-            skipNextBackoff = cursor.hasMoreEntries();
+            skipNextBackoff = true;
             return true;
         }
 
@@ -592,9 +591,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         public boolean test(Position position) {
             // lookup the sticky key hash for the entry at the replay position
             Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
-            if (stickyKeyHash == null || stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-                // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
-                // dispatch after reading the entry from the ledger
+            if (stickyKeyHash == null) {
+                // The sticky key hash is missing for delayed messages and positions added through hash-less
+                // redelivery paths. Filtering will happen at dispatch time after reading the entry from the ledger.
                 log.debug()
                         .attr("position", position)
                         .log("replay of entry at position doesn't contain sticky key hash.");
@@ -602,7 +601,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             // check if the hash is already blocked, if so, then replaying of the position should be skipped
             // to preserve ordering
-            if (!allowOutOfOrderDelivery && alreadyBlockedHashes.contains(stickyKeyHash)) {
+            if (alreadyBlockedHashes.contains(stickyKeyHash)) {
                 return false;
             }
 
@@ -610,9 +609,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = selector.select(stickyKeyHash.intValue());
             // skip replaying the message position if there's no assigned consumer
             if (consumer == null) {
-                if (!allowOutOfOrderDelivery) {
-                    alreadyBlockedHashes.add(stickyKeyHash);
-                }
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
@@ -622,23 +619,25 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             k -> new MutableInt(getAvailablePermits(consumer)));
             // skip replaying the message position if the consumer has no available permits
             if (availablePermits.intValue() <= 0) {
-                if (!allowOutOfOrderDelivery) {
-                    alreadyBlockedHashes.add(stickyKeyHash);
-                }
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
             if (drainingHashesRequired
                     && drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
                 // the hash is draining and the consumer is not the draining consumer
-                if (!allowOutOfOrderDelivery) {
-                    alreadyBlockedHashes.add(stickyKeyHash);
-                }
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
             availablePermits.decrement();
             return true;
+        }
+
+        private void blockStickyKeyHashIfOrderingRequired(long stickyKeyHash) {
+            if (!allowOutOfOrderDelivery) {
+                alreadyBlockedHashes.add(stickyKeyHash);
+            }
         }
     }
 

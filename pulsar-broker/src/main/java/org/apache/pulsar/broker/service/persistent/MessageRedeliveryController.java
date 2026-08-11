@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
@@ -43,7 +44,7 @@ public class MessageRedeliveryController {
     private final boolean allowOutOfOrderDelivery;
     private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
-    private final ConcurrentLongLongPairHashMap positionToStickyKeyHash;
+    private ConcurrentLongLongPairHashMap positionToStickyKeyHash;
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
@@ -54,14 +55,26 @@ public class MessageRedeliveryController {
         this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
         this.isClassicDispatcher = isClassicDispatcher;
         this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
-        this.positionToStickyKeyHash = ConcurrentLongLongPairHashMap
-                .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
         if (!allowOutOfOrderDelivery) {
+            this.positionToStickyKeyHash = newPositionToStickyKeyHashMap();
             this.hashesRefCount = ConcurrentLongLongHashMap
                     .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
         } else {
+            this.positionToStickyKeyHash = null;
             this.hashesRefCount = null;
         }
+    }
+
+    private static ConcurrentLongLongPairHashMap newPositionToStickyKeyHashMap() {
+        return ConcurrentLongLongPairHashMap.newBuilder()
+                .concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
+    }
+
+    private ConcurrentLongLongPairHashMap ensurePositionToStickyKeyHashMap() {
+        if (positionToStickyKeyHash == null) {
+            positionToStickyKeyHash = newPositionToStickyKeyHashMap();
+        }
+        return positionToStickyKeyHash;
     }
 
     public void add(long ledgerId, long entryId) {
@@ -73,11 +86,13 @@ public class MessageRedeliveryController {
             if (!isClassicDispatcher && stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                 throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
             }
-        } else if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-            // Non-Key_Shared dispatchers use the sentinel hash and do not need position-to-hash filtering.
+        } else if (isClassicDispatcher || stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            // Classic out-of-order dispatchers never read position hashes. Non-classic dispatchers normalize real
+            // sticky-key hashes away from the sentinel, so the sentinel denotes a replay position without a known hash.
             messagesToRedeliver.add(ledgerId, entryId);
             return;
         }
+        ConcurrentLongLongPairHashMap positionToStickyKeyHash = ensurePositionToStickyKeyHashMap();
         boolean inserted = positionToStickyKeyHash.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
         if (!inserted) {
             positionToStickyKeyHash.put(ledgerId, entryId, stickyKeyHash, 0);
@@ -95,6 +110,10 @@ public class MessageRedeliveryController {
     }
 
     private void removeFromStickyKeyHash(long ledgerId, long entryId) {
+        ConcurrentLongLongPairHashMap positionToStickyKeyHash = this.positionToStickyKeyHash;
+        if (positionToStickyKeyHash == null) {
+            return;
+        }
         LongPair value = positionToStickyKeyHash.get(ledgerId, entryId);
         if (value != null) {
             boolean removed = positionToStickyKeyHash.remove(ledgerId, entryId, value.first, 0);
@@ -110,6 +129,10 @@ public class MessageRedeliveryController {
     }
 
     public Long getHash(long ledgerId, long entryId) {
+        ConcurrentLongLongPairHashMap positionToStickyKeyHash = this.positionToStickyKeyHash;
+        if (positionToStickyKeyHash == null) {
+            return null;
+        }
         LongPair value = positionToStickyKeyHash.get(ledgerId, entryId);
         if (value == null) {
             return null;
@@ -121,7 +144,8 @@ public class MessageRedeliveryController {
         boolean bitsCleared = messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
         // Only remove the hashes when bits have been cleared. Removing hashes is a relatively expensive operation,
         // so we should only do it when necessary.
-        if (bitsCleared) {
+        ConcurrentLongLongPairHashMap positionToStickyKeyHash = this.positionToStickyKeyHash;
+        if (bitsCleared && positionToStickyKeyHash != null && !positionToStickyKeyHash.isEmpty()) {
             List<LongPair> keysToRemove = new ArrayList<>();
             positionToStickyKeyHash.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
                 if (ledgerId < markDeleteLedgerId || (ledgerId == markDeleteLedgerId && entryId <= markDeleteEntryId)) {
@@ -139,7 +163,9 @@ public class MessageRedeliveryController {
     }
 
     public void clear() {
-        positionToStickyKeyHash.clear();
+        if (positionToStickyKeyHash != null) {
+            positionToStickyKeyHash.clear();
+        }
         if (!allowOutOfOrderDelivery) {
             hashesRefCount.clear();
         }
@@ -197,5 +223,10 @@ public class MessageRedeliveryController {
      */
     public int size() {
         return messagesToRedeliver.size();
+    }
+
+    @VisibleForTesting
+    boolean isPositionToStickyKeyHashInitialized() {
+        return positionToStickyKeyHash != null;
     }
 }
