@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
@@ -891,7 +892,7 @@ public interface ManagedCursor {
      * @param unit the time unit of the delay
      */
     default void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
-        CompletableFuture.delayedExecutor(delay, unit).execute(callback);
+        CompletableFuture.delayedExecutor(delay, unit).execute(catchingAndLoggingThrowables(callback));
     }
 
     /**

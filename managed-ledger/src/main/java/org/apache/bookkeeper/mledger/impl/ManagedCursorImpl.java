@@ -26,6 +26,7 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Collections2;
@@ -4023,7 +4024,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
-        ledger.getScheduledExecutor().schedule(() -> ledger.getExecutor().execute(callback), delay, unit);
+        ledger.getScheduledExecutor().schedule(
+                catchingAndLoggingThrowables(() -> ledger.getExecutor().execute(callback)), delay, unit);
     }
 
     @Override
