@@ -142,11 +142,8 @@ final class ProxyTlsFactories {
     }
 
     private static int refreshIntervalSeconds(ProxyConfiguration config) {
-        long configured = config.getTlsCertRefreshCheckDurationSec();
-        if (configured <= 0) {
-            return FileBasedTlsFactorySettings.DEFAULT_REFRESH_INTERVAL_SECONDS;
-        }
-        return (int) Math.min(configured, Integer.MAX_VALUE);
+        return FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
+                config.getTlsCertRefreshCheckDurationSec());
     }
 
     private static List<String> toList(Set<String> values) {

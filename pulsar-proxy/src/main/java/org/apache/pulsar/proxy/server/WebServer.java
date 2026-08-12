@@ -412,18 +412,8 @@ public class WebServer {
     }
 
     public void stop() throws Exception {
-        if (this.sslRefreshScheduledExecutor != null) {
-            this.sslRefreshScheduledExecutor.shutdownNow();
-        }
         // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
-        if (this.reloadableServerTls != null) {
-            this.reloadableServerTls.subscription().dispose();
-            this.reloadableServerTls = null;
-        }
-        if (this.tlsFactory != null) {
-            this.tlsFactory.close();
-            this.tlsFactory = null;
-        }
+        releaseTlsResources();
         server.stop();
         webServiceExecutor.stop();
         log.info("Server stopped successfully");
@@ -454,19 +444,54 @@ public class WebServer {
     private SslContextFactory.Server createTlsFactoryWebServer(ProxyConfiguration config) throws Exception {
         this.sslRefreshScheduledExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-proxy-web-server-tls-refresh"));
-        this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
-                () -> ProxyTlsFactories.serverFactory(config, TlsPurpose.WEB,
-                        config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols()));
-        TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
-                TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
-                sslRefreshScheduledExecutor, sslRefreshScheduledExecutor, openTelemetry);
-        TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
-        this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
-                sslRefreshScheduledExecutor,
-                config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
-                config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
-                config.getWebServiceTlsProtocols());
-        return this.reloadableServerTls.sslContextFactory();
+        // The refresh thread exists from here on, and once the factory is created it owns live resources of
+        // its own (cert watchers, HSM sessions, reload work). A failure in any subsequent step rethrows out of
+        // the constructor without returning a WebServer, so stop() is never reachable — release the partial
+        // state here rather than strand it. Mirrors WebService (broker).
+        try {
+            this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
+                    () -> ProxyTlsFactories.serverFactory(config, TlsPurpose.WEB,
+                            config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols()));
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
+                    sslRefreshScheduledExecutor, sslRefreshScheduledExecutor, openTelemetry);
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                    sslRefreshScheduledExecutor,
+                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
+                    config.getWebServiceTlsProtocols());
+            return this.reloadableServerTls.sslContextFactory();
+        } catch (Exception e) {
+            releaseTlsResources();
+            throw e;
+        }
+    }
+
+    /**
+     * Release the HTTPS listener's TLS resources: the reload subscription, the factory, and the scheduler that
+     * drives their refresh — in that order, so the factory can cancel its refresh work while its executor is
+     * still alive. Idempotent, and safe on a partially built server, which is what the constructor's failure
+     * path needs. A failure to close the factory is logged rather than thrown so it cannot mask the original
+     * exception on that path.
+     */
+    private void releaseTlsResources() {
+        if (this.reloadableServerTls != null) {
+            this.reloadableServerTls.subscription().dispose();
+            this.reloadableServerTls = null;
+        }
+        if (this.tlsFactory != null) {
+            try {
+                this.tlsFactory.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close the web TLS factory");
+            }
+            this.tlsFactory = null;
+        }
+        if (this.sslRefreshScheduledExecutor != null) {
+            this.sslRefreshScheduledExecutor.shutdownNow();
+            this.sslRefreshScheduledExecutor = null;
+        }
     }
 
     static class CustomHeaderFilter implements Filter {

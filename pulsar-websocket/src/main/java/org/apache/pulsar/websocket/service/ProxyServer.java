@@ -112,11 +112,9 @@ public class ProxyServer {
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                this.scheduledExecutorService = Executors
-                        .newSingleThreadScheduledExecutor(new ExecutorProvider
-                                .ExtendedThreadFactory("proxy-websocket-ssl-refresh"));
                 // PIP-478: the websocket proxy web listener uses the PulsarTlsFactory SPI (the built-in
-                // file-based factory by default, or a custom tlsFactoryClassName).
+                // file-based factory by default, or a custom tlsFactoryClassName). It owns the refresh
+                // scheduler and releases everything it created if it fails.
                 SslContextFactory.Server sslCtxFactory = createTlsFactoryWebServer(config);
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
@@ -204,18 +202,8 @@ public class ProxyServer {
     public void stop() throws Exception {
         server.stop();
         executorService.stop();
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdownNow();
-        }
         // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
-        if (this.reloadableServerTls != null) {
-            this.reloadableServerTls.subscription().dispose();
-            this.reloadableServerTls = null;
-        }
-        if (this.tlsFactory != null) {
-            this.tlsFactory.close();
-            this.tlsFactory = null;
-        }
+        releaseTlsResources();
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -237,23 +225,60 @@ public class ProxyServer {
     // PIP-478: build the PulsarTlsFactory for the WEB purpose and drive a vanilla Jetty
     // SslContextFactory.Server via the SSLContext subscription (no cert refresh task).
     private SslContextFactory.Server createTlsFactoryWebServer(WebSocketProxyConfiguration config) throws Exception {
-        this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
-                () -> buildDefaultWebTlsFactory(config));
-        // PIP-478: the standalone WebSocket proxy has no OpenTelemetry infrastructure (no
-        // OpenTelemetryService / metrics root on its classpath), so the TLS-reload instruments stay no-ops
-        // here — unlike the proxy / functions-worker, which now thread their real OpenTelemetry root. (When
-        // the WebSocket service runs embedded in a broker, the broker's own listeners already emit the
-        // metrics.)
-        TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
-                TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
-                scheduledExecutorService, scheduledExecutorService);
-        TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
-        this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
-                scheduledExecutorService,
-                config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
-                config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
-                config.getWebServiceTlsProtocols());
-        return this.reloadableServerTls.sslContextFactory();
+        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("proxy-websocket-ssl-refresh"));
+        // The refresh thread exists from here on, and once the factory is created it owns live resources of
+        // its own (cert watchers, reload work). A failure in any subsequent step rethrows out of the
+        // constructor without returning a ProxyServer, so stop() is never reachable — release the partial
+        // state here rather than strand it. Mirrors WebService (broker) and WebServer (proxy).
+        try {
+            this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
+                    () -> buildDefaultWebTlsFactory(config));
+            // PIP-478: the standalone WebSocket proxy has no OpenTelemetry infrastructure (no
+            // OpenTelemetryService / metrics root on its classpath), so the TLS-reload instruments stay no-ops
+            // here — unlike the proxy / functions-worker, which now thread their real OpenTelemetry root. (When
+            // the WebSocket service runs embedded in a broker, the broker's own listeners already emit the
+            // metrics.)
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
+                    scheduledExecutorService, scheduledExecutorService);
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                    scheduledExecutorService,
+                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
+                    config.getWebServiceTlsProtocols());
+            return this.reloadableServerTls.sslContextFactory();
+        } catch (Exception e) {
+            releaseTlsResources();
+            throw e;
+        }
+    }
+
+    /**
+     * Release the HTTPS listener's TLS resources: the reload subscription, the factory, and the scheduler that
+     * drives their refresh — in that order, so the factory can cancel its refresh work while its executor is
+     * still alive. Idempotent, and safe on a partially built server, which is what the constructor's failure
+     * path needs. A failure to close the factory is logged rather than thrown so it cannot mask the original
+     * exception on that path.
+     */
+    private void releaseTlsResources() {
+        if (this.reloadableServerTls != null) {
+            this.reloadableServerTls.subscription().dispose();
+            this.reloadableServerTls = null;
+        }
+        if (this.tlsFactory != null) {
+            try {
+                this.tlsFactory.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close the web TLS factory");
+            }
+            this.tlsFactory = null;
+        }
+        if (this.scheduledExecutorService != null) {
+            this.scheduledExecutorService.shutdownNow();
+            this.scheduledExecutorService = null;
+        }
     }
 
     private static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
@@ -280,14 +305,13 @@ public class ProxyServer {
                     .keyFilePath(config.getTlsKeyFilePath());
         }
         Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
-        long refresh = config.getTlsCertRefreshCheckDurationSec();
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here; the
         // FileBasedTlsFactorySettings default (JDK engine) applies and keeps netty-handler off this module's
         // compile classpath.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
                 .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
-                .refreshIntervalSeconds(refresh <= 0 ? FileBasedTlsFactorySettings.DEFAULT_REFRESH_INTERVAL_SECONDS
-                        : (int) Math.min(refresh, Integer.MAX_VALUE))
+                .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
+                        config.getTlsCertRefreshCheckDurationSec()))
                 .build();
         return new FileBasedTlsFactory(policies, settings);
     }

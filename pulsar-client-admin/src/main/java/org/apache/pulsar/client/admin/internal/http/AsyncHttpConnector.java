@@ -232,6 +232,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 readTimeoutMs, requestTimeoutMs, confBuilder, sharedResources);
         if (conf.getServiceUrl().startsWith("https://")) {
             configureAsyncHttpClientWithTlsFactory(confBuilder, resolveNewTlsFactory(conf), conf);
+        } else if (conf.getTlsPolicyMap() != null && !conf.getTlsPolicyMap().isEmpty()) {
+            // A plaintext admin URL still needs the factory composed when the configuration describes a trust
+            // domain other than the transport — the OAuth2 IdP policy PulsarAdminImpl folds into
+            // CLIENT_OAUTH2. Without it the admin's framework HTTP client has no factory to resolve that
+            // purpose against and falls back to platform-default trust, silently ignoring the plugin's
+            // trustCertsFilePath. Only the factory is built here: no SslEngineFactory is wired onto this
+            // connector, so the admin transport itself stays plaintext (same separation as
+            // PulsarClientImpl.needsClientTlsFactory).
+            resolveNewTlsFactory(conf);
         }
         AsyncHttpClientConfig asyncHttpClientConfig = confBuilder.build();
         return asyncHttpClientConfig;

@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl.auth.v5;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Drives a v5-native {@link Authentication} body over the Pulsar binary transport, exposing it as the
@@ -41,7 +43,7 @@ public final class V5BinaryAuthenticationDriver implements AsyncAuthenticationDr
     private final String clientInstanceId;
     private final ClientAuthenticationServices services;
     private final AuthMetrics authMetrics;
-    private volatile boolean initialized;
+    private CompletableFuture<Void> initialization;
 
     /**
      * @param v5 the v5-native authentication body to drive over the binary transport
@@ -75,22 +77,64 @@ public final class V5BinaryAuthenticationDriver implements AsyncAuthenticationDr
 
     @Override
     public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
-        ensureInitialized();
-        return new BinaryAuthenticationExchange(v5, V5AuthContexts.binaryCallContext(brokerHostName),
-                authMetrics);
+        BinaryAuthenticationExchange exchange = new BinaryAuthenticationExchange(v5,
+                V5AuthContexts.binaryCallContext(brokerHostName), authMetrics);
+        CompletableFuture<Void> initialization = initializedAsync();
+        // ClientCnx calls this on the Netty event loop, so initialization — which the SPI allows to do I/O —
+        // must not be waited for here. The built-in bodies complete it immediately (they only stash the bound
+        // blocking executor), which is the common case and returns the bare exchange; anything slower gates
+        // the exchange's own futures instead, where ClientCnx already handles asynchrony.
+        if (initialization.isDone() && !initialization.isCompletedExceptionally()) {
+            return exchange;
+        }
+        return new InitGatedExchange(initialization, exchange);
     }
 
-    private void ensureInitialized() {
-        if (!initialized) {
-            synchronized (this) {
-                if (!initialized) {
-                    // The built-in bodies (Token/Basic/OAuth2/Athenz/SASL binary) complete initializeAsync
-                    // immediately: they only stash the bound blocking executor for later off-loading, so
-                    // join() does not block. Failures are surfaced as v4 exceptions via the exchange futures.
-                    v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId)).join();
-                    initialized = true;
-                }
+    /**
+     * The body's one-shot initialization, memoized. A failed initialization is not cached — the next
+     * connection attempt retries, matching the previous behaviour where a throwing {@code join()} left
+     * {@code initialized} false, so a reconnect after a transient failure can still succeed.
+     *
+     * @return a future completing when the body is ready to serve credentials
+     */
+    private synchronized CompletableFuture<Void> initializedAsync() {
+        if (initialization == null) {
+            CompletableFuture<Void> started;
+            try {
+                started = v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId));
+            } catch (Throwable t) {
+                // The SPI forbids throwing synchronously, but a third-party body may still do it.
+                return CompletableFuture.failedFuture(t);
             }
+            initialization = started.whenComplete((ignored, ex) -> {
+                if (ex != null) {
+                    forgetFailedInitialization();
+                }
+            });
+        }
+        return initialization;
+    }
+
+    private synchronized void forgetFailedInitialization() {
+        this.initialization = null;
+    }
+
+    /**
+     * Defers an exchange's rounds until the body's initialization completes, so a body that does I/O in
+     * {@code initializeAsync} delays the handshake rather than blocking the event loop. Failures propagate
+     * through the returned futures, which is what {@code ClientCnx} already expects.
+     */
+    private record InitGatedExchange(CompletableFuture<Void> initialization, AuthenticationExchange delegate)
+            implements AuthenticationExchange {
+
+        @Override
+        public CompletableFuture<AuthData> getAuthDataAsync() {
+            return initialization.thenCompose(ignored -> delegate.getAuthDataAsync());
+        }
+
+        @Override
+        public CompletableFuture<AuthData> authenticateAsync(AuthData challenge) {
+            return initialization.thenCompose(ignored -> delegate.authenticateAsync(challenge));
         }
     }
 

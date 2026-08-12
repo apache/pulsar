@@ -352,7 +352,8 @@ tlsAllowInsecureConnection: false
 # server certificate (RFC 2818/6125; CN matching is not supported).
 # Enabled by default since Pulsar 5.0 (PIP-478).
 tlsEnableHostnameVerification: true
-# Tls cert refresh duration in seconds (set 0 to check on every new connection)
+# Tls cert refresh duration in seconds. Set 0 to disable the background rotation check, so the
+# TLS material loaded at startup is kept until restart.
 tlsCertRefreshCheckDurationSec: 300
 # PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker web server TLS (purpose WEB).
 # When set, the new PIP-478 TLS SPI is used instead of the built-in file-based TLS loading: an empty value

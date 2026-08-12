@@ -366,8 +366,10 @@ public class CmdClusters extends CmdBase {
         protected String brokerClientCertificateFilePath;
 
         @Option(names = "--tls-factory-class-name",
-                description = "PulsarTlsFactory class name used for outbound connections to this cluster — both "
-                        + "the binary-protocol replication client and the cross-cluster admin client. "
+                description = "PulsarTlsFactory class name used for outbound connections to this cluster — the "
+                        + "two legs configured from this cluster entry, the binary-protocol replication client "
+                        + "and the cross-cluster admin client. It does not reach the peer-cluster lookup "
+                        + "client, which stays broker-level (as in 4.x). "
                         + "Leave unset to inherit the broker's brokerClientTlsFactoryClassName.")
         protected String brokerClientTlsFactoryClassName;
 

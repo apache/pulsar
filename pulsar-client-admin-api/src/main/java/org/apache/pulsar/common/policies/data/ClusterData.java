@@ -67,9 +67,15 @@ public interface ClusterData {
 
     /**
      * The {@code PulsarTlsFactory} class name used for outbound connections to this cluster (PIP-478), or
-     * blank to inherit the broker-level {@code brokerClientTlsFactoryClassName}. It applies to both
-     * broker-client "purposes" the cluster entry drives: the binary-protocol replication client and the
-     * cross-cluster admin (HTTPS) client.
+     * blank to inherit the broker-level {@code brokerClientTlsFactoryClassName}. It applies to the two
+     * outbound legs whose client configuration is <em>built from this cluster entry</em>: the
+     * binary-protocol replication client and the cross-cluster admin (HTTPS) client.
+     *
+     * <p>It does not reach the peer-cluster lookup client ({@code NamespaceService.getNamespaceClient}),
+     * which takes only the service URL from the cluster entry and all of its TLS configuration — material
+     * and factory alike — from the broker-level {@code brokerClient*} settings. That leg was already
+     * broker-level in 4.x (it read the broker-level {@code brokerClientSslFactoryPlugin}, never the
+     * per-cluster one), so this is unchanged behaviour rather than a PIP-478 narrowing.
      *
      * @return the per-cluster TLS factory class name, or blank/null to inherit the broker-level setting
      */
@@ -152,7 +158,9 @@ public interface ClusterData {
 
         /**
          * Select the {@code PulsarTlsFactory} used for outbound connections to this cluster (PIP-478) —
-         * both the binary-protocol replication client and the cross-cluster admin (HTTPS) client. Leave
+         * the binary-protocol replication client and the cross-cluster admin (HTTPS) client, the two legs
+         * whose configuration is built from this cluster entry (see
+         * {@link ClusterData#getBrokerClientTlsFactoryClassName()} for the leg it does not reach). Leave
          * blank to inherit the broker-level {@code brokerClientTlsFactoryClassName}.
          *
          * @param tlsFactoryClassName the factory class name, or blank to inherit the broker-level setting

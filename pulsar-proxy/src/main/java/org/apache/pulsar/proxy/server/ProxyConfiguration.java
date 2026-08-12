@@ -566,7 +566,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledInProxy = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        doc = "Tls cert refresh duration in seconds. Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart."
     )
     private long tlsCertRefreshCheckDurationSec = 300; // 5 mins
     @FieldContext(

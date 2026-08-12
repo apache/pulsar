@@ -69,7 +69,7 @@ public final class HttpAuthenticationDriver {
     private final String clientInstanceId;
     private final HttpChallengeTransport defaultTransport;
     private final AuthMetrics authMetrics;
-    private volatile boolean initialized;
+    private CompletableFuture<Void> initialization;
 
     /**
      * @param v5               the v5-native authentication body whose HTTP capabilities drive the exchange
@@ -136,12 +136,15 @@ public final class HttpAuthenticationDriver {
                 return CompletableFuture.failedFuture(new IllegalStateException(
                         "No HTTP challenge transport supplied and no default transport is configured"));
             }
-            ensureInitialized();
             HttpAuthCallContextImpl ctx = new HttpAuthCallContextImpl(uri);
             long budgetNanos = Math.max(0L, budget == null ? 0L : budget.toNanos());
             long deadlineNanos = System.nanoTime() + budgetNanos;
-            CompletableFuture<HttpAuthHeaders> credential = challengeRound(ctx, handler, t, uri, null, 0,
-                    deadlineNanos).thenCompose(ignored -> provider.getHttpHeadersAsync(ctx));
+            // Initialization may do I/O (SPI contract), so the exchange is chained onto it rather than the
+            // caller's thread being blocked on it. The deadline is taken before it, so a slow initialization
+            // is charged to this call's budget rather than extending it.
+            CompletableFuture<HttpAuthHeaders> credential = initializedAsync()
+                    .thenCompose(ignored -> challengeRound(ctx, handler, t, uri, null, 0, deadlineNanos))
+                    .thenCompose(ignored -> provider.getHttpHeadersAsync(ctx));
             // Metrics (PIP-478): time the HTTP credential acquisition and count failures by error class.
             return authMetrics.timeCredential(credential, httpAuthMethod());
         } catch (Throwable th) {
@@ -231,16 +234,34 @@ public final class HttpAuthenticationDriver {
                 });
     }
 
-    private void ensureInitialized() {
-        if (!initialized) {
-            synchronized (this) {
-                if (!initialized) {
-                    // The built-in SASL body completes initializeAsync immediately (it reads its JAAS subject
-                    // through the shim's provider factory, not the framework services), so join() never blocks.
-                    v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId)).join();
-                    initialized = true;
-                }
+    /**
+     * The body's one-shot initialization, memoized. {@link org.apache.pulsar.client.api.v5.auth.Authentication
+     * #initializeAsync} is allowed to do I/O, so this is composed onto rather than joined: the exchange starts
+     * only once the body is ready, and a slow initialization delays that one call instead of blocking the
+     * caller's thread. A failed initialization is not cached — the next call retries, matching the previous
+     * behaviour where a throwing {@code join()} left {@code initialized} false.
+     *
+     * @return a future completing when the body is ready to serve credentials
+     */
+    private synchronized CompletableFuture<Void> initializedAsync() {
+        if (initialization == null) {
+            CompletableFuture<Void> started;
+            try {
+                started = v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId));
+            } catch (Throwable t) {
+                // The SPI forbids throwing synchronously, but a third-party body may still do it.
+                return CompletableFuture.failedFuture(t);
             }
+            initialization = started.whenComplete((ignored, ex) -> {
+                if (ex != null) {
+                    forgetFailedInitialization();
+                }
+            });
         }
+        return initialization;
+    }
+
+    private synchronized void forgetFailedInitialization() {
+        this.initialization = null;
     }
 }

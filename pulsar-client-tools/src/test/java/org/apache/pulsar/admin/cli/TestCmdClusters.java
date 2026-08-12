@@ -99,8 +99,8 @@ public class TestCmdClusters {
     @Test
     public void testTlsFactoryOptions() throws Exception {
         // PIP-478: a cluster entry may select its own PulsarTlsFactory for outbound connections to that
-        // remote cluster — it covers both broker-client legs, the binary replication client and the
-        // cross-cluster admin client.
+        // remote cluster — the two legs configured from the cluster entry, the binary replication client
+        // and the cross-cluster admin client (not the broker-level peer-cluster lookup client).
         ClusterData expected = ClusterData.builder()
                 .brokerClientTlsFactoryClassName("com.example.MyTlsFactory")
                 .brokerClientTlsFactoryConfig("k1=v1,k2=v2")

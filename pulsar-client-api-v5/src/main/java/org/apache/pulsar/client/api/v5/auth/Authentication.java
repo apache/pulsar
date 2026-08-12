@@ -64,6 +64,18 @@ public interface Authentication extends AutoCloseable {
      * Never throws synchronously: all failures are reported by completing the returned future
      * exceptionally, never by throwing on the calling thread.
      *
+     * <p><b>Must not block the calling thread.</b> The framework may call this from an I/O thread — the
+     * binary driver initializes on the connection path, which runs on a Netty event loop — and it never
+     * waits for the returned future there: the connection's authentication rounds are chained onto it
+     * instead. So start any I/O and return promptly, off-loading blocking work to
+     * {@link AuthenticationInitContext#blockingExecutor()}. Blocking inside this method before returning
+     * the future stalls every connection sharing that event loop.
+     *
+     * <p>Called at most once per driver while it succeeds. If the returned future completes exceptionally
+     * the framework does not cache the failure: the next connection attempt calls this again, so a
+     * transient initialization failure (an unreachable credential endpoint at startup) recovers on
+     * reconnect rather than poisoning the plugin for the client's lifetime.
+     *
      * @param ctx the runtime services context
      * @return a future completing when the plugin is ready
      */

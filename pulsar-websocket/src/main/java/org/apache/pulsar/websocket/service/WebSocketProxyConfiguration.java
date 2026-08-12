@@ -215,7 +215,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
+    @FieldContext(doc = "TLS cert refresh duration (in seconds). Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
     @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's web "

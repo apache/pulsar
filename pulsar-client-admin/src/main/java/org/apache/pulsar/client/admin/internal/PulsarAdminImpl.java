@@ -72,6 +72,7 @@ import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
 import org.glassfish.jersey.client.ClientConfig;
@@ -499,6 +500,24 @@ public class PulsarAdminImpl implements PulsarAdmin {
     }
 
     /**
+     * The TLS factory the authentication plugin's framework HTTP client resolves purposes against: the one
+     * adopted onto the configuration when present, else the one this admin's {@link AsyncHttpConnector}
+     * composed. Returning {@code null} leaves the framework client on platform-default trust, which is correct
+     * only when nothing configured a trust domain for it.
+     *
+     * @param conf this admin's client configuration
+     * @return the TLS factory, or {@code null} when none was composed
+     */
+    private PulsarTlsFactory authTlsFactory(ClientConfigurationData conf) {
+        PulsarTlsFactory adopted = conf.getTlsFactory();
+        if (adopted != null) {
+            return adopted;
+        }
+        AsyncHttpConnector connector = this.asyncHttpConnector;
+        return connector == null ? null : connector.getTlsFactory();
+    }
+
+    /**
      * Whether {@link #bindAuthenticationServices} actually bound the framework HTTP client factory into the
      * authentication plugin.
      *
@@ -513,14 +532,30 @@ public class PulsarAdminImpl implements PulsarAdmin {
         return authHttpClientFactory != null;
     }
 
+    /**
+     * The bound framework HTTP client factory, so a test can issue the IdP request through exactly the client
+     * the authentication plugin uses (VisibleForTesting).
+     *
+     * @return the framework HTTP client factory, or {@code null} when none was bound
+     */
+    FrameworkHttpClientFactory authHttpClientFactoryForTest() {
+        return authHttpClientFactory;
+    }
+
     private void bindAuthenticationServices(ClientConfigurationData conf) {
         if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
             return;
         }
         foldOAuth2IdpPolicy(conf);
         String clientInstanceId = "pulsar-admin-" + Integer.toHexString(System.identityHashCode(this));
+        // The TLS factory the framework HTTP client resolves its purposes against — notably the CLIENT_OAUTH2
+        // policy folded in just above. An adopted factory (the broker's admin-client attach) is already on the
+        // configuration; otherwise the one the connector composes is the admin's single factory, and reading it
+        // from there rather than composing a second one is what keeps the fold meaningful. The supplier is
+        // resolved lazily, at the first authenticated request, because the connector is created later in this
+        // constructor.
         this.authHttpClientFactory = new FrameworkHttpClientFactory(
-                () -> null, () -> null, () -> null, conf::getTlsFactory, conf, clientInstanceId);
+                () -> null, () -> null, () -> null, () -> authTlsFactory(conf), conf, clientInstanceId);
         OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
                 : OpenTelemetry.noop();
         // The admin OAuth2 flow only uses the HTTP client factory; the scheduler / blocking executor of the

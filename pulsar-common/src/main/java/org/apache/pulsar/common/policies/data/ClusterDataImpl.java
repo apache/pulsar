@@ -171,9 +171,11 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private String brokerClientCertificateFilePath;
     @Schema(
             name = "brokerClientTlsFactoryClassName",
-            description = "PulsarTlsFactory class name for outbound connections to this cluster — both the "
-                    + "binary-protocol replication client and the cross-cluster admin (HTTPS) client. Blank "
-                    + "inherits the broker-level brokerClientTlsFactoryClassName."
+            description = "PulsarTlsFactory class name for outbound connections to this cluster — the two legs "
+                    + "configured from this cluster entry: the binary-protocol replication client and the "
+                    + "cross-cluster admin (HTTPS) client. It does not reach the peer-cluster lookup client, "
+                    + "which is broker-level throughout (as in 4.x). Blank inherits the broker-level "
+                    + "brokerClientTlsFactoryClassName."
     )
     private String brokerClientTlsFactoryClassName;
     @Schema(

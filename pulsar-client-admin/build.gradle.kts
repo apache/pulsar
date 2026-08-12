@@ -19,6 +19,9 @@
 
 plugins {
     id("pulsar.public-java-library-conventions")
+    // PIP-478: AdminOAuth2IdpTlsEndToEndTest stands up a WireMock HTTPS IdP with the shared CA test certs
+    // (tests/certificate-authority), proving the admin's folded CLIENT_OAUTH2 trust reaches the IdP.
+    id("pulsar.test-certs-conventions")
 }
 
 dependencies {

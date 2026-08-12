@@ -385,12 +385,11 @@ public class WorkerServer {
                     .keyFilePath(config.getTlsKeyFilePath());
         }
         Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
-        long refresh = config.getTlsCertRefreshCheckDurationSec();
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
                 .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
-                .refreshIntervalSeconds(refresh <= 0 ? FileBasedTlsFactorySettings.DEFAULT_REFRESH_INTERVAL_SECONDS
-                        : (int) Math.min(refresh, Integer.MAX_VALUE))
+                .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
+                        config.getTlsCertRefreshCheckDurationSec()))
                 .build();
         return new FileBasedTlsFactory(policies, settings);
     }
