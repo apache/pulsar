@@ -135,6 +135,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
                 .thenApply(policies -> policies.map(policy -> cloneWithScope(policy, global)));
     }
 
+    @Deprecated
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
         listeners.compute(normalizeTopicName(topicName), (__, topicListeners) -> {

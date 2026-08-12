@@ -154,7 +154,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache =
             CacheBuilder.newBuilder().maximumSize(100000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES)
+                    .expireAfterAccess(Duration.ofMinutes(30))
                     .build(new CacheLoader<String, SchemaInfoProvider>() {
 
                         @Override

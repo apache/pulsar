@@ -43,5 +43,9 @@ dependencies {
     implementation(libs.commons.lang3)
     implementation(libs.completable.futures)
 
+    // pulsar-client's configuration-data classes carry runtime-retained @Schema annotations, so javac needs
+    // the OpenAPI annotation types on the compile classpath to read their class files without warning.
+    compileOnly(libs.swagger.annotations)
+
     testImplementation(libs.wiremock)
 }

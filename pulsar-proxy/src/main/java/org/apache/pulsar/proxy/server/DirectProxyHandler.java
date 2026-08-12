@@ -30,8 +30,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -160,9 +158,8 @@ public class DirectProxyHandler {
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass());
 
-        if (service.proxyZeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
-            b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        }
+        // Zero-copy (splice) requires the epoll transport to be level-triggered. Netty always uses
+        // level-triggered mode since 4.2, so no channel option needs to be set for it anymore.
 
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override

@@ -561,6 +561,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     @Deprecated
+    // @SafeVarargs cannot be applied to an abstract method; implementations declare it on their final override.
+    @SuppressWarnings("unchecked")
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
 
     /**

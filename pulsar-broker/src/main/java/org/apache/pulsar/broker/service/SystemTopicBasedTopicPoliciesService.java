@@ -951,7 +951,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // Complete the removed init future outside the compute() remapping function: completing it can run the
         // awaiting topic-load callbacks synchronously, and doing that while holding the ConcurrentHashMap bin lock
         // risks a recursive map update / deadlock (see #24977).
-        failPendingPolicyCacheInit(namespace, removedInitFuture.getValue());
+        failPendingPolicyCacheInit(namespace, removedInitFuture.get());
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture
                     .thenCompose(SystemTopicClient.Reader::closeAsync)
@@ -1152,6 +1152,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return policyCacheInitMap.get(namespaceName);
     }
 
+    @Deprecated
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
         listeners.compute(topicName, (k, topicListeners) -> {

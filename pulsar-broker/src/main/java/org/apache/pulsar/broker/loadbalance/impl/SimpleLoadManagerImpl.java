@@ -26,6 +26,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -238,7 +239,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 });
 
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
-        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
+        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(entryExpiryTime))
                 .build(new CacheLoader<String, Long>() {
                     @Override
                     public Long load(String key) throws Exception {
