@@ -27,10 +27,12 @@ import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
+import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.SinglePassAuthentication;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.NoAuthentication;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
 import org.testng.annotations.Test;
@@ -163,9 +165,32 @@ public class V5AuthenticationLoaderTest {
     @Test
     public void blankClassNameLoadsDisabledAuthentication() throws Exception {
         Authentication auth = V5AuthenticationLoader.create("", "");
-        // Blank routes to the v4 path, which yields AuthenticationDisabled bridged through the adapter.
+        // Blank routes to the v4 path, which yields AuthenticationDisabled — and the "none" method name
+        // resolves to the v5-native NoAuthentication rather than a bridged v4 plugin (PIP-478).
+        assertThat(auth).isInstanceOf(NoAuthentication.class);
         assertThat(LegacyV4AuthenticationAdapter.unwrapV4(auth))
-                .get()
-                .isInstanceOf(org.apache.pulsar.client.impl.auth.AuthenticationDisabled.class);
+                .as("the v5-native no-auth body wraps nothing; there is no v4 plugin left to recover")
+                .isEmpty();
+    }
+
+    /**
+     * The unauthenticated case must be able to authenticate a binary connection. It is the only built-in
+     * whose v4 form carries neither command data nor HTTP data, so the generic bridge — which advertises
+     * {@link BinaryAuthDataProvider} only for a plugin that actually produced command data — resolves it to
+     * a plugin with no binary capability at all. Driving that plugin natively fails the connection outright,
+     * so "none" is routed to the v5-native body instead.
+     */
+    @Test
+    public void theUnauthenticatedCaseCanDriveABinaryConnection() throws Exception {
+        Authentication auth = V5AuthenticationLoader.create("", "");
+
+        assertThat(auth.capability(BinaryAuthDataProvider.class))
+                .as("a natively-driven client with no auth configured must still be able to connect")
+                .isPresent();
+        BinaryAuthDataProvider binary = auth.capability(BinaryAuthDataProvider.class).orElseThrow();
+        assertThat(binary.authMethodName()).isEqualTo("none");
+        assertThat(binary.getAuthDataAsync(null).get().bytes())
+                .as("and it carries an empty credential")
+                .isEmpty();
     }
 }

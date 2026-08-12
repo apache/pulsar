@@ -29,9 +29,8 @@ import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
 import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.auth.v5.TlsAuthentication;
+import org.apache.pulsar.client.impl.auth.v5.TokenAuthenticationV5;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 
 /**
@@ -170,14 +169,18 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
 
     // --- Authentication ---
 
+    // The v5 factory returns the v5-native token body directly rather than bridging the v4
+    // AuthenticationToken back through LegacyV4AuthenticationAdapter (PIP-478). Both serve the same
+    // credential, but the bridge would route a purely in-memory token through the blocking executor on
+    // every connect — the offload exists for plugins that perform credential I/O, which this one does not.
     @Override
     public Authentication authenticationToken(String token) {
-        return LegacyV4AuthenticationAdapter.wrap(new AuthenticationToken(token));
+        return new TokenAuthenticationV5(new TokenAuthenticationV5.LiteralTokenSupplier(token));
     }
 
     @Override
     public Authentication authenticationToken(Supplier<String> tokenSupplier) {
-        return LegacyV4AuthenticationAdapter.wrap(new AuthenticationToken(tokenSupplier));
+        return new TokenAuthenticationV5(tokenSupplier);
     }
 
     @Override
