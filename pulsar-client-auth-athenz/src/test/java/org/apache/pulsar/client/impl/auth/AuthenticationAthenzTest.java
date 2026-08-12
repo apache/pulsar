@@ -46,7 +46,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
@@ -373,16 +374,15 @@ public class AuthenticationAthenzTest {
             final AuthenticationExchange exchange =
                     new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth))
                             .newAuthenticationExchange("broker.example.com");
-            // No blocking executor is bound in this test, so supplyBlocking runs the credential fetch inline
-            // and the failure is produced deterministically here.
+            // The fetch is off-loaded even with no client services bound (credential acquisition never runs
+            // on the caller thread), so await the failure rather than expecting it to have happened already.
             final CompletableFuture<AuthData> future = exchange.getAuthDataAsync();
-            assertTrue(future.isCompletedExceptionally());
             try {
-                future.join();
+                future.get(10, TimeUnit.SECONDS);
                 fail("expected the ZTS failure to propagate");
-            } catch (CompletionException ce) {
-                assertTrue(ce.getCause() instanceof PulsarClientException.GettingAuthenticationDataException,
-                        "expected a v4 GettingAuthenticationDataException subtype, got: " + ce.getCause());
+            } catch (ExecutionException ee) {
+                assertTrue(ee.getCause() instanceof PulsarClientException.GettingAuthenticationDataException,
+                        "expected a v4 GettingAuthenticationDataException subtype, got: " + ee.getCause());
             }
 
             auth.close();

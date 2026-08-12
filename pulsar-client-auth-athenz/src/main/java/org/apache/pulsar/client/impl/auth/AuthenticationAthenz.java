@@ -62,9 +62,9 @@ import org.apache.pulsar.client.impl.auth.v5.AthenzAuthenticationV5;
  *
  * <p>The verbatim v4 synchronous surface ({@link #getAuthData()} / {@link AuthenticationDataAthenz}) is
  * preserved for callers of the v4 API; PIP-478 additionally exposes the v5-native body through
- * {@link V5AuthenticationProvider}, which is what the client drives. The old note: it can drive
- * the role-token credential over the non-blocking binary path via the v5-native
- * {@link AthenzAuthenticationV5}. The ZTS role-token cache stays on this shim.
+ * {@link V5AuthenticationProvider} — the v5-native {@link AthenzAuthenticationV5}, which the client drives
+ * over the non-blocking binary path without bridging this class. The ZTS role-token exchange and its cache
+ * stay here, on the Athenz SDK's own transport.
  */
 public class AuthenticationAthenz
         implements Authentication, EncodedAuthenticationParameterSupport, V5AuthenticationProvider {
@@ -73,7 +73,6 @@ public class AuthenticationAthenz
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
 
-    // PIP-478: the client's framework services, late-bound before start(); null until then.
 
     private transient KeyRefresher keyRefresher = null;
     private transient ZTSClient ztsClient = null;
