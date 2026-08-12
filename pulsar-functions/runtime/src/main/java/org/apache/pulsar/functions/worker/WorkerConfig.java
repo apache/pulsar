@@ -578,8 +578,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     + "For the worker's web listener, leave unset (the default) to use Conscrypt when it is\n"
                     + "available on this platform, else the JVM's default provider; a configured JSSE provider\n"
                     + "name is pinned and startup fails if it cannot be resolved. Conscrypt ships native libraries\n"
-                    + "for x86_64 only, which is why the default falls back rather than failing on aarch64 or\n"
-                    + "s390x — pinning it explicitly there does fail."
+                    + "for x86_64 and, since 2.6.1, aarch64 — but not for every platform, which is why the default\n"
+                    + "falls back instead of failing where it cannot load; pinning it there does fail."
     )
     private String tlsProvider = null;
 

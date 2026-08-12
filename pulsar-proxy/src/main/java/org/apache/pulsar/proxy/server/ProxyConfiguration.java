@@ -336,9 +336,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "provider names here. Note that the proxy's own HTTPS listener reads tlsProvider rather than\n"
                     + "this setting. Leave unset (the default) to use Conscrypt when it is available on this\n"
                     + "platform, else the JVM's default provider; a configured name is pinned and startup fails\n"
-                    + "if it cannot be resolved. Conscrypt ships native libraries for x86_64 only, which is why\n"
-                    + "the default falls back rather than failing on aarch64 or s390x — pinning it explicitly\n"
-                    + "there does fail."
+                    + "if it cannot be resolved. Conscrypt ships native libraries for x86_64 and, since 2.6.1,\n"
+                    + "aarch64 — but not for every platform, which is why the default falls back instead of failing\n"
+                    + "where it cannot load; pinning it explicitly there does fail."
     )
     private String webServiceTlsProvider = "";
 

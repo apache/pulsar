@@ -124,9 +124,10 @@ public class DefaultBrokerTlsPolicyTest {
     @Test
     public void theWebListenerDefaultsToConscryptOnlyWhenItIsAvailable() {
         // Conscrypt was the shipped default for webServiceTlsProvider before PIP-478 and is kept, but the
-        // default is now conditional on Conscrypt actually loading: its uber jar ships x86_64 natives only,
-        // and the value is now pinned into the built SSLContext rather than reaching Jetty's inert
-        // setProvider(...), so an unconditional default would fail startup on aarch64 and s390x.
+        // default is now conditional on Conscrypt actually loading: the value is pinned into the built
+        // SSLContext rather than reaching Jetty's inert setProvider(...), so an unconditional default would
+        // fail startup wherever the native library is missing (the uber jar covers x86_64 and, since 2.6.1,
+        // aarch64 — not every platform). Both branches are asserted so this holds either way.
         ServiceConfiguration conf = conf();
 
         String webProvider = DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider();

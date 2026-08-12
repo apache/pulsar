@@ -282,9 +282,9 @@ public final class TlsFactorySupport {
      * default is now <em>conditional</em>: under PIP-337 the key only reached Jetty's
      * {@code SslContextFactory.setProvider(...)}, inert on a factory that overrides {@code getSslContext()},
      * so the shipped default never selected a provider and could not fail. Now that the value is pinned into
-     * the built {@code SSLContext}, an unconditional default would fail startup wherever Conscrypt cannot
-     * load — {@code conscrypt-openjdk-uber} carries native libraries for x86_64 only, so aarch64 (Apple
-     * silicon, ARM servers) and s390x would break out of the box.
+     * the built {@code SSLContext} it can, so it is applied only where Conscrypt actually loads.
+     * {@code conscrypt-openjdk-uber} ships native libraries for x86_64 and — since 2.6.1 — aarch64, but not
+     * for every platform Pulsar runs on (s390x, for one), and it need not be on the class path at all.
      *
      * <p>Hence availability rather than mere presence: {@link JcaProviders#CONSCRYPT_PROVIDER} is resolved by
      * calling Conscrypt's own {@code checkAvailability()}, which fails where the native library is missing, so

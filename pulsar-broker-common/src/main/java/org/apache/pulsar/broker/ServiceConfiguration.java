@@ -210,9 +210,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
                     + "provider names here. Leave unset (the default) to use Conscrypt when it is available on\n"
                     + "this platform, else the JVM's default provider; a configured name is pinned and startup\n"
-                    + "fails if it cannot be resolved. Conscrypt ships native libraries for x86_64 only, which is\n"
-                    + "why the default falls back rather than failing on aarch64 or s390x — pinning it explicitly\n"
-                    + "there does fail."
+                    + "fails if it cannot be resolved. Conscrypt ships native libraries for x86_64 and, since\n"
+                    + "2.6.1, aarch64 — but not for every platform, which is why the default falls back instead of\n"
+                    + "failing where it cannot load; pinning it explicitly there does fail."
     )
     private String webServiceTlsProvider = "";
 
