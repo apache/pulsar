@@ -110,6 +110,10 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
+        // PIP-478: overridable, no-op by default — lets a subclass select an alternate broker-client TLS path
+        // (e.g. the new PIP-478 factory) without altering this test's behavior.
+        customizeProxyConfiguration(proxyConfig);
+
         ServletHolder servletHolder =
                 new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
         webServer.addServlet("/admin", servletHolder);
@@ -117,6 +121,15 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
         // start web-service
         webServer.start();
+    }
+
+    /**
+     * Hook for subclasses to select an alternate broker-client TLS path before the {@link AdminProxyHandler}
+     * is constructed. No-op by default, so this test runs the legacy path unchanged.
+     *
+     * @param proxyConfig the proxy configuration to customize
+     */
+    protected void customizeProxyConfiguration(ProxyConfiguration proxyConfig) {
     }
 
     @AfterMethod(alwaysRun = true)

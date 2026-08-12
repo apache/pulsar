@@ -34,9 +34,9 @@ import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
-import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.internal.CommandHook;
 import org.apache.pulsar.internal.CommanderFactory;
+import org.apache.pulsar.tls.TlsPolicy;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -207,38 +207,63 @@ public class PulsarClientTool implements CommandHook {
      * Translate the client.conf TLS settings onto the typed V5 {@link TlsPolicy}. V5 has no
      * untyped {@code loadConf}, so the conf-file keys that have no dedicated CLI flag
      * ({@code tlsAllowInsecureConnection}, {@code tlsEnableHostnameVerification}, the mTLS
-     * cert/key paths) are read from the properties here.
+     * cert/key paths, the {@code useKeyStoreTls} keystore keys) are read from the properties here.
      *
      * <p>TLS is enabled only when the service URL uses {@code pulsar+ssl://} or the conf sets
      * {@code useTls=true}; otherwise we leave the policy untouched so a plaintext broker is not
      * accidentally contacted over TLS (calling {@code tlsPolicy()} always flips {@code useTls}
-     * on). Keystore TLS has no V5 equivalent and is reported as unsupported.
+     * on). Per PIP-478 hostname verification defaults ON ({@link TlsPolicy}'s secure default);
+     * an explicit {@code tlsEnableHostnameVerification=false} in the conf still opts out. When
+     * {@code useKeyStoreTls=true}, the v4 keystore keys ({@code tlsTrustStorePath},
+     * {@code tlsKeyStorePath}, ...) map onto a {@link TlsPolicy.Format#KEYSTORE} policy instead
+     * of the PEM paths. The {@code jsseProvider} conf key is honored in both formats so a
+     * FIPS/provider-specific endpoint (e.g. {@code BCJSSE}) is not silently served by the
+     * platform provider.
      */
-    private void applyTlsPolicy(PulsarClientBuilder clientBuilder, String serviceUrl, Properties properties) {
+    @VisibleForTesting
+    void applyTlsPolicy(PulsarClientBuilder clientBuilder, String serviceUrl, Properties properties) {
         boolean tlsByUrl = serviceUrl != null && serviceUrl.startsWith("pulsar+ssl://");
         boolean tlsByConf = Boolean.parseBoolean(properties.getProperty("useTls", "false"));
         if (!tlsByUrl && !tlsByConf) {
             return;
         }
-        if (Boolean.parseBoolean(properties.getProperty("useKeyStoreTls", "false"))) {
-            commander.getErr().println("Warning: keystore TLS (useKeyStoreTls) is not supported by the "
-                    + "V5-based pulsar-client; PEM trust/cert/key settings are used instead.");
-        }
         TlsPolicy.Builder tls = TlsPolicy.builder()
                 .allowInsecureConnection(
-                        Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false")))
-                .enableHostnameVerification(
-                        Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false")));
-        if (isNotBlank(rootParams.tlsTrustCertsFilePath)) {
-            tls.trustCertsFilePath(rootParams.tlsTrustCertsFilePath);
+                        Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false")));
+        // Only an explicit conf value may override the builder's secure default (verification ON);
+        // an absent key must not silently disable it.
+        String hostnameVerification = properties.getProperty("tlsEnableHostnameVerification");
+        if (hostnameVerification != null) {
+            tls.enableHostnameVerification(Boolean.parseBoolean(hostnameVerification));
         }
-        String certFile = properties.getProperty("tlsCertificateFilePath");
-        if (isNotBlank(certFile)) {
-            tls.certificateFilePath(certFile);
+        if (Boolean.parseBoolean(properties.getProperty("useKeyStoreTls", "false"))) {
+            // The store types default to JKS, matching the v4 client.conf semantics; TlsPolicy's
+            // null means KeyStore.getDefaultType() (PKCS12 on current JDKs), which would break
+            // existing confs that rely on the v4 JKS default.
+            tls.format(TlsPolicy.Format.KEYSTORE)
+                    .trustStorePath(properties.getProperty("tlsTrustStorePath"))
+                    .trustStorePassword(properties.getProperty("tlsTrustStorePassword"))
+                    .trustStoreType(properties.getProperty("tlsTrustStoreType", "JKS"))
+                    .keyStorePath(properties.getProperty("tlsKeyStorePath"))
+                    .keyStorePassword(properties.getProperty("tlsKeyStorePassword"))
+                    .keyStoreType(properties.getProperty("tlsKeyStoreType", "JKS"));
+        } else {
+            if (isNotBlank(rootParams.tlsTrustCertsFilePath)) {
+                tls.trustCertsFilePath(rootParams.tlsTrustCertsFilePath);
+            }
+            String certFile = properties.getProperty("tlsCertificateFilePath");
+            if (isNotBlank(certFile)) {
+                tls.certificateFilePath(certFile);
+            }
+            String keyFile = properties.getProperty("tlsKeyFilePath");
+            if (isNotBlank(keyFile)) {
+                tls.keyFilePath(keyFile);
+            }
         }
-        String keyFile = properties.getProperty("tlsKeyFilePath");
-        if (isNotBlank(keyFile)) {
-            tls.keyFilePath(keyFile);
+        // Format-independent: the JSSE (SSLContext) provider applies to both PEM and KEYSTORE.
+        String jsseProvider = properties.getProperty("jsseProvider");
+        if (isNotBlank(jsseProvider)) {
+            tls.jsseProvider(jsseProvider);
         }
         clientBuilder.tlsPolicy(tls.build());
     }

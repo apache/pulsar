@@ -24,11 +24,8 @@ import jakarta.ws.rs.client.WebTarget;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.RequestBuilder;
 
@@ -57,17 +54,13 @@ public class ComponentResource extends BaseResource {
     }
 
     private Set<Entry<String, String>> getAuthHeaders(WebTarget target) throws Exception {
-        AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
-        String targetUrl = target.getUri().toString();
-        if (auth.getAuthMethodName().equalsIgnoreCase(SaslConstants.AUTH_METHOD_NAME)) {
-            CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
-            auth.authenticationStage(targetUrl, authData, null, authFuture);
-            return auth.newRequestHeader(targetUrl, authData, authFuture.get());
-        } else if (authData.hasDataForHttp()) {
-            return auth.newRequestHeader(targetUrl, authData, null);
-        } else {
-            return null;
-        }
+        // The blocking get() runs on the caller's admin/application thread (addAuthHeaders is invoked
+        // synchronously from the raw-AsyncHttpClient admin operations), never the Netty event loop, and the
+        // SASL warmup completes on the plugin's own JAX-RS client pool — so this cannot deadlock. This
+        // mirrors the blocking authFuture.get() it replaces, now routed through the shared HTTP auth driver
+        // (PIP-478) when the plugin exposes the v5 SASL-over-HTTP capability.
+        Map<String, String> headers = computeAuthHeaders(target.getUri()).get();
+        return (headers == null || headers.isEmpty()) ? null : headers.entrySet();
     }
 
     protected ObjectWriter objectWriter() {

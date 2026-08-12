@@ -44,6 +44,28 @@ public final class FileBasedTlsFactorySettings {
     /** Default rotation poll interval, in seconds (PIP-478). */
     public static final int DEFAULT_REFRESH_INTERVAL_SECONDS = 60;
 
+    /**
+     * Map a {@code tlsCertRefreshCheckDurationSec} configuration value (broker, proxy, websocket proxy or
+     * functions worker — they all default it to 300) onto {@link #refreshIntervalSeconds()}, preserving the v4
+     * meaning of a non-positive value: {@code 0} means <em>no background poll</em>, not "use the default".
+     * Every v4 listener guarded its refresh task with {@code > 0}, so substituting
+     * {@link #DEFAULT_REFRESH_INTERVAL_SECONDS} here would start polling for an operator who asked for none.
+     * Shared by all four servers so the mapping cannot drift between them again.
+     *
+     * <p>Note that {@code 0} therefore disables rotation for the subscribing server purposes, exactly as it
+     * did on the PIP-337 path. The config key's "set 0 to check on every new connection" wording describes
+     * only the one-shot acquisition paths, which re-stat per request; it has not applied to the server
+     * listeners since they moved to a shared, periodically-refreshed context.
+     *
+     * @param tlsCertRefreshCheckDurationSec the configured value
+     * @return the poll interval in seconds, clamped to {@code int}, or {@code 0} to disable polling
+     */
+    public static int refreshIntervalSecondsFromConfig(long tlsCertRefreshCheckDurationSec) {
+        return tlsCertRefreshCheckDurationSec <= 0
+                ? 0
+                : (int) Math.min(tlsCertRefreshCheckDurationSec, Integer.MAX_VALUE);
+    }
+
     private final SslProvider engineProvider;
     private final boolean requireTrustedClientCert;
     private final int refreshIntervalSeconds;

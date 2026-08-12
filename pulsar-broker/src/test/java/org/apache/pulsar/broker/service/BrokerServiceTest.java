@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -760,7 +761,11 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("unable to find valid certification path to requested target"));
+            // The PKIX failure is reported by the JDK trust manager the TLS engine delegates to, so it always
+            // appears in the cause chain. Which engine surfaces it, and therefore what the top-level message
+            // says, depends on the configured TLS provider: the JDK engine says "General SSLEngine problem"
+            // and the OpenSSL engine says "General OpenSslEngine problem". Assert on the chain, not the tip.
+            assertThat(e).hasStackTraceContaining("unable to find valid certification path to requested target");
         } finally {
             pulsarClient.close();
         }

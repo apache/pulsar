@@ -82,6 +82,30 @@ public final class TlsContextAcquisition {
     }
 
     /**
+     * Default bound (5 minutes) on how long an AsyncHttpClient pooled HTTPS connection may keep using
+     * pre-rotation TLS material on the rotating PIP-478 factory path. Trades prompt rotation against
+     * connection churn.
+     */
+    public static final int DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS = 5 * 60 * 1000;
+
+    /** System property overriding {@link #DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS} (injectable for tests). */
+    public static final String HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY = "pulsar.tls.http.connectionTtlMillis";
+
+    /**
+     * The connection-TTL (millis) that bounds how long an AsyncHttpClient pooled HTTPS connection may keep
+     * using pre-rotation TLS material on the rotating PIP-478 factory path. Since AsyncHttpClient
+     * fixes its TLS configuration at build time and the framework installs a rotating {@code SslEngineFactory},
+     * new connections pick up rotated material immediately, but an established pooled connection would otherwise
+     * keep pre-rotation material indefinitely; this TTL caps that, making rotation effective "within the TTL
+     * bound" rather than merely eventually (PIP-478 "TLS rotation behind PulsarHttpClient"). Read per call so it
+     * is injectable at runtime via {@link #HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY}; defaults to 5 minutes.
+     */
+    public static int httpTlsRotationConnectionTtlMillis() {
+        return Integer.getInteger(HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY,
+                DEFAULT_HTTP_TLS_ROTATION_CONNECTION_TTL_MS);
+    }
+
+    /**
      * Build something from a rotating factory-owned Netty {@link SslContext} borrow while <em>pinning</em> the
      * context across the build (PIP-478 use-after-free guard). A subscribing consumer holds the latest
      * context in a volatile that the reload callback updates on rotation; it then reads that volatile and calls

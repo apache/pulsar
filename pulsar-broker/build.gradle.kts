@@ -31,6 +31,9 @@ dependencies {
     api(project(":pulsar-broker-common"))
     api(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
+    // PIP-478: PulsarChannelInitializer / WebService use the TLS factory SPI directly (private tlsFactory
+    // fields); it is not exposed on the broker's ABI, so `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-websocket"))
     implementation(project(":pulsar-cli-utils"))
     implementation(project(":pulsar-transaction:pulsar-transaction-common"))

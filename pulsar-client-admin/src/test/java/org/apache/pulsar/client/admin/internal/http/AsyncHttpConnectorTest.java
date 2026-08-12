@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
@@ -241,6 +242,33 @@ public class AsyncHttpConnectorTest {
             assertTrue(e.getCause() instanceof AsyncHttpConnector.MaxRedirectException);
         } catch (InterruptedException e) {
             fail();
+        }
+    }
+
+    @Test
+    void tlsFactoryPathBoundsPooledConnectionTtl() throws Exception {
+        // PIP-478: on the https (new TLS-factory) path the AHC connection TTL must be set so a pooled
+        // HTTPS connection cannot keep pre-rotation TLS material indefinitely — new connections pick up
+        // rotation, and this TTL bounds how long an established one survives. Inject a short TTL and assert it
+        // is honored (the default is 5 minutes).
+        int injectedTtlMs = 1234;
+        String property = TlsContextAcquisition.HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY;
+        String previous = System.getProperty(property);
+        System.setProperty(property, Integer.toString(injectedTtlMs));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("https://localhost:65535");
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+            assertTrue(connector.getTlsFactory() != null, "https uses the new PIP-478 TLS-factory path");
+            assertEquals(connector.getConnectionTtlMs(), injectedTtlMs,
+                    "pooled HTTPS connection TTL is bounded on the rotating factory path");
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
         }
     }
 

@@ -276,8 +276,9 @@ public class ProxyServiceStarter {
 
         // create proxy service
         proxyService = new ProxyService(config, authenticationService, proxyClientAuthentication);
-        // create a web-service
-        server = new WebServer(config, authenticationService);
+        // create a web-service (PIP-478: share the proxy's OpenTelemetry root so the WEB-purpose TLS factory
+        // emits pulsar.tls.reload instead of a no-op)
+        server = new WebServer(config, authenticationService, proxyService.getOpenTelemetry().getOpenTelemetry());
 
         if (!embeddedMode) {
             Runtime.getRuntime().addShutdownHook(new Thread(this::close));
@@ -390,8 +391,12 @@ public class ProxyServiceStarter {
             }
         }
 
+        // PIP-478: thread the proxy's OpenTelemetry root so the admin handler's BROKER_CLIENT TLS factory
+        // emits pulsar.tls.reload (no-op when no ProxyService is available, e.g. in tests).
+        io.opentelemetry.api.OpenTelemetry telemetryRoot = service != null
+                ? service.getOpenTelemetry().getOpenTelemetry() : io.opentelemetry.api.OpenTelemetry.noop();
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider,
-                proxyClientAuthentication);
+                proxyClientAuthentication, telemetryRoot);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);

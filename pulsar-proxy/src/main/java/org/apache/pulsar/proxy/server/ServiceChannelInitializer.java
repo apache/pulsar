@@ -21,15 +21,20 @@ package org.apache.pulsar.proxy.server;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.flush.FlushConsolidationHandler;
-import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 
 /**
  * Initialize service channel handlers.
@@ -45,7 +50,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final int brokerProxyReadTimeoutMs;
     private final int maxMessageSize;
 
-    private PulsarSslFactory sslFactory;
+    // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
+    private PulsarTlsFactory tlsFactory;
+    private TlsHandle<SslContext> tlsSubscription;
+    private volatile SslContext tlsServerContext;
 
     public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig,
                                      boolean enableTls, ScheduledExecutorService sslContextRefresher)
@@ -58,16 +66,48 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.maxMessageSize = serviceConfig.getMaxMessageSize();
 
         if (enableTls) {
-            PulsarSslConfiguration sslConfiguration = buildSslConfiguration(serviceConfig);
-            this.sslFactory = (PulsarSslFactory) Class.forName(serviceConfig.getSslFactoryPlugin())
-                    .getConstructor().newInstance();
-            this.sslFactory.initialize(sslConfiguration);
-            this.sslFactory.createInternalSslContext();
-            if (serviceConfig.getTlsCertRefreshCheckDurationSec() > 0) {
-                sslContextRefresher.scheduleWithFixedDelay(this::refreshSslContext,
-                        serviceConfig.getTlsCertRefreshCheckDurationSec(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec(), TimeUnit.SECONDS);
-            }
+            initializeTlsFactory(serviceConfig, sslContextRefresher);
+        }
+    }
+
+    // PIP-478: build the PulsarTlsFactory and subscribe to the PROXY purpose; the volatile Netty SslContext
+    // holds the latest instance (rotation delivered by the subscription; no cert-refresh task).
+    private void initializeTlsFactory(ProxyConfiguration serviceConfig,
+                                      ScheduledExecutorService scheduler) throws Exception {
+        this.tlsFactory = TlsFactorySupport.createFactory(serviceConfig.getTlsFactoryClassName(), null,
+                () -> ProxyTlsFactories.serverFactory(serviceConfig, TlsPurpose.PROXY,
+                        serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols()));
+        try {
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(serviceConfig.getTlsFactoryConfig()),
+                    scheduler, scheduler, proxyService.getOpenTelemetry().getOpenTelemetry());
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.tlsSubscription = TlsContextAcquisition.acquireNettyContext(this.tlsFactory, TlsPurpose.PROXY,
+                            TlsSynthesisSpec.server(serviceConfig.isTlsRequireTrustedClientCertOnConnect()),
+                            ctx -> this.tlsServerContext = ctx)
+                    .get()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "TLS factory supplied no Netty SslContext for purpose " + TlsPurpose.PROXY));
+        } catch (Exception e) {
+            // Ctor-throw cleanup: the factory was created (and possibly initialized, its rotation
+            // scheduler running) but the subscription failed; close() will not be called on a half-constructed
+            // initializer, so release it here. close() is null-safe and idempotent.
+            close();
+            throw e;
+        }
+    }
+
+    /** Dispose the PIP-478 TLS factory and its subscription, if any. */
+    public void close() {
+        TlsHandle<SslContext> subscription = this.tlsSubscription;
+        if (subscription != null) {
+            this.tlsSubscription = null;
+            subscription.dispose();
+        }
+        PulsarTlsFactory factory = this.tlsFactory;
+        if (factory != null) {
+            this.tlsFactory = null;
+            factory.close();
         }
     }
 
@@ -76,7 +116,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024,
                 true));
         if (this.enableTls) {
-            ch.pipeline().addLast(TLS_HANDLER, new SslHandler(this.sslFactory.createServerSslEngine(ch.alloc())));
+            // PIP-478: pin the current (possibly rotated) factory-owned SslContext across newHandler so a
+            // concurrent rotation cannot free the native OpenSSL context mid-build (use-after-free guard).
+            ch.pipeline().addLast(TLS_HANDLER, TlsContextAcquisition.withPinnedContext(
+                    () -> this.tlsServerContext, ctx -> ctx.newHandler(ch.alloc())));
         }
         if (brokerProxyReadTimeoutMs > 0) {
             ch.pipeline().addLast("readTimeoutHandler",
@@ -87,36 +130,5 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
         FrameDecoderUtil.addFrameDecoder(ch.pipeline(), maxMessageSize);
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
-    }
-
-    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config) {
-        return PulsarSslConfiguration.builder()
-                .tlsProvider(config.getTlsProvider())
-                .tlsKeyStoreType(config.getTlsKeyStoreType())
-                .tlsKeyStorePath(config.getTlsKeyStore())
-                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getTlsTrustStoreType())
-                .tlsTrustStorePath(config.getTlsTrustStore())
-                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
-                .tlsCiphers(config.getTlsCiphers())
-                .tlsProtocols(config.getTlsProtocols())
-                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
-                .tlsKeyFilePath(config.getTlsKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
-                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
-                .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(null)
-                .serverMode(true)
-                .build();
-    }
-
-    protected void refreshSslContext() {
-        try {
-            this.sslFactory.update();
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
-        }
     }
 }

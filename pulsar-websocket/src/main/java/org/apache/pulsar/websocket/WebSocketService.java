@@ -40,12 +40,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -223,7 +226,32 @@ public class WebSocketService implements Closeable {
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
+        applyBrokerClientTlsFactory(clientBuilder);
         return clientBuilder.build();
+    }
+
+    /**
+     * PIP-478: route the WebSocket proxy's own outbound (websocket-to-broker) Pulsar client onto the new TLS
+     * SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}. Mirrors
+     * the broker's {@code PulsarService.maybeApplyBrokerClientTlsFactory}: the broker-client {@code tls*}
+     * material is already on the client configuration, so this only attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} (default file-based, or the named custom factory) that the
+     * transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate is
+     * off, when the client is not TLS, or when it is already on the new path.
+     */
+    private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {
+        String factoryClassName = config.getBrokerClientTlsFactoryClassName();
+        if (!isNotBlank(factoryClassName) || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
+        // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context params
+        // (parsed the same way as the server-side tlsFactoryConfig).
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(config.getBrokerClientTlsFactoryConfig()));
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {

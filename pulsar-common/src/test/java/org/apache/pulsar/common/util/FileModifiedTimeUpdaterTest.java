@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -101,27 +98,6 @@ public class FileModifiedTimeUpdaterTest {
         FileTime fileTime = fileModifiedTimeUpdater.getLastModifiedTime();
         Assert.assertFalse(fileModifiedTimeUpdater.checkAndRefresh());
         Assert.assertEquals(fileTime, fileModifiedTimeUpdater.getLastModifiedTime());
-    }
-
-    @Test
-    @SuppressWarnings("try")
-    public void testNettyClientSslContextRefresher() throws Exception {
-        BasicAuthenticationData provider = new BasicAuthenticationData(null);
-        String certFile = "/tmp/cert.txt";
-        createFile(Paths.get(certFile));
-        provider.certFilePath = certFile;
-        provider.keyFilePath = certFile;
-        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
-                .allowInsecureConnection(false).tlsTrustCertsFilePath(certFile).authData(provider).build();
-        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
-            pulsarSslFactory.initialize(pulsarSslConfiguration);
-            Thread.sleep(5000);
-            Paths.get(certFile).toFile().delete();
-            // update the file
-            createFile(Paths.get(certFile));
-            Awaitility.await().atMost(30, TimeUnit.SECONDS).until(pulsarSslFactory::needsUpdate);
-            assertTrue(pulsarSslFactory.needsUpdate());
-        }
     }
 
 }

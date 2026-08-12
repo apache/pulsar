@@ -527,9 +527,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
 
                     @Override
-                    protected ByteBuf newConnectCommand() throws Exception {
-                        authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                    protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
                         BaseCommand cmd =
                                 Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
                                         this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,

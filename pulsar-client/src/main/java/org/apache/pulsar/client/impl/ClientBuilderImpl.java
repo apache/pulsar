@@ -42,7 +42,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     private static final long serialVersionUID = 1L;
@@ -89,6 +88,8 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
         return this;
@@ -482,18 +483,14 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder sslFactoryPlugin(String sslFactoryPlugin) {
-        if (StringUtils.isBlank(sslFactoryPlugin)) {
-            conf.setSslFactoryPlugin(DefaultPulsarSslFactory.class.getName());
-        } else {
-            conf.setSslFactoryPlugin(sslFactoryPlugin);
-        }
+    public ClientBuilder tlsFactoryClassName(String tlsFactoryClassName) {
+        conf.setTlsFactoryClassName(StringUtils.isBlank(tlsFactoryClassName) ? "" : tlsFactoryClassName);
         return this;
     }
 
     @Override
-    public ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
-        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+    public ClientBuilder tlsFactoryConfig(String tlsFactoryConfig) {
+        conf.setTlsFactoryConfig(StringUtils.isBlank(tlsFactoryConfig) ? "" : tlsFactoryConfig);
         return this;
     }
 

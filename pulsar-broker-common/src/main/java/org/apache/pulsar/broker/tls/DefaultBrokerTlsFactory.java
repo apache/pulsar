@@ -125,24 +125,28 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
      * {@code tlsProtocols}, {@code tlsCiphers} when they are not. Material (PEM or keystore) and the
      * insecure flag are shared with the binary listener, as they are today.
      *
-     * <p>Note the fallback is what makes the precedence safe to apply now: {@code webServiceTlsProvider}
-     * ships a non-blank default of {@code Conscrypt}, so it always wins over {@code tlsProvider} unless an
-     * operator blanks it. That matches the key's documented meaning — it names the JSSE (SSLContext)
-     * provider for the Jetty web listener — and Conscrypt is shipped in the server distribution. On a
-     * platform where the Conscrypt native library cannot load, the provider is not registered and pinning
-     * it fails loudly at startup rather than silently ignoring the configuration.
+     * <p>A configured provider is <em>pinned</em>: if it cannot be resolved, startup fails rather than
+     * silently ignoring the configuration. Left unset, the web listener falls back to Conscrypt when it is
+     * usable on this platform — see {@link TlsFactorySupport#resolveWebJsseProvider} for why that default is
+     * conditional where 4.x's was not.
      */
     @VisibleForTesting
     static TlsPolicy webPolicy(ServiceConfiguration conf) {
-        return serverPolicy(conf,
-                firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider()),
+        String provider = firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider());
+        return serverPolicy(conf, provider,
+                // Web listeners only: unset means Conscrypt when it is usable on this platform.
+                TlsFactorySupport.resolveWebJsseProvider(null, provider),
                 firstNonEmpty(conf.getWebServiceTlsProtocols(), conf.getTlsProtocols()),
                 firstNonEmpty(conf.getWebServiceTlsCiphers(), conf.getTlsCiphers()));
     }
 
     @VisibleForTesting
     static TlsPolicy serverPolicy(ServiceConfiguration conf) {
-        return serverPolicy(conf, conf.getTlsProvider(), conf.getTlsProtocols(), conf.getTlsCiphers());
+        // The binary listeners keep the JVM default when unset — the Conscrypt default is a web-listener
+        // behaviour, restored from 4.x where only the web keys carried it.
+        return serverPolicy(conf, conf.getTlsProvider(),
+                TlsFactorySupport.resolveJsseProvider(null, conf.getTlsProvider()),
+                conf.getTlsProtocols(), conf.getTlsCiphers());
     }
 
     private static String firstNonBlank(String preferred, String fallback) {
@@ -153,8 +157,8 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         return preferred != null && !preferred.isEmpty() ? preferred : fallback;
     }
 
-    private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, Set<String> protocols,
-                                          Set<String> ciphers) {
+    private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, String jsseProvider,
+                                          Set<String> protocols, Set<String> ciphers) {
         // enableHostnameVerification is pinned OFF on server-role policies rather than mapped from
         // tlsHostnameVerificationEnabled. That key is the broker's OUTBOUND setting ("whether the hostname
         // is validated when the broker creates a TLS connection with other brokers"), and every existing
@@ -173,9 +177,10 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .protocols(toList(protocols))
                 .ciphers(toList(ciphers))
                 // v4 parity: the provider key is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
-                // selects the Netty engine above and yields null here; any other value is a JSSE provider
-                // name (e.g. Conscrypt), which v4 used to build the SSLContext, so route it to that axis.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, provider));
+                // selects the Netty engine above and yields null on the JSSE axis; any other value is a JSSE
+                // provider name (e.g. Conscrypt), which v4 used to build the SSLContext. Resolved by the
+                // caller, because the web listener defaults to Conscrypt when unset and the binary ones do not.
+                .jsseProvider(jsseProvider);
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
@@ -221,22 +226,14 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
     }
 
     /**
-     * Map {@code tlsCertRefreshCheckDurationSec} onto the factory's poll interval, preserving the v4 meaning of
-     * a non-positive value: every v4 consumer guards its refresh task with {@code > 0}, and
-     * {@link FileBasedTlsFactorySettings} likewise documents {@code <= 0} as "no background poll". Pass it
-     * through rather than substituting the default, so an operator who set {@code 0} still gets no poll.
-     *
-     * <p>Note that {@code 0} therefore disables rotation for the subscribing server purposes, exactly as it
-     * already does on the PIP-337 path. The config key's "set 0 to check on every new connection" wording
-     * describes only the one-shot acquisition paths, which re-stat per request; it has not applied to the
-     * server listeners since they moved to a shared, periodically-refreshed context.
+     * Map {@code tlsCertRefreshCheckDurationSec} onto the factory's poll interval. The rule — including why a
+     * configured {@code 0} must stay "no background poll" rather than become the default — lives on
+     * {@link FileBasedTlsFactorySettings#refreshIntervalSecondsFromConfig(long)}, shared with the proxy,
+     * websocket proxy and functions worker so the four cannot disagree.
      */
     private static int refreshIntervalSeconds(ServiceConfiguration conf) {
-        long configured = conf.getTlsCertRefreshCheckDurationSec();
-        if (configured <= 0) {
-            return 0;
-        }
-        return (int) Math.min(configured, Integer.MAX_VALUE);
+        return FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
+                conf.getTlsCertRefreshCheckDurationSec());
     }
 
     private static List<String> toList(Set<String> values) {

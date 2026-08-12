@@ -29,6 +29,10 @@ import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
 import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.TlsAuthentication;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 
 /**
  * ServiceLoader-registered implementation of PulsarClientProvider.
@@ -168,28 +172,36 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
 
     @Override
     public Authentication authenticationToken(String token) {
-        return AuthenticationAdapter.token(token);
+        return LegacyV4AuthenticationAdapter.wrap(new AuthenticationToken(token));
     }
 
     @Override
     public Authentication authenticationToken(Supplier<String> tokenSupplier) {
-        return AuthenticationAdapter.token(tokenSupplier);
+        return LegacyV4AuthenticationAdapter.wrap(new AuthenticationToken(tokenSupplier));
     }
 
     @Override
-    public Authentication authenticationTls(String certFilePath, String keyFilePath) {
-        return AuthenticationAdapter.tls(certFilePath, keyFilePath);
+    public Authentication authenticationTls() {
+        return new TlsAuthentication();
     }
 
     @Override
     public Authentication createAuthentication(String className, String params)
             throws PulsarClientException {
-        return AuthenticationAdapter.create(className, params);
+        try {
+            return V5AuthenticationLoader.create(className, params);
+        } catch (org.apache.pulsar.client.api.PulsarClientException e) {
+            throw new PulsarClientException(e.getMessage(), e);
+        }
     }
 
     @Override
     public Authentication createAuthentication(String className, Map<String, String> params)
             throws PulsarClientException {
-        return AuthenticationAdapter.create(className, params);
+        try {
+            return V5AuthenticationLoader.create(className, params);
+        } catch (org.apache.pulsar.client.api.PulsarClientException e) {
+            throw new PulsarClientException(e.getMessage(), e);
+        }
     }
 }

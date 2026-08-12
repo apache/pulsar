@@ -19,9 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.ssl.SslContext;
 import io.netty.resolver.NameResolver;
 import io.netty.util.Timer;
 import java.io.Closeable;
@@ -32,13 +34,14 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
@@ -47,12 +50,17 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.Socks5ProxyScope;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
+import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
+import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -79,12 +87,25 @@ public class HttpClient implements Closeable {
     private final NameResolver<InetAddress> nameResolver;
     protected final Authentication authentication;
     protected final ClientConfigurationData clientConf;
-    protected ScheduledExecutorService executorService;
-    protected PulsarSslFactory sslFactory;
+    private final Executor blockingAuthExecutor;
+    // PIP-478 (new TLS path): a subscription to the CLIENT_DEFAULT SslContext whose callback
+    // updates the volatile below on rotation; the AsyncHttpClient SslEngineFactory builds engines from it.
+    private TlsHandle<SslContext> tlsSubscription;
+    private volatile SslContext clientSslContext;
 
     protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer,
                          NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
+        this(conf, eventLoopGroup, timer, nameResolver, null);
+    }
+
+    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer,
+                         NameResolver<InetAddress> nameResolver, Executor blockingAuthExecutor)
+            throws PulsarClientException {
+        // Direct execution when no offload executor is supplied (tests, standalone constructions): the
+        // production path (PulsarClientImpl -> HttpLookupService) always supplies the client's blocking
+        // auth executor, which computeAuthHeaders needs to keep v4 auth work off the event loop.
+        this.blockingAuthExecutor = blockingAuthExecutor != null ? blockingAuthExecutor : Runnable::run;
         this.authentication = conf.getAuthentication();
         this.clientConf = conf;
         this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlQuarantineInitDurationMs(),
@@ -120,31 +141,9 @@ public class HttpClient implements Closeable {
 
         if ("https".equals(serviceNameResolver.getServiceUri().getServiceName())) {
             try {
-                // Set client key and certificate if available
-                this.executorService = Executors
-                        .newSingleThreadScheduledExecutor(new ExecutorProvider
-                                .ExtendedThreadFactory("httpclient-ssl-refresh"));
-                PulsarSslConfiguration sslConfiguration =
-                        buildSslConfiguration(conf, serviceNameResolver.resolveHostUri().getHost());
-                this.sslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
-                        .getConstructor().newInstance();
-                this.sslFactory.initialize(sslConfiguration);
-                this.sslFactory.createInternalSslContext();
-                if (conf.getAutoCertRefreshSeconds() > 0) {
-                    this.executorService.scheduleWithFixedDelay(this::refreshSslContext,
-                            conf.getAutoCertRefreshSeconds(),
-                            conf.getAutoCertRefreshSeconds(), TimeUnit.SECONDS);
-                }
-                String hostname = conf.isTlsHostnameVerificationEnable() ? null : serviceNameResolver
-                        .resolveHostUri().getHost();
-                SslEngineFactory sslEngineFactory =
-                        new PulsarHttpAsyncSslEngineFactory(this.sslFactory, hostname,
-                                conf.isTlsHostnameVerificationEnable());
-                confBuilder.setSslEngineFactory(sslEngineFactory);
-
-
-                confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
-                confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+                // PIP-478: an https client always has isUseTls() forced true, so PulsarClientImpl has already
+                // resolved the CLIENT_DEFAULT TLS factory onto conf (the only path since PIP-337 removal).
+                setupHttpsWithTlsFactory(conf.getTlsFactory(), confBuilder);
             } catch (Exception e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             }
@@ -156,6 +155,46 @@ public class HttpClient implements Closeable {
         httpClient = new DefaultAsyncHttpClient(config);
 
         log.debug().attr("url", conf.getServiceUrl()).log("Using HTTP url");
+    }
+
+    /**
+     * New PIP-478 HTTPS TLS setup: subscribe once to the {@link TlsPurpose#CLIENT_DEFAULT}
+     * Netty {@code SslContext} — the callback updates a volatile on rotation — and back AsyncHttpClient's
+     * {@link SslEngineFactory} with it. The AsyncHttpClient {@code SslEngineFactory} is invoked
+     * synchronously per connection, so (unlike the binary path's one-shot form) a live subscription plus
+     * a volatile snapshot is used here. Hostname verification, insecure trust, ciphers and protocols are
+     * baked into the factory-built context per the client {@code TlsPolicy}, so the AsyncHttpClient
+     * endpoint-identification / insecure-trust-manager flags are not applied.
+     *
+     * <p>Acquisition goes through {@link TlsContextAcquisition} so a custom factory that supplies only the
+     * JDK {@code SSLContext} is served a framework-synthesized Netty context carrying the client's
+     * hostname-verification setting.
+     */
+    private void setupHttpsWithTlsFactory(PulsarTlsFactory factory,
+            DefaultAsyncHttpClientConfig.Builder confBuilder) throws Exception {
+        this.tlsSubscription = TlsContextAcquisition.acquireNettyContext(factory, TlsPurpose.CLIENT_DEFAULT,
+                        TlsSynthesisSpec.client(clientConf.isTlsHostnameVerificationEnable()),
+                        ctx -> this.clientSslContext = ctx)
+                .get()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Client TLS factory supplied no Netty SslContext for purpose "
+                                + TlsPurpose.CLIENT_DEFAULT));
+        confBuilder.setSslEngineFactory(new SslEngineFactory() {
+            @Override
+            public javax.net.ssl.SSLEngine newSslEngine(AsyncHttpClientConfig config, String peerHost,
+                    int peerPort) {
+                // Build the engine from the current (possibly rotated) factory-owned context, pinning it across
+                // newEngine so a concurrent rotation cannot free the native OpenSSL context mid-build
+                // (use-after-free guard). Client mode, SNI and baked-in hostname verification all come from the
+                // Netty context.
+                return TlsContextAcquisition.withPinnedContext(() -> clientSslContext,
+                        ctx -> ctx.newEngine(ByteBufAllocator.DEFAULT, peerHost, peerPort));
+            }
+        });
+        // Bound how long an established pooled HTTPS connection keeps pre-rotation material: new
+        // connections pick up rotation via the SslEngineFactory above, but a pooled connection would otherwise
+        // hold pre-rotation trust/cert indefinitely. Aligns with FrameworkHttpClientFactory.
+        confBuilder.setConnectionTtl(Duration.ofMillis(TlsContextAcquisition.httpTlsRotationConnectionTtlMillis()));
     }
 
     String getServiceUrl() {
@@ -173,8 +212,10 @@ public class HttpClient implements Closeable {
     @Override
     public void close() throws IOException {
         httpClient.close();
-        if (executorService != null) {
-            executorService.shutdownNow();
+        // PIP-478: release the CLIENT_DEFAULT TLS subscription (the factory itself is owned and
+        // closed by PulsarClientImpl).
+        if (tlsSubscription != null) {
+            tlsSubscription.dispose();
         }
     }
 
@@ -201,25 +242,14 @@ public class HttpClient implements Closeable {
                                 int redirectsRemaining, CompletableFuture<T> future, Class<T> clazz) {
         try {
             URI currentUri = URI.create(requestUrl);
-            String remoteHostName = currentUri.getHost();
-            AuthenticationDataProvider authData = authentication.getAuthData(remoteHostName);
 
-            CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
-
-            // bring a authenticationStage for sasl auth.
-            if (authData.hasDataForHttp()) {
-                authentication.authenticationStage(requestUrl, authData, null, authFuture);
-            } else {
-                authFuture.complete(null);
-            }
-
-            authFuture.whenComplete((respHeaders, ex) -> {
+            computeAuthHeaders(currentUri).whenComplete((authHeaders, ex) -> {
                 if (ex != null) {
                     serviceNameResolver.markHostAvailability(originalHost, false);
                     log.warn().attr("requestUrl", requestUrl)
                             .exceptionMessage(ex)
                             .log("Failed to perform http request at authentication stage");
-                    future.completeExceptionally(new PulsarClientException(ex));
+                    future.completeExceptionally(toPulsarClientException(ex));
                     return;
                 }
 
@@ -228,20 +258,8 @@ public class HttpClient implements Closeable {
                         .setNameResolver(nameResolver)
                         .setHeader("Accept", "application/json");
 
-                if (authData.hasDataForHttp()) {
-                    Set<Entry<String, String>> headers;
-                    try {
-                        headers = authentication.newRequestHeader(requestUrl, authData, respHeaders);
-                    } catch (Exception e) {
-                        log.warn().attr("requestUrl", requestUrl)
-                                .exceptionMessage(e)
-                                .log("Error during HTTP get headers");
-                        future.completeExceptionally(new PulsarClientException(e));
-                        return;
-                    }
-                    if (headers != null) {
-                        headers.forEach(entry -> builder.addHeader(entry.getKey(), entry.getValue()));
-                    }
+                if (authHeaders != null) {
+                    authHeaders.forEach((name, value) -> builder.addHeader(name, value));
                 }
 
                 // Add X-Original-Principal header if originalPrincipal is configured (for proxy scenarios)
@@ -323,6 +341,109 @@ public class HttpClient implements Closeable {
         }
     }
 
+    /**
+     * Compute the authentication headers to attach to the outgoing lookup {@code GET}, or a future of
+     * {@code null} when the plugin contributes none (PIP-478).
+     *
+     * <p>When the plugin exposes the v5-native SASL-over-HTTP capability (via the
+     * {@link AsyncHttpAuthenticationProvider} bridge), the framework {@link HttpAuthenticationDriver} runs
+     * the bounded {@code 401}→resubmit→{@code 200} exchange over this client's shared AsyncHttpClient
+     * (a bodiless {@code GET} to the original URI each round) and yields the validated role-token headers.
+     * Otherwise the deprecated v4 {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks
+     * run verbatim, preserving behaviour for third-party plugins and single-pass built-ins.
+     */
+    private CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
+        try {
+            if (authentication instanceof AsyncHttpAuthenticationProvider provider) {
+                Optional<HttpAuthenticationDriver> driver = provider.httpAuthenticationDriver()
+                        .filter(HttpAuthenticationDriver::supportsHttpChallenge);
+                if (driver.isPresent()) {
+                    long lookupTimeoutMs = clientConf.getLookupTimeoutMs();
+                    Duration budget = Duration.ofMillis(lookupTimeoutMs > 0 ? lookupTimeoutMs : 60_000L);
+                    return driver.get().authenticateAsync(uri, new AhcChallengeTransport(), budget)
+                            .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
+                }
+            }
+            // The deprecated v4 hooks may block: an OAuth2 shim's getAuthData() refreshes its token with a
+            // synchronous HTTP exchange served by this client's own shared event-loop group, and this method
+            // can run inside an AHC completion callback on a shared Netty IO thread (the manual-redirect
+            // path) — a self-deadlock that stalls the loop until the request timeout. Offload the whole v4
+            // composition to the client's blocking auth executor (PIP-478).
+            return CompletableFuture.supplyAsync(() -> v4AuthHeaders(uri), blockingAuthExecutor)
+                    .thenCompose(headers -> headers);
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    private CompletableFuture<Map<String, String>> v4AuthHeaders(URI uri) {
+        try {
+            AuthenticationDataProvider authData = authentication.getAuthData(uri.getHost());
+            if (!authData.hasDataForHttp()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // v4 SASL-style multi-round hook: authenticationStage warms the role token, then newRequestHeader
+            // composes the real request's headers. Non-SASL single-pass plugins complete the stage with null
+            // and newRequestHeader returns their static HTTP headers.
+            CompletableFuture<Map<String, String>> stage = new CompletableFuture<>();
+            authentication.authenticationStage(uri.toString(), authData, null, stage);
+            return stage.thenApply(respHeaders -> {
+                try {
+                    Set<Entry<String, String>> headers =
+                            authentication.newRequestHeader(uri.toString(), authData, respHeaders);
+                    if (headers == null) {
+                        return null;
+                    }
+                    Map<String, String> map = new LinkedHashMap<>();
+                    headers.forEach(entry -> map.put(entry.getKey(), entry.getValue()));
+                    return map;
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            });
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    private static PulsarClientException toPulsarClientException(Throwable ex) {
+        Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+        return cause instanceof PulsarClientException pce ? pce : new PulsarClientException(cause);
+    }
+
+    /**
+     * A {@link HttpChallengeTransport} backed by this client's shared AsyncHttpClient (PIP-478):
+     * the SASL warmup rounds re-use the same event-loop / DNS resolver as the real lookup request. Each
+     * round is a bodiless {@code GET} to the original URI.
+     */
+    private final class AhcChallengeTransport implements HttpChallengeTransport {
+        @Override
+        public CompletableFuture<Result> get(URI uri, HttpAuthHeaders requestHeaders, Duration timeout) {
+            CompletableFuture<Result> resultFuture = new CompletableFuture<>();
+            try {
+                BoundRequestBuilder builder = httpClient.prepareGet(uri.toString())
+                        .setNameResolver(nameResolver)
+                        .setHeader("Accept", "application/json");
+                requestHeaders.asMap().forEach((name, value) -> builder.addHeader(name, value));
+                if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
+                    builder.setRequestTimeout(timeout);
+                }
+                builder.execute().toCompletableFuture().whenComplete((response, t) -> {
+                    if (t != null) {
+                        resultFuture.completeExceptionally(t);
+                        return;
+                    }
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    response.getHeaders().forEach(entry -> headers.put(entry.getKey(), entry.getValue()));
+                    resultFuture.complete(new Result(response.getStatusCode(), HttpAuthHeaders.of(headers)));
+                });
+            } catch (Throwable t) {
+                resultFuture.completeExceptionally(t);
+            }
+            return resultFuture;
+        }
+    }
+
     private <T> void handleRedirect(String requestUrl, URI currentUri,
                                     Response response,
                                     InetSocketAddress originalHost, int redirectsRemaining,
@@ -356,39 +477,6 @@ public class HttpClient implements Closeable {
                 || statusCode == HttpURLConnection.HTTP_SEE_OTHER    // 303
                 || statusCode == 307                                 // Temporary Redirect
                 || statusCode == 308;                                // Permanent Redirect
-    }
-
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config, String host)
-            throws PulsarClientException {
-        return PulsarSslConfiguration.builder()
-                .tlsProvider(config.getSslProvider())
-                .tlsKeyStoreType(config.getTlsKeyStoreType())
-                .tlsKeyStorePath(config.getTlsKeyStorePath())
-                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getTlsTrustStoreType())
-                .tlsTrustStorePath(config.getTlsTrustStorePath())
-                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
-                .tlsCiphers(config.getTlsCiphers())
-                .tlsProtocols(config.getTlsProtocols())
-                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
-                .tlsKeyFilePath(config.getTlsKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(false)
-                .tlsEnabledWithKeystore(config.isUseKeyStoreTls())
-                .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(config.getAuthentication().getAuthData(host))
-                .serverMode(false)
-                .isHttps(true)
-                .build();
-    }
-
-    protected void refreshSslContext() {
-        try {
-            this.sslFactory.update();
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
-        }
     }
 
     /**
