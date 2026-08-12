@@ -69,7 +69,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 
 /**
@@ -162,10 +161,11 @@ public class SecurityUtility {
         //
         // more details of Conscrypt's hostname verification:
         // https://github.com/google/conscrypt/blob/master/IMPLEMENTATION_NOTES.md#hostname-verification
-        // there's a bug in Conscrypt while setting a custom HostnameVerifier,
-        // https://github.com/google/conscrypt/issues/1015 and therefore this solution alone
-        // isn't sufficient to configure Conscrypt's hostname verifier. The method processConscryptTrustManager
-        // contains the workaround.
+        //
+        // Setting the default is sufficient on its own since Conscrypt 2.6.0: TrustManagerImpl used to ignore
+        // the default verifier (https://github.com/google/conscrypt/issues/1015), which forced Pulsar to copy it
+        // onto every TrustManager instance, but https://github.com/google/conscrypt/pull/1060 made it fall back
+        // to the default, so that workaround has been removed.
         try {
             HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
             Object wrappedHostnameVerifier = conscryptClazz
@@ -397,52 +397,8 @@ public class SecurityUtility {
             }
 
             trustManagers = tmf.getTrustManagers();
-
-            for (TrustManager trustManager : trustManagers) {
-                processConscryptTrustManager(trustManager);
-            }
         }
         return trustManagers;
-    }
-
-    /***
-     * Conscrypt TrustManager instances will be configured to use the Pulsar {@link TlsHostnameVerifier}
-     * class.
-     * This method is used as a workaround for https://github.com/google/conscrypt/issues/1015
-     * when Conscrypt / OpenSSL is used as the TLS security provider.
-     *
-     * @param trustManagers the array of TrustManager instances to process.
-     * @return same instance passed as parameter
-     */
-    @InterfaceAudience.Private
-    public static TrustManager[] processConscryptTrustManagers(TrustManager[] trustManagers) {
-        for (TrustManager trustManager : trustManagers) {
-            processConscryptTrustManager(trustManager);
-        }
-        return trustManagers;
-    }
-
-    // workaround https://github.com/google/conscrypt/issues/1015
-    private static void processConscryptTrustManager(TrustManager trustManager) {
-        if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
-            try {
-                Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
-                Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
-                        new Class[]{TrustManager.class}).invoke(null, trustManager);
-                if (hostnameVerifier == null) {
-                    Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
-                            new Class[]{TrustManager.class}).invoke(null, trustManager);
-                    if (defaultHostnameVerifier != null) {
-                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
-                                TrustManager.class,
-                                Class.forName("org.conscrypt.ConscryptHostnameVerifier")
-                        }).invoke(null, trustManager, defaultHostnameVerifier);
-                    }
-                }
-            } catch (ReflectiveOperationException e) {
-                log.warn("Unable to set hostname verifier for Conscrypt TrustManager implementation", e);
-            }
-        }
     }
 
     public static X509Certificate[] loadCertificatesFromPemFile(String certFilePath) throws KeyManagementException {

@@ -189,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetty.version>12.1.12</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
     <jetty9.version>9.4.58.v20250814</jetty9.version>
-    <conscrypt.version>2.5.2</conscrypt.version>
+    <conscrypt.version>2.6.1</conscrypt.version>
     <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
