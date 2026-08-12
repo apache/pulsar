@@ -56,7 +56,9 @@ public class ProxyClientCnx extends ClientCnx {
     }
 
     @Override
-    protected ByteBuf newConnectCommand() throws Exception {
+    protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
+        // The proxy's own broker credential ({@code authData}) is resolved and published by ClientCnx's
+        // single connect continuation (PIP-478); here we only add the forwarded client identity to the frame.
         log.debug()
                 .attr("clientAuthRole", clientAuthRole)
                 .attr("clientAuthData", proxyConnection.getClientAuthData())
@@ -69,8 +71,6 @@ public class ProxyClientCnx extends ClientCnx {
             // authentication data.
             clientAuthData = proxyConnection.getClientAuthData();
         }
-        authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
                 proxyConnection.clientVersion, proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
                 clientAuthMethod, PulsarVersion.getVersion(), null);

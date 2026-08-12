@@ -55,6 +55,36 @@ public class PerfClientUtilsTest {
     }
 
     @Test
+    public void hostnameVerificationAloneDoesNotEnableTls() {
+        // conf/client.conf ships tlsEnableHostnameVerification=true since 5.0 (PIP-478), and picocli
+        // resolves it through descriptionKey, so every pulsar-perf invocation in a distribution sees
+        // TRUE here. Treating that as intent wires a TlsPolicy, which flips useTls on the V5 builder and
+        // makes the client attempt a TLS handshake against a plaintext pulsar:// endpoint.
+        final PerformanceBaseArguments plaintext = new PerformanceArgumentsTestDefault("");
+        plaintext.serviceURL = "pulsar://my-pulsar:6650";
+        plaintext.tlsTrustCertsFilePath = "";
+        plaintext.tlsHostnameVerificationEnable = true;
+        Assert.assertFalse(PerfClientUtils.wantsTls(plaintext));
+
+        // The genuine signals still enable it.
+        final PerformanceBaseArguments byUrl = new PerformanceArgumentsTestDefault("");
+        byUrl.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        byUrl.tlsTrustCertsFilePath = "";
+        Assert.assertTrue(PerfClientUtils.wantsTls(byUrl));
+
+        final PerformanceBaseArguments byTrustPath = new PerformanceArgumentsTestDefault("");
+        byTrustPath.serviceURL = "pulsar://my-pulsar:6650";
+        byTrustPath.tlsTrustCertsFilePath = "/tls/ca.pem";
+        Assert.assertTrue(PerfClientUtils.wantsTls(byTrustPath));
+
+        final PerformanceBaseArguments byAllowInsecure = new PerformanceArgumentsTestDefault("");
+        byAllowInsecure.serviceURL = "pulsar://my-pulsar:6650";
+        byAllowInsecure.tlsTrustCertsFilePath = "";
+        byAllowInsecure.tlsAllowInsecureConnection = true;
+        Assert.assertTrue(PerfClientUtils.wantsTls(byAllowInsecure));
+    }
+
+    @Test
     public void testClientCreation() throws Exception {
 
         final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");

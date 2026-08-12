@@ -27,8 +27,16 @@ DAYS=36500
 COMMON_PARAMS="-storetype JKS -storepass 111111 -keypass 111111 -noprompt"
 
 # generate keystore
+# The broker keystore is presented as a TLS *server* certificate. With TLS hostname verification
+# enabled by default in 5.0 (PIP-478) and CN-based matching removed (SAN-only), the server cert must
+# carry a SubjectAltName covering the connected host, otherwise every peer that now verifies hostnames
+# rejects it with "No subject alternative names present". Tests reach the broker/proxy over loopback
+# (advertised address pinned to localhost), so DNS:localhost + IP:127.0.0.1 is sufficient. The client
+# and proxy keystores below are only ever used as *client* identities (not hostname-verified), so they
+# intentionally keep no SAN.
 keytool -genkeypair -keystore broker.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias broker -validity $DAYS \
-  -dname 'CN=localhost,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+  -dname 'CN=localhost,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' \
+  -ext 'SAN=dns:localhost,ip:127.0.0.1'
 keytool -genkeypair -keystore client.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias client -validity $DAYS \
   -dname 'CN=clientuser,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
 keytool -genkeypair -keystore proxy.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias proxy -validity $DAYS \

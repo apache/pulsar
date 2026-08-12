@@ -45,7 +45,9 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 
 
 /**
@@ -208,19 +210,43 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Schema(
             name = "tlsHostnameVerificationEnable",
             description = "Whether the hostname is validated when the client creates a TLS connection with brokers."
+                    + " Enabled by default since Pulsar 5.0 (PIP-478): a broker whose certificate does not match"
+                    + " its hostname/SAN is rejected."
     )
-    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsHostnameVerificationEnable = true;
 
     @Schema(
-            name = "sslFactoryPlugin",
-            description = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
-                    + "class used is DefaultPulsarSslFactory.")
-    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+            name = "tlsFactoryClassName",
+            description = "PIP-478: the class name of a custom PulsarTlsFactory to build the client's TLS engines. "
+                    + "An empty value or the literal 'default' selects the built-in file-based factory composed "
+                    + "from the tls* fields; any other value is instantiated reflectively via its public no-arg "
+                    + "constructor. This is the by-name successor of the removed PIP-337 sslFactoryPlugin.")
+    private String tlsFactoryClassName = "";
 
     @Schema(
-            name = "sslFactoryPluginParams",
-            description = "SSL Factory plugin configuration parameters.")
-    private String sslFactoryPluginParams = "";
+            name = "tlsFactoryConfig",
+            description = "PIP-478: configuration parameters passed to a custom tlsFactoryClassName as its init "
+                    + "params. Accepts a JSON object or a comma-separated key=value list; ignored by the "
+                    + "built-in file-based factory.")
+    private String tlsFactoryConfig = "";
+
+    // PIP-478: the client-side TLS SPI seam. These transient fields are set by the v5 builder
+    // (never serialized; a shallow clone() keeps the references so the connection pool / HTTP lookup see
+    // them). tlsPolicyMap holds the per-purpose TlsPolicy values configured through the v5 builder's
+    // tlsPolicy(...) methods; its presence selects the new PIP-478 TLS path. tlsFactory holds either a
+    // PulsarTlsFactory the user adopted through the v5 builder's tlsFactory(...), or — once
+    // PulsarClientImpl has resolved the path — the factory the connection layer builds engines from
+    // (non-null => new path active).
+    @JsonIgnore
+    private transient Map<TlsPurpose, TlsPolicy> tlsPolicyMap;
+    @JsonIgnore
+    private transient PulsarTlsFactory tlsFactory;
+    // PIP-478: factory-specific parameters delivered to a custom (non-default) TLS factory named by
+    // brokerClientTlsFactoryClassName via TlsFactoryInitContext.params(). Set by the broker (parsed from
+    // brokerClientTlsFactoryConfig the same way the server-side tlsFactoryConfig is parsed); empty/unset for
+    // the default file-based factory, which ignores params.
+    @JsonIgnore
+    private transient Map<String, String> tlsFactoryParams;
 
     @Schema(
             name = "concurrentLookupRequest",
@@ -316,6 +342,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             description = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
+
+    @Schema(
+            name = "jsseProvider",
+            description = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "client's TLS SSLContext. A distinct axis from sslProvider (the JDK-vs-OpenSSL engine "
+                    + "switch): when set, the default factory builds the JDK Netty engine with this provider as "
+                    + "the SSLContext provider, overriding the engine choice. Resolved via the ServiceLoader "
+                    + "mechanism (with a fallback to an already-registered provider) and failing loudly when "
+                    + "unresolvable."
+    )
+    private String jsseProvider = null;
 
     @Schema(
             name = "tlsKeyStoreType",

@@ -18,36 +18,44 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
+import org.apache.pulsar.client.impl.auth.v5.TokenAuthenticationV5;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 
 /**
  * Token based authentication provider.
+ *
+ * <p>The verbatim v4 synchronous surface ({@link #getAuthData()} / {@link AuthenticationDataToken}) is
+ * preserved; PIP-478 additionally exposes {@link AsyncAuthenticationDriver} so {@code ClientCnx} can drive
+ * the token credential over the non-blocking binary path via the v5-native {@link TokenAuthenticationV5}.
  */
-public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
+public class AuthenticationToken
+        implements Authentication, EncodedAuthenticationParameterSupport, AsyncAuthenticationDriver,
+        ClientAuthenticationServicesAware {
     static final String AUTH_METHOD_NAME = "token";
 
     private static final long serialVersionUID = 1L;
     private Supplier<String> tokenSupplier = null;
+    // PIP-478: the client's framework services, late-bound before start(); null until then.
+    private transient volatile ClientAuthenticationServices authServices;
 
     public AuthenticationToken() {
     }
 
     public AuthenticationToken(String token) {
-        this(new SerializableTokenSupplier(token));
+        this(new TokenAuthenticationV5.LiteralTokenSupplier(token));
     }
 
     public AuthenticationToken(Supplier<String> tokenSupplier) {
@@ -72,23 +80,9 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
 
     @Override
     public void configure(String encodedAuthParamString) {
-        // Interpret the whole param string as the token. If the string contains the notation `token:xxxxx` then strip
-        // the prefix
-        if (encodedAuthParamString.startsWith("token:")) {
-            this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString.substring("token:".length()));
-        } else if (encodedAuthParamString.startsWith("file:")) {
-            // Read token from a file
-            URI filePath = URI.create(encodedAuthParamString);
-            this.tokenSupplier = new SerializableURITokenSupplier(filePath);
-        } else {
-            try {
-                // Read token from json string
-                JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
-                this.tokenSupplier = new SerializableTokenSupplier(authParams.get("token").getAsString());
-            } catch (JsonSyntaxException e) {
-                this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString);
-            }
-        }
+        // PIP-478: parse through the v5 body's parser, so `authPluginClassName=...AuthenticationToken`
+        // resolving straight to TokenAuthenticationV5 and this shim accept exactly the same forms.
+        this.tokenSupplier = TokenAuthenticationV5.tokenSupplier(encodedAuthParamString);
     }
 
     @SuppressWarnings("deprecation")
@@ -102,33 +96,35 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // noop
     }
 
-    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
-
-        private static final long serialVersionUID = 3160666668166028760L;
-        private final URI uri;
-
-        public SerializableURITokenSupplier(final URI uri) {
-            super();
-            this.uri = uri;
-        }
-
-        @Override
-        public String get() {
-            try {
-                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to read token from file", e);
-            }
-        }
+    @Override
+    public void bindClientAuthenticationServices(ClientAuthenticationServices services) {
+        this.authServices = services;
     }
 
+    @Override
+    public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
+        // PIP-478: drive the v5-native token body on the async binary path. The supplier is read live so a
+        // token rotated via configure(...) is picked up on the next connection attempt.
+        return new V5BinaryAuthenticationDriver(new TokenAuthenticationV5(() -> tokenSupplier.get()), authServices)
+                .newAuthenticationExchange(brokerHostName);
+    }
+
+    /**
+     * Deserialization shim for an {@code AuthenticationToken} serialized by Pulsar 4.x, whose token supplier
+     * was this inner class. The supplier itself now lives on the v5 body
+     * ({@link TokenAuthenticationV5.LiteralTokenSupplier}), and Java serialization resolves by class name, so
+     * without this shim a 4.x blob fails to deserialize with {@code ClassNotFoundException}. It carries the
+     * original {@code serialVersionUID} and resolves to the new supplier on read.
+     *
+     * @deprecated since 5.0.0; only reachable through deserialization of pre-5.0 data.
+     */
+    @Deprecated
     private static class SerializableTokenSupplier implements Supplier<String>, Serializable {
 
         private static final long serialVersionUID = 5095234161799506913L;
         private final String token;
 
-        public SerializableTokenSupplier(final String token) {
-            super();
+        SerializableTokenSupplier(final String token) {
             this.token = token;
         }
 
@@ -137,5 +133,33 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
             return token;
         }
 
+        private Object readResolve() {
+            return new TokenAuthenticationV5.LiteralTokenSupplier(token);
+        }
+    }
+
+    /**
+     * Deserialization shim for the 4.x file-backed token supplier; see {@link SerializableTokenSupplier}.
+     *
+     * @deprecated since 5.0.0; only reachable through deserialization of pre-5.0 data.
+     */
+    @Deprecated
+    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 3160666668166028760L;
+        private final URI uri;
+
+        SerializableURITokenSupplier(final URI uri) {
+            this.uri = uri;
+        }
+
+        @Override
+        public String get() {
+            return new TokenAuthenticationV5.FileTokenSupplier(uri).get();
+        }
+
+        private Object readResolve() {
+            return new TokenAuthenticationV5.FileTokenSupplier(uri);
+        }
     }
 }
