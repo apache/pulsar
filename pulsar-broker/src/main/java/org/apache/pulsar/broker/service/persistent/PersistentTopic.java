@@ -3954,7 +3954,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds(String subscriptionName) {
+    long getBestEffortOldestUnacknowledgedMessageAgeSeconds(String subscriptionName) {
         OldestPositionInfo positionInfo = subscriptionOldestPositionInfos.get(subscriptionName);
         if (positionInfo == null) {
             return -1;

@@ -472,6 +472,8 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds())
                     .isCloseTo(expectedMessageAgeSeconds, within(1L));
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
+            assertThat(topicStats.getSubscriptions().get(subName2).getOldestBacklogMessageAgeSeconds())
+                    .isCloseTo(expectedMessageAgeSeconds, within(1L));
 
             Metric backlogAgeMetric =
                     metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
@@ -481,6 +483,15 @@ public class BacklogQuotaManagerTest {
                     entry("namespace", namespace),
                     entry("topic", topic1));
             assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
+            Metric subBacklogAgeMetric =
+                    metrics.findSingleMetricByNameAndLabels("pulsar_subscription_storage_backlog_age_seconds",
+                            Pair.of("topic", topic1), Pair.of("subscription", subName2));
+            assertThat(subBacklogAgeMetric.tags).containsExactly(
+                    entry("cluster", CLUSTER_NAME),
+                    entry("namespace", namespace),
+                    entry("subscription", subName2),
+                    entry("topic", topic1));
+            assertThat((long) subBacklogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
 
             // Move subscription 2 away from being the oldest mark delete
             //     S2/S1
@@ -536,6 +547,8 @@ public class BacklogQuotaManagerTest {
                     MILLISECONDS.toSeconds(System.currentTimeMillis() - secondOldestMessage.getPublishTime());
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedMessageAgeSeconds, within(2L));
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
+            assertThat(topicStats.getSubscriptions().get(subName2).getOldestBacklogMessageAgeSeconds())
+                    .isCloseTo(expectedMessageAgeSeconds, within(2L));
 
             waitForQuotaCheckToRunTwice();
 
@@ -560,6 +573,8 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getBacklogSize()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName1).getMsgBacklog()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName2).getMsgBacklog()).isEqualTo(0);
+            assertThat(topicStats.getSubscriptions().get(subName1).getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
+            assertThat(topicStats.getSubscriptions().get(subName2).getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
 
