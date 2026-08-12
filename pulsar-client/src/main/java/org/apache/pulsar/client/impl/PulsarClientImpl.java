@@ -164,8 +164,9 @@ public class PulsarClientImpl implements PulsarClient {
     private static final int AUTH_BLOCKING_MAX_THREADS = 16;
     private final String clientInstanceId = "pulsar-client-" + CLIENT_INSTANCE_ID_GENERATOR.incrementAndGet();
     private volatile ExecutorService blockingAuthExecutor;
-    // PIP-478: the framework HTTP client factory handed to an auth driver that wants one; null when
-    // no ClientAuthenticationServicesAware plugin is configured. Closed with the client.
+    // PIP-478: the framework HTTP client factory handed to the authentication the client drives. Built for
+    // every client, because the driver is resolved for every client; it holds only suppliers until an auth
+    // plugin actually asks for a client. Closed with the client, and on each updateAuthentication rebind.
     private volatile FrameworkHttpClientFactory authHttpClientFactory;
     // PIP-478: the framework services handed to the authentication the client drives, rebuilt alongside
     // authHttpClientFactory on every updateAuthentication rebind.
@@ -379,41 +380,39 @@ public class PulsarClientImpl implements PulsarClient {
      *        {@code AuthenticationDisabled} when unset)
      */
     private void bindAuthenticationServices(Authentication authentication) {
-        {
-            // Do not (re)bind into a client that is shutting down: a rebind racing close() would install a
-            // FrameworkHttpClientFactory that close() has already passed, leaking it. state is null during
-            // construction (the first bind), which must proceed.
-            State currentState = state.get();
-            if (currentState == State.Closing || currentState == State.Closed) {
-                return;
+        // Do not (re)bind into a client that is shutting down: a rebind racing close() would install a
+        // FrameworkHttpClientFactory that close() has already passed, leaking it. state is null during
+        // construction (the first bind), which must proceed.
+        State currentState = state.get();
+        if (currentState == State.Closing || currentState == State.Closed) {
+            return;
+        }
+        // Close a previously-bound factory before overwriting it, else each updateAuthentication rebind
+        // (AutoClusterFailover / ControlledClusterFailover) leaks one FrameworkHttpClientFactory.
+        FrameworkHttpClientFactory previous = this.authHttpClientFactory;
+        if (previous != null) {
+            try {
+                previous.close();
+            } catch (Throwable t) {
+                log.warn().exception(t)
+                        .log("Failed to close previous framework HTTP client factory during auth rebind");
             }
-            // Close a previously-bound factory before overwriting it, else each updateAuthentication rebind
-            // (AutoClusterFailover / ControlledClusterFailover) leaks one FrameworkHttpClientFactory.
-            FrameworkHttpClientFactory previous = this.authHttpClientFactory;
-            if (previous != null) {
-                try {
-                    previous.close();
-                } catch (Throwable t) {
-                    log.warn().exception(t)
-                            .log("Failed to close previous framework HTTP client factory during auth rebind");
-                }
-            }
-            // PIP-478: the framework HTTP client factory shares the client's event loop, timer, DNS
-            // resolver and TLS factory, resolved lazily at newHttpClient() time via these suppliers.
-            this.authHttpClientFactory = new FrameworkHttpClientFactory(
-                    () -> eventLoopGroup, () -> timer, this::getNameResolver, conf::getTlsFactory,
-                    conf, clientInstanceId);
-            ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
-                    authHttpClientFactory,
-                    (ScheduledExecutorService) scheduledExecutorProvider.getExecutor(),
-                    blockingAuthExecutor(),
-                    clientClock,
-                    conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop(),
-                    clientInstanceId);
-            this.authServices = services;
-            if (authentication instanceof ClientAuthenticationServicesAware aware) {
-                aware.bindClientAuthenticationServices(services);
-            }
+        }
+        // PIP-478: the framework HTTP client factory shares the client's event loop, timer, DNS
+        // resolver and TLS factory, resolved lazily at newHttpClient() time via these suppliers.
+        this.authHttpClientFactory = new FrameworkHttpClientFactory(
+                () -> eventLoopGroup, () -> timer, this::getNameResolver, conf::getTlsFactory,
+                conf, clientInstanceId);
+        ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
+                authHttpClientFactory,
+                (ScheduledExecutorService) scheduledExecutorProvider.getExecutor(),
+                blockingAuthExecutor(),
+                clientClock,
+                conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop(),
+                clientInstanceId);
+        this.authServices = services;
+        if (authentication instanceof ClientAuthenticationServicesAware aware) {
+            aware.bindClientAuthenticationServices(services);
         }
     }
 
@@ -429,10 +428,15 @@ public class PulsarClientImpl implements PulsarClient {
      * above and closes it in {@link #shutdown()} — the adapter must not run that lifecycle a second time.
      */
     private void resolveV5Authentication() {
+        // The v5 slot holds only what was explicitly configured through the v5 builder. A body derived from
+        // the v4 slot is deliberately NOT written back: build() hands this client the builder's own
+        // configuration object, so a derived body stored here would outlive the build and be reused by the
+        // next client from the same (or a cloned) builder — which, after authentication(...) was called
+        // again, would drive the previous credential while conf.getAuthentication() showed the new one.
+        // Deriving on every resolution keeps the answer a function of the current configuration.
         org.apache.pulsar.client.api.v5.auth.Authentication v5 = conf.getV5Authentication();
         if (v5 == null) {
             v5 = V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication());
-            conf.setV5Authentication(v5);
         }
         conf.setV5AuthenticationDriver(new V5BinaryAuthenticationDriver(v5, authServices));
     }

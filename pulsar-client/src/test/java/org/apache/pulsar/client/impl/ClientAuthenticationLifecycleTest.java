@@ -90,6 +90,43 @@ public class ClientAuthenticationLifecycleTest {
                 .hasValue(1);
     }
 
+    /**
+     * {@code build()} hands the client the builder's own configuration object, so anything the client
+     * derives and stores there outlives the build. A second client from the same — or a cloned — builder
+     * must still present the credential that builder is now configured with.
+     */
+    @Test
+    public void aSecondClientFromTheSameBuilderUsesTheSecondCredential() throws Exception {
+        org.apache.pulsar.client.api.ClientBuilder builder = PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .authentication(new AuthenticationToken("first-token"));
+        PulsarClient first = builder.build();
+        PulsarClient second = null;
+        PulsarClient cloned = null;
+        try {
+            assertThat(credentialOf(((PulsarClientImpl) first).conf)).isEqualTo("first-token");
+
+            second = builder.authentication(new AuthenticationToken("second-token")).build();
+            assertThat(credentialOf(((PulsarClientImpl) second).conf))
+                    .as("the second client must not inherit the first client's resolved credential")
+                    .isEqualTo("second-token");
+
+            cloned = builder.clone().authentication(new AuthenticationToken("third-token")).build();
+            assertThat(credentialOf(((PulsarClientImpl) cloned).conf))
+                    .as("a shallow clone carries the configuration's slots, so a stale derived body would "
+                            + "travel with it")
+                    .isEqualTo("third-token");
+        } finally {
+            first.close();
+            if (second != null) {
+                second.close();
+            }
+            if (cloned != null) {
+                cloned.close();
+            }
+        }
+    }
+
     private static String credentialOf(ClientConfigurationData conf) throws Exception {
         BinaryAuthData data = conf.getV5AuthenticationDriver()
                 .newAuthenticationExchange("broker.example.com")
