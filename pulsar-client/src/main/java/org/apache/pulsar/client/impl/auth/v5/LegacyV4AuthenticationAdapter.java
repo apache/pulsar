@@ -93,14 +93,26 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * {@code hasDataForTls()} plugin's material into the client TLS configuration is a builder-time
      * concern handled by the client (PIP-478).
      *
+     * <p>The method name {@code "none"} is resolved to the built-in {@link NoAuthentication} rather than
+     * to a bridging adapter, because "no credential" is the one case the generic bridge cannot represent:
+     * {@link LegacyV4CredentialAdapter} advertises {@link BinaryAuthDataProvider} only for a plugin that
+     * actually produced command data, and the v4 {@code AuthenticationDisabled} produces none — so a
+     * bridged no-auth plugin is indistinguishable from one that cannot authenticate a binary connection at
+     * all. Declaring {@code auth_method_name=none} is itself the statement that no credential is carried,
+     * so nothing is lost by not consulting the wrapped plugin.
+     *
      * @param v4 the v4 authentication plugin to wrap
-     * @return a v5 {@link Authentication} that delegates to the v4 plugin
+     * @return a v5 {@link Authentication} that delegates to the v4 plugin, or a built-in v5-native body
+     *         for the method names that have one
      */
     public static Authentication wrap(org.apache.pulsar.client.api.Authentication v4) {
         if (v4 == null) {
             throw new IllegalArgumentException("v4 authentication must not be null");
         }
         String methodName = v4.getAuthMethodName();
+        if (NoAuthentication.DEFAULT_AUTH_METHOD_NAME.equalsIgnoreCase(methodName)) {
+            return NoAuthentication.INSTANCE;
+        }
         if (TlsAuthentication.DEFAULT_AUTH_METHOD_NAME.equalsIgnoreCase(methodName)) {
             return new LegacyV4TlsAdapter(v4);
         }
