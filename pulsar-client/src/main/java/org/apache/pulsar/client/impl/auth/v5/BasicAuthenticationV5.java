@@ -24,6 +24,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
@@ -52,14 +53,28 @@ public class BasicAuthenticationV5 implements SinglePassAuthentication, Serializ
     /** The Pulsar HTTP header that names the auth method. */
     public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
 
-    private final String userId;
-    private final String password;
+    private final Supplier<String> userId;
+    private final Supplier<String> password;
 
     /**
      * @param userId   the user id
      * @param password the password
      */
     public BasicAuthenticationV5(String userId, String password) {
+        this(new TokenAuthenticationV5.LiteralTokenSupplier(userId),
+                new TokenAuthenticationV5.LiteralTokenSupplier(password));
+    }
+
+    /**
+     * Serve credentials that the caller may change after this body is constructed. The client resolves one
+     * body per plugin and keeps it for the client's lifetime, so the v4 {@code AuthenticationBasic} shim —
+     * whose {@code configure(...)} may run again on the same instance — supplies its fields through
+     * suppliers rather than by value.
+     *
+     * @param userId   supplies the current user id
+     * @param password supplies the current password
+     */
+    public BasicAuthenticationV5(Supplier<String> userId, Supplier<String> password) {
         this.userId = userId;
         this.password = password;
     }
@@ -94,6 +109,6 @@ public class BasicAuthenticationV5 implements SinglePassAuthentication, Serializ
     }
 
     private String userInfo() {
-        return userId + ":" + password;
+        return userId.get() + ":" + password.get();
     }
 }

@@ -138,6 +138,11 @@ public final class V5BinaryAuthenticationDriver implements AsyncAuthenticationDr
             implements AuthenticationExchange {
 
         @Override
+        public String authMethodName() {
+            return delegate.authMethodName();
+        }
+
+        @Override
         public CompletableFuture<AuthData> getAuthDataAsync() {
             return initialization.thenCompose(ignored -> delegate.getAuthDataAsync());
         }

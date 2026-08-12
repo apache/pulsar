@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
@@ -34,14 +35,15 @@ import org.apache.pulsar.client.api.v5.auth.SinglePassAuthentication;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.auth.v5.NoAuthentication;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
-import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
+import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 
 /**
  * Verifies the string-config reflective load path (PIP-478 In-Scope #2): a v5-native
  * {@link Authentication} deployed by class name is instantiated, configured with the parsed
  * {@code authParams}, and drives the Pulsar binary transport through the
- * {@link V5ToV4AuthenticationAdapter} — where before it was blind-cast to the v4 SPI and threw
+ * {@link V5BinaryAuthenticationDriver} — where before it was blind-cast to the v4 SPI and threw
  * {@link ClassCastException}. A legacy v4 class still loads through the {@link LegacyV4AuthenticationAdapter}.
  */
 public class V5AuthenticationLoaderTest {
@@ -125,13 +127,13 @@ public class V5AuthenticationLoaderTest {
                 .containsEntry("user", "alice")
                 .containsEntry("realm", "test");
 
-        // It drives the binary transport through the v5->v4 adapter that ClientCnx consumes.
-        V5ToV4AuthenticationAdapter adapter = new V5ToV4AuthenticationAdapter(auth);
-        adapter.start();
+        // It drives the binary transport through the driver ClientCnx consumes — no v5->v4 wrapping.
+        AuthenticationExchange exchange =
+                new V5BinaryAuthenticationDriver(auth).newAuthenticationExchange("broker-1.example.com");
+        AuthData credential = exchange.getAuthDataAsync().get();
         assertThat(((FakeV5SinglePass) auth).initialized).isTrue();
-        assertThat(adapter.getAuthMethodName()).isEqualTo("fake-v5");
-        AuthenticationDataProvider data = adapter.getAuthData("broker-1.example.com");
-        assertThat(data.getCommandData()).isEqualTo("token:alice");
+        assertThat(exchange.authMethodName()).isEqualTo("fake-v5");
+        assertThat(new String(credential.getBytes(), UTF_8)).isEqualTo("token:alice");
     }
 
     @Test

@@ -82,6 +82,8 @@ import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAwar
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -165,6 +167,9 @@ public class PulsarClientImpl implements PulsarClient {
     // PIP-478: the framework HTTP client factory handed to an auth driver that wants one; null when
     // no ClientAuthenticationServicesAware plugin is configured. Closed with the client.
     private volatile FrameworkHttpClientFactory authHttpClientFactory;
+    // PIP-478: the framework services handed to the authentication the client drives, rebuilt alongside
+    // authHttpClientFactory on every updateAuthentication rebind.
+    private volatile ClientAuthenticationServices authServices;
 
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
@@ -320,6 +325,7 @@ public class PulsarClientImpl implements PulsarClient {
             // its first call. Nothing between the config above and here consumes started authentication.
             bindAuthenticationServices(conf.getAuthentication());
             conf.getAuthentication().start();
+            resolveV5Authentication();
             lookup = createLookup(conf.getServiceUrl());
 
             if (conf.getServiceUrlProvider() != null) {
@@ -373,7 +379,7 @@ public class PulsarClientImpl implements PulsarClient {
      *        {@code AuthenticationDisabled} when unset)
      */
     private void bindAuthenticationServices(Authentication authentication) {
-        if (authentication instanceof ClientAuthenticationServicesAware aware) {
+        {
             // Do not (re)bind into a client that is shutting down: a rebind racing close() would install a
             // FrameworkHttpClientFactory that close() has already passed, leaking it. state is null during
             // construction (the first bind), which must proceed.
@@ -404,8 +410,31 @@ public class PulsarClientImpl implements PulsarClient {
                     clientClock,
                     conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop(),
                     clientInstanceId);
-            aware.bindClientAuthenticationServices(services);
+            this.authServices = services;
+            if (authentication instanceof ClientAuthenticationServicesAware aware) {
+                aware.bindClientAuthenticationServices(services);
+            }
         }
+    }
+
+    /**
+     * Resolve the authentication the client drives (PIP-478). The client drives the v5 model natively, so
+     * exactly one v5 {@code Authentication} is resolved per client and every connection opens an exchange
+     * against it.
+     *
+     * <p>The v5 builder may already have configured a v5 plugin; otherwise the v4 slot is translated. A
+     * built-in shim hands over its v5-native body (no bridge, no executor hop for a credential it holds in
+     * memory); anything else is wrapped by {@link LegacyV4AuthenticationAdapter}. The wrap is the
+     * already-started variant because the v4 instance stays in {@code conf} and this client both started it
+     * above and closes it in {@link #shutdown()} — the adapter must not run that lifecycle a second time.
+     */
+    private void resolveV5Authentication() {
+        org.apache.pulsar.client.api.v5.auth.Authentication v5 = conf.getV5Authentication();
+        if (v5 == null) {
+            v5 = V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication());
+            conf.setV5Authentication(v5);
+        }
+        conf.setV5AuthenticationDriver(new V5BinaryAuthenticationDriver(v5, authServices));
     }
 
     /**

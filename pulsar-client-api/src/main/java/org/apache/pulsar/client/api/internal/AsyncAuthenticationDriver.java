@@ -80,6 +80,18 @@ public interface AsyncAuthenticationDriver {
         CompletableFuture<AuthData> getAuthDataAsync();
 
         /**
+         * The authentication method name to declare on the wire for this exchange's rounds.
+         *
+         * <p>Valid only once a round of this exchange has completed: the name is a property of the
+         * credential the plugin actually served, and a bridged legacy plugin does not know which
+         * capabilities it can serve until its initialization has run. Callers read it when building the
+         * frame that carries the auth data they just resolved, never before.
+         *
+         * @return the auth method name (for example {@code token}, {@code tls}, {@code none})
+         */
+        String authMethodName();
+
+        /**
          * Asynchronously compute the response to a broker {@code CommandAuthChallenge} — an ordinary
          * challenge round (SASL multi-round or custom challenge/response), answered from this exchange's
          * conversation state.
