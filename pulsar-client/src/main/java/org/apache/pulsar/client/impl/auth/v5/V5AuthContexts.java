@@ -25,6 +25,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
@@ -41,9 +44,10 @@ import org.apache.pulsar.http.PulsarHttpClientFactory;
  * HTTP client factory, client instance id) are late-bound into the init context via
  * {@link ClientAuthenticationServices}
  * — so a credential-fetching body (OAuth2, Athenz) can off-load its blocking fetch onto the blocking
- * executor instead of running it on the Netty event loop. When no services are bound (a plugin used
- * outside a client), the context degrades to {@code null} services and the body falls back to inline
- * computation.
+ * executor instead of running it on the Netty event loop. When no services are bound (a connection opened
+ * outside a {@code PulsarClient} — the proxy's broker connections, embedders, tests), the context reports
+ * no HTTP client factory or scheduler, but still supplies a shared blocking executor: the offload
+ * discipline holds on every path, since the caller thread there is a Netty event loop too.
  */
 public final class V5AuthContexts {
 
@@ -103,6 +107,33 @@ public final class V5AuthContexts {
         }
     }
 
+    /**
+     * The blocking executor used when no client services are bound.
+     *
+     * <p>Not every connection is opened by a {@code PulsarClient}: the proxy builds broker connections
+     * straight from a configuration, and so do embedders and tests. Those callers have no client-owned
+     * executor to lend, but a bridged v4 plugin still must not run its credential call on the caller
+     * thread — which on that path is a Netty event loop. Falling back to running inline would reintroduce
+     * exactly the stall PIP-478 exists to remove, and refusing to run at all would break connections v4
+     * made fine, so the library keeps one shared pool for them.
+     *
+     * <p>It costs nothing when unused: no core threads, daemon threads that retire after a minute of idle.
+     * Held in a holder class so it is created on first use rather than on class load.
+     */
+    private static final class SharedBlockingExecutor {
+        static final Executor INSTANCE = create();
+
+        private static Executor create() {
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(0, 8, 60L, TimeUnit.SECONDS,
+                    new SynchronousQueue<>(), runnable -> {
+                        Thread thread = new Thread(runnable, "pulsar-auth-blocking-shared");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+            return executor;
+        }
+    }
+
     private static final class InitContext implements AuthenticationInitContext {
         private final String clientInstanceId;
 
@@ -122,7 +153,7 @@ public final class V5AuthContexts {
 
         @Override
         public Executor blockingExecutor() {
-            return null;
+            return SharedBlockingExecutor.INSTANCE;
         }
 
         @Override
