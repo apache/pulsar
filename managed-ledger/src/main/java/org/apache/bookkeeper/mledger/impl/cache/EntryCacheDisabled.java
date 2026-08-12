@@ -85,17 +85,16 @@ public class EntryCacheDisabled implements EntryCache {
 
         long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
         Optional<InflightReadsLimiter.Handle> optionalHandle = inflightReadsLimiter.acquire(estimatedReadSize, handle ->
-                ml.getExecutor().execute(() -> readEntriesWithAcquiredPermits(lh, firstEntry, lastEntry, callback,
-                        ctx, handle)));
-        optionalHandle.ifPresent(handle -> readEntriesWithAcquiredPermits(lh, firstEntry, lastEntry, callback, ctx,
-                handle));
+                ml.getExecutor().execute(() -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, callback,
+                        ctx, estimatedReadSize, handle)));
+        optionalHandle.ifPresent(handle -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, callback, ctx,
+                estimatedReadSize, handle));
     }
 
-    private void readEntriesWithAcquiredPermits(ReadHandle lh, long firstEntry, long lastEntry,
-                                                AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                                InflightReadsLimiter.Handle handle) {
+    private void readEntriesIfAcquiredPermits(ReadHandle lh, long firstEntry, long lastEntry,
+                                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+                                              long estimatedReadSize, InflightReadsLimiter.Handle handle) {
         if (!handle.success()) {
-            long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
             String message = String.format(
                     "Couldn't acquire enough permits on the max reads in flight limiter to read from ledger "
                             + "%d, %s, estimated read size %d bytes for %d entries (check "
@@ -113,12 +112,13 @@ public class EntryCacheDisabled implements EntryCache {
                     inflightReadsLimiter.release(handle);
                 } else {
                     AtomicInteger remainingEntries = new AtomicInteger(entries.size());
+                    Runnable releaseWhenAllDeallocated = () -> {
+                        if (remainingEntries.decrementAndGet() == 0) {
+                            inflightReadsLimiter.release(handle);
+                        }
+                    };
                     for (Entry entry : entries) {
-                        ((EntryImpl) entry).onDeallocate(() -> {
-                            if (remainingEntries.decrementAndGet() == 0) {
-                                inflightReadsLimiter.release(handle);
-                            }
-                        });
+                        ((EntryImpl) entry).onDeallocate(releaseWhenAllDeallocated);
                     }
                 }
                 callback.readEntriesComplete(entries, callbackCtx);
