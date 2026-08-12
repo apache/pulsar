@@ -3998,6 +3998,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 dataVersion, existingResult.getDataVersion()) >= 0 ? null : existingResult);
     }
 
+    private boolean isSubscriptionOldPositionInfoReusable(String subscriptionName, Position markDeletePosition) {
+        OldestPositionInfo positionInfo = subscriptionOldestPositionInfos.get(subscriptionName);
+        return positionInfo != null
+                && markDeletePosition.compareTo(positionInfo.getOldestCursorMarkDeletePosition()) == 0
+                && markDeletePosition.compareTo(ledger.getFirstPosition()) >= 0;
+    }
+
     private CompletableFuture<Void> updateSubscriptionOldPositionInfos(ManagedCursorContainer managedCursorContainer,
                                                                        boolean preciseTimeBasedBacklogQuotaCheck) {
         Map<String, Boolean> activeSubscriptionNames = new HashMap<>();
@@ -4011,6 +4018,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             Position markDeletePosition = cursor.getMarkDeletedPosition();
             if (markDeletePosition == null || !cursor.hasBacklog(preciseTimeBasedBacklogQuotaCheck)) {
                 clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
+                continue;
+            }
+            if (isSubscriptionOldPositionInfoReusable(subscriptionName, markDeletePosition)) {
                 continue;
             }
 
