@@ -102,6 +102,8 @@ public class AuthenticationSasl
     // first HTTP request after start(). Its default transport is this plugin's own JAX-RS client (the
     // faithful admin-path transport; the lookup path supplies its shared AsyncHttpClient instead).
     private transient volatile HttpAuthenticationDriver httpAuthenticationDriver;
+    // The services the cached driver was built with, so a later rebind is noticed rather than ignored.
+    private transient volatile ClientAuthenticationServices httpAuthenticationDriverServices;
 
     public AuthenticationSasl() {
     }
@@ -144,31 +146,40 @@ public class AuthenticationSasl
         // HTTP callers route the 401->resubmit->200 exchange through the shared state machine instead of the
         // deprecated authenticationStage(...) hook (which stays for third-party v4 plugins). The default
         // transport is this plugin's own JAX-RS client — exactly what authenticationStage(...) uses today.
+        // The driver captures the services it is built with, so caching it across a rebind would freeze
+        // whichever binding happened to come first. One plugin instance is routinely shared between a
+        // PulsarClient and a PulsarAdmin, and both bind: caching the first would hand one of them the
+        // other's services for the rest of its life. Rebuild when the binding changes — the driver holds no
+        // cross-request state (that lives in the per-request call context), so replacing it is safe.
+        ClientAuthenticationServices services = this.authServices;
         HttpAuthenticationDriver driver = httpAuthenticationDriver;
-        if (driver == null) {
-            synchronized (this) {
-                driver = httpAuthenticationDriver;
-                if (driver == null) {
-                    driver = new HttpAuthenticationDriver(
-                            new SaslAuthenticationV5(new ShimSaslProviderFactory(this)),
-                            authServices, new JaxRsChallengeTransport());
-                    httpAuthenticationDriver = driver;
-                }
-            }
+        if (driver != null && httpAuthenticationDriverServices == services) {
+            return Optional.of(driver);
         }
-        return Optional.of(driver);
+        synchronized (this) {
+            driver = httpAuthenticationDriver;
+            if (driver == null || httpAuthenticationDriverServices != services) {
+                driver = new HttpAuthenticationDriver(
+                        new SaslAuthenticationV5(new ShimSaslProviderFactory(this)),
+                        services, new JaxRsChallengeTransport());
+                httpAuthenticationDriver = driver;
+                httpAuthenticationDriverServices = services;
+            }
+            return Optional.of(driver);
+        }
     }
 
-    /**
-     * A {@link HttpChallengeTransport} backed by this plugin's own JAX-RS {@link Client} (created in
-     * {@link #start()}) — the faithful transport for the admin-path SASL warmup, matching what
-     * {@code authenticationStage(...)} does today. Each round is a bodiless {@code GET} to the original URI.
-     * The JAX-RS client itself is created with default, unbounded timeouts, so the per-request {@code timeout}
-     * is enforced here by bounding the returned future ({@link CompletableFuture#orTimeout}) AND cancelling the
-     * underlying JAX-RS {@link Future} on timeout/failure — the request is bounded, so a peer that accepts the
-     * connection but never responds cannot leak an in-flight request (fd/socket exhaustion) across retries. A
-     * response that arrives after the future already timed out is closed rather than leaked.
-     */
+    /** Copy a response's first-value headers into the v5 header carrier. */
+    private static HttpAuthHeaders toHeaders(Response response) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        response.getStringHeaders().forEach((name, values) -> {
+            if (values != null && !values.isEmpty() && values.get(0) != null) {
+                headers.put(name, values.get(0));
+            }
+        });
+        return HttpAuthHeaders.of(headers);
+    }
+
     /**
      * Complete {@code future} from {@code response} and always close the response.
      *
@@ -184,17 +195,6 @@ public class AuthenticationSasl
      * @param future   the future to complete
      * @param response the JAX-RS response, always closed before returning
      */
-
-    private static HttpAuthHeaders toHeaders(Response response) {
-        Map<String, String> headers = new LinkedHashMap<>();
-        response.getStringHeaders().forEach((name, values) -> {
-            if (values != null && !values.isEmpty() && values.get(0) != null) {
-                headers.put(name, values.get(0));
-            }
-        });
-        return HttpAuthHeaders.of(headers);
-    }
-
     static void completeAndClose(CompletableFuture<HttpChallengeTransport.Result> future, Response response) {
         try {
             future.complete(new HttpChallengeTransport.Result(response.getStatus(), toHeaders(response)));
@@ -203,6 +203,16 @@ public class AuthenticationSasl
         }
     }
 
+    /**
+     * A {@link HttpChallengeTransport} backed by this plugin's own JAX-RS {@link Client} (created in
+     * {@link #start()}) — the faithful transport for the admin-path SASL warmup, matching what
+     * {@code authenticationStage(...)} does today. Each round is a bodiless {@code GET} to the original URI.
+     * The JAX-RS client itself is created with default, unbounded timeouts, so the per-request {@code timeout}
+     * is enforced here by bounding the returned future ({@link CompletableFuture#orTimeout}) AND cancelling the
+     * underlying JAX-RS {@link Future} on timeout/failure — the request is bounded, so a peer that accepts the
+     * connection but never responds cannot leak an in-flight request (fd/socket exhaustion) across retries. A
+     * response that arrives after the future already timed out is closed rather than leaked.
+     */
     private final class JaxRsChallengeTransport implements HttpChallengeTransport {
         @Override
         public CompletableFuture<Result> get(URI uri, HttpAuthHeaders requestHeaders, Duration timeout) {
