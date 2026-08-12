@@ -1410,6 +1410,19 @@ public class PulsarClientImpl implements PulsarClient {
                 memoryLimitController.deregisterTrigger(memoryLimitTrigger);
             }
 
+            if (conf != null && conf.getV5Authentication() != null) {
+                // PIP-478: a v5-native plugin configured through the v5 builder lives only in this slot —
+                // the v4 slot still holds AuthenticationDisabled — so closing the v4 slot alone would leak
+                // whatever it holds open. Closing is safe for the other cases too: a body handed over by a
+                // built-in shim owns nothing, and a bridged adapter created for an already-started plugin
+                // deliberately leaves that plugin to its owner, which is the v4 close below.
+                try {
+                    conf.getV5Authentication().close();
+                } catch (Throwable t) {
+                    log.warn().exception(t).log("Failed to close v5 authentication");
+                    throwable = t;
+                }
+            }
             if (conf != null && conf.getAuthentication() != null) {
                 try {
                     conf.getAuthentication().close();
@@ -1547,6 +1560,12 @@ public class PulsarClientImpl implements PulsarClient {
         // authentication and does not depend on the auth being started.
         rebuildClientTlsFactory();
         conf.getAuthentication().start();
+        // PIP-478: the client drives the v5 model, so the swap is not complete until what it drives has been
+        // re-resolved. Without this the previous body and driver survive in the configuration and every new
+        // connection keeps presenting the OLD credential — from a plugin this method has just closed.
+        conf.setV5Authentication(null);
+        conf.setV5AuthenticationDriver(null);
+        resolveV5Authentication();
     }
 
     public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
