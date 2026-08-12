@@ -67,7 +67,7 @@ snakeyaml = "2.6"
 vertx = "4.5.28"
 # Networking / HTTP
 asynchttpclient = "3.0.10"
-conscrypt = "2.5.2"
+conscrypt = "2.6.1"
 okhttp3 = "5.3.2"
 okio = "3.17.0"
 netty-tcnative = "2.0.81.Final"
