@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCA
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -334,6 +335,17 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
                 "Remote cluster should have local policies: publish rate.");
         });
 
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicP1, true);
+        if ("topic".equals(removeClusterLevel)) {
+            future.get(90, TimeUnit.SECONDS);
+        } else {
+            try {
+                future.get(90, TimeUnit.SECONDS);
+                fail("Should have thrown an exception since the __change_event topic can not be access anymore");
+            } catch (Exception e) {
+                assertTrue(e.getMessage().contains("Namespace missing local cluster name"));
+            }
+        }
         // cleanup.
         if ("topic".equals(removeClusterLevel)) {
             admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
