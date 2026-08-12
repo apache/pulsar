@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -42,6 +43,7 @@ public class EntryCacheDisabled implements EntryCache {
     private final ManagedLedgerImpl ml;
     private final ManagedLedgerInterceptor interceptor;
     private final InflightReadsLimiter inflightReadsLimiter;
+    private final Logger log;
 
     public EntryCacheDisabled(ManagedLedgerImpl ml) {
         this(ml, null);
@@ -51,6 +53,10 @@ public class EntryCacheDisabled implements EntryCache {
         this.ml = ml;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.inflightReadsLimiter = inflightReadsLimiter;
+        Logger mlLogger = ml.getLogger();
+        this.log = mlLogger != null
+                ? Logger.get(EntryCacheDisabled.class).with().ctx(mlLogger).build()
+                : Logger.get(EntryCacheDisabled.class);
     }
 
     @Override
@@ -156,9 +162,29 @@ public class EntryCacheDisabled implements EntryCache {
                     return entries;
                 }, ml.getExecutor()).whenCompleteAsync((entries, exception) -> {
                     if (exception == null) {
-                        callback.readEntriesComplete(entries, ctx);
+                        try {
+                            callback.readEntriesComplete(entries, ctx);
+                        } catch (Throwable t) {
+                            log.warn().attr("managedLedger", getName())
+                                    .attr("ledgerId", lh.getId())
+                                    .attr("firstEntry", firstEntry)
+                                    .attr("lastEntry", lastEntry)
+                                    .attr("callback", "readEntriesComplete")
+                                    .exception(t)
+                                    .log("Read callback failed; the callback remains responsible for releasing entries");
+                        }
                     } else {
-                        callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        try {
+                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        } catch (Throwable t) {
+                            log.warn().attr("managedLedger", getName())
+                                    .attr("ledgerId", lh.getId())
+                                    .attr("firstEntry", firstEntry)
+                                    .attr("lastEntry", lastEntry)
+                                    .attr("callback", "readEntriesFailed")
+                                    .exception(t)
+                                    .log("Read failure callback failed");
+                        }
                     }
                 }, ml.getExecutor());
     }
