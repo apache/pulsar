@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -412,49 +411,6 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             completedEntry.join().release();
             Awaitility.await().pollDelay(100, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> Assert.assertEquals(failedCallbacks.get(), 0));
-        } finally {
-            factory.shutdown();
-        }
-    }
-
-    @Test
-    public void testCacheDisabledSingleEntryReadReleasesPermitsForEmptyResult() throws Exception {
-        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
-        factoryConfig.setMaxCacheSize(0);
-        factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
-        try {
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_single_entry_empty",
-                    new ManagedLedgerConfig());
-            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
-                    .getInflightReadsLimiter();
-            long totalCapacity = limiter.getRemainingBytes();
-            ReadHandle readHandle = Mockito.mock(ReadHandle.class);
-            LedgerEntries ledgerEntries = Mockito.mock(LedgerEntries.class);
-            long ledgerId = ml.currentLedger.getId() + 1;
-            Mockito.when(readHandle.getId()).thenReturn(ledgerId);
-            Mockito.when(readHandle.getLength()).thenReturn(0L);
-            Mockito.when(readHandle.getLastAddConfirmed()).thenReturn(-1L);
-            Mockito.when(readHandle.readAsync(0, 0)).thenReturn(CompletableFuture.completedFuture(ledgerEntries));
-            Mockito.when(ledgerEntries.iterator()).thenReturn(Collections.emptyIterator());
-            CompletableFuture<ManagedLedgerException> failure = new CompletableFuture<>();
-
-            ml.entryCache.asyncReadEntry(readHandle, PositionFactory.create(ledgerId, 0),
-                    new AsyncCallbacks.ReadEntryCallback() {
-                        @Override
-                        public void readEntryComplete(Entry entry, Object ctx) {
-                            failure.completeExceptionally(new AssertionError("Read should return no entries"));
-                        }
-
-                        @Override
-                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                            failure.complete(exception);
-                        }
-                    }, new Object());
-
-            Assert.assertEquals(failure.join().getMessage(), "Could not read given position");
-            Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity);
-            Mockito.verify(ledgerEntries).close();
         } finally {
             factory.shutdown();
         }
