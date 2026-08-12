@@ -170,7 +170,7 @@ public class KeyStoreSSLContext {
 
         TrustManager[] trustManagers = null;
         if (trustManagerFactory != null) {
-            trustManagers = SecurityUtility.processConscryptTrustManagers(trustManagerFactory.getTrustManagers());
+            trustManagers = trustManagerFactory.getTrustManagers();
         }
 
         // init
