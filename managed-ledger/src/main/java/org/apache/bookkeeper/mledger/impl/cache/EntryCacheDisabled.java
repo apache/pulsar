@@ -171,7 +171,8 @@ public class EntryCacheDisabled implements EntryCache {
                                     .attr("lastEntry", lastEntry)
                                     .attr("callback", "readEntriesComplete")
                                     .exception(t)
-                                    .log("Read callback failed; the callback remains responsible for releasing entries");
+                                    .log("Read callback failed; the callback remains responsible for "
+                                            + "releasing entries");
                         }
                     } else {
                         try {
