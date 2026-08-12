@@ -24,8 +24,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -134,15 +134,23 @@ public final class V5AuthContexts {
      * Held in a holder class so it is created on first use rather than on class load.
      */
     static final class SharedBlockingExecutor {
+        private static final int MAX_THREADS = 8;
         static final Executor INSTANCE = create();
 
         private static Executor create() {
-            ThreadPoolExecutor executor = new ThreadPoolExecutor(0, 8, 60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<>(), runnable -> {
+            // Queue rather than reject. A SynchronousQueue with the default abort policy would fail the
+            // ninth concurrent credential call outright, and the caller of a rejected call is a connection
+            // attempt: a proxy reconnect storm with a legacy plugin would turn into failed connections
+            // instead of slower ones. Work beyond the thread ceiling therefore waits.
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(MAX_THREADS, MAX_THREADS, 60L,
+                    TimeUnit.SECONDS, new LinkedBlockingQueue<>(), runnable -> {
                         Thread thread = new Thread(runnable, "pulsar-auth-blocking-shared");
                         thread.setDaemon(true);
                         return thread;
                     });
+            // With a queue in play the pool would otherwise hold its core threads forever; letting them
+            // time out is what keeps an unused pool free.
+            executor.allowCoreThreadTimeOut(true);
             return executor;
         }
     }
