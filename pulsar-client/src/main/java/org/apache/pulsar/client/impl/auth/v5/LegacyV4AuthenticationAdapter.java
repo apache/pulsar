@@ -230,9 +230,11 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * Offload a (potentially blocking) v4 call to the dedicated blocking executor captured at
      * initialization, translating v4 authentication exceptions into the matching v5 subtype.
      *
-     * <p>There is deliberately no inline fallback: if the adapter has not been initialized (no blocking
-     * executor available), the returned future fails with {@link IllegalStateException} rather than
-     * running the v4 call on the caller thread (PIP-478 offload discipline).
+     * <p>There is deliberately no <em>inline</em> fallback: the caller thread is a Netty event loop, and
+     * running a v4 plugin's credential I/O there is the stall PIP-478 exists to remove. When no
+     * client-owned executor is bound — a connection opened outside a {@code PulsarClient}, such as the
+     * proxy's broker connections — the work goes to {@link V5AuthContexts#sharedBlockingExecutor()}
+     * rather than failing, since refusing would reject connections the v4 client accepted.
      *
      * @param supplier the blocking work
      * @param <T> the result type
@@ -240,12 +242,18 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      */
     protected <T> CompletableFuture<T> supplyOffloaded(ThrowingSupplier<T> supplier) {
         AuthenticationInitContext ctx = this.initContext;
-        Executor executor = ctx == null ? null : ctx.blockingExecutor();
-        if (executor == null) {
+        if (ctx == null) {
+            // Not initialized yet: the wrapped plugin has not been configured or started, so there is
+            // nothing valid to call. This is a different situation from "initialized, but the caller owns
+            // no executor" below, and it still fails fast.
             return CompletableFuture.failedFuture(new IllegalStateException(
                     "Legacy v4 authentication adapter " + getClass().getName() + " was used before "
-                            + "initializeAsync() completed (no blocking executor available); v4 plugin "
-                            + "calls must run on the blocking executor, never inline (PIP-478)"));
+                            + "initializeAsync() completed; v4 plugin calls must run on the blocking "
+                            + "executor, never inline (PIP-478)"));
+        }
+        Executor executor = ctx.blockingExecutor();
+        if (executor == null) {
+            executor = V5AuthContexts.sharedBlockingExecutor();
         }
         CompletableFuture<T> future = new CompletableFuture<>();
         executor.execute(() -> {
