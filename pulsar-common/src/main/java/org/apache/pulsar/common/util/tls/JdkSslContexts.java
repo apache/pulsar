@@ -316,7 +316,7 @@ public final class JdkSslContexts {
             tmf.init(ksh.getKeyStore());
         }
 
-        return JcaProviders.processConscryptTrustManagers(tmf.getTrustManagers());
+        return tmf.getTrustManagers();
     }
 
     /**
