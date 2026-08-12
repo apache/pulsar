@@ -244,24 +244,34 @@ public final class HttpAuthenticationDriver {
      * @return a future completing when the body is ready to serve credentials
      */
     private synchronized CompletableFuture<Void> initializedAsync() {
-        if (initialization == null) {
-            CompletableFuture<Void> started;
-            try {
-                started = v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId));
-            } catch (Throwable t) {
-                // The SPI forbids throwing synchronously, but a third-party body may still do it.
-                return CompletableFuture.failedFuture(t);
-            }
-            initialization = started.whenComplete((ignored, ex) -> {
-                if (ex != null) {
-                    forgetFailedInitialization();
-                }
-            });
+        CompletableFuture<Void> current = initialization;
+        if (current != null) {
+            return current;
         }
-        return initialization;
+        CompletableFuture<Void> started;
+        try {
+            started = v5.initializeAsync(V5AuthContexts.initContext(services, clientInstanceId));
+        } catch (Throwable t) {
+            // The SPI forbids throwing synchronously, but a third-party body may still do it.
+            return CompletableFuture.failedFuture(t);
+        }
+        initialization = started;
+        // Attach the failure-clearing callback only after the field is installed: an already-failed future
+        // runs it synchronously, so clearing beforehand would be undone by the assignment and the failure
+        // would be cached forever. Returning `started` rather than the field matters for the same reason —
+        // the callback may already have nulled it out.
+        started.whenComplete((ignored, ex) -> {
+            if (ex != null) {
+                forgetFailedInitialization(started);
+            }
+        });
+        return started;
     }
 
-    private synchronized void forgetFailedInitialization() {
-        this.initialization = null;
+    private synchronized void forgetFailedInitialization(CompletableFuture<Void> failed) {
+        // Only if it is still the current one: a later attempt may already have installed its own.
+        if (initialization == failed) {
+            initialization = null;
+        }
     }
 }

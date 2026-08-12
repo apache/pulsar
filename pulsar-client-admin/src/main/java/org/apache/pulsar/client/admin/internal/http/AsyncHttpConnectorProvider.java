@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
 
@@ -80,6 +81,20 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
      *
      * @return the shared TLS factory, or {@code null} when none is needed
      */
+    /**
+     * The TLS factory this provider owns and shares with its connectors, resolved if it has not been yet.
+     *
+     * <p>Exposed because {@code PulsarAdminImpl} needs it before any connector exists: an OAuth2 plugin's
+     * {@code start()} fetches IdP metadata through the framework HTTP client, which resolves
+     * {@code CLIENT_OAUTH2} against this factory, and that happens while the admin is still being
+     * constructed.
+     *
+     * @return the shared factory, or {@code null} when this configuration needs none
+     */
+    public PulsarTlsFactory tlsFactory() {
+        return sharedTlsFactory().factory();
+    }
+
     @VisibleForTesting
     synchronized TlsFactoryOwnership sharedTlsFactory() {
         if (sharedTlsFactory != null) {

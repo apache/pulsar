@@ -20,6 +20,8 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.moreThanOrExactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +86,12 @@ public class AdminOAuth2IdpTlsEndToEndTest {
                 .keyManagerPassword(STORE_PW).keystorePassword(STORE_PW));
         idp.start();
         idp.stubFor(get(urlEqualTo("/probe")).willReturn(aResponse().withStatus(200).withBody("ok")));
+        // Enough of an OIDC discovery document for ClientCredentialsFlow.initialize() to complete, so a test
+        // can exercise the real AuthenticationOAuth2.start() rather than stubbing it out.
+        idp.stubFor(get(urlEqualTo("/.well-known/openid-configuration")).willReturn(aResponse().withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"issuer\":\"" + idp.baseUrl() + "\",\"token_endpoint\":\""
+                        + idp.baseUrl() + "/oauth/token\"}")));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -116,6 +124,48 @@ public class AdminOAuth2IdpTlsEndToEndTest {
                     .satisfies(t -> assertThat(causeChain(t)).containsAnyOf("SSL", "certificat", "PKIX",
                             "unable to find valid certification path"));
         }
+    }
+
+    @Test
+    public void theRealOauth2StartFetchesIdpMetadataOverTheFoldedTrust() throws Exception {
+        // The other two tests stub start(), so they exercise only the per-request path. start() is the
+        // earlier — and stricter — user of the factory: ClientCredentialsFlow.initialize() fetches the IdP
+        // discovery document through the framework HTTP client while the PulsarAdmin is still being
+        // constructed. That is before any AsyncHttpConnector exists, so the factory has to come from the
+        // provider; sourcing it from a connector left it null here and fell back to platform trust.
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure("{\"type\":\"client_credentials\",\"issuerUrl\":\"" + idp.baseUrl()
+                + "\",\"privateKey\":\"data:application/json;base64,e30=\",\"trustCertsFilePath\":\""
+                + CA_CERT + "\"}");
+
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(auth)
+                .build()) {
+            assertThat(admin).isNotNull();
+        }
+        // The count is not the point (the resolver may probe more than once) — reaching the IdP at all over
+        // HTTPS is, since the handshake only succeeds on the folded trust.
+        idp.verify(moreThanOrExactly(1), getRequestedFor(urlEqualTo("/.well-known/openid-configuration")));
+    }
+
+    @Test
+    public void withoutTheIdpTrustTheRealOauth2StartFailsToReachTheIdp() throws Exception {
+        // The contrast for the start() path: same flow, no trustCertsFilePath, so the metadata fetch must be
+        // rejected by platform-default trust and fail the build rather than silently succeeding.
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure("{\"type\":\"client_credentials\",\"issuerUrl\":\"" + idp.baseUrl()
+                + "\",\"privateKey\":\"data:application/json;base64,e30=\"}");
+
+        assertThatThrownBy(() -> PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(auth)
+                .build())
+                .as("platform-default trust must reject the test-CA-signed IdP certificate, failing the build")
+                // The OAuth2 metadata resolver reports the failure without chaining the TLS cause, so this
+                // asserts the observable outcome: with the folded trust the same flow reaches the IdP (test
+                // above), without it the handshake fails and the build does not complete.
+                .satisfies(t -> assertThat(causeChain(t)).contains("OAuth 2.0 server metadata"));
     }
 
     /** Issue the IdP request through exactly the client the OAuth2 plugin would use for its token fetch. */
