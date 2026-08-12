@@ -334,9 +334,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "This names a JSSE (SSLContext) security provider for a Jetty-based web service, which has\n"
                     + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
                     + "provider names here. Note that the proxy's own HTTPS listener reads tlsProvider rather than\n"
-                    + "this setting. Leave unset (the default) to use the JVM's default provider; a configured name\n"
-                    + "is pinned and startup fails if it cannot be resolved. Note that Conscrypt ships native\n"
-                    + "libraries for x86_64 only, so pinning it is not portable to aarch64 or s390x."
+                    + "this setting. Leave unset (the default) to use Conscrypt when it is available on this\n"
+                    + "platform, else the JVM's default provider; a configured name is pinned and startup fails\n"
+                    + "if it cannot be resolved. Conscrypt ships native libraries for x86_64 only, which is why\n"
+                    + "the default falls back rather than failing on aarch64 or s390x — pinning it explicitly\n"
+                    + "there does fail."
     )
     private String webServiceTlsProvider = "";
 

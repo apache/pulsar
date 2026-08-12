@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.security.Security;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.testng.annotations.Test;
 
@@ -109,16 +111,42 @@ public class DefaultBrokerTlsPolicyTest {
     }
 
     @Test
-    public void theDefaultConfigurationPinsNoJsseProviderOnAnyPurpose() {
-        // A configured JSSE provider is pinned and fails startup when it cannot be resolved, so no purpose
-        // may pin one out of the box. webServiceTlsProvider used to default to Conscrypt, whose uber jar
-        // ships x86_64 natives only — that default broke the web listener on aarch64 and s390x as soon as
-        // the key became authoritative here.
+    public void theDefaultConfigurationPinsNoJsseProviderOnTheNonWebPurposes() {
+        // A configured JSSE provider is pinned and fails startup when it cannot be resolved, so the binary
+        // and broker-client purposes must not pin one out of the box — only the web listener carries a
+        // default, and only conditionally (see below).
         ServiceConfiguration conf = conf();
 
-        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider()).isNull();
         assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).jsseProvider()).isNull();
         assertThat(DefaultBrokerTlsFactory.brokerClientPolicy(conf).jsseProvider()).isNull();
+    }
+
+    @Test
+    public void theWebListenerDefaultsToConscryptOnlyWhenItIsAvailable() {
+        // Conscrypt was the shipped default for webServiceTlsProvider before PIP-478 and is kept, but the
+        // default is now conditional on Conscrypt actually loading: its uber jar ships x86_64 natives only,
+        // and the value is now pinned into the built SSLContext rather than reaching Jetty's inert
+        // setProvider(...), so an unconditional default would fail startup on aarch64 and s390x.
+        ServiceConfiguration conf = conf();
+
+        String webProvider = DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider();
+        if (JcaProviders.CONSCRYPT_PROVIDER == null) {
+            assertThat(webProvider).as("no Conscrypt on this platform => the JVM default applies").isNull();
+        } else {
+            assertThat(webProvider).as("Conscrypt is available => it is the web-listener default")
+                    .isEqualTo(JcaProviders.CONSCRYPT_PROVIDER.getName());
+            // Whatever the default resolves to must be resolvable, or startup would fail on it.
+            assertThat(Security.getProvider(webProvider)).as("the default must be a registered provider")
+                    .isNotNull();
+        }
+    }
+
+    @Test
+    public void anExplicitWebProviderStillWinsOverTheConscryptDefault() {
+        ServiceConfiguration conf = conf();
+        conf.setWebServiceTlsProvider("SunJSSE");
+
+        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider()).isEqualTo("SunJSSE");
     }
 
     @Test

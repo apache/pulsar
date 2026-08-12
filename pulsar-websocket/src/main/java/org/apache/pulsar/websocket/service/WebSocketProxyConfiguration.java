@@ -247,9 +247,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc.\n"
-                    + "Leave unset (the default) to use the JVM's default provider; a configured name is pinned\n"
-                    + "and startup fails if it cannot be resolved. Note that Conscrypt ships native libraries for\n"
-                    + "x86_64 only, so pinning it is not portable to aarch64 or s390x."
+                    + "Leave unset (the default) to use Conscrypt when it is available on this platform, else\n"
+                    + "the JVM's default provider; a configured name is pinned and startup fails if it cannot be\n"
+                    + "resolved. Conscrypt ships native libraries for x86_64 only, which is why the default falls\n"
+                    + "back rather than failing on aarch64 or s390x — pinning it explicitly there does fail."
     )
     private String tlsProvider = null;
 

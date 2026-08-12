@@ -288,8 +288,10 @@ public class ProxyServer {
                 .ciphers(toList(config.getWebServiceTlsCiphers()))
                 // PIP-478: pin the JSSE (SSLContext) provider for the websocket web listener (Goal #5). A
                 // non-engine tlsProvider value (e.g. Conscrypt) is also routed here for v4 keystore parity,
+                // and an unset value falls back to Conscrypt when it is usable (web-listener default).
                 // mirroring the broker's two-axis split.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()));
+                .jsseProvider(TlsFactorySupport.resolveWebJsseProvider(config.getJsseProvider(),
+                        config.getTlsProvider()));
         if (config.isTlsEnabledWithKeyStore()) {
             policyBuilder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())

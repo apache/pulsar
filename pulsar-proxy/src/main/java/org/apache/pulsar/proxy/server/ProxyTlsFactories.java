@@ -50,7 +50,7 @@ final class ProxyTlsFactories {
      */
     static PulsarTlsFactory serverFactory(ProxyConfiguration config, TlsPurpose purpose,
                                           Set<String> ciphers, Set<String> protocols) {
-        Map<TlsPurpose, TlsPolicy> policies = Map.of(purpose, serverPolicy(config, ciphers, protocols));
+        Map<TlsPurpose, TlsPolicy> policies = Map.of(purpose, serverPolicy(config, purpose, ciphers, protocols));
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
                 .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
                 .refreshIntervalSeconds(refreshIntervalSeconds(config))
@@ -86,6 +86,16 @@ final class ProxyTlsFactories {
 
     @VisibleForTesting
     static TlsPolicy serverPolicy(ProxyConfiguration config, Set<String> ciphers, Set<String> protocols) {
+        return serverPolicy(config, TlsPurpose.PROXY, ciphers, protocols);
+    }
+
+    /**
+     * @param purpose which server listener this policy serves; only {@link TlsPurpose#WEB} takes the
+     *                web-listener Conscrypt default when no provider is configured
+     */
+    @VisibleForTesting
+    static TlsPolicy serverPolicy(ProxyConfiguration config, TlsPurpose purpose, Set<String> ciphers,
+                                  Set<String> protocols) {
         TlsPolicy.Builder builder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .enableHostnameVerification(config.isTlsHostnameVerificationEnabled())
@@ -94,7 +104,10 @@ final class ProxyTlsFactories {
                 // PIP-478: pin the JSSE (SSLContext) provider for the proxy's server-side (binary/web) material.
                 // A non-engine tlsProvider value (e.g. Conscrypt) is also routed here for v4 keystore parity,
                 // mirroring the broker's two-axis split.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()));
+                .jsseProvider(TlsPurpose.WEB.equals(purpose)
+                        ? TlsFactorySupport.resolveWebJsseProvider(config.getJsseProvider(),
+                                firstNonBlank(config.getWebServiceTlsProvider(), config.getTlsProvider()))
+                        : TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()));
         if (config.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
@@ -139,6 +152,10 @@ final class ProxyTlsFactories {
                     .keyFilePath(config.getBrokerClientKeyFilePath());
         }
         return builder.build();
+    }
+
+    private static String firstNonBlank(String preferred, String fallback) {
+        return org.apache.commons.lang3.StringUtils.isNotBlank(preferred) ? preferred : fallback;
     }
 
     private static int refreshIntervalSeconds(ProxyConfiguration config) {

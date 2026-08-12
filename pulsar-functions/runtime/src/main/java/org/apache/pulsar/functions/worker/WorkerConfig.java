@@ -573,7 +573,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the TLS provider for the function worker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt\n"
+                    + "and etc.\n"
+                    + "For the worker's web listener, leave unset (the default) to use Conscrypt when it is\n"
+                    + "available on this platform, else the JVM's default provider; a configured JSSE provider\n"
+                    + "name is pinned and startup fails if it cannot be resolved. Conscrypt ships native libraries\n"
+                    + "for x86_64 only, which is why the default falls back rather than failing on aarch64 or\n"
+                    + "s390x — pinning it explicitly there does fail."
     )
     private String tlsProvider = null;
 

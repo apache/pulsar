@@ -126,26 +126,27 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
      * insecure flag are shared with the binary listener, as they are today.
      *
      * <p>A configured provider is <em>pinned</em>: if it cannot be resolved, startup fails rather than
-     * silently ignoring the configuration. That is why {@code webServiceTlsProvider} no longer ships a
-     * default of {@code Conscrypt}. Under PIP-337 the key only reached Jetty's
-     * {@code SslContextFactory.setProvider(...)}, which is inert on a factory that overrides
-     * {@code getSslContext()} with a pre-built context — so the shipped default never actually selected a
-     * provider. Honoring it here makes it real, and Conscrypt's uber jar carries native libraries for
-     * x86_64 only: keeping the default would break the web listener out of the box on aarch64 (Apple
-     * silicon, ARM servers) and s390x. Unset, the JVM default applies, which is what deployments have
-     * effectively been running all along; an operator who wants Conscrypt still sets it explicitly.
+     * silently ignoring the configuration. Left unset, the web listener falls back to Conscrypt when it is
+     * usable on this platform — see {@link TlsFactorySupport#resolveWebJsseProvider} for why that default is
+     * conditional where 4.x's was not.
      */
     @VisibleForTesting
     static TlsPolicy webPolicy(ServiceConfiguration conf) {
-        return serverPolicy(conf,
-                firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider()),
+        String provider = firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider());
+        return serverPolicy(conf, provider,
+                // Web listeners only: unset means Conscrypt when it is usable on this platform.
+                TlsFactorySupport.resolveWebJsseProvider(null, provider),
                 firstNonEmpty(conf.getWebServiceTlsProtocols(), conf.getTlsProtocols()),
                 firstNonEmpty(conf.getWebServiceTlsCiphers(), conf.getTlsCiphers()));
     }
 
     @VisibleForTesting
     static TlsPolicy serverPolicy(ServiceConfiguration conf) {
-        return serverPolicy(conf, conf.getTlsProvider(), conf.getTlsProtocols(), conf.getTlsCiphers());
+        // The binary listeners keep the JVM default when unset — the Conscrypt default is a web-listener
+        // behaviour, restored from 4.x where only the web keys carried it.
+        return serverPolicy(conf, conf.getTlsProvider(),
+                TlsFactorySupport.resolveJsseProvider(null, conf.getTlsProvider()),
+                conf.getTlsProtocols(), conf.getTlsCiphers());
     }
 
     private static String firstNonBlank(String preferred, String fallback) {
@@ -156,8 +157,8 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         return preferred != null && !preferred.isEmpty() ? preferred : fallback;
     }
 
-    private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, Set<String> protocols,
-                                          Set<String> ciphers) {
+    private static TlsPolicy serverPolicy(ServiceConfiguration conf, String provider, String jsseProvider,
+                                          Set<String> protocols, Set<String> ciphers) {
         // enableHostnameVerification is pinned OFF on server-role policies rather than mapped from
         // tlsHostnameVerificationEnabled. That key is the broker's OUTBOUND setting ("whether the hostname
         // is validated when the broker creates a TLS connection with other brokers"), and every existing
@@ -176,9 +177,10 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .protocols(toList(protocols))
                 .ciphers(toList(ciphers))
                 // v4 parity: the provider key is overloaded. An engine literal (JDK/OPENSSL/OPENSSL_REFCNT)
-                // selects the Netty engine above and yields null here; any other value is a JSSE provider
-                // name (e.g. Conscrypt), which v4 used to build the SSLContext, so route it to that axis.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, provider));
+                // selects the Netty engine above and yields null on the JSSE axis; any other value is a JSSE
+                // provider name (e.g. Conscrypt), which v4 used to build the SSLContext. Resolved by the
+                // caller, because the web listener defaults to Conscrypt when unset and the binary ones do not.
+                .jsseProvider(jsseProvider);
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
