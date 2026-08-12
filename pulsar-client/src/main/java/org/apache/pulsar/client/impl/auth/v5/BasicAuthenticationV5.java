@@ -71,6 +71,10 @@ public class BasicAuthenticationV5 implements SinglePassAuthentication, Serializ
      * whose {@code configure(...)} may run again on the same instance — supplies its fields through
      * suppliers rather than by value.
      *
+     * <p>This type is {@link Serializable}, so a caller that intends to serialize the instance must pass
+     * serializable suppliers ({@link TokenAuthenticationV5.LiteralTokenSupplier} is one). The v4 shim does
+     * not: the body it builds is held only in the client's transient slot and is never serialized.
+     *
      * @param userId   supplies the current user id
      * @param password supplies the current password
      */
