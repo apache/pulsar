@@ -92,8 +92,15 @@ public final class V5AuthContexts {
      * Run a potentially-blocking credential fetch off the caller thread (PIP-478): a
      * credential-fetching body (OAuth2, Athenz) whose supplier performs network / disk I/O must not run
      * that fetch on the Netty event loop. When a bounded blocking executor is bound, the task runs there;
-     * otherwise it runs inline (the degraded pre-binding behaviour), still reporting failures through the
-     * returned future rather than throwing synchronously.
+     * otherwise it runs on the shared fallback pool. Failures are always reported through the returned
+     * future rather than thrown synchronously.
+     *
+     * <p>When no executor is bound — a connection opened outside a {@code PulsarClient}, such as the
+     * proxy's broker connections — the work goes to {@link #sharedBlockingExecutor()} rather than running
+     * inline. Running inline there would put the credential fetch on the caller thread, which on that path
+     * is a Netty event loop: a body whose credential costs a token endpoint round trip, a ZTS role-token
+     * fetch, a GSSAPI exchange with the KDC, or simply reading a token file would stall every connection
+     * multiplexed on that loop.
      *
      * @param blockingExecutor the bound blocking executor, or {@code null} if none was bound
      * @param task             the blocking credential computation
@@ -101,18 +108,12 @@ public final class V5AuthContexts {
      * @return a future of the result; never throws synchronously
      */
     public static <T> CompletableFuture<T> supplyBlocking(Executor blockingExecutor, Supplier<T> task) {
-        if (blockingExecutor != null) {
-            try {
-                return CompletableFuture.supplyAsync(task, blockingExecutor);
-            } catch (Throwable t) {
-                // A saturated bounded pool with an AbortPolicy rejects synchronously (RejectedExecutionException);
-                // never throw from a future-returning method — surface it through the future instead.
-                return CompletableFuture.failedFuture(t);
-            }
-        }
+        Executor executor = blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
         try {
-            return CompletableFuture.completedFuture(task.get());
+            return CompletableFuture.supplyAsync(task, executor);
         } catch (Throwable t) {
+            // A rejecting executor throws synchronously; never throw from a future-returning method —
+            // surface it through the future instead.
             return CompletableFuture.failedFuture(t);
         }
     }
