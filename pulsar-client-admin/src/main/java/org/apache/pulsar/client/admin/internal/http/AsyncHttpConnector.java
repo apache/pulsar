@@ -324,9 +324,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      * does not. {@link TlsFactoryOwnership} carries which of the two applies.
      */
     /**
-     * Whether this admin configuration needs a {@link PulsarTlsFactory} at all: either the admin transport is
-     * HTTPS, or the configuration describes a trust domain other than the transport — the {@code CLIENT_OAUTH2}
-     * policy {@code PulsarAdminImpl} folds in from an OAuth2 plugin's IdP material. Without the factory in that
+     * Whether this admin configuration needs a {@link PulsarTlsFactory} at all: the admin transport is HTTPS,
+     * or the configuration describes a trust domain other than the transport — the {@code CLIENT_OAUTH2}
+     * policy {@code PulsarAdminImpl} folds in from an OAuth2 plugin's IdP material — or a factory was adopted
+     * onto the configuration and still has to be initialized and owned. Without the factory in that
      * second case the admin's framework HTTP client has nothing to resolve {@code CLIENT_OAUTH2} against and
      * falls back to platform-default trust, silently ignoring the plugin's {@code trustCertsFilePath}.
      *
@@ -338,7 +339,13 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      */
     static boolean needsTlsFactory(ClientConfigurationData conf) {
         return conf.getServiceUrl() != null && conf.getServiceUrl().startsWith("https://")
-                || conf.getTlsPolicyMap() != null && !conf.getTlsPolicyMap().isEmpty();
+                || conf.getTlsPolicyMap() != null && !conf.getTlsPolicyMap().isEmpty()
+                // An adopted factory counts too: resolution is what initializes it and puts it under the
+                // provider's ownership, so skipping it here would serve the framework HTTP client an
+                // uninitialized factory that nothing ever closes. In-tree the broker's admin attach only
+                // adopts on an https URL, so this arm is reachable only from out-of-tree code — but the
+                // rule pip-478.md states covers adoption, and this is what makes the code match it.
+                || conf.getTlsFactory() != null;
     }
 
     @SneakyThrows

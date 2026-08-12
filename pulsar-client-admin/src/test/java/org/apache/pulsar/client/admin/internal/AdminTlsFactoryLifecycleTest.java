@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import java.util.Optional;
@@ -88,6 +89,25 @@ public class AdminTlsFactoryLifecycleTest {
                 .as("closing the admin must not close the adopted factory twice").hasValue(1);
     }
 
+    @Test
+    public void aFailedAdminBuildDoesNotLeakTheResolvedFactory() throws Exception {
+        // close() is unreachable when the constructor throws, so whatever the provider resolved before the
+        // failure has to be released on the way out. The factory below fails the build by refusing to serve
+        // CLIENT_DEFAULT for an https admin URL, which is where the eager context acquisition throws.
+        CountingFactory.FAIL_CLIENT_DEFAULT.set(true);
+        assertThatThrownBy(() -> PulsarAdmin.builder()
+                .serviceHttpUrl("https://localhost:8443")
+                .tlsFactoryClassName(CountingFactory.class.getName())
+                .build())
+                .as("the build must fail for this test to be about the failure path").isNotNull();
+
+        assertThat(CountingFactory.INSTANTIATED).as("the factory was resolved before the failure").hasValue(1);
+        assertThat(CountingFactory.CLOSED)
+                .as("and must be closed on the way out: a failed build leaves no handle to close it later, so "
+                        + "it would otherwise leak the factory and its non-daemon rotation thread")
+                .hasValue(1);
+    }
+
     /** Jersey creates its connector lazily on the first request; the request itself is expected to fail. */
     private static void forceJerseyConnector(PulsarAdmin admin) {
         try {
@@ -103,11 +123,14 @@ public class AdminTlsFactoryLifecycleTest {
         static final AtomicInteger INSTANTIATED = new AtomicInteger();
         static final AtomicInteger INITIALIZED = new AtomicInteger();
         static final AtomicInteger CLOSED = new AtomicInteger();
+        static final java.util.concurrent.atomic.AtomicBoolean FAIL_CLIENT_DEFAULT =
+                new java.util.concurrent.atomic.AtomicBoolean();
 
         static void reset() {
             INSTANTIATED.set(0);
             INITIALIZED.set(0);
             CLOSED.set(0);
+            FAIL_CLIENT_DEFAULT.set(false);
         }
 
         public CountingFactory() {
@@ -123,6 +146,9 @@ public class AdminTlsFactoryLifecycleTest {
         @Override
         public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
                 Class<T> instanceClass) {
+            if (FAIL_CLIENT_DEFAULT.get() && TlsPurpose.CLIENT_DEFAULT.equals(purpose)) {
+                return CompletableFuture.failedFuture(new IllegalStateException("cannot serve CLIENT_DEFAULT"));
+            }
             if (instanceClass != SslContext.class) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }

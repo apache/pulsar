@@ -154,6 +154,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
         asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
                 clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
 
+        boolean constructed = false;
+        try {
         bindAuthenticationServices(clientConfigData);
         this.auth.start();
 
@@ -216,6 +218,17 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
+        }
+        constructed = true;
+        } finally {
+            if (!constructed) {
+                // close() is unreachable when the constructor throws, and the provider owns live resources
+                // from the moment its factory is resolved — the TLS factory itself plus a non-daemon
+                // "pulsar-admin-tls-factory" rotation thread. Without this, every failed build() (a bad
+                // trustCertsFilePath being the common case) leaks one of each. The connectors release only
+                // their own borrowed handles, which is exactly why this has to happen here.
+                asyncConnectorProvider.close();
+            }
         }
     }
 
