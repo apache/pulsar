@@ -463,11 +463,6 @@ public class ClientCnx extends PulsarHandler {
     }
 
     /**
-     * Build the {@code CommandConnect} frame from an already-resolved credential. Overridable so subclasses
-     * (e.g. the proxy's broker client) can customise the frame — the resolved {@link AuthData} is passed in
-     * rather than re-fetched, so the override composes with both the sync and async credential paths.
-     */
-    /**
      * The authentication driver for this connection's configuration.
      *
      * <p>{@code PulsarClientImpl} resolves one per client, so that its initialization runs once and every
@@ -505,6 +500,15 @@ public class ClientCnx extends PulsarHandler {
         return authenticationExchange.authMethodName();
     }
 
+    /**
+     * Build the {@code CommandConnect} frame from an already-resolved credential. Overridable so subclasses
+     * (e.g. the proxy's broker client) can customise the frame — the resolved {@link AuthData} is passed in
+     * rather than re-fetched, so an override never has to know how the credential was obtained.
+     *
+     * @param authData the credential resolved for this connection attempt
+     * @return the encoded {@code CommandConnect} frame
+     * @throws Exception if the frame cannot be built
+     */
     protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
         return Commands.newConnect(authMethodName(), authData, this.protocolVersion,
                 clientVersion, proxyToTargetBrokerAddress, originalPrincipal, null, null);

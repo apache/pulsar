@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.v5.auth.ChallengeResponse;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -104,13 +105,12 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * {@code hasDataForTls()} plugin's material into the client TLS configuration is a builder-time
      * concern handled by the client (PIP-478).
      *
-     * <p>The method name {@code "none"} is resolved to the built-in {@link NoAuthentication} rather than
-     * to a bridging adapter, because "no credential" is the one case the generic bridge cannot represent:
-     * {@link LegacyV4CredentialAdapter} advertises {@link BinaryAuthDataProvider} only for a plugin that
-     * actually produced command data, and the v4 {@code AuthenticationDisabled} produces none — so a
-     * bridged no-auth plugin is indistinguishable from one that cannot authenticate a binary connection at
-     * all. Declaring {@code auth_method_name=none} is itself the statement that no credential is carried,
-     * so nothing is lost by not consulting the wrapped plugin.
+     * <p>The built-in {@code AuthenticationDisabled} is resolved to {@link NoAuthentication} rather than to
+     * a bridging adapter. Bridging it works, but it would put the default unauthenticated deployment — the
+     * one connection path where there is provably nothing to fetch — through an executor hop and a
+     * start-time probe on every connect. The match is on the concrete built-in rather than on the
+     * {@code "none"} method name deliberately: a third-party plugin may report {@code "none"} and still
+     * serve a credential, and discarding it here would downgrade that connection to anonymous silently.
      *
      * @param v4 the v4 authentication plugin to wrap
      * @return a v5 {@link Authentication} that delegates to the v4 plugin, or a built-in v5-native body
@@ -142,10 +142,10 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
         if (v4 == null) {
             throw new IllegalArgumentException("v4 authentication must not be null");
         }
-        String methodName = v4.getAuthMethodName();
-        if (NoAuthentication.DEFAULT_AUTH_METHOD_NAME.equalsIgnoreCase(methodName)) {
+        if (v4 instanceof AuthenticationDisabled) {
             return NoAuthentication.INSTANCE;
         }
+        String methodName = v4.getAuthMethodName();
         if (TlsAuthentication.DEFAULT_AUTH_METHOD_NAME.equalsIgnoreCase(methodName)) {
             return new LegacyV4TlsAdapter(v4, ownsLifecycle);
         }
