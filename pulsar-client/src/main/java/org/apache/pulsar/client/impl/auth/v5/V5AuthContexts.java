@@ -46,8 +46,8 @@ import org.apache.pulsar.http.PulsarHttpClientFactory;
  * — so a credential-fetching body (OAuth2, Athenz) can off-load its blocking fetch onto the blocking
  * executor instead of running it on the Netty event loop. When no services are bound (a connection opened
  * outside a {@code PulsarClient} — the proxy's broker connections, embedders, tests), the context reports
- * no HTTP client factory or scheduler, but still supplies a shared blocking executor: the offload
- * discipline holds on every path, since the caller thread there is a Netty event loop too.
+ * no services at all, and a body that holds its credential in memory simply resolves inline. The one
+ * component that cannot do that is the legacy v4 bridge, which borrows {@link #sharedBlockingExecutor()}.
  */
 public final class V5AuthContexts {
 
@@ -68,6 +68,16 @@ public final class V5AuthContexts {
         return services == null
                 ? new InitContext(clientInstanceId)
                 : new BoundInitContext(services);
+    }
+
+    /**
+     * The blocking executor of last resort, for work that must not run on the calling thread when no
+     * client-owned executor is available. See {@link SharedBlockingExecutor}.
+     *
+     * @return the shared blocking executor
+     */
+    static Executor sharedBlockingExecutor() {
+        return SharedBlockingExecutor.INSTANCE;
     }
 
     /**
@@ -117,10 +127,13 @@ public final class V5AuthContexts {
      * exactly the stall PIP-478 exists to remove, and refusing to run at all would break connections v4
      * made fine, so the library keeps one shared pool for them.
      *
+     * <p>Only the v4 bridge borrows it. A v5-native body is handed no executor at all when none is bound,
+     * so a credential it already holds in memory still resolves inline, without a thread hop per connect.
+     *
      * <p>It costs nothing when unused: no core threads, daemon threads that retire after a minute of idle.
      * Held in a holder class so it is created on first use rather than on class load.
      */
-    private static final class SharedBlockingExecutor {
+    static final class SharedBlockingExecutor {
         static final Executor INSTANCE = create();
 
         private static Executor create() {
@@ -153,7 +166,7 @@ public final class V5AuthContexts {
 
         @Override
         public Executor blockingExecutor() {
-            return SharedBlockingExecutor.INSTANCE;
+            return null;
         }
 
         @Override
