@@ -2203,7 +2203,7 @@ public class BrokerService implements Closeable {
                                         .thenCompose(__ -> context.trace("pre-create compacted sub",
                                                 persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
                                         .thenCompose(__ -> context.trace("replication",
-                                                persistentTopic.checkReplication()))
+                                                persistentTopic.initializeCheckReplication()))
                                         .thenCompose(v -> context.trace("deduplication",
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
@@ -2451,9 +2451,6 @@ public class BrokerService implements Closeable {
                     .setReadEntryTimeoutSeconds(serviceConfig.getManagedLedgerReadEntryTimeoutSeconds());
             managedLedgerConfig
                     .setAddEntryTimeoutSeconds(serviceConfig.getManagedLedgerAddEntryTimeoutSeconds());
-            managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
-            managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
-            managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
             managedLedgerConfig
                     .setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
 
