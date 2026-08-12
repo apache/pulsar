@@ -575,6 +575,9 @@ public class PulsarAdminImpl implements PulsarAdmin {
         client.close();
 
         asyncHttpConnector.close();
+        // PIP-478: the connectors dispose their own subscriptions; the provider owns the one TLS factory they
+        // share and closes it here.
+        asyncConnectorProvider.close();
         if (authHttpClientFactory != null) {
             authHttpClientFactory.close();
         }

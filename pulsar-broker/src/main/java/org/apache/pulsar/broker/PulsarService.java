@@ -1940,7 +1940,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * reaches it through {@link PulsarAdminBuilderImpl#getConf()} and attaches a per-client
      * {@link org.apache.pulsar.tls.PulsarTlsFactory} composed from the broker-client {@code tls*}
      * material already mapped onto the config (folding the broker-client {@code Authentication} TLS material).
-     * The {@code AsyncHttpConnector} adopts, initializes and closes the factory. Leaves the builder on the
+     * Ownership transfers with the configuration: the admin client initializes the factory and closes it when
+     * the admin closes, so this method must not retain or close it. (Concretely the owner is that admin's
+     * {@code AsyncHttpConnectorProvider}, which resolves one factory for all of the admin's connectors —
+     * see {@code TlsFactoryOwnership}.) Leaves the builder on the
      * legacy PIP-337 path when the gate is off, when the admin URL is not TLS, or when it is already on the
      * new path.
      *

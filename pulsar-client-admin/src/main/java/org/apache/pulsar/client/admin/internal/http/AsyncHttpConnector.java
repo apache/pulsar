@@ -125,32 +125,54 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private final EventLoopGroup eventLoopGroup;
     private final boolean createdEventLoopGroup;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
-    // PIP-478 (new TLS path): the resolved PulsarTlsFactory (this connector owns and closes it),
-    // a live subscription to the CLIENT_DEFAULT SslContext whose callback refreshes the volatile below on
-    // rotation, and the single-thread executor that drives the factory's material rotation / blocking loads.
-    private PulsarTlsFactory tlsFactory;
+    // PIP-478 (new TLS path): the PulsarTlsFactory this connector reads, carried with the responsibility for
+    // closing it — owned when this connector resolved it, borrowed when AsyncHttpConnectorProvider supplied
+    // the one it shares across a PulsarAdmin's connectors. The subscription to the CLIENT_DEFAULT SslContext
+    // (whose callback refreshes the volatile below on rotation) is this connector's own either way.
+    private TlsFactoryOwnership tlsFactoryOwnership = TlsFactoryOwnership.none();
     private TlsHandle<SslContext> tlsFactorySubscription;
     private volatile SslContext tlsFactorySslContext;
-    private ScheduledExecutorService tlsFactoryExecutor;
+    private final TlsFactoryOwnership suppliedTlsFactory;
     @Getter
     @Setter
     private boolean followRedirects = true;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
+        this(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression, TlsFactoryOwnership.none());
+    }
+
+    AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+                       boolean acceptGzipCompression, TlsFactoryOwnership suppliedTlsFactory) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression, null);
+                conf, acceptGzipCompression, null, suppliedTlsFactory);
     }
 
-    @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
                               boolean acceptGzipCompression,
                               PulsarClientSharedResourcesImpl sharedResources) {
+        this(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds, conf,
+                acceptGzipCompression, sharedResources, TlsFactoryOwnership.none());
+    }
+
+    /**
+     * @param suppliedTlsFactory a factory somebody else owns, to borrow instead of resolving one — normally
+     *                           {@link AsyncHttpConnectorProvider}'s per-admin factory. Pass
+     *                           {@link TlsFactoryOwnership#none()} to resolve, and own, one from {@code conf}
+     */
+    @SneakyThrows
+    AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
+                       int requestTimeoutMs,
+                       int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
+                       boolean acceptGzipCompression,
+                       PulsarClientSharedResourcesImpl sharedResources,
+                       TlsFactoryOwnership suppliedTlsFactory) {
+        this.suppliedTlsFactory = suppliedTlsFactory;
         Validate.notEmpty(conf.getServiceUrl(), "Service URL is not provided");
         serviceNameResolver = new PulsarServiceNameResolver();
         String serviceUrl = conf.getServiceUrl();
@@ -186,12 +208,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (tlsFactorySubscription != null) {
             tlsFactorySubscription.dispose();
         }
-        if (tlsFactory != null) {
-            tlsFactory.close();
-        }
-        if (tlsFactoryExecutor != null) {
-            tlsFactoryExecutor.shutdownNow();
-        }
+        // Same ownership rule as close(): a borrowed factory belongs to the provider, which closes it even
+        // when this connector's construction failed.
+        tlsFactoryOwnership.close();
         if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             eventLoopGroup.shutdownGracefully();
         }
@@ -232,13 +251,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 readTimeoutMs, requestTimeoutMs, confBuilder, sharedResources);
         if (conf.getServiceUrl().startsWith("https://")) {
             configureAsyncHttpClientWithTlsFactory(confBuilder, resolveNewTlsFactory(conf), conf);
-        } else if (conf.getTlsPolicyMap() != null && !conf.getTlsPolicyMap().isEmpty()) {
-            // A plaintext admin URL still needs the factory composed when the configuration describes a trust
-            // domain other than the transport — the OAuth2 IdP policy PulsarAdminImpl folds into
-            // CLIENT_OAUTH2. Without it the admin's framework HTTP client has no factory to resolve that
-            // purpose against and falls back to platform-default trust, silently ignoring the plugin's
-            // trustCertsFilePath. Only the factory is built here: no SslEngineFactory is wired onto this
-            // connector, so the admin transport itself stays plaintext (same separation as
+        } else if (needsTlsFactory(conf)) {
+            // Only the factory is resolved here: no SslEngineFactory is wired onto this connector, so the
+            // admin transport itself stays plaintext (the same separation as
             // PulsarClientImpl.needsClientTlsFactory).
             resolveNewTlsFactory(conf);
         }
@@ -304,19 +319,46 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      * Resolve the new-SPI TLS factory for an https admin URL (the only path since the PIP-337 removal):
      * a {@link PulsarTlsFactory} adopted through the {@code tlsFactory} seam (the broker's admin-client
      * attach — see {@code PulsarService.getCreateAdminClientBuilder}), or the built-in file-based factory
-     * composed from the {@code tls*} fields. The connector owns the resolved factory (and its rotation
-     * executor) and closes both in {@link #close()}.
+     * composed from the {@code tls*} fields. A connector that resolves the factory itself owns it (and its
+     * rotation executor) and releases both in {@link #close()}; one that borrows the provider's shared factory
+     * does not. {@link TlsFactoryOwnership} carries which of the two applies.
      */
+    /**
+     * Whether this admin configuration needs a {@link PulsarTlsFactory} at all: either the admin transport is
+     * HTTPS, or the configuration describes a trust domain other than the transport — the {@code CLIENT_OAUTH2}
+     * policy {@code PulsarAdminImpl} folds in from an OAuth2 plugin's IdP material. Without the factory in that
+     * second case the admin's framework HTTP client has nothing to resolve {@code CLIENT_OAUTH2} against and
+     * falls back to platform-default trust, silently ignoring the plugin's {@code trustCertsFilePath}.
+     *
+     * <p>Shared with {@link AsyncHttpConnectorProvider}, which resolves the one factory per admin, so the
+     * decision to allocate and the decision to use cannot drift apart.
+     *
+     * @param conf the admin client configuration
+     * @return whether a TLS factory must be resolved
+     */
+    static boolean needsTlsFactory(ClientConfigurationData conf) {
+        return conf.getServiceUrl() != null && conf.getServiceUrl().startsWith("https://")
+                || conf.getTlsPolicyMap() != null && !conf.getTlsPolicyMap().isEmpty();
+    }
+
     @SneakyThrows
     private PulsarTlsFactory resolveNewTlsFactory(ClientConfigurationData conf) {
+        if (suppliedTlsFactory.isPresent()) {
+            // A sibling connector on the same PulsarAdmin already resolved it. Resolving again would construct
+            // and initialize a second instance of a by-name custom factory — the SPI says initialize is called
+            // once — and, for a factory adopted from the broker's admin attach, would close the same instance
+            // twice. This connector still takes its own subscription below; only the factory is shared.
+            this.tlsFactoryOwnership = suppliedTlsFactory;
+            return suppliedTlsFactory.factory();
+        }
         // The factory needs a framework scheduler for material-rotation polling and an executor for blocking
-        // material loading; the admin connector owns a small single-thread scheduled executor for both (there
-        // is no shared client scheduler here, unlike the PulsarClientImpl funnel).
-        this.tlsFactoryExecutor = Executors.newSingleThreadScheduledExecutor(
+        // material loading; a connector that resolves its own owns a small single-thread scheduled executor for
+        // both (there is no shared client scheduler here, unlike the PulsarClientImpl funnel).
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-admin-tls-factory"));
-        PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, tlsFactoryExecutor,
-                tlsFactoryExecutor, conf.getOpenTelemetry());
-        this.tlsFactory = factory;
+        PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
+                executor, conf.getOpenTelemetry());
+        this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
         return factory;
     }
 
@@ -364,7 +406,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      */
     @VisibleForTesting
     public PulsarTlsFactory getTlsFactory() {
-        return tlsFactory;
+        return tlsFactoryOwnership.factory();
     }
 
     /**
@@ -725,12 +767,9 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             if (tlsFactorySubscription != null) {
                 tlsFactorySubscription.dispose();
             }
-            if (tlsFactory != null) {
-                tlsFactory.close();
-            }
-            if (tlsFactoryExecutor != null) {
-                tlsFactoryExecutor.shutdownNow();
-            }
+            // The subscription above is this connector's own either way; the handle knows whether the factory
+            // and its executor are ours to release, so this is a no-op when they are borrowed.
+            tlsFactoryOwnership.close();
             if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
                 eventLoopGroup.shutdownGracefully();
             }
