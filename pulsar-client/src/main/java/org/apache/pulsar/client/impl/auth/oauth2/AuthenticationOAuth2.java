@@ -39,14 +39,12 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
-import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
@@ -80,7 +78,7 @@ import org.apache.pulsar.tls.TlsPurpose;
  */
 @CustomLog
 public class AuthenticationOAuth2
-        implements Authentication, EncodedAuthenticationParameterSupport, AsyncAuthenticationDriver,
+        implements Authentication, EncodedAuthenticationParameterSupport, V5AuthenticationProvider,
         ClientAuthenticationServicesAware {
 
     public static final String CONFIG_PARAM_TYPE = "type";
@@ -298,14 +296,13 @@ public class AuthenticationOAuth2
     }
 
     @Override
-    public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
-        // PIP-478: drive the v5-native OAuth2 body on the async binary path. The heavy flow — token
-        // acquisition, caching and early refresh — stays on this shim; the body reads the current access
-        // token through getAuthData(), so a broker-pushed REFRESH re-fetches an expired token here exactly
-        // as the synchronous path does. The bound blocking executor off-loads that (network-blocking)
-        // fetch so it never runs on the Netty event loop.
-        return new V5BinaryAuthenticationDriver(new OAuth2AuthenticationV5(this::currentAccessToken), authServices)
-                .newAuthenticationExchange(brokerHostName);
+    public org.apache.pulsar.client.api.v5.auth.Authentication v5Authentication() {
+        // PIP-478: the client drives this v5-native OAuth2 body. The heavy flow — token acquisition,
+        // caching and early refresh — stays on this shim; the body reads the current access token through
+        // getAuthData(), so a broker-pushed REFRESH re-fetches an expired token here exactly as the
+        // synchronous path does. The blocking executor the body is initialized with off-loads that
+        // (network-blocking) fetch so it never runs on the Netty event loop.
+        return new OAuth2AuthenticationV5(this::currentAccessToken);
     }
 
     private String currentAccessToken() {

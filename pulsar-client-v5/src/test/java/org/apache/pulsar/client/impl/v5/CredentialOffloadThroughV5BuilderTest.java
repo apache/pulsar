@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.Authentic
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
-import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 
@@ -55,10 +55,11 @@ public class CredentialOffloadThroughV5BuilderTest {
         PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
         builder.authentication(LegacyV4AuthenticationAdapter.wrap(v4));
 
-        // Decision: the credential plugin is NOT unwrapped to the raw v4 engine; it stays wrapped so that
-        // its (blocking) getAuthData off-loads instead of running on the Netty event loop.
+        // The builder hands the raw v4 plugin to the v4 slot — that slot is what the client starts, closes
+        // and reads TLS material from. What the client *drives* is the v5 body it resolves from it, which is
+        // where the off-loading lives.
         org.apache.pulsar.client.api.Authentication resolved = builder.resolveAuthenticationForTest();
-        assertThat(resolved).isInstanceOf(V5ToV4AuthenticationAdapter.class);
+        assertThat(resolved).isSameAs(v4);
 
         ExecutorService blocking = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, BLOCKING_THREAD);
@@ -67,12 +68,12 @@ public class CredentialOffloadThroughV5BuilderTest {
         });
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
-            V5ToV4AuthenticationAdapter adapter = (V5ToV4AuthenticationAdapter) resolved;
-            adapter.bindClientAuthenticationServices(services(blocking, scheduler));
-            adapter.start();
+            V5BinaryAuthenticationDriver driver = new V5BinaryAuthenticationDriver(
+                    LegacyV4AuthenticationAdapter.wrapAlreadyStarted(resolved),
+                    services(blocking, scheduler));
 
             String callerThread = Thread.currentThread().getName();
-            AuthenticationExchange exchange = adapter.newAuthenticationExchange("broker.example.com");
+            AuthenticationExchange exchange = driver.newAuthenticationExchange("broker.example.com");
             CompletableFuture<AuthData> future = exchange.getAuthDataAsync();
 
             // The fetch is off-loaded: it started on the blocking executor while the caller proceeds.

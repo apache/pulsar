@@ -49,7 +49,10 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.AuthData;
@@ -118,17 +121,21 @@ public class ClientCnxAsyncAuthTest {
         conf.setKeepAliveIntervalSeconds(0);
         conf.setOperationTimeoutMs(operationTimeoutMs);
         conf.setAuthentication(auth);
+        // PIP-478: the client drives the v5 model, so ClientCnx takes its exchanges from the resolved
+        // authentication driver rather than from the v4 plugin in conf.
+        conf.setV5AuthenticationDriver(auth instanceof AsyncAuthenticationDriver driver ? driver
+                : new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth)));
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
         cnx.setRemoteHostName("localhost");
         return cnx;
     }
 
     private ClientCnx connectedCnx(Supplier<String> tokenSupplier) throws Exception {
-        // A real async-capable built-in plugin (AuthenticationToken implements AsyncAuthenticationDriver via
-        // its v5-native body). With no bound framework services its credential resolves inline, so the
-        // connect continuation runs synchronously on the calling thread.
+        // A real built-in plugin: AuthenticationToken hands over its v5-native body, which the client drives
+        // directly. With no bound framework services its credential resolves inline, so the connect
+        // continuation runs synchronously on the calling thread.
         AuthenticationToken auth = new AuthenticationToken(tokenSupplier);
-        assertThat(auth).isInstanceOf(AsyncAuthenticationDriver.class);
+        assertThat(auth).isInstanceOf(V5AuthenticationProvider.class);
         ClientCnx cnx = newCnx(auth);
         cnx.channelActive(ctx);
         return cnx;
@@ -485,6 +492,11 @@ public class ClientCnxAsyncAuthTest {
 
     private static final class ControllableExchange implements AuthenticationExchange {
 
+        @Override
+        public String authMethodName() {
+            return "controllable";
+        }
+
         private final CompletableFuture<AuthData> authData = new CompletableFuture<>();
         private final CompletableFuture<AuthData> challengeResponse = new CompletableFuture<>();
 
@@ -530,6 +542,11 @@ public class ClientCnxAsyncAuthTest {
         @Override
         public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
             return new AuthenticationExchange() {
+                @Override
+                public String authMethodName() {
+                    return "always-responding";
+                }
+
                 @Override
                 public CompletableFuture<AuthData> getAuthDataAsync() {
                     return CompletableFuture.completedFuture(AuthData.of("init".getBytes(UTF_8)));

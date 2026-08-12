@@ -57,7 +57,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
@@ -65,6 +64,8 @@ import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -128,7 +129,10 @@ public class ClientCnx extends PulsarHandler {
     // Derived instance logger with channel context, set in channelActive().
     private Logger log = LOG;
 
-    protected final Authentication authentication;
+    // PIP-478: the authentication the client drives. The client resolves exactly one v5 Authentication and
+    // wraps it in this per-client driver, from which every connection attempt opens its own exchange; there
+    // is no synchronous plugin path left on the connect/challenge routes.
+    protected final AsyncAuthenticationDriver authDriver;
     protected State state;
 
     @VisibleForTesting
@@ -345,7 +349,7 @@ public class ClientCnx extends PulsarHandler {
         this.maxLookupRequestSemaphore =
                 new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
-        this.authentication = conf.getAuthentication();
+        this.authDriver = resolveAuthDriver(conf);
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
@@ -408,17 +412,9 @@ public class ClientCnx extends PulsarHandler {
         // funnelled into a failed future so the continuation always handles it — never a synchronous throw
         // on the event loop.
         try {
-            if (authentication instanceof AsyncAuthenticationDriver asyncAuth) {
-                authenticationExchange = asyncAuth.newAuthenticationExchange(remoteHostName);
-                return authenticationExchange.getAuthDataAsync()
-                        .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
-            }
-            // mutual authentication is to auth between `remoteHostName` and this client for this channel.
-            // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init
-            // data, and return authData to server.
-            AuthenticationDataProvider provider = authentication.getAuthData(remoteHostName);
-            AuthData authData = provider.authenticate(AuthData.INIT_AUTH_DATA);
-            return CompletableFuture.completedFuture(new ResolvedAuthData(provider, authData));
+            authenticationExchange = authDriver.newAuthenticationExchange(remoteHostName);
+            return authenticationExchange.getAuthDataAsync()
+                    .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }
@@ -471,8 +467,46 @@ public class ClientCnx extends PulsarHandler {
      * (e.g. the proxy's broker client) can customise the frame — the resolved {@link AuthData} is passed in
      * rather than re-fetched, so the override composes with both the sync and async credential paths.
      */
+    /**
+     * The authentication driver for this connection's configuration.
+     *
+     * <p>{@code PulsarClientImpl} resolves one per client, so that its initialization runs once and every
+     * connection shares it. Not every {@code ClientCnx} comes from a {@code PulsarClient} though — the proxy
+     * builds broker connections straight from a configuration — so resolve and memoize one here for those,
+     * keyed on the configuration so connections sharing it still share a driver.
+     *
+     * @param conf the client configuration this connection is built from
+     * @return the driver to open authentication exchanges against
+     */
+    private static AsyncAuthenticationDriver resolveAuthDriver(ClientConfigurationData conf) {
+        AsyncAuthenticationDriver resolved = conf.getV5AuthenticationDriver();
+        if (resolved != null) {
+            return resolved;
+        }
+        synchronized (conf) {
+            resolved = conf.getV5AuthenticationDriver();
+            if (resolved == null) {
+                resolved = new V5BinaryAuthenticationDriver(
+                        V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication()));
+                conf.setV5AuthenticationDriver(resolved);
+            }
+            return resolved;
+        }
+    }
+
+    /**
+     * The auth method name to declare on the wire, taken from the exchange that produced the credential
+     * being sent. It is not resolved at construction: a bridged legacy plugin only learns which capabilities
+     * it can serve once its initialization has run, which happens on the first connection attempt.
+     *
+     * @return the auth method name for the current exchange
+     */
+    protected String authMethodName() {
+        return authenticationExchange.authMethodName();
+    }
+
     protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
+        return Commands.newConnect(authMethodName(), authData, this.protocolVersion,
                 clientVersion, proxyToTargetBrokerAddress, originalPrincipal, null, null);
     }
 
@@ -633,23 +667,13 @@ public class ClientCnx extends PulsarHandler {
         // As in resolveConnectAuthData, one try/catch guarantees a failed future rather than a synchronous
         // throw on the event loop, for both the sync and the async plugin paths.
         try {
-            if (authentication instanceof AsyncAuthenticationDriver asyncAuth) {
-                if (refresh) {
-                    authenticationExchange = asyncAuth.newAuthenticationExchange(remoteHostName);
-                    return authenticationExchange.getAuthDataAsync()
-                            .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
-                }
-                return authenticationExchange.authenticateAsync(challenge)
-                        .thenApply(authData -> new ResolvedAuthData(null, authData));
-            }
-            AuthenticationDataProvider provider = authenticationDataProvider;
-            AuthenticationDataProvider providerToPublish = null;
             if (refresh) {
-                provider = authentication.getAuthData(remoteHostName);
-                providerToPublish = provider;
+                authenticationExchange = authDriver.newAuthenticationExchange(remoteHostName);
+                return authenticationExchange.getAuthDataAsync()
+                        .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
             }
-            AuthData authData = provider.authenticate(challenge);
-            return CompletableFuture.completedFuture(new ResolvedAuthData(providerToPublish, authData));
+            return authenticationExchange.authenticateAsync(challenge)
+                    .thenApply(authData -> new ResolvedAuthData(null, authData));
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }
@@ -674,12 +698,12 @@ public class ClientCnx extends PulsarHandler {
 
             checkState(!authData.isComplete());
 
-            ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
+            ByteBuf request = Commands.newAuthResponse(authMethodName(),
                     authData,
                     this.protocolVersion,
                     clientVersion);
                 log.debug()
-                        .attr("auth", authentication.getAuthMethodName())
+                        .attr("auth", authMethodName())
                         .log("Mutual auth");
 
             ctx.writeAndFlush(request).addListener(writeFuture -> {
