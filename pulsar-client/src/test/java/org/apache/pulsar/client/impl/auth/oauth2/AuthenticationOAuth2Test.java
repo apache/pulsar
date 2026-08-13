@@ -28,6 +28,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -117,6 +121,32 @@ public class AuthenticationOAuth2Test {
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
         assertNotNull(this.auth.flow);
+    }
+
+    @Test
+    public void testConfiguredAuthRecreatesHttpClientAfterDeserialization() throws Exception {
+        AuthenticationOAuth2 configuredAuth = new AuthenticationOAuth2();
+        configuredAuth.configure(minimalCredentialsJson());
+
+        byte[] serializedAuth;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(out)) {
+            objectOutputStream.writeObject(configuredAuth);
+            serializedAuth = out.toByteArray();
+        } finally {
+            configuredAuth.close();
+        }
+
+        AuthenticationOAuth2 deserializedAuth;
+        try (ObjectInputStream objectInputStream =
+                     new ObjectInputStream(new ByteArrayInputStream(serializedAuth))) {
+            deserializedAuth = (AuthenticationOAuth2) objectInputStream.readObject();
+        }
+        try {
+            assertNotNull(((FlowBase) deserializedAuth.flow).getHttpClient());
+        } finally {
+            deserializedAuth.close();
+        }
     }
 
     @Test
