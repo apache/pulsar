@@ -175,8 +175,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(10_000);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_callback_failure_before_release",
-                    new ManagedLedgerConfig());
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(
+                    "cache_disabled_limiter_callback_failure_before_release", new ManagedLedgerConfig());
             ml.addEntry(new byte[] {1});
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
