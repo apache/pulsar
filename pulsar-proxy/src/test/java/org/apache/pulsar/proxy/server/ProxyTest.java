@@ -529,7 +529,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                     @Override
                     protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
                         BaseCommand cmd =
-                                Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
+                                Commands.newConnectWithoutSerialize(authMethodName(), authData,
                                         this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
                                         null, null, null, null, null);
                         FeatureFlags featureFlags = cmd.getConnect().getFeatureFlags();

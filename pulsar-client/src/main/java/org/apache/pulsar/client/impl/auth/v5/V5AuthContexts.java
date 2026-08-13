@@ -24,7 +24,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
@@ -41,9 +44,10 @@ import org.apache.pulsar.http.PulsarHttpClientFactory;
  * HTTP client factory, client instance id) are late-bound into the init context via
  * {@link ClientAuthenticationServices}
  * — so a credential-fetching body (OAuth2, Athenz) can off-load its blocking fetch onto the blocking
- * executor instead of running it on the Netty event loop. When no services are bound (a plugin used
- * outside a client), the context degrades to {@code null} services and the body falls back to inline
- * computation.
+ * executor instead of running it on the Netty event loop. When no services are bound (a connection opened
+ * outside a {@code PulsarClient} — the proxy's broker connections, embedders, tests), the context reports
+ * no services at all, and a body that holds its credential in memory simply resolves inline. The one
+ * component that cannot do that is the legacy v4 bridge, which borrows {@link #sharedBlockingExecutor()}.
  */
 public final class V5AuthContexts {
 
@@ -67,6 +71,16 @@ public final class V5AuthContexts {
     }
 
     /**
+     * The blocking executor of last resort, for work that must not run on the calling thread when no
+     * client-owned executor is available. See {@link SharedBlockingExecutor}.
+     *
+     * @return the shared blocking executor
+     */
+    static Executor sharedBlockingExecutor() {
+        return SharedBlockingExecutor.INSTANCE;
+    }
+
+    /**
      * @param brokerHost the broker host
      * @return a new binary-protocol call context with a fresh state slot
      */
@@ -78,8 +92,15 @@ public final class V5AuthContexts {
      * Run a potentially-blocking credential fetch off the caller thread (PIP-478): a
      * credential-fetching body (OAuth2, Athenz) whose supplier performs network / disk I/O must not run
      * that fetch on the Netty event loop. When a bounded blocking executor is bound, the task runs there;
-     * otherwise it runs inline (the degraded pre-binding behaviour), still reporting failures through the
-     * returned future rather than throwing synchronously.
+     * otherwise it runs on the shared fallback pool. Failures are always reported through the returned
+     * future rather than thrown synchronously.
+     *
+     * <p>When no executor is bound — a connection opened outside a {@code PulsarClient}, such as the
+     * proxy's broker connections — the work goes to {@link #sharedBlockingExecutor()} rather than running
+     * inline. Running inline there would put the credential fetch on the caller thread, which on that path
+     * is a Netty event loop: a body whose credential costs a token endpoint round trip, a ZTS role-token
+     * fetch, a GSSAPI exchange with the KDC, or simply reading a token file would stall every connection
+     * multiplexed on that loop.
      *
      * @param blockingExecutor the bound blocking executor, or {@code null} if none was bound
      * @param task             the blocking credential computation
@@ -87,19 +108,51 @@ public final class V5AuthContexts {
      * @return a future of the result; never throws synchronously
      */
     public static <T> CompletableFuture<T> supplyBlocking(Executor blockingExecutor, Supplier<T> task) {
-        if (blockingExecutor != null) {
-            try {
-                return CompletableFuture.supplyAsync(task, blockingExecutor);
-            } catch (Throwable t) {
-                // A saturated bounded pool with an AbortPolicy rejects synchronously (RejectedExecutionException);
-                // never throw from a future-returning method — surface it through the future instead.
-                return CompletableFuture.failedFuture(t);
-            }
-        }
+        Executor executor = blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
         try {
-            return CompletableFuture.completedFuture(task.get());
+            return CompletableFuture.supplyAsync(task, executor);
         } catch (Throwable t) {
+            // A rejecting executor throws synchronously; never throw from a future-returning method —
+            // surface it through the future instead.
             return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    /**
+     * The blocking executor used when no client services are bound.
+     *
+     * <p>Not every connection is opened by a {@code PulsarClient}: the proxy builds broker connections
+     * straight from a configuration, and so do embedders and tests. Those callers have no client-owned
+     * executor to lend, but a bridged v4 plugin still must not run its credential call on the caller
+     * thread — which on that path is a Netty event loop. Falling back to running inline would reintroduce
+     * exactly the stall PIP-478 exists to remove, and refusing to run at all would break connections v4
+     * made fine, so the library keeps one shared pool for them.
+     *
+     * <p>Only the v4 bridge borrows it. A v5-native body is handed no executor at all when none is bound,
+     * so a credential it already holds in memory still resolves inline, without a thread hop per connect.
+     *
+     * <p>It costs nothing when unused: no core threads, daemon threads that retire after a minute of idle.
+     * Held in a holder class so it is created on first use rather than on class load.
+     */
+    static final class SharedBlockingExecutor {
+        private static final int MAX_THREADS = 8;
+        static final Executor INSTANCE = create();
+
+        private static Executor create() {
+            // Queue rather than reject. A SynchronousQueue with the default abort policy would fail the
+            // ninth concurrent credential call outright, and the caller of a rejected call is a connection
+            // attempt: a proxy reconnect storm with a legacy plugin would turn into failed connections
+            // instead of slower ones. Work beyond the thread ceiling therefore waits.
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(MAX_THREADS, MAX_THREADS, 60L,
+                    TimeUnit.SECONDS, new LinkedBlockingQueue<>(), runnable -> {
+                        Thread thread = new Thread(runnable, "pulsar-auth-blocking-shared");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+            // With a queue in play the pool would otherwise hold its core threads forever; letting them
+            // time out is what keeps an unused pool free.
+            executor.allowCoreThreadTimeOut(true);
+            return executor;
         }
     }
 

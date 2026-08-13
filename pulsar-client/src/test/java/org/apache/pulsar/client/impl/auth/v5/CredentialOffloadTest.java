@@ -163,20 +163,29 @@ public class CredentialOffloadTest {
         }
     }
 
+    /**
+     * A credential fetch must never run on the caller thread, even when no client services are bound. That
+     * case is not a plugin misused outside a client — it is the proxy, which builds broker connections
+     * straight from a configuration, and there the caller thread is a Netty event loop. An OAuth2 access
+     * token can cost a token-endpoint round trip, so running it inline would stall every connection
+     * multiplexed on that loop.
+     */
     @Test
-    public void withoutBoundExecutorRunsInlineOnCaller() throws Exception {
+    public void withoutBoundExecutorRunsOnTheSharedPoolNotTheCaller() throws Exception {
         AtomicReference<String> supplierThread = new AtomicReference<>();
         OAuth2AuthenticationV5 body = new OAuth2AuthenticationV5(() -> {
             supplierThread.set(Thread.currentThread().getName());
             return "the-access-token";
         });
-        // No services bound (plugin used outside a client) -> degraded inline fetch on the caller thread.
         AuthenticationExchange exchange = new V5BinaryAuthenticationDriver(body)
                 .newAuthenticationExchange("broker.example.com");
 
         AuthData data = exchange.getAuthDataAsync().get(5, SECONDS);
         assertThat(new String(data.getBytes(), UTF_8)).isEqualTo("the-access-token");
-        assertThat(supplierThread.get()).isEqualTo(Thread.currentThread().getName());
+        assertThat(supplierThread.get())
+                .as("the fetch must be off-loaded, not run on the calling thread")
+                .isNotEqualTo(Thread.currentThread().getName())
+                .startsWith("pulsar-auth-blocking-shared");
     }
 
     private static void sleep(long millis) {

@@ -37,6 +37,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -46,15 +47,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -118,17 +124,30 @@ public class ClientCnxAsyncAuthTest {
         conf.setKeepAliveIntervalSeconds(0);
         conf.setOperationTimeoutMs(operationTimeoutMs);
         conf.setAuthentication(auth);
+        // PIP-478: the client drives the v5 model, so ClientCnx takes its exchanges from the resolved
+        // authentication driver rather than from the v4 plugin in conf.
+        conf.setV5AuthenticationDriver(auth instanceof AsyncAuthenticationDriver driver ? driver
+                : new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth)));
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
         cnx.setRemoteHostName("localhost");
         return cnx;
     }
 
+    /** Await the observable data provider carrying {@code expected}; resolution is off-loaded. */
+    private static void awaitCommandData(ClientCnx cnx, String expected) {
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            AuthenticationDataProvider provider = cnx.getAuthenticationDataProvider();
+            assertThat(provider).isNotNull();
+            assertThat(provider.getCommandData()).isEqualTo(expected);
+        });
+    }
+
     private ClientCnx connectedCnx(Supplier<String> tokenSupplier) throws Exception {
-        // A real async-capable built-in plugin (AuthenticationToken implements AsyncAuthenticationDriver via
-        // its v5-native body). With no bound framework services its credential resolves inline, so the
-        // connect continuation runs synchronously on the calling thread.
+        // A real built-in plugin: AuthenticationToken hands over its v5-native body, which the client drives
+        // directly. With no bound framework services its credential resolves inline, so the connect
+        // continuation runs synchronously on the calling thread.
         AuthenticationToken auth = new AuthenticationToken(tokenSupplier);
-        assertThat(auth).isInstanceOf(AsyncAuthenticationDriver.class);
+        assertThat(auth).isInstanceOf(V5AuthenticationProvider.class);
         ClientCnx cnx = newCnx(auth);
         cnx.channelActive(ctx);
         return cnx;
@@ -140,19 +159,21 @@ public class ClientCnxAsyncAuthTest {
         AtomicInteger counter = new AtomicInteger();
         ClientCnx cnx = connectedCnx(() -> "token-" + counter.incrementAndGet());
 
-        // Connect resolved the first credential and published it as the observable data provider.
-        assertThat(cnx.getAuthenticationDataProvider().getCommandData()).isEqualTo("token-1");
+        // Connect resolved the first credential and published it as the observable data provider. The
+        // resolution is off-loaded (credential acquisition never runs on the caller thread), so each
+        // publication is awaited rather than assumed to have happened by the time the call returns.
+        awaitCommandData(cnx, "token-1");
         long lastDisconnect = cnx.getLastDisconnectedTimestamp();
 
         // Broker pushes the REFRESH sentinel: the async path must open a fresh exchange, re-produce the
         // current credential, and republish the data provider — without disconnecting.
         cnx.handleAuthChallenge(refreshChallenge());
-        assertThat(cnx.getAuthenticationDataProvider().getCommandData()).isEqualTo("token-2");
+        awaitCommandData(cnx, "token-2");
         assertThat(cnx.getLastDisconnectedTimestamp()).isEqualTo(lastDisconnect);
 
         // A second REFRESH re-produces again, still on the single assignment site.
         cnx.handleAuthChallenge(refreshChallenge());
-        assertThat(cnx.getAuthenticationDataProvider().getCommandData()).isEqualTo("token-3");
+        awaitCommandData(cnx, "token-3");
         assertThat(cnx.getLastDisconnectedTimestamp()).isEqualTo(lastDisconnect);
     }
 
@@ -485,6 +506,11 @@ public class ClientCnxAsyncAuthTest {
 
     private static final class ControllableExchange implements AuthenticationExchange {
 
+        @Override
+        public String authMethodName() {
+            return "controllable";
+        }
+
         private final CompletableFuture<AuthData> authData = new CompletableFuture<>();
         private final CompletableFuture<AuthData> challengeResponse = new CompletableFuture<>();
 
@@ -530,6 +556,11 @@ public class ClientCnxAsyncAuthTest {
         @Override
         public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
             return new AuthenticationExchange() {
+                @Override
+                public String authMethodName() {
+                    return "always-responding";
+                }
+
                 @Override
                 public CompletableFuture<AuthData> getAuthDataAsync() {
                     return CompletableFuture.completedFuture(AuthData.of("init".getBytes(UTF_8)));
