@@ -29,6 +29,9 @@ import java.net.URL;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -90,6 +93,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
 
+    // PIP-478: ceiling for the admin's blocking authentication pool. Smaller than the client's 16 —
+    // an admin issues REST calls, not a fan-out of connection attempts against many brokers.
+    private static final int AUTH_BLOCKING_MAX_THREADS = 8;
+
     private final Clusters clusters;
     private final Brokers brokers;
     private final BrokerStats brokerStats;
@@ -124,6 +131,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
     // (e.g. OAuth2) so an admin-only client acquires tokens over the framework client; null when the auth
     // plugin does not implement ClientAuthenticationServicesAware. Closed with this admin.
     private FrameworkHttpClientFactory authHttpClientFactory;
+    // PIP-478: the admin's own bounded executor for potentially-blocking authentication work — the v4
+    // credential composition on every request, and whatever a services-aware plugin off-loads. Created
+    // lazily so an admin whose plugin never needs one pays nothing, and shut down with this admin.
+    private volatile ThreadPoolExecutor blockingAuthExecutor;
     @Getter
     private AsyncHttpConnectorProvider asyncConnectorProvider;
 
@@ -595,14 +606,44 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 () -> null, () -> null, () -> null, () -> authTlsFactory(conf), conf, clientInstanceId);
         OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
                 : OpenTelemetry.noop();
-        // No scheduler: nothing on the admin path schedules periodic authentication work. The blocking
-        // executor is left unbound deliberately too — a plugin that needs one falls back to the shared pool
-        // rather than running on the caller thread, which is where the SASL-over-HTTP challenge rounds
-        // off-load their GSSAPI work. Handing the admin's own request threads over instead would let a slow
-        // KDC consume them.
+        // No scheduler: nothing on the admin path schedules periodic authentication work, and a plugin that
+        // does schedule some gets the framework's shared one — binding a scheduled pool per admin to sit idle
+        // would cost more than it buys.
+        //
+        // The blocking executor *is* the admin's own. This is where the SASL-over-HTTP challenge rounds put
+        // their GSSAPI work, so it must never be the admin's request threads — a slow KDC would consume them
+        // — but leaving it unbound is not right either: the plugin then shares one process-wide pool with
+        // every other client in the JVM, so a stalled identity provider reached by one admin throttles
+        // authentication for all of them. A small bounded pool per admin keeps that blast radius inside the
+        // admin that owns the plugin, and is shut down with it.
         ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
-                authHttpClientFactory, null, null, Clock.systemDefaultZone(), openTelemetry, clientInstanceId);
+                authHttpClientFactory, null, blockingAuthExecutor(), Clock.systemDefaultZone(), openTelemetry,
+                clientInstanceId);
         aware.bindClientAuthenticationServices(services);
+    }
+
+    /**
+     * The admin's bounded executor for potentially-blocking authentication work (PIP-478).
+     *
+     * <p>Queues rather than rejects: every caller is an authenticated request, so a saturated pool must slow
+     * requests down rather than fail them. Core threads time out, so an admin whose plugin never blocks pays
+     * for nothing. Created lazily under this admin's monitor and shut down in {@link #close()}.
+     *
+     * @return the blocking authentication executor
+     */
+    private synchronized Executor blockingAuthExecutor() {
+        if (blockingAuthExecutor == null) {
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
+                    AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "pulsar-admin-auth-blocking");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+            executor.allowCoreThreadTimeOut(true);
+            blockingAuthExecutor = executor;
+        }
+        return blockingAuthExecutor;
     }
 
     @Override
@@ -623,6 +664,13 @@ public class PulsarAdminImpl implements PulsarAdmin {
         // factory first would tear it down while those subscriptions are still live, which a custom factory
         // is entitled to treat as an error.
         asyncConnectorProvider.close();
+        // PIP-478: after auth.close(), so a plugin shutting down over this executor still has it. shutdown()
+        // rather than shutdownNow(): queued work is a credential call for a request already in flight, and
+        // the threads are daemons, so a straggler cannot hold the JVM up.
+        ThreadPoolExecutor authExecutor = blockingAuthExecutor;
+        if (authExecutor != null) {
+            authExecutor.shutdown();
+        }
     }
 
     @VisibleForTesting

@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -123,7 +124,7 @@ public abstract class BaseResource {
      * {@code GET} to the original URI each round, exactly what the v4 {@code authenticationStage(...)} does
      * today — and yields the validated role-token headers. Otherwise the deprecated v4
      * {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks run verbatim, preserving
-     * behaviour for third-party plugins and single-pass built-ins.
+     * behaviour for third-party plugins and single-pass built-ins — but off the calling thread.
      */
     protected CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
         try {
@@ -137,6 +138,34 @@ public abstract class BaseResource {
                             .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
                 }
             }
+            // The deprecated v4 hooks may block — an OAuth2 or Athenz shim's getAuthData() refreshes its
+            // credential with a synchronous HTTP exchange — and this method runs on whatever thread issued the
+            // admin call, which for a broker calling its own admin client is a request-handling thread.
+            // HttpClient.computeAuthHeaders off-loads the identical composition for the lookup path and names
+            // the self-deadlock it avoids; this was the last caller-thread credential resolution left, and the
+            // one place PIP-478's "every synchronous v4 plugin call is off-loaded" was still an overstatement.
+            //
+            // A null executor sends the work to the framework's shared blocking pool rather than running it
+            // inline. That is deliberate: BaseResource is constructed by 30 subclasses that would each have to
+            // thread an executor through, and the shared pool is exactly what PIP-478 provides for a component
+            // with none to lend. The admin's own bounded pool is still what a services-aware plugin gets, so
+            // the work that can actually stall — a KDC or IdP round trip inside the plugin — stays isolated
+            // per admin.
+            return V5AuthContexts.supplyBlocking(null, () -> v4AuthHeaders(uri)).thenCompose(headers -> headers);
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    /**
+     * The deprecated v4 HTTP authentication composition, run on a blocking executor by
+     * {@link #computeAuthHeaders(URI)}.
+     *
+     * @param uri the request URI
+     * @return a future of the headers, or of {@code null} when the plugin contributes none
+     */
+    private CompletableFuture<Map<String, String>> v4AuthHeaders(URI uri) {
+        try {
             AuthenticationDataProvider authData = auth.getAuthData(uri.getHost());
             if (!authData.hasDataForHttp()) {
                 return CompletableFuture.completedFuture(null);
