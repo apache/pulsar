@@ -583,8 +583,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 () -> null, () -> null, () -> null, () -> authTlsFactory(conf), conf, clientInstanceId);
         OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
                 : OpenTelemetry.noop();
-        // The admin OAuth2 flow only uses the HTTP client factory; the scheduler / blocking executor of the
-        // (binary-protocol) auth services are unused on the HTTP-only admin path.
+        // No scheduler: nothing on the admin path schedules periodic authentication work. The blocking
+        // executor is left unbound deliberately too — a plugin that needs one falls back to the shared pool
+        // rather than running on the caller thread, which is where the SASL-over-HTTP challenge rounds
+        // off-load their GSSAPI work. Handing the admin's own request threads over instead would let a slow
+        // KDC consume them.
         ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
                 authHttpClientFactory, null, null, Clock.systemDefaultZone(), openTelemetry, clientInstanceId);
         aware.bindClientAuthenticationServices(services);

@@ -1747,22 +1747,6 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * Resolve the {@code PulsarTlsFactory} class name for outbound connections to a remote cluster: the
-     * cluster's own {@code brokerClientTlsFactoryClassName} when set, else the broker-level one (PIP-478).
-     *
-     * <p>Unlike the TLS <em>material</em> in a {@link ClusterData} entry — which is taken wholesale, so a
-     * cluster that enables broker-client TLS supplies all of its own certificates — the factory falls back.
-     * The factory selects the <em>mechanism</em> that loads material rather than the material itself, and a
-     * deployment that configured a custom broker-client factory (an HSM-backed one, say) must not silently
-     * revert to the default file-based factory just because a cluster entry did not repeat the setting.
-     * That is the same reasoning that makes {@code brokerClientSslProvider} / {@code brokerClientJsseProvider}
-     * broker-level in these helpers: a silent downgrade of the TLS mechanism is a security regression.
-     *
-     * @param clusterValue the cluster's value, possibly blank
-     * @param brokerValue  the broker-level value
-     * @return the cluster value when non-blank, else the broker-level value
-     */
-    /**
      * Log the stale PIP-337 per-cluster factory selection, once per cluster (PIP-478). This is the single
      * removed PIP-337 key whose stale value cannot fail loud — rejecting it on a metadata read would make the
      * cluster unloadable — so a WARN naming the cluster is the whole remediation signal, and both
