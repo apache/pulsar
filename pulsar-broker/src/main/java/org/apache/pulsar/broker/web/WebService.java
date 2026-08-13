@@ -153,6 +153,7 @@ public class WebService implements AutoCloseable {
             httpConfig.addCustomizer(new ForwardedRequestCustomizer());
         }
         httpConfig.setRequestHeaderSize(pulsar.getConfig().getHttpMaxRequestHeaderSize());
+        httpConfig.setResponseHeaderSize(pulsar.getConfig().getHttpMaxResponseHeaderSize());
         httpConfig.setIdleTimeout(pulsar.getConfig().getHttpServerIdleTimeout());
         if (tlsRequired) {
             // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
