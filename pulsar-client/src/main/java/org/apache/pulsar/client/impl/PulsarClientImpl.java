@@ -527,7 +527,12 @@ public class PulsarClientImpl implements PulsarClient {
      * @return whether the client TLS factory must be composed
      */
     private boolean needsClientTlsFactory() {
-        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial();
+        // An adopted factory counts too. Resolution is what initializes it and puts it under this client's
+        // ownership, so skipping it would leave a factory the client still closes on shutdown but never
+        // initialized — and would serve an uninitialized factory to anything that asked. The admin path
+        // applies the same rule (AsyncHttpConnector.needsTlsFactory), and pip-478.md states it for both.
+        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial()
+                || conf.getTlsFactory() != null;
     }
 
     /**

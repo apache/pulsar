@@ -135,7 +135,7 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         String provider = firstNonBlank(conf.getWebServiceTlsProvider(), conf.getTlsProvider());
         return serverPolicy(conf, provider,
                 // Web listeners only: unset means Conscrypt when it is usable on this platform.
-                TlsFactorySupport.resolveWebJsseProvider(null, provider),
+                TlsFactorySupport.resolveWebJsseProvider(conf.getJsseProvider(), provider),
                 firstNonEmpty(conf.getWebServiceTlsProtocols(), conf.getTlsProtocols()),
                 firstNonEmpty(conf.getWebServiceTlsCiphers(), conf.getTlsCiphers()));
     }
@@ -145,7 +145,7 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         // The binary listeners keep the JVM default when unset — the Conscrypt default is a web-listener
         // behaviour, restored from 4.x where only the web keys carried it.
         return serverPolicy(conf, conf.getTlsProvider(),
-                TlsFactorySupport.resolveJsseProvider(null, conf.getTlsProvider()),
+                TlsFactorySupport.resolveJsseProvider(conf.getJsseProvider(), conf.getTlsProvider()),
                 conf.getTlsProtocols(), conf.getTlsCiphers());
     }
 
@@ -207,7 +207,8 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .protocols(toList(conf.getBrokerClientTlsProtocols()))
                 .ciphers(toList(conf.getBrokerClientTlsCiphers()))
                 // The outbound leg has its own provider setting, on the same two axes as tlsProvider above.
-                .jsseProvider(TlsFactorySupport.resolveJsseProvider(null, conf.getBrokerClientSslProvider()));
+                .jsseProvider(TlsFactorySupport.resolveJsseProvider(conf.getBrokerClientJsseProvider(),
+                        conf.getBrokerClientSslProvider()));
         if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getBrokerClientTlsKeyStoreType())

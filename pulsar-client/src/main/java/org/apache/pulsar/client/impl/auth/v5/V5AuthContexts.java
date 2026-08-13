@@ -175,7 +175,11 @@ public final class V5AuthContexts {
 
         @Override
         public Executor blockingExecutor() {
-            return null;
+            // Never null: the SPI tells a plugin to off-load its blocking work here, so handing it null
+            // would make every third-party plugin either NPE or defensively do the one thing the contract
+            // forbids — run credential I/O on the calling thread. The built-ins are only safe from that
+            // because they funnel through supplyBlocking, which substitutes this same pool.
+            return sharedBlockingExecutor();
         }
 
         @Override
