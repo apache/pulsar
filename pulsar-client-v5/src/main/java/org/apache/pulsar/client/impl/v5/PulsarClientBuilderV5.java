@@ -116,15 +116,16 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * choosing how the plugin is driven. Runs at {@link #build()} on the application thread — off the Netty
      * event loop — where probing a bridged plugin for its material is safe.
      *
-     * <p>A bridged v4 plugin (from {@code AuthenticationFactory.token/tls/create}) that performs <b>no
-     * credential I/O</b> — the built-in TLS-material plugins (their material is folded into the client TLS
-     * configuration; the binary handshake carries an empty payload) and disabled auth — is driven raw on the
-     * v4 client. A credential-fetching v4 plugin, and every genuinely v5-native plugin, is exposed through
-     * {@link V5ToV4AuthenticationAdapter} so its (possibly blocking) {@code getAuthData} off-loads to the
-     * blocking executor instead of running on the Netty event loop (PIP-478: v4 credential calls are
-     * ALWAYS off-loaded). The adapter implements {@code ClientAuthenticationServicesAware}, so the client
-     * late-binds real executors / HTTP client factory / client instance id into it before {@code start()}
-     * (PIP-478).
+     * <p>A bridged v4 plugin (from {@code AuthenticationFactory.token/tls/create}) is unwrapped back to the
+     * raw v4 instance and stored in the v4 slot, which stays the single owner of its lifecycle — the client
+     * starts it, closes it, and reads its TLS material and OAuth2 IdP trust from there. Any TLS material it
+     * carries is folded into the client's policy map first, on this thread. A genuinely v5-native plugin goes
+     * to the v5 slot instead.
+     *
+     * <p>Off-loading is not decided here. Since the inversion the client drives one resolved v5
+     * {@code Authentication} for every binary connection, and the driver it builds is what keeps credential
+     * work off the event loop: a bridged v4 plugin reaches it through {@code LegacyV4AuthenticationAdapter},
+     * whose credential calls always run on the blocking executor.
      */
     private void applyAuthentication() {
         if (v5Authentication == null) {
@@ -146,11 +147,12 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     }
 
     /**
-     * Resolve the configured authentication and return the v4 {@code Authentication} the client would drive.
-     * Package-private for tests that assert the unwrap-vs-offload decision without standing up a broker
+     * Resolve the configured authentication and return the v4 {@code Authentication} slot's contents.
+     * Package-private for tests that assert the unwrap decision without standing up a broker
      * (VisibleForTesting; Guava's annotation is not on this module's classpath).
      *
-     * @return the resolved v4 authentication (a raw v4 engine, or a wrapping {@code V5ToV4AuthenticationAdapter})
+     * @return the raw v4 plugin when a bridged v4 plugin was configured, else {@code null} — a genuinely
+     *         v5-native plugin occupies the v5 slot and leaves this one empty
      */
     org.apache.pulsar.client.api.Authentication resolveAuthenticationForTest() {
         applyAuthentication();
