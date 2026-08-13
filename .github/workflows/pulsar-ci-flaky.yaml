@@ -134,6 +134,10 @@ jobs:
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
 
+      - name: Check if the PR is ready for running CI
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/check-pr-ready-to-test
+
       - name: Check if coverage should be collected
         id: check_coverage
         run: |
