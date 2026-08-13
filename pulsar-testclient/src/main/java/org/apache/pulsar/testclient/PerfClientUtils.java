@@ -162,6 +162,14 @@ public class PerfClientUtils {
             if (arguments.tlsHostnameVerificationEnable != null) {
                 tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
             }
+            // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
+            // independent — they apply to PEM and keystore material alike.
+            if (isNotBlank(arguments.jsseProvider)) {
+                tls.jsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                tls.jcaProvider(arguments.jcaProvider);
+            }
             builder.tlsPolicy(tls.build());
         }
 
