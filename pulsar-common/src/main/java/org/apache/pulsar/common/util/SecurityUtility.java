@@ -56,7 +56,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -231,42 +230,6 @@ public class SecurityUtility {
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey, providerName);
     }
 
-    /**
-     * Creates {@link SslContext} with capability to do auto-cert refresh.
-     * @param allowInsecureConnection
-     * @param trustCertsFilePath
-     * @param certFilePath
-     * @param keyFilePath
-     * @param sslContextAlgorithm
-     * @param refreshDurationSec
-     * @param executor
-     * @return
-     * @throws GeneralSecurityException
-     * @throws SSLException
-     * @throws FileNotFoundException
-     * @throws IOException
-     */
-    public static SslContext createAutoRefreshSslContextForClient(SslProvider sslProvider,
-                                                                  boolean allowInsecureConnection,
-                                                                  String trustCertsFilePath, String certFilePath,
-                                                                  String keyFilePath, String sslContextAlgorithm,
-                                                                  int refreshDurationSec,
-                                                                  ScheduledExecutorService executor)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
-        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient().sslProvider(sslProvider);
-        sslContexBuilder.keyManager(keyManager);
-        if (allowInsecureConnection) {
-            sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-        } else {
-            if (StringUtils.isNotBlank(trustCertsFilePath)) {
-                TrustManagerProxy trustManager =
-                        new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
-                sslContexBuilder.trustManager(trustManager);
-            }
-        }
-        return sslContexBuilder.build();
-    }
 
     public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
                                                             String trustCertsFilePath,
