@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jsr310-2.18.9.jar
      - jackson-module-parameter-names-2.18.9.jar
  * Caffeine -- caffeine-2.9.1.jar
- * Conscrypt -- conscrypt-openjdk-uber-2.6.1.jar
+ * Conscrypt -- conscrypt-openjdk-uber-2.6.2.jar
  * Gson
     - gson-2.13.2.jar
  * Guava
