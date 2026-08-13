@@ -300,13 +300,9 @@ public final class JcaProviders {
         // verifier on its own (https://github.com/google/conscrypt/pull/1060 fixing issue 1015), so nothing
         // has to be propagated onto the individual trust managers.
         //
-        // CAVEAT while both TLS stacks coexist: Conscrypt.setDefaultHostnameVerifier is process-global, and
-        // SecurityUtility's static initializer (still the wired PIP-337 path) sets it to the CN-tolerant
-        // TlsHostnameVerifier. Whenever that class has been loaded, that relaxed verifier — not Conscrypt's
-        // own — is the default the trust managers fall back to. Nothing routes through this class yet so no
-        // deployment is affected today; the PR that turns SAN-only hostname verification on by default must
-        // neutralize that global (or land together with SecurityUtility's removal) for the SAN-only guarantee
-        // to hold on a Conscrypt-pinned deployment.
+        // Nothing overrides that default any more: the CN-tolerant TlsHostnameVerifier that SecurityUtility
+        // used to install process-wide was removed with it, so a Conscrypt-pinned client gets Conscrypt's
+        // own RFC 2818 verification.
 
         Security.addProvider(provider);
         log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)
