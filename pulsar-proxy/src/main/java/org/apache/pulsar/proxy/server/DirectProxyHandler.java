@@ -42,14 +42,15 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -61,6 +62,7 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
 @CustomLog
@@ -80,7 +82,6 @@ public class DirectProxyHandler {
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
-    private AuthenticationDataProvider authenticationDataProvider;
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
     final boolean tlsEnabledWithBroker;
@@ -259,6 +260,9 @@ public class DirectProxyHandler {
         private final ProxyConfiguration config;
         private final int protocolVersion;
         private final FeatureFlags featureFlags;
+        // PIP-478: the v5 exchange this backend connection authenticates through. Replaced on a broker-pushed
+        // REFRESH, which starts a fresh exchange. Only ever touched on this channel's event loop.
+        private AuthenticationExchange authExchange;
 
         public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName,
                                    FeatureFlags featureFlags) {
@@ -275,16 +279,58 @@ public class DirectProxyHandler {
             if (config.isHaProxyProtocolEnabled()) {
                 writeHAProxyMessage();
             }
-
-            // Send the Connect command to broker
-            authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            ByteBuf command = Commands.newConnect(
-                    authentication.getAuthMethodName(), authData, protocolVersion,
-                    proxyConnection.clientVersion, null /* target broker */,
-                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion(), featureFlags);
-            writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
+
+            // Send the Connect command to broker. PIP-478: the credential is resolved through a v5 exchange
+            // rather than by calling the v4 plugin here. This method runs on the Netty event loop, and the v4
+            // call it used to make is arbitrary plugin code — an OAuth2 token endpoint round trip, an Athenz
+            // ZTS fetch, a GSSAPI exchange with the KDC — which stalled every connection multiplexed onto
+            // that loop for its duration. The exchange's calls always off-load.
+            authExchange = service.getProxyClientAuthenticationDriver().newAuthenticationExchange(remoteHostName);
+            sendWhenResolved(authExchange.getAuthDataAsync(),
+                    authData -> Commands.newConnect(
+                            authentication.getAuthMethodName(), authData, protocolVersion,
+                            proxyConnection.clientVersion, null /* target broker */,
+                            originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion(),
+                            featureFlags),
+                    "connect");
+        }
+
+        /**
+         * Send a command built from an asynchronously-resolved credential (PIP-478).
+         *
+         * <p>The continuation is dispatched onto this channel's event loop, so the command is built and
+         * written there whether the credential was already in memory or needed I/O — command ordering on the
+         * channel is therefore unchanged from the synchronous version. A failure closes the backend channel:
+         * the proxy has no credential to send, and leaving the connection open would wait out the broker's
+         * timeout instead of letting the client retry.
+         *
+         * @param resolution     the credential being resolved
+         * @param commandBuilder builds the command to send from the resolved credential
+         * @param what           what is being authenticated, for logging
+         */
+        private void sendWhenResolved(CompletableFuture<AuthData> resolution,
+                                      Function<AuthData, ByteBuf> commandBuilder, String what) {
+            resolution.whenCompleteAsync((authData, throwable) -> {
+                if (throwable != null) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                    log.error().attr("channel", ctx.channel()).attr("stage", what).exception(cause)
+                            .log("Failed to resolve the proxy's broker-client credential");
+                    ctx.close();
+                    return;
+                }
+                if (!ctx.channel().isActive()) {
+                    // The backend connection went away while the credential was resolving.
+                    return;
+                }
+                try {
+                    writeAndFlush(commandBuilder.apply(authData));
+                } catch (Throwable t) {
+                    log.error().attr("channel", ctx.channel()).attr("stage", what).exception(t)
+                            .log("Failed to send the proxy's broker-client authentication command");
+                    ctx.close();
+                }
+            }, ctx.executor());
         }
 
         @Override
@@ -345,37 +391,39 @@ public class DirectProxyHandler {
             checkArgument(authChallenge.hasChallenge());
             checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
 
-            if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
-                try {
-                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                } catch (PulsarClientException e) {
-                    log.error().attr("channel", ctx.channel())
-                            .exception(e)
-                            .log("Error refreshing authentication data provider");
-                    return;
+            // PIP-478 binary routing rule 2: the broker's REFRESH sentinel restarts authentication with a
+            // fresh exchange whose getAuthDataAsync() re-produces the current credential, rather than being
+            // routed into the conversation it just terminated. Any other challenge is a round of the current
+            // exchange, whose state slot carries conversation state across rounds. This mirrors ClientCnx.
+            boolean refresh =
+                    Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
+            CompletableFuture<AuthData> resolution;
+            try {
+                if (refresh) {
+                    authExchange =
+                            service.getProxyClientAuthenticationDriver().newAuthenticationExchange(remoteHostName);
+                    resolution = authExchange.getAuthDataAsync();
+                } else {
+                    resolution = authExchange
+                            .authenticateAsync(AuthData.of(authChallenge.getChallenge().getAuthData()));
                 }
+            } catch (Throwable t) {
+                // One try/catch so a plugin that throws synchronously fails the connection rather than
+                // propagating up the event loop.
+                resolution = CompletableFuture.failedFuture(t);
             }
 
             // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
-            try {
-                AuthData authData = authenticationDataProvider
-                    .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
-
+            sendWhenResolved(resolution, authData -> {
                 checkState(!authData.isComplete());
-
-                ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
-                    authData,
-                    this.protocolVersion,
-                    PulsarVersion.getVersion());
-
                 log.debug().attr("channel", ctx.channel())
                         .attr("authMethod", authentication.getAuthMethodName())
                         .log("Mutual auth");
-
-                writeAndFlush(request);
-            } catch (Exception e) {
-                log.error().exception(e).log("Error mutual verify");
-            }
+                return Commands.newAuthResponse(authentication.getAuthMethodName(),
+                        authData,
+                        this.protocolVersion,
+                        PulsarVersion.getVersion());
+            }, "challenge");
         }
 
         @Override

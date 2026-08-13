@@ -69,6 +69,9 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -96,6 +99,8 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
+    // PIP-478: lazily built from proxyClientAuthentication; see getProxyClientAuthenticationDriver().
+    private BinaryAuthenticationDriver proxyClientAuthenticationDriver;
     @Getter
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
     @Getter
@@ -677,6 +682,29 @@ public class ProxyService implements Closeable {
 
     public Authentication getProxyClientAuthenticationPlugin() {
         return this.proxyClientAuthentication;
+    }
+
+    /**
+     * The v5 driver the proxy's broker connections authenticate through (PIP-478).
+     *
+     * <p>The proxy owns one started v4 plugin for all of its broker connections, so it owns one driver:
+     * every {@code DirectProxyHandler} opens its own exchange against it, and the exchange is what carries
+     * per-connection conversation state. Built from the <em>started</em> plugin, because {@link ProxyService}
+     * starts and closes that instance itself — the bridge must not run that lifecycle a second time.
+     *
+     * <p>No {@code ClientAuthenticationServices} are bound: the proxy is not a {@code PulsarClient} and has
+     * no client-owned executor to lend. Credential work therefore lands on the framework's shared blocking
+     * pool, which is the case {@code V5AuthContexts} documents for exactly this caller — the alternative,
+     * running it inline, is the Netty event loop.
+     *
+     * @return the shared binary authentication driver
+     */
+    public synchronized BinaryAuthenticationDriver getProxyClientAuthenticationDriver() {
+        if (proxyClientAuthenticationDriver == null) {
+            proxyClientAuthenticationDriver = new V5BinaryAuthenticationDriver(
+                    V5AuthenticationLoader.forStartedV4Plugin(proxyClientAuthentication));
+        }
+        return proxyClientAuthenticationDriver;
     }
 
     public synchronized PrometheusMetricsServlet getMetricsServlet() {
