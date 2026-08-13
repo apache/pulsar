@@ -258,6 +258,9 @@ public class WebSocketService implements Closeable {
         if (isNotBlank(config.getBrokerClientJsseProvider())) {
             conf.setJsseProvider(config.getBrokerClientJsseProvider());
         }
+        if (isNotBlank(config.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(config.getBrokerClientJcaProvider());
+        }
     }
 
     private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {

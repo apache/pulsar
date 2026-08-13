@@ -2328,6 +2328,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (isBlank(workerConfig.getJsseProvider())) {
             workerConfig.setJsseProvider(brokerConfig.getJsseProvider());
         }
+        if (isBlank(workerConfig.getBrokerClientJcaProvider())) {
+            workerConfig.setBrokerClientJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+        }
+        if (isBlank(workerConfig.getJcaProvider())) {
+            workerConfig.setJcaProvider(brokerConfig.getJcaProvider());
+        }
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());

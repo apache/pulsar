@@ -615,6 +615,24 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String brokerClientJsseProvider = null;
 
     @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the functions worker's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the JCA (material) provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — the outbound counterpart of jcaProvider. An embedded "
+                    + "(broker-hosted) worker inherits the broker's value when this is unset."
+    )
+    private String brokerClientJcaProvider = null;
+
+    @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore type configuration in function worker: JKS, PKCS12"
     )

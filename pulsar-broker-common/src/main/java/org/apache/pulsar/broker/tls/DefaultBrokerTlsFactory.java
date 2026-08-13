@@ -180,7 +180,10 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 // selects the Netty engine above and yields null on the JSSE axis; any other value is a JSSE
                 // provider name (e.g. Conscrypt), which v4 used to build the SSLContext. Resolved by the
                 // caller, because the web listener defaults to Conscrypt when unset and the binary ones do not.
-                .jsseProvider(jsseProvider);
+                .jsseProvider(jsseProvider)
+                // The material axis: unlike the JSSE one this has no web-listener default, so it is read
+                // straight from the config on every server purpose.
+                .jcaProvider(conf.getJcaProvider());
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
@@ -208,7 +211,8 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
                 .ciphers(toList(conf.getBrokerClientTlsCiphers()))
                 // The outbound leg has its own provider setting, on the same two axes as tlsProvider above.
                 .jsseProvider(TlsFactorySupport.resolveJsseProvider(conf.getBrokerClientJsseProvider(),
-                        conf.getBrokerClientSslProvider()));
+                        conf.getBrokerClientSslProvider()))
+                .jcaProvider(conf.getBrokerClientJcaProvider());
         if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getBrokerClientTlsKeyStoreType())

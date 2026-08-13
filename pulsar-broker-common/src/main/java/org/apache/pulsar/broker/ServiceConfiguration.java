@@ -4286,6 +4286,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String jsseProvider = null;
 
     @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order, i.e. the behaviour of releases before "
+                    + "PIP-478. Applies to the broker's listeners.")
+    private String jcaProvider = null;
+
+    @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore type configuration in broker: JKS, PKCS12"
     )
@@ -4452,6 +4462,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "overriding the engine choice. Resolved via the ServiceLoader mechanism (with a fallback "
                     + "to an already-registered provider), failing loudly when unresolvable.")
     private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the JCA (material) provider for the broker's own outbound (broker-to-broker) "
+                    + "client connections — the outbound counterpart of jcaProvider, on the same axis. "
+                    + "Unset uses the JVM provider search order.")
+    private String brokerClientJcaProvider = null;
 
     /* packages management service configurations (begin) */
 

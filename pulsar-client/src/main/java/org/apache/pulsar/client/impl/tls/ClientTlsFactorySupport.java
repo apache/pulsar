@@ -175,7 +175,8 @@ public final class ClientTlsFactorySupport {
                 .enableHostnameVerification(conf.isTlsHostnameVerificationEnable())
                 .protocols(toList(conf.getTlsProtocols()))
                 .ciphers(toList(conf.getTlsCiphers()))
-                .jsseProvider(resolveClientJsseProvider(conf));
+                .jsseProvider(resolveClientJsseProvider(conf))
+                .jcaProvider(conf.getJcaProvider());
         if (conf.isUseKeyStoreTls()) {
             // Map the keystore and truststore types independently (v4 parity): a mixed setup such as a PKCS12
             // keystore with a JKS truststore must load each store with its own type.

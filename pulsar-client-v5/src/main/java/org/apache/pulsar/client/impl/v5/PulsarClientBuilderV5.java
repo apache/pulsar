@@ -406,7 +406,10 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
                     // Preserve the pinned JSSE (SSLContext) provider across the fold. A FIPS deployment
                     // pins it via tlsPolicy(...); dropping it here would let the transport fall back to
                     // the default JDK engine, silently defeating the pin.
-                    .jsseProvider(base.jsseProvider());
+                    .jsseProvider(base.jsseProvider())
+                    // Same reasoning for the material axis: a FIPS deployment pins BCFIPS alongside BCJSSE,
+                    // and dropping half the pair is as bad as dropping both.
+                    .jcaProvider(base.jcaProvider());
         }
         return b;
     }

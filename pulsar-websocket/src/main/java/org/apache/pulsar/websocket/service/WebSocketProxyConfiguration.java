@@ -285,6 +285,21 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientJsseProvider = null;
 
     @FieldContext(
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the WebSocket proxy's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the JCA (material) provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — the outbound counterpart of jcaProvider."
+    )
+    private String brokerClientJcaProvider = null;
+
+    @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
     )
     private String tlsKeyStoreType = "JKS";

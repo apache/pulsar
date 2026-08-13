@@ -393,6 +393,12 @@ tlsProvider:
 # provider, failing loudly when unresolvable.
 # jsseProvider:
 
+# PIP-478: name of a JCA (material) java.security.Provider supplying the KeyStore, CertificateFactory
+# and KeyFactory engines that parse the TLS material, e.g. BCFIPS for FIPS alongside jsseProvider=BCJSSE.
+# A distinct axis from jsseProvider, which supplies the SSLContext: JSSE service types are never taken
+# from this provider. Unset uses the JVM provider search order, i.e. pre-PIP-478 behaviour.
+# jcaProvider:
+
 # PIP-478: the Netty SSL engine provider for the worker's OWN OUTBOUND (worker-to-broker) client and admin
 # connections — JDK, OPENSSL or OPENSSL_REFCNT. The tlsProvider key above governs the worker's web server
 # only; this is its outbound counterpart, matching the broker's brokerClientSslProvider. Applied
@@ -406,6 +412,10 @@ tlsProvider:
 # brokerClientJsseProvider. Applied independently of brokerClientTlsFactoryClassName. An embedded
 # (broker-hosted) worker inherits the broker's value when this is unset.
 # brokerClientJsseProvider:
+
+# PIP-478: the JCA (material) provider for this component's OWN OUTBOUND client connections — the
+# outbound counterpart of jcaProvider, on the same axis. Unset uses the JVM provider search order.
+# brokerClientJcaProvider:
 
 # Enable TLS with KeyStore type configuration in function worker.
 tlsEnabledWithKeyStore: false

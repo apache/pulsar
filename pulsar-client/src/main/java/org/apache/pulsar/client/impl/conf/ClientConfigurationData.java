@@ -381,6 +381,16 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String jsseProvider = null;
 
     @Schema(
+            name = "jcaProvider",
+            description = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order, i.e. the behaviour of releases before PIP-478."
+    )
+    private String jcaProvider = null;
+
+    @Schema(
             name = "tlsKeyStoreType",
             description = "TLS KeyStore type configuration."
     )

@@ -372,6 +372,9 @@ public final class WorkerUtils {
         if (isNotBlank(workerConfig.getBrokerClientJsseProvider())) {
             conf.setJsseProvider(workerConfig.getBrokerClientJsseProvider());
         }
+        if (isNotBlank(workerConfig.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(workerConfig.getBrokerClientJcaProvider());
+        }
     }
 
     private static void applyBrokerClientTlsFactory(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
