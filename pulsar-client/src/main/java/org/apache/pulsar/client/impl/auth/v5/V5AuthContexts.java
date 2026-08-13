@@ -242,12 +242,19 @@ public final class V5AuthContexts {
 
         @Override
         public ScheduledExecutorService scheduler() {
-            return services.scheduler();
+            // Same fallback as the unbound context, and for the same reason: a component may bind services
+            // while leaving an accessor it has no use for null — the admin binds no scheduler, because
+            // nothing on its own path schedules periodic authentication work. Without this, binding
+            // *partial* services would be worse for a plugin than binding none at all, since the unbound
+            // context guarantees non-null. The SPI's "never null" contract now holds on every path.
+            ScheduledExecutorService scheduler = services.scheduler();
+            return scheduler == null ? SharedScheduler.INSTANCE : scheduler;
         }
 
         @Override
         public Executor blockingExecutor() {
-            return services.blockingExecutor();
+            Executor executor = services.blockingExecutor();
+            return executor == null ? sharedBlockingExecutor() : executor;
         }
 
         @Override
