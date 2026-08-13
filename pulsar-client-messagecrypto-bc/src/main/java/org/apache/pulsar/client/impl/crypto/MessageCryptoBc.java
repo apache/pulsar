@@ -95,8 +95,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // BouncyCastle JCA provider, resolved lazily on first use via the initialization-on-demand holder
     // idiom. Resolution is delegated to JcaProviders.requireBouncyCastleProvider() — the same
     // FIPS-agnostic lookup used elsewhere in Pulsar (e.g. TLS) — so message crypto uses whichever
-    // BouncyCastle provider is
-    // present on the classpath: the non-FIPS "BC" (org.bouncycastle.jce.provider.BouncyCastleProvider)
+    // BouncyCastle provider is present on the classpath: the non-FIPS "BC"
+    // (org.bouncycastle.jce.provider.BouncyCastleProvider)
     // or the FIPS "BCFIPS" (org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider), rather than
     // hardcoding one. The resolved provider is passed directly to the JCA getInstance(...) calls.
     // Deferring the lookup to first use (asymmetric key wrapping with RSA-OAEP/ECIES, or EC key

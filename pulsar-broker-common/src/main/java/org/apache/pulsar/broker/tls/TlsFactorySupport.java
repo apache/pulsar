@@ -293,7 +293,7 @@ public final class TlsFactorySupport {
      * is conditional, because a default that breaks a supported platform is not a usable default.
      *
      * <p>This applies to server listeners only. Client-side hostname verification is unaffected: a server
-     * does not verify hostnames, so pinning Conscrypt here cannot interact with the SAN-only verification
+     * does not verify hostnames, so pinning Conscrypt here cannot interact with the hostname verification
      * PIP-478 turns on.
      *
      * @param explicitJsseProvider the configured {@code jsseProvider} (may be null/blank)

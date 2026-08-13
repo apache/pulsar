@@ -186,7 +186,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         conf.setProxyRoles(Collections.singleton("Proxy"));
         // Advertise over loopback so the broker service/web URLs the proxy connects to (localhost) match the
         // broker server certificate's SubjectAltName (tls/server-cert.pem carries DNS:localhost, IP:127.0.0.1).
-        // TLS hostname verification is on by default (PIP-478, SAN-only), and the default advertised address
+        // TLS hostname verification is on by default (PIP-478), and the default advertised address
         // resolves to the machine's canonical hostname, which is not in the cert SAN (fails on CI runners).
         conf.setAdvertisedAddress("localhost");
 
@@ -245,7 +245,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerWebServiceURLTLS(pulsar.getWebServiceAddressTls());
         // Advertise over loopback so the client-facing proxy service URL host (localhost) matches the proxy
         // server certificate's SubjectAltName (tls/server-cert.pem carries DNS:localhost, IP:127.0.0.1). TLS
-        // hostname verification is on by default (PIP-478, SAN-only); the default advertised address resolves
+        // hostname verification is on by default (PIP-478); the default advertised address resolves
         // to the machine's canonical hostname, which is not in the cert SAN (fails on CI runners). The two
         // dedicated hostname-verification tests still fail as intended because their server presents a no-SAN
         // certificate, which cannot match any host regardless of the advertised address.
