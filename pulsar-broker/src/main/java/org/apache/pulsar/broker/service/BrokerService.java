@@ -1764,10 +1764,14 @@ public class BrokerService implements Closeable {
         if (!stalePip337ClusterFactoryWarned.add(cluster)) {
             return;
         }
+        // The params value is deliberately NOT logged: PIP-337 defined it as an opaque string interpreted by
+        // the custom plugin, so it routinely carries keystore passwords or KMS credentials. Report only
+        // whether it was set — enough for the operator to find it, without copying a secret into the log.
         log.warn()
                 .attr("cluster", cluster)
                 .attr("brokerClientSslFactoryPlugin", data.getBrokerClientSslFactoryPlugin())
-                .attr("brokerClientSslFactoryPluginParams", data.getBrokerClientSslFactoryPluginParams())
+                .attr("brokerClientSslFactoryPluginParamsSet",
+                        StringUtils.isNotBlank(data.getBrokerClientSslFactoryPluginParams()))
                 .log("Ignoring the PIP-337 per-cluster SSL factory settings: it was removed in Pulsar 5.0 "
                         + "(PIP-478). Set ClusterData.brokerClientTlsFactoryClassName (per cluster) or the "
                         + "broker-level brokerClientTlsFactoryClassName instead");

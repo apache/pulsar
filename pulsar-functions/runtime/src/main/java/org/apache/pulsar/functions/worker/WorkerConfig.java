@@ -596,6 +596,25 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String jsseProvider = null;
 
     @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the Netty SSL engine provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — JDK, OPENSSL or OPENSSL_REFCNT. The listener-side "
+                    + "tlsProvider governs the worker's web server only; this is the outbound counterpart, "
+                    + "matching the broker's brokerClientSslProvider. Leave unset to keep the JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the worker's own outbound "
+                    + "(worker-to-broker) client and admin connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the worker's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore type configuration in function worker: JKS, PKCS12"
     )

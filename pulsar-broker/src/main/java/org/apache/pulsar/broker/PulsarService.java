@@ -2312,6 +2312,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
         workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        // PIP-478: an embedded worker inherits the broker's TLS provider pins — the outbound (broker-client)
+        // axes for its own worker-to-broker connections, and the web-listener axes for its web server — unless
+        // its own configuration file sets them. Without this a FIPS deployment that pins BCJSSE in broker.conf
+        // gets an embedded worker silently running on the default provider.
+        if (isBlank(workerConfig.getBrokerClientSslProvider())) {
+            workerConfig.setBrokerClientSslProvider(brokerConfig.getBrokerClientSslProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJsseProvider())) {
+            workerConfig.setBrokerClientJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+        }
+        if (isBlank(workerConfig.getTlsProvider())) {
+            workerConfig.setTlsProvider(brokerConfig.getWebServiceTlsProvider());
+        }
+        if (isBlank(workerConfig.getJsseProvider())) {
+            workerConfig.setJsseProvider(brokerConfig.getJsseProvider());
+        }
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());

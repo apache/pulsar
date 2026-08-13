@@ -692,6 +692,11 @@ public class ClientCnx extends PulsarHandler {
             Throwable cause = FutureUtil.unwrapCompletionException(throwable);
             log.error().exception(cause).log("Error mutual verify");
             connectionFuture.completeExceptionally(cause);
+            // Close the channel too, as the challenge-round cap above does. On a post-connect REFRESH the
+            // connection future is already completed, so failing it is a no-op: without this the broker gets
+            // no auth response, the channel stays open, and the client neither reauthenticates nor reconnects
+            // until the broker times it out. Closing triggers channelInactive and the normal reconnect.
+            ctx.close();
             return;
         }
         try {
@@ -716,6 +721,7 @@ public class ClientCnx extends PulsarHandler {
                             .exceptionMessage(writeFuture.cause())
                             .log("Failed to send request for mutual auth to broker");
                     connectionFuture.completeExceptionally(writeFuture.cause());
+                    ctx.close();
                 }
             });
 
@@ -725,6 +731,7 @@ public class ClientCnx extends PulsarHandler {
         } catch (Exception e) {
             log.error().exception(e).log("Error mutual verify");
             connectionFuture.completeExceptionally(e);
+            ctx.close();
         }
     }
 

@@ -393,6 +393,20 @@ tlsProvider:
 # provider, failing loudly when unresolvable.
 # jsseProvider:
 
+# PIP-478: the Netty SSL engine provider for the worker's OWN OUTBOUND (worker-to-broker) client and admin
+# connections — JDK, OPENSSL or OPENSSL_REFCNT. The tlsProvider key above governs the worker's web server
+# only; this is its outbound counterpart, matching the broker's brokerClientSslProvider. Applied
+# independently of brokerClientTlsFactoryClassName. An embedded (broker-hosted) worker inherits the
+# broker's value when this is unset.
+# brokerClientSslProvider:
+
+# PIP-478: name of a JSSE (SSLContext) java.security.Provider for the worker's OWN OUTBOUND
+# (worker-to-broker) client and admin connections, e.g. BCJSSE for FIPS. The jsseProvider key above governs
+# the worker's web server only; this is its outbound counterpart, matching the broker's
+# brokerClientJsseProvider. Applied independently of brokerClientTlsFactoryClassName. An embedded
+# (broker-hosted) worker inherits the broker's value when this is unset.
+# brokerClientJsseProvider:
+
 # Enable TLS with KeyStore type configuration in function worker.
 tlsEnabledWithKeyStore: false
 

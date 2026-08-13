@@ -270,8 +270,19 @@ public final class ClientTlsFactorySupport {
         initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
         // Fail-fast probe only on the v5-builder path.
         if (v5BuilderPath) {
-            probe(factory, TlsPurpose.CLIENT_DEFAULT,
-                    TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
+            try {
+                probe(factory, TlsPurpose.CLIENT_DEFAULT,
+                        TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
+            } catch (Throwable t) {
+                // This method initialized the factory, so this method cleans it up when the probe then fails:
+                // initialization is what registers the metrics callback, the file watcher and the refresh task.
+                // Nothing downstream can do it — PulsarClientImpl assigns conf.setTlsFactory(...) only on the
+                // value this method *returns*, so a throw leaves no owner, and on the composed path the
+                // instance is local and unreachable. Without this, every failed build (a missing or malformed
+                // certificate file, a custom factory that cannot serve CLIENT_DEFAULT) leaks them.
+                closeQuietly(factory, t);
+                throw t;
+            }
         }
         return factory;
     }
@@ -371,8 +382,10 @@ public final class ClientTlsFactorySupport {
      * {@code PulsarClientImpl} adopts, initializes (with its shared scheduler / executor / OpenTelemetry) and
      * closes it — one factory per outbound client, so per-cluster material is served without minting
      * per-cluster purposes. A non-default {@code factoryClassName} names a custom {@link PulsarTlsFactory},
-     * instantiated reflectively (it self-sources material; the config/auth composition below does not apply,
-     * and {@code brokerClientTlsFactoryConfig} params are not yet plumbed to the client init context).
+     * instantiated reflectively — it self-sources material, so the config/auth composition below does not
+     * apply. Its {@code brokerClientTlsFactoryConfig} params do reach it: every caller parses them onto
+     * {@code conf} via {@code setTlsFactoryParams} alongside this call, and
+     * {@link #resolveClientTlsFactory} hands them to {@code initialize} as the adopted factory's init params.
      *
      * @param conf            the outbound client configuration (its {@code tls*} fields hold the broker-client
      *                        material; {@code getAuthentication()} the broker-client authentication)
@@ -586,6 +599,21 @@ public final class ClientTlsFactorySupport {
                 throw ex;
             }
             throw new RuntimeException(cause);
+        }
+    }
+
+    /**
+     * Close a factory that failed after initialization, attaching any close failure to the original error so
+     * the cleanup problem is visible without displacing the reason the build failed.
+     *
+     * @param factory the initialized factory to release
+     * @param failure the failure being propagated
+     */
+    private static void closeQuietly(PulsarTlsFactory factory, Throwable failure) {
+        try {
+            factory.close();
+        } catch (Throwable closeFailure) {
+            failure.addSuppressed(closeFailure);
         }
     }
 

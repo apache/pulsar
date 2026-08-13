@@ -314,7 +314,11 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         if (factory == null) {
             throw new IllegalArgumentException("tlsFactory must not be null");
         }
-        conf.setUseTls(true);
+        // Same rule as tlsPolicy above, and pip-478.md states it for this method by name: a factory supplies
+        // material for every purpose WITHOUT enabling transport TLS. Forcing useTls here made an adopted
+        // factory on a plaintext pulsar:// URL — the CLIENT_OAUTH2-only case the SPI exists to serve —
+        // attempt a TLS handshake against the plaintext broker port. The adopted factory is still composed
+        // and initialized: PulsarClientImpl.needsClientTlsFactory() has its own arm for conf.getTlsFactory().
         conf.setTlsFactory(factory);
         return this;
     }

@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -89,6 +90,8 @@ public final class TlsContexts {
     // varying insecure client policies would otherwise grow it without bound.
     private static final int INSECURE_WARNED_CAPACITY = 1024;
     private static final Set<Integer> INSECURE_WARNED = ConcurrentHashMap.newKeySet();
+    private static final Set<Integer> HOSTNAME_VERIFICATION_WARNED = ConcurrentHashMap.newKeySet();
+    private static final AtomicBoolean SYNTHESIS_HOSTNAME_VERIFICATION_WARNED = new AtomicBoolean();
 
     private TlsContexts() {
     }
@@ -112,6 +115,27 @@ public final class TlsContexts {
     }
 
     /**
+     * Log a one-time WARN when a <em>client</em> policy turns hostname verification off. PIP-478 makes
+     * verification the default and states that enabling any insecure setting is warned once on first use;
+     * {@link #warnInsecureModeOnce} covers only the trust-all flag, which is the other half. Deduplicated per
+     * policy value, like the trust-all warning, so rotation rebuilds do not spam the log.
+     *
+     * @param policy the client policy being built
+     */
+    private static void warnHostnameVerificationOffOnce(TlsPolicy policy) {
+        if (policy.enableHostnameVerification()) {
+            return;
+        }
+        if (HOSTNAME_VERIFICATION_WARNED.size() < INSECURE_WARNED_CAPACITY
+                && !HOSTNAME_VERIFICATION_WARNED.add(policy.hashCode())) {
+            return;
+        }
+        log.warn().log("TLS hostname verification is disabled: a certificate valid for a different host is "
+                + "accepted, so a peer holding any trusted certificate can impersonate this destination. "
+                + "It is ON by default in Pulsar 5.0 and should be left on outside testing.");
+    }
+
+    /**
      * Build a client Netty {@link SslContext}, baking hostname verification when the policy enables it.
      *
      * @param material the loaded client material
@@ -131,6 +155,7 @@ public final class TlsContexts {
         // set explicitly both ways: hostname verification is the policy's decision alone, and an engine
         // default must not verify hostnames when the policy disabled it.
         builder.endpointIdentificationAlgorithm(policy.enableHostnameVerification() ? "HTTPS" : null);
+        warnHostnameVerificationOffOnce(policy);
         return builder.build();
     }
 
@@ -288,6 +313,14 @@ public final class TlsContexts {
     public static SslContext synthesizeNettyClientFromJdk(SSLContext sslContext,
                                                           boolean enableHostnameVerification,
                                                           SSLParameters factoryBaseline) {
+        // The synthesis path carries the flag rather than a policy, so it cannot dedupe per policy value the
+        // way buildNettyClientContext does; one warning per process is enough to satisfy "warned on first use"
+        // without turning a per-connection synthesis into a log flood.
+        if (!enableHostnameVerification && SYNTHESIS_HOSTNAME_VERIFICATION_WARNED.compareAndSet(false, true)) {
+            log.warn().log("TLS hostname verification is disabled for a synthesized client context: a "
+                    + "certificate valid for a different host is accepted, so a peer holding any trusted "
+                    + "certificate can impersonate this destination.");
+        }
         SslContext clientContext = synthesizeNettyFromJdk(sslContext, true, false);
         SSLParameters overlay = composeClientOverlay(factoryBaseline, enableHostnameVerification);
         return new SynthesizedEngineSslContext(clientContext, overlay, false);

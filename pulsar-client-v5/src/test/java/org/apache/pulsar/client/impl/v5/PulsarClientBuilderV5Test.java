@@ -25,6 +25,9 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
@@ -33,6 +36,9 @@ import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
@@ -223,6 +229,59 @@ public class PulsarClientBuilderV5Test {
         assertEquals(applied.certificateFilePath(), "/path/to/client.cert");
         assertTrue(applied.allowInsecureConnection());
         assertFalse(applied.enableHostnameVerification());
+    }
+
+    /**
+     * PIP-478: "{@code tlsFactory(PulsarTlsFactory)} likewise supplies material for all purposes without
+     * enabling transport TLS." Adopting a factory used to set {@code useTls}, so a client that adopted one
+     * to serve {@code CLIENT_OAUTH2} — an HTTPS identity provider behind a private CA — attempted a TLS
+     * handshake against its plaintext {@code pulsar://} broker port and could not connect. The factory must
+     * still be recorded: {@code PulsarClientImpl.needsClientTlsFactory()} composes it on its own arm.
+     */
+    @Test
+    public void testTlsFactoryDoesNotEnableTransportTls() {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        PulsarTlsFactory factory = new NoOpTlsFactory();
+
+        builder.serviceUrl("pulsar://localhost:6650").tlsFactory(factory);
+
+        ClientConfigurationData conf = builder.getConfForTesting();
+        assertFalse(conf.isUseTls(), "adopting a factory must not switch the broker transport to TLS");
+        assertEquals(conf.getTlsFactory(), factory, "the adopted factory must still reach the conf");
+    }
+
+    /** The transport is still enabled the normal way — by the service URL scheme. */
+    @Test
+    public void testTlsFactoryLeavesAnSslUrlEnabled() {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+
+        builder.serviceUrl("pulsar+ssl://localhost:6651").tlsFactory(new NoOpTlsFactory());
+
+        assertTrue(builder.getConfForTesting().isUseTls(), "pulsar+ssl:// still selects TLS");
+    }
+
+    /** A factory that is never initialized or asked for an instance — the builder wiring is what is tested. */
+    private static final class NoOpTlsFactory implements PulsarTlsFactory {
+        @Override
+        public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass, Consumer<T> onLoadOrReload) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
+        @Override
+        public void close() {
+        }
     }
 
     @Test
