@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.Socks5ProxyScope;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.tls.PulsarTlsFactory;
@@ -247,6 +248,26 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     // the default file-based factory, which ignores params.
     @JsonIgnore
     private transient Map<String, String> tlsFactoryParams;
+
+    // PIP-478: the authentication the client actually drives. The client drives the v5 model natively, so
+    // this is resolved once at client construction — from the v5 builder when it configured a v5 plugin,
+    // otherwise from the v4 `authentication` slot above (a built-in shim hands over its v5-native body; any
+    // other v4 plugin is wrapped by LegacyV4AuthenticationAdapter).
+    //
+    // The v4 slot deliberately stays populated and authoritative for everything that is not the credential
+    // exchange: folding an auth plugin's TLS material into the client's TLS policy keys off the concrete v4
+    // type (AuthenticationTls / AuthenticationKeyStoreTls / AuthenticationOAuth2), which the v5 SPI has no
+    // carrier for. Emptying it would silently drop the client certificate and surface only as a 401.
+    //
+    // Transient, like the TLS seam above: a v5 plugin is not Serializable, and a shallow clone() keeps the
+    // reference so a cloned configuration drives the same authentication.
+    @JsonIgnore
+    private transient org.apache.pulsar.client.api.v5.auth.Authentication v5Authentication;
+    // The per-client authentication session: the resolved body plus its memoized one-shot initialization,
+    // from which ClientCnx opens one exchange per connection attempt. Resolved by PulsarClientImpl; null
+    // until then (and for a configuration that never builds a client).
+    @JsonIgnore
+    private transient AsyncAuthenticationDriver v5AuthenticationDriver;
 
     @Schema(
             name = "concurrentLookupRequest",

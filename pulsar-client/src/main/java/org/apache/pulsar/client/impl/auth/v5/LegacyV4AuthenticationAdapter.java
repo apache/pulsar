@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.v5;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.api.v5.auth.ChallengeResponse;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -75,11 +75,23 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      */
     protected final org.apache.pulsar.client.api.Authentication v4;
 
+    /**
+     * Whether this adapter is responsible for the wrapped plugin's {@code configure}/{@code start}/
+     * {@code close} lifecycle. False when the client that resolved this adapter already owns the v4
+     * instance and drives that lifecycle itself; see {@link #wrapAlreadyStarted}.
+     */
+    private final boolean ownsV4Lifecycle;
+
     private volatile AuthenticationInitContext initContext;
     private volatile Map<String, String> configuredParams;
 
     LegacyV4AuthenticationAdapter(org.apache.pulsar.client.api.Authentication v4) {
+        this(v4, true);
+    }
+
+    LegacyV4AuthenticationAdapter(org.apache.pulsar.client.api.Authentication v4, boolean ownsV4Lifecycle) {
         this.v4 = v4;
+        this.ownsV4Lifecycle = ownsV4Lifecycle;
     }
 
     /**
@@ -93,21 +105,54 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * {@code hasDataForTls()} plugin's material into the client TLS configuration is a builder-time
      * concern handled by the client (PIP-478).
      *
+     * <p>The built-in {@code AuthenticationDisabled} is resolved to {@link NoAuthentication} rather than to
+     * a bridging adapter. Bridging it works, but it would put the default unauthenticated deployment — the
+     * one connection path where there is provably nothing to fetch — through an executor hop and a
+     * start-time probe on every connect. The match is on the concrete built-in rather than on the
+     * {@code "none"} method name deliberately: a third-party plugin may report {@code "none"} and still
+     * serve a credential, and discarding it here would downgrade that connection to anonymous silently.
+     *
      * @param v4 the v4 authentication plugin to wrap
-     * @return a v5 {@link Authentication} that delegates to the v4 plugin
+     * @return a v5 {@link Authentication} that delegates to the v4 plugin, or a built-in v5-native body
+     *         for the method names that have one
      */
     public static Authentication wrap(org.apache.pulsar.client.api.Authentication v4) {
+        return wrap(v4, true);
+    }
+
+    /**
+     * Wrap a v4 plugin whose {@code configure}/{@code start} the caller has already performed and whose
+     * {@code close} the caller will perform.
+     *
+     * <p>This is the client's own path. The client keeps the configured v4 plugin in its configuration and
+     * starts it during construction — the v4 instance remains observable, and several client-side features
+     * (notably folding an auth plugin's TLS material into the client's TLS policy) read it directly. The
+     * adapter that lets the client <em>drive</em> that plugin through the v5 model must therefore not run
+     * the lifecycle a second time: {@code AuthenticationOAuth2.start()} initializes the token flow, so a
+     * second {@code start()} is not a harmless no-op.
+     *
+     * @param v4 the already-configured, already-started v4 authentication plugin
+     * @return a v5 {@link Authentication} that delegates to the v4 plugin without re-running its lifecycle
+     */
+    public static Authentication wrapAlreadyStarted(org.apache.pulsar.client.api.Authentication v4) {
+        return wrap(v4, false);
+    }
+
+    private static Authentication wrap(org.apache.pulsar.client.api.Authentication v4, boolean ownsLifecycle) {
         if (v4 == null) {
             throw new IllegalArgumentException("v4 authentication must not be null");
         }
+        if (v4 instanceof AuthenticationDisabled) {
+            return NoAuthentication.INSTANCE;
+        }
         String methodName = v4.getAuthMethodName();
         if (TlsAuthentication.DEFAULT_AUTH_METHOD_NAME.equalsIgnoreCase(methodName)) {
-            return new LegacyV4TlsAdapter(v4);
+            return new LegacyV4TlsAdapter(v4, ownsLifecycle);
         }
         if ("sasl".equalsIgnoreCase(methodName)) {
-            return new LegacyV4ChallengeResponseAdapter(v4);
+            return new LegacyV4ChallengeResponseAdapter(v4, ownsLifecycle);
         }
-        return new LegacyV4CredentialAdapter(v4);
+        return new LegacyV4CredentialAdapter(v4, ownsLifecycle);
     }
 
     /**
@@ -141,11 +186,13 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
     public CompletableFuture<Void> initializeAsync(AuthenticationInitContext initContext) {
         this.initContext = initContext;
         return supplyOffloaded(() -> {
-            Map<String, String> cfg = configuredParams;
-            if (cfg != null) {
-                v4.configure(cfg);
+            if (ownsV4Lifecycle) {
+                Map<String, String> cfg = configuredParams;
+                if (cfg != null) {
+                    v4.configure(cfg);
+                }
+                v4.start();
             }
-            v4.start();
             onStarted();
             return null;
         });
@@ -153,7 +200,11 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
 
     @Override
     public void close() throws Exception {
-        v4.close();
+        // Closing a plugin this adapter did not start would close it twice: its owner closes it too, and a
+        // v4 plugin is not required to be idempotent.
+        if (ownsV4Lifecycle) {
+            v4.close();
+        }
     }
 
     /**
@@ -179,9 +230,11 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * Offload a (potentially blocking) v4 call to the dedicated blocking executor captured at
      * initialization, translating v4 authentication exceptions into the matching v5 subtype.
      *
-     * <p>There is deliberately no inline fallback: if the adapter has not been initialized (no blocking
-     * executor available), the returned future fails with {@link IllegalStateException} rather than
-     * running the v4 call on the caller thread (PIP-478 offload discipline).
+     * <p>There is deliberately no <em>inline</em> fallback: the caller thread is a Netty event loop, and
+     * running a v4 plugin's credential I/O there is the stall PIP-478 exists to remove. When no
+     * client-owned executor is bound — a connection opened outside a {@code PulsarClient}, such as the
+     * proxy's broker connections — the work goes to {@link V5AuthContexts#sharedBlockingExecutor()}
+     * rather than failing, since refusing would reject connections the v4 client accepted.
      *
      * @param supplier the blocking work
      * @param <T> the result type
@@ -189,12 +242,18 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      */
     protected <T> CompletableFuture<T> supplyOffloaded(ThrowingSupplier<T> supplier) {
         AuthenticationInitContext ctx = this.initContext;
-        Executor executor = ctx == null ? null : ctx.blockingExecutor();
-        if (executor == null) {
+        if (ctx == null) {
+            // Not initialized yet: the wrapped plugin has not been configured or started, so there is
+            // nothing valid to call. This is a different situation from "initialized, but the caller owns
+            // no executor" below, and it still fails fast.
             return CompletableFuture.failedFuture(new IllegalStateException(
                     "Legacy v4 authentication adapter " + getClass().getName() + " was used before "
-                            + "initializeAsync() completed (no blocking executor available); v4 plugin "
-                            + "calls must run on the blocking executor, never inline (PIP-478)"));
+                            + "initializeAsync() completed; v4 plugin calls must run on the blocking "
+                            + "executor, never inline (PIP-478)"));
+        }
+        Executor executor = ctx.blockingExecutor();
+        if (executor == null) {
+            executor = V5AuthContexts.sharedBlockingExecutor();
         }
         CompletableFuture<T> future = new CompletableFuture<>();
         executor.execute(() -> {
@@ -258,13 +317,12 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
      * {@link PulsarClientException.UnsupportedAuthenticationException}.
      */
     static final class LegacyV4CredentialAdapter extends LegacyV4AuthenticationAdapter
-            implements BinaryAuthDataProvider, HttpAuthHeadersProvider {
+            implements BinaryAuthDataProvider, BinaryAuthChallengeHandler, HttpAuthHeadersProvider {
 
-        private volatile boolean supportsCommand;
         private volatile boolean supportsHttp;
 
-        LegacyV4CredentialAdapter(org.apache.pulsar.client.api.Authentication v4) {
-            super(v4);
+        LegacyV4CredentialAdapter(org.apache.pulsar.client.api.Authentication v4, boolean ownsV4Lifecycle) {
+            super(v4, ownsV4Lifecycle);
         }
 
         @Override
@@ -275,13 +333,10 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
             // unverifiable HTTP path.
             try {
                 AuthenticationDataProvider probe = v4.getAuthData(null);
-                supportsCommand = probe != null && probe.hasDataFromCommand();
                 supportsHttp = probe != null && probe.hasDataForHttp();
             } catch (Exception e) {
                 log.debug().attr("plugin", v4.getClass().getName()).exception(e)
-                        .log("Could not probe v4 auth plugin for supported capabilities; assuming binary "
-                                + "command only");
-                supportsCommand = true;
+                        .log("Could not probe v4 auth plugin for HTTP support; assuming binary only");
                 supportsHttp = false;
             }
         }
@@ -290,8 +345,14 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
         public <T> Optional<T> capability(Class<T> kind) {
             // This adapter can serve only the two single-pass capabilities, and only those the probe
             // confirmed the v4 plugin actually supports. Anything else is unsupported.
-            if (kind == BinaryAuthDataProvider.class) {
-                return supportsCommand ? Optional.of(kind.cast(this)) : Optional.empty();
+            if (kind == BinaryAuthDataProvider.class || kind == BinaryAuthChallengeHandler.class) {
+                // Both are always advertised, because in v4 every plugin could authenticate a binary
+                // connection: the client called authenticate(INIT_AUTH_DATA) and sent whatever came back,
+                // empty included, and answered any challenge through the same provider. Gating either on a
+                // probe would refuse connections v4 accepted — a plugin whose credential is presented at
+                // the TLS layer reports no command data yet still has to connect. The probe below therefore
+                // decides only the HTTP capability, which has no such universal fallback.
+                return Optional.of(kind.cast(this));
             }
             if (kind == HttpAuthHeadersProvider.class) {
                 return supportsHttp ? Optional.of(kind.cast(this)) : Optional.empty();
@@ -308,12 +369,33 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
         public CompletableFuture<BinaryAuthData> getAuthDataAsync(AuthenticationCallContext callContext) {
             return supplyOffloaded(() -> {
                 AuthenticationDataProvider d = v4.getAuthData(callContext.brokerHost());
-                if (d == null || !d.hasDataFromCommand() || d.getCommandData() == null) {
+                if (d == null) {
                     throw new PulsarClientException.UnsupportedAuthenticationException(
-                            "v4 plugin " + v4.getClass().getName() + " provided no binary-protocol command "
-                                    + "credential (hasDataFromCommand()/getCommandData() returned nothing)");
+                            "v4 plugin " + v4.getClass().getName() + " returned no AuthenticationDataProvider");
                 }
-                return new BinaryAuthData(d.getCommandData().getBytes(UTF_8));
+                // The provider is retained for this exchange so a following challenge round continues the
+                // same conversation, and the initial credential comes from authenticate(INIT_AUTH_DATA) —
+                // verbatim what the v4 client did. Its default implementation returns getCommandData(), so a
+                // single-pass plugin is unaffected, while a challenge/response plugin (which serves its
+                // first frame only through authenticate) keeps working.
+                callContext.setStateObject(AuthenticationDataProvider.class, d);
+                AuthData initial = d.authenticate(AuthData.INIT_AUTH_DATA);
+                return new BinaryAuthData(initial == null ? new byte[0] : initial.getBytes());
+            });
+        }
+
+        @Override
+        public CompletableFuture<ChallengeResponse> respondToChallengeAsync(AuthenticationCallContext callContext,
+                AuthChallenge challenge) {
+            return supplyOffloaded(() -> {
+                AuthenticationDataProvider d = callContext.getStateObject(AuthenticationDataProvider.class)
+                        .orElse(null);
+                if (d == null) {
+                    d = v4.getAuthData(callContext.brokerHost());
+                    callContext.setStateObject(AuthenticationDataProvider.class, d);
+                }
+                AuthData response = d.authenticate(AuthData.of(challenge.bytes()));
+                return new ChallengeResponse(response == null ? null : response.getBytes());
             });
         }
 
@@ -345,8 +427,9 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
     static final class LegacyV4ChallengeResponseAdapter extends LegacyV4AuthenticationAdapter
             implements BinaryAuthDataProvider, BinaryAuthChallengeHandler {
 
-        LegacyV4ChallengeResponseAdapter(org.apache.pulsar.client.api.Authentication v4) {
-            super(v4);
+        LegacyV4ChallengeResponseAdapter(org.apache.pulsar.client.api.Authentication v4,
+                boolean ownsV4Lifecycle) {
+            super(v4, ownsV4Lifecycle);
         }
 
         @Override
@@ -389,9 +472,11 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
     static final class LegacyV4TlsAdapter extends TlsAuthentication {
 
         private final org.apache.pulsar.client.api.Authentication v4;
+        private final boolean ownsV4Lifecycle;
 
-        LegacyV4TlsAdapter(org.apache.pulsar.client.api.Authentication v4) {
+        LegacyV4TlsAdapter(org.apache.pulsar.client.api.Authentication v4, boolean ownsV4Lifecycle) {
             this.v4 = v4;
+            this.ownsV4Lifecycle = ownsV4Lifecycle;
         }
 
         @Override
@@ -410,10 +495,12 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
          */
         @Override
         public CompletableFuture<Void> initializeAsync(AuthenticationInitContext initContext) {
-            try {
-                v4.start();
-            } catch (Exception e) {
-                return CompletableFuture.failedFuture(e);
+            if (ownsV4Lifecycle) {
+                try {
+                    v4.start();
+                } catch (Exception e) {
+                    return CompletableFuture.failedFuture(e);
+                }
             }
             return super.initializeAsync(initContext);
         }
@@ -426,6 +513,9 @@ public abstract class LegacyV4AuthenticationAdapter implements Authentication {
          */
         @Override
         public void close() throws Exception {
+            if (!ownsV4Lifecycle) {
+                return;
+            }
             try {
                 v4.close();
             } finally {

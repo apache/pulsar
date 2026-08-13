@@ -325,7 +325,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                     if (supportsReplDedupByLidAndEid) {
                         return super.buildConnectCommand(authData);
                     }
-                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
+                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authMethodName(), authData,
                             this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
                             null, null, null, null, null);
                     cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);

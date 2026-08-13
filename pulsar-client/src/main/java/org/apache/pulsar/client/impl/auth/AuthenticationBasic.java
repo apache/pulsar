@@ -26,28 +26,23 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
-import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
-import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.BasicAuthenticationV5;
-import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 
 /**
  * HTTP-basic authentication provider.
  *
  * <p>The verbatim v4 synchronous surface ({@link #getAuthData()} / {@link AuthenticationDataBasic}) is
- * preserved; PIP-478 additionally exposes {@link AsyncAuthenticationDriver} so {@code ClientCnx} can drive
- * the credential over the non-blocking binary path via the v5-native {@link BasicAuthenticationV5}.
+ * preserved for callers of the v4 API; PIP-478 additionally exposes the v5-native
+ * {@link BasicAuthenticationV5} through {@link V5AuthenticationProvider}, which is what the client itself
+ * drives — over the non-blocking binary path, without bridging this class.
  */
 public class AuthenticationBasic
-        implements Authentication, EncodedAuthenticationParameterSupport, AsyncAuthenticationDriver,
-        ClientAuthenticationServicesAware {
+        implements Authentication, EncodedAuthenticationParameterSupport, V5AuthenticationProvider {
     static final String AUTH_METHOD_NAME = "basic";
     private String userId;
     private String password;
     // PIP-478: the client's framework services, late-bound before start(); null until then.
-    private transient volatile ClientAuthenticationServices authServices;
 
     @Override
     public void close() throws IOException {
@@ -88,15 +83,11 @@ public class AuthenticationBasic
     }
 
     @Override
-    public void bindClientAuthenticationServices(ClientAuthenticationServices services) {
-        this.authServices = services;
-    }
-
-    @Override
-    public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
-        // PIP-478: drive the v5-native basic body on the async binary path.
-        return new V5BinaryAuthenticationDriver(new BasicAuthenticationV5(userId, password), authServices)
-                .newAuthenticationExchange(brokerHostName);
+    public org.apache.pulsar.client.api.v5.auth.Authentication v5Authentication() {
+        // PIP-478: the client drives this v5-native basic body; the v4 methods above remain for callers of
+        // the v4 API. The fields are read live, so a credential changed by a later configure(...) on this
+        // same instance is picked up on the next connection attempt.
+        return new BasicAuthenticationV5(() -> userId, () -> password);
     }
 
 }

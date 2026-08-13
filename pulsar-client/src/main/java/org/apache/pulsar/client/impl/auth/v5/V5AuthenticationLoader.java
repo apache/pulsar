@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 
 /**
@@ -76,6 +77,23 @@ public final class V5AuthenticationLoader {
             return newConfiguredV5(v5Class, authParams == null ? Map.of() : authParams);
         }
         return LegacyV4AuthenticationAdapter.wrap(AuthenticationUtil.create(authPluginClassName, authParams));
+    }
+
+    /**
+     * The v5 {@link Authentication} to drive for an already-configured, already-started v4 plugin.
+     *
+     * <p>This is the client's translation rule, in one place because both the client and its tests must
+     * apply it identically. A built-in shim hands over its v5-native body — no bridge, and no executor hop
+     * for a credential it already holds. Anything else is wrapped by {@link LegacyV4AuthenticationAdapter}
+     * in its already-started form, since the caller owns the v4 plugin's lifecycle.
+     *
+     * @param v4 the already-configured, already-started v4 authentication plugin
+     * @return the v5 authentication to drive
+     */
+    public static Authentication forStartedV4Plugin(org.apache.pulsar.client.api.Authentication v4) {
+        return v4 instanceof V5AuthenticationProvider provider
+                ? provider.v5Authentication()
+                : LegacyV4AuthenticationAdapter.wrapAlreadyStarted(v4);
     }
 
     /**

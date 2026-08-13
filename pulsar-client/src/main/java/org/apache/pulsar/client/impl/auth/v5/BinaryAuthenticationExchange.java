@@ -91,6 +91,19 @@ public final class BinaryAuthenticationExchange implements AuthenticationExchang
     }
 
     @Override
+    public String authMethodName() {
+        // Unreachable before a round has run: every route into this method follows a completed
+        // getAuthDataAsync()/authenticateAsync(), which fails the connection when the capability is absent.
+        // Failing loudly beats defaulting to "none", which would silently downgrade the connection to
+        // anonymous.
+        return v5.capability(BinaryAuthDataProvider.class)
+                .map(BinaryAuthDataProvider::authMethodName)
+                .orElseThrow(() -> new IllegalStateException(
+                        "v5 authentication body " + v5.getClass().getName() + " does not expose "
+                                + "BinaryAuthDataProvider, so it has no binary auth method name (PIP-478)"));
+    }
+
+    @Override
     public CompletableFuture<AuthData> getAuthDataAsync() {
         // Never throw synchronously (PIP-478 error model): a body that throws while producing its future is
         // caught here and reported as a failed future, mapped to the v4 exception type.

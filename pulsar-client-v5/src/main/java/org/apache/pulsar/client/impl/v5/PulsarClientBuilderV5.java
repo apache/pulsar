@@ -38,7 +38,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.v5.auth.V5ToV4AuthenticationAdapter;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
@@ -133,10 +132,17 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         }
         org.apache.pulsar.client.api.Authentication bridgedV4 =
                 LegacyV4AuthenticationAdapter.unwrapV4(v5Authentication).orElse(null);
-        boolean runRaw = bridgedV4 != null && resolveBridgedV4(bridgedV4);
-        conf.setAuthentication(runRaw
-                ? bridgedV4
-                : new V5ToV4AuthenticationAdapter(v5Authentication));
+        if (bridgedV4 != null) {
+            // A legacy v4 plugin configured through the v5 builder. Fold any TLS material it carries into
+            // the client's policy map, then hand the raw plugin to the v4 slot: that slot stays the one the
+            // client starts, closes, and reads for TLS material and the OAuth2 IdP trust. The v5 body the
+            // client drives is resolved from it during client construction, so the plugin's lifecycle has
+            // exactly one owner.
+            resolveBridgedV4(bridgedV4);
+            conf.setAuthentication(bridgedV4);
+            return;
+        }
+        conf.setV5Authentication(v5Authentication);
     }
 
     /**
