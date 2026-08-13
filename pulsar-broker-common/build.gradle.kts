@@ -46,7 +46,7 @@ dependencies {
     implementation(libs.jetty.compression.gzip)
     implementation(libs.jetty.ee10.servlet)
 
-    // Non-FIPS BouncyCastle provider for tests that exercise SecurityUtility (which loads
+    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which loads
     // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
     // the provider used in production. FIPS is covered separately by the bcfips-include-test
     // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
