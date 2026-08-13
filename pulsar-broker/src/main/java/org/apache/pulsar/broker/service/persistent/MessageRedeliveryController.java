@@ -44,7 +44,11 @@ public class MessageRedeliveryController {
     private final boolean allowOutOfOrderDelivery;
     private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
+    // Not final: under out-of-order delivery, whether this map is ever needed isn't known at construction time. Only a
+    // Key_Shared dispatcher records hashes; a plain Shared dispatcher never does. The map is therefore allocated when
+    // add() first receives a real hash. Classic out-of-order returns before that allocation regardless of the hash.
     private ConcurrentLongLongPairHashMap positionToStickyKeyHash;
+    // Final by contrast: this map is needed exactly when ordering is enforced, which is known at construction time.
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {

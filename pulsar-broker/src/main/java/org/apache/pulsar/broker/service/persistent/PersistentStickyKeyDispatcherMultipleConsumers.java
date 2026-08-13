@@ -340,6 +340,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // instead issue a normal read that waits at the end of the topic for new entries. That would leave
             // deliverable messages stuck in the replay queue or the delayed delivery tracker until an unrelated event
             // (such as a consumer flow request) triggers another read, stalling dispatch (issue #21554).
+            // The former "allowOutOfOrderDelivery ||" escape here was dropped once ReplayPositionFilter started
+            // filtering out-of-order replay positions by available permits; don't re-add it without removing that.
             skipNextReplayToTriggerLookAhead = true;
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
             skipNextBackoff = true;
@@ -585,11 +587,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
         // tracks the hashes that have been blocked during the filtering
         // it is necessary to block all later messages after a hash gets blocked so that ordering is preserved
-        private final Set<Long> alreadyBlockedHashes = new HashSet<>();
+        private final Set<Long> hashesBlockedForOrdering = new HashSet<>();
 
         @Override
         public boolean test(Position position) {
-            // lookup the sticky key hash for the entry at the replay position
+            // Out-of-order delivery relaxes ordering, not routing: filterAndGroupEntriesForDispatching selects the
+            // owning consumer by hash in both modes, so the hash is needed in both. It feeds the permit check below,
+            // which keeps this read's bounded budget (see MessageRedeliveryController#getMessagesToReplayNow) off
+            // positions that dispatch would only push straight back into the replay queue. Under out-of-order delivery,
+            // that check and the no-consumer check are the only live rejections here, and they made the
+            // "allowOutOfOrderDelivery ||" look-ahead escape removable.
             Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
             if (stickyKeyHash == null) {
                 // The sticky key hash is missing for delayed messages and positions added through hash-less
@@ -601,7 +608,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             // check if the hash is already blocked, if so, then replaying of the position should be skipped
             // to preserve ordering
-            if (alreadyBlockedHashes.contains(stickyKeyHash)) {
+            if (hashesBlockedForOrdering.contains(stickyKeyHash)) {
                 return false;
             }
 
@@ -636,7 +643,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         private void blockStickyKeyHashIfOrderingRequired(long stickyKeyHash) {
             if (!allowOutOfOrderDelivery) {
-                alreadyBlockedHashes.add(stickyKeyHash);
+                hashesBlockedForOrdering.add(stickyKeyHash);
             }
         }
     }
