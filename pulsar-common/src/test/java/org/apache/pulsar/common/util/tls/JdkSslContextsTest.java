@@ -99,14 +99,16 @@ public class JdkSslContextsTest {
                 .isEqualTo("PKIX");
     }
 
-    // A JSSE provider with no key/trust-manager services at all (Conscrypt) selects no provider algorithm;
+    // A JSSE provider registering no key/trust-manager services selects no provider algorithm; real
+    // Conscrypt is not such a provider (it registers PKIX for both), so this stub stands in for a
+    // third-party one;
     // the caller then falls back to the platform default factory while the SSLContext stays pinned.
     @Test
     public void algorithmNegotiationReturnsNullForProvidersWithoutTheService() {
-        Provider conscryptShaped = new Provider("Conscrypt-shaped", "1.0", "test stub") { };
-        assertThat(JdkSslContexts.supportedAlgorithm(conscryptShaped, "KeyManagerFactory", "SunX509", "PKIX"))
+        Provider noFactoryProvider = new Provider("no-factory-provider", "1.0", "test stub") { };
+        assertThat(JdkSslContexts.supportedAlgorithm(noFactoryProvider, "KeyManagerFactory", "SunX509", "PKIX"))
                 .isNull();
-        assertThat(JdkSslContexts.supportedAlgorithm(conscryptShaped, "TrustManagerFactory", "PKIX", "PKIX"))
+        assertThat(JdkSslContexts.supportedAlgorithm(noFactoryProvider, "TrustManagerFactory", "PKIX", "PKIX"))
                 .isNull();
     }
 

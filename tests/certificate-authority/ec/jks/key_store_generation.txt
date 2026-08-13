@@ -7,7 +7,7 @@ keytool -keystore ca.truststore.jks -alias ca -importcert -file ca.cert.pem -sto
 
 
 # Create server keystore
-# NOTE (Pulsar 5.0 / PIP-478): TLS hostname verification is enabled by default and is SAN-only, so the server
+# NOTE (Pulsar 5.0 / PIP-478): TLS hostname verification is enabled by default, so the server
 # certificate MUST carry a SubjectAltName that matches the connected host (e.g. DNS:localhost / IP:127.0.0.1).
 # The keystore hierarchy has its own CA (this directory's ca.cert.pem / ca.key.pem, trusted via
 # ca.truststore.jks) which is SEPARATE from the PEM hierarchy's CA in the parent directory, so the server

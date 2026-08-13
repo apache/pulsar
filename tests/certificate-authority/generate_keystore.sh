@@ -28,7 +28,7 @@ COMMON_PARAMS="-storetype JKS -storepass 111111 -keypass 111111 -noprompt"
 
 # generate keystore
 # The broker keystore is presented as a TLS *server* certificate. With TLS hostname verification
-# enabled by default in 5.0 (PIP-478) and CN-based matching removed (SAN-only), the server cert must
+# enabled by default in 5.0 (PIP-478), the server cert must
 # carry a SubjectAltName covering the connected host, otherwise every peer that now verifies hostnames
 # rejects it with "No subject alternative names present". Tests reach the broker/proxy over loopback
 # (advertised address pinned to localhost), so DNS:localhost + IP:127.0.0.1 is sufficient. The client
