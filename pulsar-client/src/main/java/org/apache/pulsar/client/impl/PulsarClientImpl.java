@@ -155,6 +155,7 @@ public class PulsarClientImpl implements PulsarClient {
     // connections keep their contexts alive via their own refcount), so they are not closed eagerly.
     private final Object tlsFactoryRebuildLock = new Object();
     private volatile boolean clientTlsFactoryRebuildable;
+    private volatile boolean clientComposedTlsFactory;
     private final List<PulsarTlsFactory> supersededTlsFactories = new CopyOnWriteArrayList<>();
 
     // PIP-478: a stable id for the owning client (logging correlation), plus a small bounded,
@@ -495,6 +496,10 @@ public class PulsarClientImpl implements PulsarClient {
         // when no factory is composed now, so a later updateAuthentication that introduces OAuth2 IdP TLS
         // material (a failover swap from a non-OAuth2 cluster) can still build one.
         this.clientTlsFactoryRebuildable = conf.getTlsFactory() == null && conf.getTlsPolicyMap() == null;
+        // Whether the factory in the slot is one this client composed, as opposed to one the application
+        // adopted through the v5 builder. Only a composed factory may be cleared from the configuration on
+        // shutdown — see the note there.
+        this.clientComposedTlsFactory = conf.getTlsFactory() == null;
         if (!needsClientTlsFactory()) {
             return;
         }
@@ -1493,6 +1498,17 @@ public class PulsarClientImpl implements PulsarClient {
                 } catch (Throwable t) {
                     log.warn().exception(t).log("Failed to close TLS factory");
                     throwable = t;
+                } finally {
+                    // Clear the slot for a factory this client composed. ClientBuilderImpl.build() hands the
+                    // builder's own ClientConfigurationData over without cloning it, so the factory stored
+                    // during construction outlives this client in the caller's builder. Left in place, a
+                    // second build() from the same builder mistakes it for a v5-adopted factory,
+                    // re-initializes an already-closed instance and fails the build — reusing a builder is
+                    // ordinary v4 usage that worked before PIP-478. An ADOPTED factory is deliberately left
+                    // alone: the application supplied that instance and still holds it.
+                    if (clientComposedTlsFactory) {
+                        conf.setTlsFactory(null);
+                    }
                 }
             }
             // PIP-478: close any TLS factories superseded by an AutoClusterFailover rebuild; they were kept
