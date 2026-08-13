@@ -21,7 +21,8 @@ const DEFAULT_READY_TO_TEST_LABEL = 'ready-to-test';
 const DEFAULT_TRUNK_BRANCHES = 'master,branch-*,pulsar-*';
 
 // GitHub stacked pull requests: https://docs.github.com/en/pull-requests/how-tos/stacked-pull-requests
-// The pull request at position 1 is the bottom of the stack, the only one based on the stack's trunk branch.
+// The entries keep their position when a pull request of the stack is merged, so the bottom of the
+// stack is the lowest entry which is still open, not necessarily the entry at position 1.
 const STACK_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -39,6 +40,7 @@ const STACK_QUERY = `
               pullRequest {
                 number
                 url
+                state
               }
             }
           }
@@ -63,11 +65,11 @@ function escapeRegExp(value) {
 }
 
 /**
- * Resolves the position of the pull request within a GitHub stack.
+ * Resolves the place of the pull request within a GitHub stack.
  * The stack fields aren't available in all GitHub deployments, in that case `available` is false and
  * the caller falls back to inspecting the base branch of the pull request.
  */
-async function resolveStack({ github, core, owner, repo, number }) {
+async function resolveStack({ github, core, owner, repo, number, baseRef }) {
   let response;
   try {
     response = await github.graphql(STACK_QUERY, { owner, repo, number });
@@ -79,14 +81,22 @@ async function resolveStack({ github, core, owner, repo, number }) {
   if (!stack) {
     return { available: true, inStack: false };
   }
-  const entries = (stack.entries?.nodes || []).filter(entry => entry);
-  const bottomEntry = entries.find(entry => entry.position === 1);
+  const entries = (stack.entries?.nodes || []).filter(entry => entry?.pullRequest);
+  const openEntries = entries.filter(entry => entry.pullRequest.state === 'OPEN');
+  const bottomEntry = openEntries.reduce(
+    (bottom, entry) => (bottom == null || entry.position < bottom.position ? entry : bottom), null);
   const position = response.repository.pullRequest.stackEntry?.position;
+  // The pull request is at the bottom of the stack when every pull request below it has been merged
+  // or closed. When such a pull request is merged, GitHub retargets the one above it to the branch
+  // that was merged into, so targeting the trunk branch of the stack means the same thing. Either
+  // condition is enough: the retargeting and the stack entries aren't necessarily updated at once.
+  const isLowestOpen = position != null
+    ? !entries.some(entry => entry.position < position && entry.pullRequest.state === 'OPEN')
+    : bottomEntry?.pullRequest?.number === number;
   return {
     available: true,
     inStack: true,
-    // when the position isn't reported, fall back to comparing the base branch with the stack's trunk branch
-    isBottom: position != null ? position === 1 : bottomEntry?.pullRequest?.number === number,
+    isBottom: isLowestOpen || baseRef === stack.baseRefName,
     position,
     number: stack.number,
     size: stack.size,
@@ -161,8 +171,8 @@ module.exports = async ({ github, context, core }) => {
   // Each blocker explains why the CI didn't run and what to do about it. The remedies are rendered as
   // the first steps of the instructions so that they match the checks which actually failed.
   const stackRemedy = 'Wait for this pull request to reach the bottom of the stack: once the pull '
-    + 'requests below it have been merged and the stack has been synced, it targets the trunk branch '
-    + 'and its CI runs in apache/pulsar.';
+    + 'requests below it have been merged or closed, it becomes the lowest open pull request of the '
+    + 'stack and its CI runs in apache/pulsar.';
   const blockers = [];
   if (pullRequest.draft) {
     blockers.push({
@@ -171,19 +181,19 @@ module.exports = async ({ github, context, core }) => {
     });
   }
 
-  const stack = await resolveStack({ github, core, owner, repo, number });
+  const stack = await resolveStack({ github, core, owner, repo, number, baseRef: pullRequest.base.ref });
   if (stack.available && stack.inStack) {
     const positionText = stack.position != null
       ? `entry ${stack.position} of ${stack.size} in stack #${stack.number}`
       : `part of stack #${stack.number}`;
-    core.info(`#${number} is ${positionText}.`);
+    core.info(`#${number} is ${positionText}. At the bottom of the stack: ${stack.isBottom}.`);
     if (!stack.isBottom) {
       const bottom = stack.bottomPullRequest;
-      const bottomLink = bottom ? `, [#${bottom.number}](${bottom.url}),` : '';
+      const bottomLink = bottom ? ` ([#${bottom.number}](${bottom.url}))` : '';
       blockers.push({
         reason: `The pull request is ${positionText}. Only the pull request at the bottom of the `
-          + `stack${bottomLink} which targets the \`${stack.trunkBranch}\` branch runs the CI in `
-          + `apache/pulsar.`,
+          + `stack, that is the lowest one which hasn't been merged or closed yet${bottomLink}, runs `
+          + `the CI in apache/pulsar.`,
         remedy: stackRemedy
       });
     }
