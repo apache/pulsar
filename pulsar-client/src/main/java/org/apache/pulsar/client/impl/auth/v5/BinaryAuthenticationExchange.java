@@ -24,12 +24,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.auth.AuthChallenge;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthChallengeHandler;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.common.api.AuthData;
 
 /**

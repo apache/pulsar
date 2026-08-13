@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.auth.v5;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
@@ -27,7 +26,7 @@ import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Drives a v5-native {@link Authentication} body over the Pulsar binary transport, exposing it as the
- * legacy {@link AsyncAuthenticationDriver} that {@code ClientCnx} consumes (PIP-478). This is
+ * legacy {@link BinaryAuthenticationDriver} that {@code ClientCnx} consumes (PIP-478). This is
  * the single exchange pattern shared by the built-in v4 auth shims (Token, Basic, OAuth2, Athenz, SASL);
  * each shim wraps its v5 body in this driver rather than re-implementing the exchange.
  *
@@ -37,7 +36,7 @@ import org.apache.pulsar.common.api.AuthData;
  * binary rules. One {@link BinaryAuthenticationExchange} owns one call context (and its state slot) for
  * the lifetime of a single connection attempt, so multi-round conversation state survives across rounds.
  */
-public final class V5BinaryAuthenticationDriver implements AsyncAuthenticationDriver {
+public final class V5BinaryAuthenticationDriver implements BinaryAuthenticationDriver {
 
     private final Authentication v5;
     private final String clientInstanceId;

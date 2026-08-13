@@ -47,8 +47,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -579,9 +579,15 @@ public class PulsarClientImpl implements PulsarClient {
      */
     private synchronized Executor blockingAuthExecutor() {
         if (blockingAuthExecutor == null) {
-            blockingAuthExecutor = new ThreadPoolExecutor(0, AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<>(),
+            // Queue rather than reject. Every caller is a connection attempt or an authenticated request, so
+            // a saturated pool must slow them down, not fail them: a SynchronousQueue with the default abort
+            // policy turns a reconnect storm against a slow identity provider into failed connections. Core
+            // threads are allowed to time out, so an unused pool still costs nothing.
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
+                    AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new ExecutorProvider.ExtendedThreadFactory("pulsar-client-auth-blocking", true));
+            executor.allowCoreThreadTimeOut(true);
+            blockingAuthExecutor = executor;
         }
         return blockingAuthExecutor;
     }

@@ -61,9 +61,9 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -132,7 +132,7 @@ public class ClientCnx extends PulsarHandler {
     // PIP-478: the authentication the client drives. The client resolves exactly one v5 Authentication and
     // wraps it in this per-client driver, from which every connection attempt opens its own exchange; there
     // is no synchronous plugin path left on the connect/challenge routes.
-    protected final AsyncAuthenticationDriver authDriver;
+    protected final BinaryAuthenticationDriver authDriver;
     protected State state;
 
     @VisibleForTesting
@@ -255,7 +255,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     // PIP-478: the authentication exchange for the current connection attempt. Non-null only while a
-    // connect driven through an AsyncAuthenticationDriver is in progress; a fresh exchange is created per
+    // connect driven through an BinaryAuthenticationDriver is in progress; a fresh exchange is created per
     // connect attempt and whenever the broker pushes the REFRESH sentinel.
     private AuthenticationExchange authenticationExchange;
     // PIP-478: guards for the async auth carve-out. Both are touched only on the channel's event loop
@@ -388,7 +388,7 @@ public class ClientCnx extends PulsarHandler {
         }
         // Send CONNECT command. Sync and async plugins share a single state machine (PIP-478): the initial
         // credential is resolved as a CompletableFuture — already-completed for a plain v4 plugin (computed
-        // inline, preserving today's behaviour verbatim) or pending for an AsyncAuthenticationDriver — and
+        // inline, preserving today's behaviour verbatim) or pending for an BinaryAuthenticationDriver — and
         // fed to one continuation that assigns the data provider, builds the command, transitions state and
         // writes. The continuation runs inline when the future is already done and hops to the channel's
         // event executor only when it was pending.
@@ -401,7 +401,7 @@ public class ClientCnx extends PulsarHandler {
     /**
      * Resolve the initial credential for {@code CommandConnect}. For a plain v4 plugin this is computed
      * inline (exactly as the previous synchronous connect path did) into an already-completed future so
-     * the continuation runs synchronously on this thread; for an {@link AsyncAuthenticationDriver} it is a
+     * the continuation runs synchronously on this thread; for an {@link BinaryAuthenticationDriver} it is a
      * fresh exchange's {@link AuthenticationExchange#getAuthDataAsync()}. The resolution carries the
      * {@link AuthenticationDataProvider} to publish — the real v4 provider for the sync path (so subsequent
      * synchronous challenge rounds keep working), or a minimal command-data adapter for the async path.
@@ -473,8 +473,8 @@ public class ClientCnx extends PulsarHandler {
      * @param conf the client configuration this connection is built from
      * @return the driver to open authentication exchanges against
      */
-    private static AsyncAuthenticationDriver resolveAuthDriver(ClientConfigurationData conf) {
-        AsyncAuthenticationDriver resolved = conf.getV5AuthenticationDriver();
+    private static BinaryAuthenticationDriver resolveAuthDriver(ClientConfigurationData conf) {
+        BinaryAuthenticationDriver resolved = conf.getV5AuthenticationDriver();
         if (resolved != null) {
             return resolved;
         }
@@ -732,7 +732,7 @@ public class ClientCnx extends PulsarHandler {
      * Drive an authentication continuation. To preserve the synchronous path verbatim (and never touch
      * {@code ctx.executor()} for a plain v4 plugin), the continuation runs inline when the resolution future
      * is already complete; it hops onto the channel's event executor only when the resolution was pending
-     * (an {@link AsyncAuthenticationDriver} performing off-event-loop credential I/O).
+     * (an {@link BinaryAuthenticationDriver} performing off-event-loop credential I/O).
      */
     private void driveAuthResolution(AuthRound round, CompletableFuture<ResolvedAuthData> resolution,
             BiConsumer<ResolvedAuthData, Throwable> continuation) {
@@ -757,7 +757,7 @@ public class ClientCnx extends PulsarHandler {
             // verbatim inline continuation.
             resolution.whenComplete(guarded);
         } else {
-            // PIP-478: an AsyncAuthenticationDriver resolved this credential off the event loop; a hung
+            // PIP-478: an BinaryAuthenticationDriver resolved this credential off the event loop; a hung
             // driver (getAuthDataAsync / authenticateAsync never completing) would otherwise wedge the connect
             // handshake. Bound it with the client's operation-timeout budget: on expiry the resolution is
             // completed with a mapped v4 auth exception, and the guarded continuation (still hopped to

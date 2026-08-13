@@ -25,7 +25,7 @@ import java.util.Optional;
  * v5-native HTTP multi-round authentication to the framework's HTTP client APIs (PIP-478).
  *
  * <p>This mirrors, on the HTTP transport, what
- * {@code org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver} does on the binary transport:
+ * {@code org.apache.pulsar.client.api.internal.BinaryAuthenticationDriver} does on the binary transport:
  * the HTTP callers ({@code HttpClient} for topic lookup, {@code BaseResource}/{@code ComponentResource}
  * for the admin client) test a plugin for this marker and, when present, route the SASL-style
  * {@code 401}→resubmit→{@code 200} exchange through the shared {@link HttpAuthenticationDriver} instead of

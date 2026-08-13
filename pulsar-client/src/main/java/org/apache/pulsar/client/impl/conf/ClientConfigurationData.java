@@ -43,8 +43,8 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.Socks5ProxyScope;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -267,7 +267,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     // from which ClientCnx opens one exchange per connection attempt. Resolved by PulsarClientImpl; null
     // until then (and for a configuration that never builds a client).
     @JsonIgnore
-    private transient AsyncAuthenticationDriver v5AuthenticationDriver;
+    private transient BinaryAuthenticationDriver v5AuthenticationDriver;
 
     @Schema(
             name = "concurrentLookupRequest",

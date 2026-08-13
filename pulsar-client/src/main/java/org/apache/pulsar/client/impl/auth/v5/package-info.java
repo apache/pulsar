@@ -19,7 +19,7 @@
 /**
  * v5-native implementations of the built-in credential-fetching authentication plugins (PIP-478), and
  * the shared {@link org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver} that exposes
- * them to {@code ClientCnx} through the {@code AsyncAuthenticationDriver} carve-out. The v4 plugin
+ * them to {@code ClientCnx} through the {@code BinaryAuthenticationDriver} carve-out. The v4 plugin
  * classes in the parent package are thin shims that keep their verbatim synchronous surface and drive
  * these bodies on the async binary path.
  */
