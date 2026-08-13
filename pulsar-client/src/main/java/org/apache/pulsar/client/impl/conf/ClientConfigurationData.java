@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -39,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -554,6 +557,28 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         } else {
             return operationTimeoutMs;
         }
+    }
+
+    /**
+     * Refuse to serialize a configuration whose authentication would not survive the round trip.
+     *
+     * <p>A v5 authentication plugin is not {@link Serializable} and this slot is {@code transient}, so
+     * serializing would drop it silently and the deserialized configuration would authenticate as nobody —
+     * an authentication downgrade discovered as a broker rejection, far from its cause. The string form
+     * ({@code authPluginClassName} + {@code authParams}) does survive, and is what a remote or forked
+     * context should be configured with, so a configuration carrying one is allowed through.
+     *
+     * @param out the object output stream
+     * @throws IOException if the configuration cannot be written
+     */
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+        if (v5Authentication != null && StringUtils.isBlank(authPluginClassName)) {
+            throw new NotSerializableException("A v5 authentication plugin ("
+                    + v5Authentication.getClass().getName() + ") cannot be serialized with the client "
+                    + "configuration. Configure authentication with authPluginClassName + authParams instead "
+                    + "of a pre-built plugin instance when the configuration has to cross a boundary.");
+        }
+        out.defaultWriteObject();
     }
 
     public ClientConfigurationData clone() {

@@ -90,13 +90,16 @@ public final class V5BinaryAuthenticationDriver implements BinaryAuthenticationD
     }
 
     /**
-     * The body's one-shot initialization, memoized. A failed initialization is not cached — the next
+     * The body's one-shot initialization, memoized. Public so the client can await it when it wants a
+     * misconfiguration to fail the build rather than every later connection attempt.
+     *
+     * <p>A failed initialization is not cached — the next
      * connection attempt retries, matching the previous behaviour where a throwing {@code join()} left
      * {@code initialized} false, so a reconnect after a transient failure can still succeed.
      *
      * @return a future completing when the body is ready to serve credentials
      */
-    private synchronized CompletableFuture<Void> initializedAsync() {
+    public synchronized CompletableFuture<Void> initializedAsync() {
         CompletableFuture<Void> current = initialization;
         if (current != null) {
             return current;

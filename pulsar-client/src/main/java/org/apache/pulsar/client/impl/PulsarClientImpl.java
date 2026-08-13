@@ -77,6 +77,7 @@ import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
@@ -427,7 +428,7 @@ public class PulsarClientImpl implements PulsarClient {
      * already-started variant because the v4 instance stays in {@code conf} and this client both started it
      * above and closes it in {@link #shutdown()} — the adapter must not run that lifecycle a second time.
      */
-    private void resolveV5Authentication() {
+    private void resolveV5Authentication() throws PulsarClientException {
         // The v5 slot holds only what was explicitly configured through the v5 builder. A body derived from
         // the v4 slot is deliberately NOT written back: build() hands this client the builder's own
         // configuration object, so a derived body stored here would outlive the build and be reused by the
@@ -435,10 +436,45 @@ public class PulsarClientImpl implements PulsarClient {
         // again, would drive the previous credential while conf.getAuthentication() showed the new one.
         // Deriving on every resolution keeps the answer a function of the current configuration.
         org.apache.pulsar.client.api.v5.auth.Authentication v5 = conf.getV5Authentication();
+        boolean configuredDirectly = v5 != null;
         if (v5 == null) {
             v5 = V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication());
         }
-        conf.setV5AuthenticationDriver(new V5BinaryAuthenticationDriver(v5, authServices));
+        V5BinaryAuthenticationDriver driver = new V5BinaryAuthenticationDriver(v5, authServices);
+        if (configuredDirectly) {
+            // A plugin configured through the v5 builder is initialized here, on the application thread, so a
+            // misconfiguration fails the build (PIP-478). The plugins the client derives from the v4 slot
+            // stay lazy: initializing a bridged plugin runs v4 code, which the v4 client does not do at
+            // build time either.
+            requireUsableForBinaryTransport(v5, driver);
+        }
+        conf.setV5AuthenticationDriver(driver);
+    }
+
+    /**
+     * Fail the client build when the configured authentication cannot authenticate a binary connection.
+     *
+     * <p>The binary transport requires {@code BinaryAuthDataProvider} (PIP-478 binary routing rule 1). Without
+     * this check the plugin builds fine and every connection attempt fails the same way for the client's
+     * lifetime, with the reason buried in a connection failure rather than stated where the mistake was made.
+     * Capabilities are only meaningful once the plugin has initialized, so the check follows initialization
+     * rather than preceding it.
+     */
+    private void requireUsableForBinaryTransport(org.apache.pulsar.client.api.v5.auth.Authentication v5,
+            V5BinaryAuthenticationDriver driver) throws PulsarClientException {
+        try {
+            driver.initializedAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+        if (v5.capability(BinaryAuthDataProvider.class).isEmpty()) {
+            throw new PulsarClientException.UnsupportedAuthenticationException(
+                    "authentication plugin " + v5.getClass().getName() + " does not expose "
+                            + "BinaryAuthDataProvider; the Pulsar binary transport requires it (PIP-478)");
+        }
     }
 
     /**
