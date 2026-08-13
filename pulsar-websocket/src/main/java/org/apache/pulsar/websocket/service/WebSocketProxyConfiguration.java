@@ -267,6 +267,24 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String jsseProvider = null;
 
     @FieldContext(
+            doc = "PIP-478: the Netty SSL engine provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — JDK, OPENSSL or OPENSSL_REFCNT. The "
+                    + "listener-side tlsProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientSslProvider. Leave unset to keep the "
+                    + "JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the WebSocket proxy's own "
+                    + "outbound (proxy-to-broker) client connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
     )
     private String tlsKeyStoreType = "JKS";

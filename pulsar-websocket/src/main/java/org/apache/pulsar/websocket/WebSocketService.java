@@ -226,6 +226,7 @@ public class WebSocketService implements Closeable {
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
+        applyBrokerClientProviders(clientBuilder);
         applyBrokerClientTlsFactory(clientBuilder);
         return clientBuilder.build();
     }
@@ -239,6 +240,26 @@ public class WebSocketService implements Closeable {
      * transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate is
      * off, when the client is not TLS, or when it is already on the new path.
      */
+    /**
+     * PIP-478: pin the proxy's own outbound (proxy-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe
+     * how TLS is built, not which factory builds it — mirroring the broker, the proxy and the functions
+     * worker. The listener-side {@code tlsProvider}/{@code jsseProvider} govern this service's own web
+     * server and must not leak onto this leg.
+     */
+    private void applyBrokerClientProviders(ClientBuilder clientBuilder) {
+        if (!(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (isNotBlank(config.getBrokerClientSslProvider())) {
+            conf.setSslProvider(config.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(config.getBrokerClientJsseProvider());
+        }
+    }
+
     private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {
         String factoryClassName = config.getBrokerClientTlsFactoryClassName();
         if (!isNotBlank(factoryClassName) || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
