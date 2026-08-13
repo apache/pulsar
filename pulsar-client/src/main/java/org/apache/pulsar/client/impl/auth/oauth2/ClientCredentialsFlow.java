@@ -147,7 +147,7 @@ class ClientCredentialsFlow extends FlowBase {
         assert this.metadata != null;
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
-        this.exchanger = new TokenClient(tokenUrl, httpClient);
+        this.exchanger = new TokenClient(tokenUrl, getHttpClient());
         initialized = true;
     }
 

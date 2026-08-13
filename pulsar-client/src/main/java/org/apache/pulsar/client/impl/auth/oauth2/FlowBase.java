@@ -67,21 +67,31 @@ abstract class FlowBase implements Flow {
     private static final long serialVersionUID = 1L;
 
     protected final URL issuerUrl;
-    protected transient AsyncHttpClient httpClient;
+    private final Duration connectTimeout;
+    private final Duration readTimeout;
+    private final String trustCertsFilePath;
+    private final String certFile;
+    private final String keyFile;
+    private final long autoCertRefreshSeconds;
     protected final String wellKnownMetadataPath;
     protected transient PulsarSslFactory sslFactory;
     protected transient ScheduledExecutorService sslRefreshScheduler;
     protected transient Metadata metadata;
+    private transient AsyncHttpClient httpClient;
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                        String certFile, String keyFile, Duration autoCertRefreshDuration,
                        String wellKnownMetadataPath) {
         this.issuerUrl = issuerUrl;
-        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath, certFile, keyFile);
-        long autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
+        this.trustCertsFilePath = trustCertsFilePath;
+        this.certFile = certFile;
+        this.keyFile = keyFile;
+        this.autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
                 autoCertRefreshDuration, DEFAULT_AUTO_CERT_REFRESH_DURATION);
-        scheduleSslContextRefreshIfEnabled(autoCertRefreshSeconds);
         this.wellKnownMetadataPath = wellKnownMetadataPath;
+        getHttpClient();
     }
 
     private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
@@ -130,6 +140,14 @@ abstract class FlowBase implements Flow {
             }
         }
         return new DefaultAsyncHttpClient(confBuilder.build());
+    }
+
+    protected synchronized AsyncHttpClient getHttpClient() {
+        if (httpClient == null) {
+            httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath, certFile, keyFile);
+            scheduleSslContextRefreshIfEnabled(autoCertRefreshSeconds);
+        }
+        return httpClient;
     }
 
     private void scheduleSslContextRefreshIfEnabled(long refreshSeconds) {
@@ -185,7 +203,7 @@ abstract class FlowBase implements Flow {
     }
 
     protected MetadataResolver createMetadataResolver() {
-        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient, wellKnownMetadataPath);
+        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, getHttpClient(), wellKnownMetadataPath);
     }
 
     static String parseParameterString(Map<String, String> params, String name) {
