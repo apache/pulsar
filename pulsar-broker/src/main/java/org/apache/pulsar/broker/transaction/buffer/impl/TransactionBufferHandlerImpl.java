@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -51,7 +51,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-@Slf4j
+@CustomLog
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     private final ConcurrentSkipListMap<Long, OpRequestSend> outstandingRequests;
@@ -83,11 +83,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     @Override
     public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] endTxnOnTopic txnId: [{}], txnAction: [{}]",
-                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
-        }
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("txnId", new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .attr("txnAction", action.getValue())
+                    .log("endTxnOnTopic");
+                CompletableFuture<TxnID> cb = new CompletableFuture<>();
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
@@ -103,11 +104,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
                                                                       long txnIdMostBits, long txnIdLeastBits,
                                                                       TxnAction action, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] endTxnOnSubscription txnId: [{}], txnAction: [{}]",
-                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
-        }
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("txnId", new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .attr("txnAction", action.getValue())
+                    .log("endTxnOnSubscription");
+                CompletableFuture<TxnID> cb = new CompletableFuture<>();
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
@@ -159,7 +161,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 }
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.error("endTxn error topic: [{}]", op.topic, cause);
+                log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
                 if (cause instanceof PulsarClientException.BrokerMetadataException) {
                     op.cb.complete(null);
                 } else {
@@ -175,23 +177,25 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
         if (op == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Got end txn on topic response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
+                log.debug()
+                        .attr("timeout", response.getTxnidMostBits())
+                        .attr("txnidLeastBits", response.getTxnidLeastBits())
+                        .log("Got end txn on topic response for timeout -");
+                        return;
         }
         try {
             if (!response.hasError()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Got end txn on topic response for for request {}", op.topic,
-                            response.getRequestId());
-                }
-                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+                    log.debug()
+                            .attr("topic", op.topic)
+                            .attr("request", response.getRequestId())
+                            .log("Got end txn on topic response for for request");
+                                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
             } else {
-                log.error("[{}] Got end txn on topic response for request {} error {}", op.topic,
-                        response.getRequestId(),
-                        response.getError());
+                log.error()
+                        .attr("topic", op.topic)
+                        .attr("request", response.getRequestId())
+                        .attr("errorCode", response.getError())
+                        .log("Got end txn on topic response error");
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
@@ -205,23 +209,26 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
         if (op == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Got end txn on subscription response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
+                log.debug()
+                        .attr("timeout", response.getTxnidMostBits())
+                        .attr("txnidLeastBits", response.getTxnidLeastBits())
+                        .log("Got end txn on subscription response for timeout -");
+                        return;
         }
 
         try {
             if (!response.hasError()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Got end txn on subscription response for for request {}",
-                            op.topic, response.getRequestId());
-                }
-                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+                    log.debug()
+                            .attr("topic", op.topic)
+                            .attr("request", response.getRequestId())
+                            .log("Got end txn on subscription response for for request");
+                                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
             } else {
-                log.error("[{}] Got end txn on subscription response for request {} error {}",
-                        op.topic, response.getRequestId(), response.getError());
+                log.error()
+                        .attr("topic", op.topic)
+                        .attr("request", response.getRequestId())
+                        .attr("errorCode", response.getError())
+                        .log("Got end txn on subscription response error");
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }

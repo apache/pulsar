@@ -36,6 +36,7 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -47,14 +48,11 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class PulsarShellTest {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
 
     private PulsarAdmin pulsarAdmin;
 
@@ -76,7 +74,7 @@ public class PulsarShellTest {
         @SneakyThrows
         public String readLine() throws UserInterruptException, EndOfFileException {
             final String cmd = commandsQueue.take();
-            log.info("writing command: {}", cmd);
+            log.info().attr("command", cmd).log("Writing command");
             return cmd;
 
         }

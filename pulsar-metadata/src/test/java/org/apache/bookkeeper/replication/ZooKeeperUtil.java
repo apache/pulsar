@@ -32,6 +32,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -44,12 +45,11 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.test.ClientBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Test the zookeeper utilities.
  */
+@CustomLog
 public class ZooKeeperUtil implements ZooKeeperCluster {
 
     static {
@@ -57,7 +57,6 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         // are disabled by default due to security reasons
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
     }
-    static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
 
     // ZooKeeper related variables
     protected Integer zooKeeperPort = 0;
@@ -105,7 +104,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
     @Override
     public void startCluster() throws Exception {
         // create a ZooKeeper server(dataDir, dataLogDir, port)
-        LOG.debug("Running ZK server");
+        log.debug("Running ZK server");
         ClientBase.setupTestEnv();
         zkTmpDir = IOUtils.createTempDir("zookeeper", "test");
 
@@ -152,10 +151,10 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(),
                 ClientBase.CONNECTION_TIMEOUT);
-        LOG.debug("Server up: " + b);
+        log.debug().attr("serverUp", b).log("Server up");
 
         // create a zookeeper client
-        LOG.debug("Instantiate ZK Client");
+        log.debug("Instantiate ZK Client");
         zkc = ZooKeeperClient.newBuilder()
                 .connectString(getZooKeeperConnectString())
                 .sessionTimeoutMs(10000)
@@ -180,7 +179,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
                             timeUnit.sleep(time);
                             t.resume();
                         } catch (Exception e) {
-                            LOG.error("Error suspending thread", e);
+                            log.error().exception(e).log("Error suspending thread");
                         }
                     }
                 };

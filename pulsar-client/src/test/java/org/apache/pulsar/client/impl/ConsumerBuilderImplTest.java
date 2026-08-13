@@ -121,7 +121,7 @@ public class ConsumerBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
-        consumerBuilderImpl.topic(null);
+        consumerBuilderImpl.topic((String[]) null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

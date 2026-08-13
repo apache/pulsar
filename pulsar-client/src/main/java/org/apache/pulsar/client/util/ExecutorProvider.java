@@ -29,12 +29,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
-@Slf4j
+@CustomLog
 public class ExecutorProvider {
     private final int numThreads;
     private final List<Pair<ExecutorService, ExtendedThreadFactory>> executors;
@@ -56,7 +56,7 @@ public class ExecutorProvider {
         public Thread newThread(Runnable r) {
             Thread thread = super.newThread(r);
             thread.setUncaughtExceptionHandler((t, e) ->
-                    log.error("Thread {} got uncaught Exception", t.getName(), e));
+                    log.error().attr("thread", t.getName()).exception(e).log("Thread got uncaught Exception"));
             this.thread = thread;
             return thread;
         }
@@ -115,9 +115,12 @@ public class ExecutorProvider {
             executor.shutdownNow();
             try {
                 if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack"
-                            + " traces of still running threads.\n{}",
-                            poolName, getThreadDump(threadFactory.getThread()));
+                    log.warn().attr("name", poolName)
+                            .attr("threads", getThreadDump(threadFactory.getThread()))
+                            .log("Failed to terminate executor with pool"
+                                    + " name within timeout. The following are"
+                                    + " stack traces of still running"
+                                    + " threads.\n");
                 }
             } catch (InterruptedException e) {
                 log.warn("Shutdown of thread pool was interrupted");

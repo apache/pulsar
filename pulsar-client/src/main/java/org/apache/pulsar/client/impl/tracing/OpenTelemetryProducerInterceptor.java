@@ -23,16 +23,13 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapPropagator;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.TraceableMessage;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
-import org.apache.pulsar.client.impl.ProducerBase;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpenTelemetry producer interceptor that creates spans for message publishing.
@@ -43,32 +40,16 @@ import org.slf4j.LoggerFactory;
  * Spans are attached directly to {@link TraceableMessage} instances, eliminating the need
  * for external span tracking via maps.
  */
+@CustomLog
 public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenTelemetryProducerInterceptor.class);
-
-    private Tracer tracer;
-    private TextMapPropagator propagator;
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
     private String topic;
-    private boolean initialized = false;
 
-    public OpenTelemetryProducerInterceptor() {
-        // Tracer and propagator will be initialized in beforeSend when we have access to the producer
-    }
-
-    /**
-     * Initialize the tracer from the producer's client.
-     * This is called lazily on the first message.
-     */
-    private void initializeIfNeeded(Producer producer) {
-        if (!initialized && producer instanceof ProducerBase<?> producerBase) {
-            PulsarClientImpl client = producerBase.getClient();
-            InstrumentProvider instrumentProvider = client.instrumentProvider();
-
-            this.tracer = instrumentProvider.getTracer();
-            this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-            this.initialized = true;
-        }
+    public OpenTelemetryProducerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
     }
 
     @Override
@@ -84,9 +65,6 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     @Override
     public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
-        // Initialize tracer from producer on first call
-        initializeIfNeeded(producer);
-
         if (!eligible(message)) {
             return message;
         }
@@ -105,10 +83,13 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
             if (TracingContext.isValid(span) && message instanceof TraceableMessage) {
                 // Attach the span directly to the message
                 ((TraceableMessage) message).setTracingSpan(span);
-                log.debug("Created producer span for message on topic {}", topic);
+                // Inject trace context into message properties so the consumer
+                // can extract it and correlate its span with this producer span
+                TracingContext.injectContext(message, Context.current().with(span), propagator);
+                log.debug().attr("topic", topic).log("Created producer span");
             }
         } catch (Exception e) {
-            log.error("Error creating producer span", e);
+            log.error().exception(e).log("Error creating producer span");
         }
 
         return message;
@@ -136,7 +117,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
                 // Clear the span from the message
                 ((TraceableMessage) message).setTracingSpan(null);
             } catch (Exception e) {
-                log.error("Error ending producer span", e);
+                log.error().exception(e).log("Error ending producer span");
             }
         }
     }

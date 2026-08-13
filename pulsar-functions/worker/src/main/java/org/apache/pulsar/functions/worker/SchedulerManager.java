@@ -49,10 +49,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -80,7 +80,7 @@ import org.apache.pulsar.functions.worker.scheduler.IScheduler;
  *  2. When worker loses leadership, this class will be closed which
  *  also closes the worker's producer to the assignments topic
  */
-@Slf4j
+@CustomLog
 public class SchedulerManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
@@ -209,7 +209,8 @@ public class SchedulerManager implements AutoCloseable {
                         try {
                             runnable.run();
                         } catch (Throwable th) {
-                            log.error("Encountered error when invoking scheduler [{}]", errMsg);
+                            log.error().attr("context", errMsg)
+                    .log("Encountered error when invoking scheduler");
                             errorNotifier.triggerError(th);
                         }
                     }
@@ -283,7 +284,8 @@ public class SchedulerManager implements AutoCloseable {
                 }
 
                 if (!availableWorkers.contains(workerId)) {
-                    log.info("invokeDrain was called for a worker={} which is not currently active", workerId);
+                    log.info().attr("workerId", workerId)
+                            .log("invokeDrain was called for a worker which is not currently active");
                     throw new UnknownWorkerException();
                 }
 
@@ -313,9 +315,12 @@ public class SchedulerManager implements AutoCloseable {
         ).orElse(
                 new LongRunningProcessStatus()
         );
-        log.info("Get drain status for worker {} - execution time: {} sec; returning status={}, error={}",
-                workerId, NANOSECONDS.toSeconds (System.nanoTime() - startTime),
-                status.status, status.lastError);
+        log.info().attr("workerId", workerId)
+                .attr("executionTimeSec",
+                        NANOSECONDS.toSeconds(System.nanoTime() - startTime))
+                .attr("status", status.status)
+                .attr("error", status.lastError)
+                .log("Get drain status");
         return status;
     }
 
@@ -330,7 +335,8 @@ public class SchedulerManager implements AutoCloseable {
     @VisibleForTesting
     void setDrainOpsStatus(final String workerId, final DrainOpStatus dStatus) {
         drainOpStatusMap.put(workerId, dStatus);
-        log.warn("setDrainOpsStatus: updated drain status of worker {} to {}", workerId, dStatus);
+        log.warn().attr("workerId", workerId).attr("status", dStatus)
+                .log("setDrainOpsStatus: updated drain status");
     }
 
     // The following method is used only for testing.
@@ -383,7 +389,8 @@ public class SchedulerManager implements AutoCloseable {
                     MessageId messageId = publishNewAssignment(deleteCopy, true);
 
                     // Directly update in memory assignment cache since I am leader
-                    log.info("Deleting assignment: {}", assignment);
+                    log.info().attr("assignment", assignment)
+                            .log("Deleting assignment");
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
@@ -409,7 +416,8 @@ public class SchedulerManager implements AutoCloseable {
                     MessageId messageId = publishNewAssignment(newAssignment, false);
 
                     // Directly update in memory assignment cache since I am leader
-                    log.info("Updating assignment: {}", newAssignment);
+                    log.info().attr("assignment", newAssignment)
+                            .log("Updating assignment");
                     functionRuntimeManager.processAssignment(newAssignment);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
@@ -443,10 +451,8 @@ public class SchedulerManager implements AutoCloseable {
         workerStatsManager.scheduleStrategyExecTimeStartEnd();
 
         assignments.addAll(unassignedInstances.getRight());
-
-        if (log.isDebugEnabled()) {
-            log.debug("New assignments computed: {}", assignments);
-        }
+        log.debug().attr("assignments", assignments)
+                .log("New assignments computed");
 
         isCompactionNeeded.set(!assignments.isEmpty());
 
@@ -454,7 +460,8 @@ public class SchedulerManager implements AutoCloseable {
             MessageId messageId = publishNewAssignment(assignment, false);
 
             // Directly update in memory assignment cache since I am leader
-            log.info("Adding assignment: {}", assignment);
+            log.info().attr("assignment", assignment)
+                    .log("Adding assignment");
             functionRuntimeManager.processAssignment(assignment);
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
@@ -462,9 +469,13 @@ public class SchedulerManager implements AutoCloseable {
             schedulerStats.newAssignment(assignment);
         }
 
-        log.info("Schedule summary - execution time: {} sec | total unassigned: {} | stats: {}\n{}",
-                (System.nanoTime() - startTime) / Math.pow(10, 9),
-                unassignedInstances.getLeft().size(), schedulerStats.getSummary(), schedulerStats);
+        log.info().attr("executionTimeSec",
+                        (System.nanoTime() - startTime) / Math.pow(10, 9))
+                .attr("totalUnassigned",
+                        unassignedInstances.getLeft().size())
+                .attr("summary", schedulerStats.getSummary())
+                .attr("stats", schedulerStats)
+                .log("Schedule summary");
     }
 
     private void invokeRebalance() {
@@ -497,7 +508,8 @@ public class SchedulerManager implements AutoCloseable {
         for (Assignment assignment : rebalancedAssignments) {
             MessageId messageId = publishNewAssignment(assignment, false);
             // Directly update in memory assignment cache since I am leader
-            log.info("Rebalance - new assignment: {}", assignment);
+            log.info().attr("assignment", assignment)
+                    .log("Rebalance - new assignment");
             functionRuntimeManager.processAssignment(assignment);
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
@@ -505,8 +517,11 @@ public class SchedulerManager implements AutoCloseable {
             schedulerStats.newAssignment(assignment);
         }
 
-        log.info("Rebalance summary - execution time: {} sec | stats: {}\n{}",
-                (System.nanoTime() - startTime) / Math.pow(10, 9), schedulerStats.getSummary(), schedulerStats);
+        log.info().attr("executionTimeSec",
+                        (System.nanoTime() - startTime) / Math.pow(10, 9))
+                .attr("summary", schedulerStats.getSummary())
+                .attr("stats", schedulerStats)
+                .log("Rebalance summary");
 
         rebalanceInProgress.set(false);
     }
@@ -592,7 +607,8 @@ public class SchedulerManager implements AutoCloseable {
                 postDrainAssignments =
                         scheduler.schedule(instancesToAssign.getLeft(), assignmentsOnActiveWorkers, availableWorkers);
             } catch (Exception e) {
-                log.info("invokeDrain: Got exception from schedule: ", e);
+                log.info().exception(e)
+                        .log("invokeDrain: Got exception from schedule");
             }
             workerStatsManager.drainTotalExecTimeEnd();
 
@@ -610,10 +626,13 @@ public class SchedulerManager implements AutoCloseable {
             drainOpStatusMap.put(workerId, DrainOpStatus.DrainCompleted);
             drainSuccessful = true;
         } finally {
-            log.info("Draining worker {} was {}successful; summary [] - execution time: {} sec | stats: {}\n{}",
-                    workerId, drainSuccessful ? "" : "un",
-                    (System.nanoTime() - startTime) / Math.pow(10, 9),
-                    schedulerStats.getSummary(), schedulerStats);
+            log.info().attr("workerId", workerId)
+                    .attr("successful", drainSuccessful)
+                    .attr("executionTimeSec",
+                            (System.nanoTime() - startTime) / Math.pow(10, 9))
+                    .attr("summary", schedulerStats.getSummary())
+                    .attr("stats", schedulerStats)
+                    .log("Drain summary");
         }
         return postDrainAssignments;
     }
@@ -623,7 +642,7 @@ public class SchedulerManager implements AutoCloseable {
             try {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
             } catch (PulsarAdminException e) {
-                log.error("Failed to trigger compaction", e);
+                log.error().exception(e).log("Failed to trigger compaction");
                 scheduledExecutorService.schedule(this::compactAssignmentTopic, DEFAULT_ADMIN_API_BACKOFF_SEC,
                         TimeUnit.SECONDS);
             }
@@ -651,8 +670,10 @@ public class SchedulerManager implements AutoCloseable {
         }
 
         if (numRemovedWorkerIds > 0) {
-            log.info("cleanupWorkerDrainMap removed {} stale workerIds in {} sec",
-                    numRemovedWorkerIds, (System.nanoTime() - startTime) / Math.pow(10, 9));
+            log.info().attr("numRemoved", numRemovedWorkerIds)
+                    .attr("executionTimeSec",
+                            (System.nanoTime() - startTime) / Math.pow(10, 9))
+                    .log("cleanupWorkerDrainMap removed stale workerIds");
         }
 
         return numRemovedWorkerIds;
@@ -663,7 +684,7 @@ public class SchedulerManager implements AutoCloseable {
             try {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionMetadataTopic());
             } catch (PulsarAdminException e) {
-                log.error("Failed to trigger compaction", e);
+                log.error().exception(e).log("Failed to trigger compaction");
                 scheduledExecutorService.schedule(this::compactFunctionMetadataTopic, DEFAULT_ADMIN_API_BACKOFF_SEC,
                         TimeUnit.SECONDS);
             }
@@ -678,7 +699,9 @@ public class SchedulerManager implements AutoCloseable {
             return exclusiveProducer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
         } catch (Exception e) {
-            log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
+            log.error().attr("assignment", assignment)
+                    .attr("action", deleted ? "send" : "deleted")
+                    .exception(e).log("Failed to process assignment update");
             throw new RuntimeException(e);
         }
     }
@@ -764,7 +787,7 @@ public class SchedulerManager implements AutoCloseable {
                 try {
                     exclusiveProducer.close();
                 } catch (PulsarClientException e) {
-                    log.warn("Failed to shutdown scheduler manager assignment producer", e);
+                    log.warn().exception(e).log("Failed to shutdown scheduler manager assignment producer");
                 }
             }
         } finally {

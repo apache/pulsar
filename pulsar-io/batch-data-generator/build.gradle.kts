@@ -22,10 +22,10 @@ plugins {
     id("pulsar.nar-conventions")
 }
 dependencies {
-    implementation(project(":pulsar-io:pulsar-io-core"))
+    implementation(libs.slog)
+    api(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-io:pulsar-io-batch-discovery-triggerers"))
-    implementation(libs.spring.context)
-    implementation(libs.jfairy)
+    api(libs.jfairy)
     implementation(libs.avro)
 
     testImplementation(project(":pulsar-functions:pulsar-functions-local-runner-original"))

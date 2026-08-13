@@ -37,9 +37,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
-import org.apache.bookkeeper.client.AsyncCallback;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -62,12 +61,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.jspecify.annotations.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class BookkeeperSchemaStorage implements SchemaStorage {
-    private static final Logger log = LoggerFactory.getLogger(BookkeeperSchemaStorage.class);
-
     private static final String SchemaPath = "/schemas";
     private static final byte[] LedgerPassword = "".getBytes();
 
@@ -174,9 +170,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<Pair<Optional<LocatorEntry>, List<CompletableFuture<StoredSchema>>>> getAllWithLocator(
             String key) {
         return getLocator(key).thenApply(locator -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Get all schemas - locator: {}", key, locator);
-            }
+            log.debug().attr("key", key).attr("locator", locator).log("Get all schemas");
 
             if (locator.isEmpty()) {
                 return Pair.of(locator, Collections.emptyList());
@@ -206,8 +200,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         try {
             locatorEntry = getLocator(key).get();
         } catch (Exception e) {
-            log.warn("Failed to get list of schema-storage ledger for {}, the exception as follow: \n {}", key,
-                    (e instanceof ExecutionException ? e.getCause() : e));
+            log.warn()
+                    .attr("key", key)
+                    .exceptionMessage(e)
+                    .log("Failed to get list of schema-storage ledger");
             throw new IOException("Failed to get schema ledger for" + key);
         }
         LocatorEntry entry = locatorEntry.orElse(null);
@@ -245,13 +241,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
         // There's already a schema read operation in progress. Just piggyback on that
         return readSchemaOperations.computeIfAbsent(schemaId, key -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Fetching schema from store", schemaId);
-            }
+            log.debug().attr("schemaId", schemaId).log("Fetching schema from store");
             return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Got schema locator {}", schemaId, locator);
-                }
+                log.debug().attr("schemaId", schemaId).attr("locator", locator).log("Got schema locator");
                 if (!locator.isPresent()) {
                     return completedFuture(null);
                 }
@@ -263,9 +255,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
             });
         }).whenComplete((res, ex) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
-            }
+            log.debug()
+                    .attr("schemaId", schemaId)
+                    .attr("result", res)
+                    .exceptionMessage(ex)
+                    .log("Get operation completed");
             readSchemaOperations.remove(schemaId);
         });
     }
@@ -291,14 +285,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NonNull
     private CompletableFuture<StoredSchema> getSchema(String schemaId, long version) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Get schema - version: {}", schemaId, version);
-        }
+        log.debug().attr("schemaId", schemaId).attr("version", version).log("Get schema");
 
         return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Get schema - version: {} - locator: {}", schemaId, version, locator);
-            }
+            log.debug()
+                    .attr("schemaId", schemaId)
+                    .attr("version", version)
+                    .attr("locator", locator)
+                    .log("Get schema locator");
 
             if (!locator.isPresent()) {
                 return completedFuture(null);
@@ -335,9 +329,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             SchemaLocator locator = optLocatorEntry.get().locator;
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
-            }
+            log.debug().attr("schemaId", schemaId).attr("hash", hash).log("findSchemaEntryByHash");
 
             //don't check the schema whether already exist
             List<IndexEntry> indexList = new ArrayList<>(locator.getIndexsCount());
@@ -355,23 +347,42 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
+        // Step 1: Store the schema data into a new BookKeeper ledger
         IndexEntry emptyIndex = new IndexEntry();
         emptyIndex.setVersion(0);
         emptyIndex.setHash(hash);
         emptyIndex.setPosition().setEntryId(-1L).setLedgerId(-1L);
+        CompletableFuture<PositionInfo> stored = addNewSchemaEntryToStore(
+                schemaId, Collections.singletonList(emptyIndex), data
+        );
 
-        return addNewSchemaEntryToStore(schemaId, Collections.singletonList(emptyIndex), data).thenCompose(position -> {
-            // The schema was stored in the ledger, now update the z-node with the pointer to it
+        return stored.thenCompose(position -> {
+            // Step 2: Create the schema locator z-node pointing to the ledger
             IndexEntry info = new IndexEntry();
             info.setVersion(0);
             info.setPosition().copyFrom(position);
             info.setHash(hash);
-
             SchemaLocator locator = new SchemaLocator();
             locator.setInfo().copyFrom(info);
             locator.addIndex().copyFrom(info);
+            // Step 3: Handle failure by cleaning up the orphan ledger
+            // if concurrent schema creation caused a CAS conflict
             return createSchemaLocator(getSchemaPath(schemaId), locator)
-                            .thenApply(ignore -> 0L);
+                    .thenApply(ignore -> 0L)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn()
+                                .attr("schemaId", schemaId)
+                                .attr("ledgerId", position.getLedgerId())
+                                .exception(cause)
+                                .log("Failed to create schema locator with position");
+                        if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                            return deleteLedgerAsync(schemaId, position.getLedgerId(),
+                                    "schema locator creation failed")
+                                    .thenCompose(__ -> FutureUtil.failedFuture(cause));
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
         });
     }
 
@@ -403,7 +414,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
                                 if (rc != BKException.Code.OK) {
                                     // It's not a serious error, we didn't need call future.completeExceptionally()
-                                    log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
+                                    log.warn()
+                                            .attr("ledgerId", ledgerId)
+                                            .attr("schemaId", schemaId)
+                                            .attr("rc", rc)
+                                            .log("Failed to delete ledger of");
                                 }
                                 deleteFuture.complete(null);
                             }, null);
@@ -419,9 +434,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                             // The znode has been deleted by others.
                                             // In some cases, the program may enter this logic.
                                             // Since the znode is gone, we don’t need to deal with it.
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("No node for schema path: {}", path);
-                                            }
+                                            log.debug().attr("path", path).log("No node for schema path");
                                             future.complete(null);
                                         } else {
                                             future.completeExceptionally(zkException);
@@ -481,23 +494,46 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return updateSchemaLocator(getSchemaPath(schemaId),
                 newLocator
                 , locatorEntry.version
-        ).thenApply(ignore -> nextVersion).whenComplete((__, ex) -> {
-            if (ex != null) {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("[{}] Failed to update schema locator with position {}", schemaId, position, cause);
-                if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
-                    bookKeeper.asyncDeleteLedger(position.getLedgerId(), new AsyncCallback.DeleteCallback() {
-                        @Override
-                        public void deleteComplete(int rc, Object ctx) {
-                            if (rc != BKException.Code.OK) {
-                                log.warn("[{}] Failed to delete ledger {} after updating schema locator failed, rc: {}",
-                                    schemaId, position.getLedgerId(), rc);
-                            }
-                        }
-                    }, null);
-                }
+        ).thenApply(ignore -> nextVersion).exceptionallyCompose(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn()
+                    .attr("schemaId", schemaId)
+                    .attr("ledgerId", position.getLedgerId())
+                    .exception(cause)
+                    .log("Failed to update schema locator with position");
+            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                return deleteLedgerAsync(schemaId, position.getLedgerId(),
+                        "schema locator update failed")
+                        .thenCompose(__ -> FutureUtil.failedFuture(cause));
             }
+            return FutureUtil.failedFuture(cause);
         });
+    }
+
+    private CompletableFuture<Void> deleteLedgerAsync(String schemaId, long ledgerId, String reason) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                if (rc != BKException.Code.OK) {
+                    log.warn()
+                            .attr("schemaId", schemaId)
+                            .attr("ledgerId", ledgerId)
+                            .attr("rc", rc)
+                            .attr("reason", reason)
+                            .log("Failed to delete orphan schema ledger");
+                }
+                future.complete(null);
+            }, null);
+        } catch (Throwable t) {
+            log.warn()
+                    .attr("schemaId", schemaId)
+                    .attr("ledgerId", ledgerId)
+                    .attr("reason", reason)
+                    .exception(t)
+                    .log("Failed to trigger orphan schema ledger deletion");
+            future.complete(null);
+        }
+        return future;
     }
 
     @NonNull
@@ -537,9 +573,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<SchemaEntry> readSchemaEntry(
         PositionInfo position
     ) {
-        if (log.isDebugEnabled()) {
-            log.debug("Reading schema entry from {}", position);
-        }
+        log.debug().attr("position", position).log("Reading schema entry from");
 
         return openLedger(position.getLedgerId())
             .thenCompose((ledger) ->
@@ -611,22 +645,29 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForSchema(schemaId);
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         try {
-            bookKeeper.asyncCreateLedger(
-                    config.getManagedLedgerDefaultEnsembleSize(),
-                    config.getManagedLedgerDefaultWriteQuorum(),
-                    config.getManagedLedgerDefaultAckQuorum(),
-                    BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-                    LedgerPassword,
-                    (rc, handle, ctx) -> {
-                        if (rc != BKException.Code.OK) {
-                            future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1,
+            bookKeeper.newCreateLedgerOp()
+                    .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                    .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                    .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                    .withDigestType(config.getManagedLedgerDigestType())
+                    .withPassword(LedgerPassword)
+                    .withCustomMetadata(metadata)
+                    .withLoggerContext(log.with().attr("schemaId", schemaId).build())
+                    .execute()
+                    .whenComplete((writeHandle, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(bkException("Failed to create ledger",
+                                    BKException.getExceptionCode(ex), -1, -1,
                                     config.isSchemaLedgerForceRecovery()));
                         } else {
-                            future.complete(handle);
+                            future.complete((LedgerHandle) writeHandle);
                         }
-                    }, null, metadata);
+                    });
         } catch (Throwable t) {
-            log.error("[{}] Encountered unexpected error when creating schema ledger", schemaId, t);
+            log.error()
+                    .attr("schemaId", schemaId)
+                    .exception(t)
+                    .log("Encountered unexpected error when creating schema ledger");
             return FutureUtil.failedFuture(t);
         }
         return future;
@@ -668,9 +709,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public CompletableFuture<List<Long>> getStoreLedgerIdsBySchemaId(String schemaId) {
         CompletableFuture<List<Long>> ledgerIdsFuture = new CompletableFuture<>();
         getSchemaLocator(getSchemaPath(schemaId)).thenAccept(locator -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Get all store schema ledgerIds - locator: {}", schemaId, locator);
-            }
+            log.debug()
+                    .attr("schemaId", schemaId)
+                    .attr("locator", locator)
+                    .log("Get all store schema ledgerIds - locator");
 
             if (!locator.isPresent()) {
                 ledgerIdsFuture.complete(Collections.emptyList());
@@ -776,9 +818,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 // NoSuchLedgerExistsOnMetadataServerException when reading schemas in
                 // bookkeeper. This also means that the data has already been deleted by other operations
                 // in deleting schema.
-                if (log.isDebugEnabled()) {
-                    log.debug("Schema data in bookkeeper may be deleted by other operations.", t);
-                }
+                log.debug().exception(t).log("Schema data in bookkeeper may be deleted by other operations.");
                 return null;
             }
             // rethrow other cases

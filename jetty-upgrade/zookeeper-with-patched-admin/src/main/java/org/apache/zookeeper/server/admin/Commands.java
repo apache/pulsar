@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.zookeeper.Environment;
 import org.apache.zookeeper.Environment.Entry;
 import org.apache.zookeeper.KeeperException;
@@ -70,8 +71,6 @@ import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.util.RateLimiter;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.eclipse.jetty.http.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class containing static methods for registering and running Commands, as well
@@ -80,9 +79,8 @@ import org.slf4j.LoggerFactory;
  * @see Command
  * @see JettyAdminServer
  */
+@CustomLog
 public class Commands {
-
-    static final Logger LOG = LoggerFactory.getLogger(Commands.class);
     // VisibleForTesting
     static final String ADMIN_RATE_LIMITER_INTERVAL = "zookeeper.admin.rateLimiterIntervalInMS";
     private static final long rateLimiterInterval =
@@ -106,7 +104,8 @@ public class Commands {
         for (String name : command.getNames()) {
             Command prev = commands.put(name, command);
             if (prev != null) {
-                LOG.warn("Re-registering command {} (primary name = {})", name, command.getPrimaryName());
+                log.warn().attr("name", name).attr("primaryName", command.getPrimaryName())
+                        .log("Re-registering command");
             }
         }
         primaryNames.add(command.getPrimaryName());
@@ -171,12 +170,12 @@ public class Commands {
         Command command = getCommand(cmdName);
         if (command == null) {
             // set the status code to 200 to keep the current behavior of existing commands
-            LOG.warn("Unknown command");
+            log.warn("Unknown command");
             return new CommandResponse(cmdName, "Unknown command: " + cmdName, HttpServletResponse.SC_OK);
         }
         if (command.isServerRequired() && (zkServer == null || !zkServer.isRunning())) {
             // set the status code to 200 to keep the current behavior of existing commands
-            LOG.warn("This ZooKeeper instance is not currently serving requests for command");
+            log.warn("This ZooKeeper instance is not currently serving requests for command");
             return new CommandResponse(cmdName, "This ZooKeeper instance is not currently serving requests",
                     HttpServletResponse.SC_OK);
         }
@@ -184,7 +183,7 @@ public class Commands {
         final AuthRequest authRequest = command.getAuthRequest();
         if (authRequest != null) {
             if (authInfo == null) {
-                LOG.warn("Auth info is missing for command");
+                log.warn("Auth info is missing for command");
                 return new CommandResponse(cmdName, "Auth info is missing for the command",
                         HttpServletResponse.SC_UNAUTHORIZED);
             }
@@ -196,7 +195,7 @@ public class Commands {
             } catch (final KeeperException.NoAuthException e) {
                 return new CommandResponse(cmdName, "Not authorized", HttpServletResponse.SC_FORBIDDEN);
             } catch (final Exception e) {
-                LOG.warn("Error occurred during auth for command", e);
+                log.warn().exception(e).log("Error occurred during auth for command");
                 return new CommandResponse(cmdName, "Error occurred during auth",
                         HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             }
@@ -209,7 +208,7 @@ public class Commands {
         final String[] authData = authInfo.split(AUTH_INFO_SEPARATOR);
         // for IP and x509, auth info only contains the schema and Auth Id will be extracted from HTTP request
         if (authData.length != 1 && authData.length != 2) {
-            LOG.warn("Invalid auth info length");
+            log.warn("Invalid auth info length");
             throw new KeeperException.AuthFailedException();
         }
 
@@ -220,16 +219,16 @@ public class Commands {
                 final byte[] auth = authData.length == 2 ? authData[1].getBytes(StandardCharsets.UTF_8) : null;
                 final List<Id> ids = authProvider.handleAuthentication(request, auth);
                 if (ids.isEmpty()) {
-                    LOG.warn("Auth Id list is empty");
+                    log.warn("Auth Id list is empty");
                     throw new KeeperException.AuthFailedException();
                 }
                 return ids;
             } catch (final RuntimeException e) {
-                LOG.warn("Caught runtime exception from AuthenticationProvider", e);
+                log.warn().exception(e).log("Caught runtime exception from AuthenticationProvider");
                 throw new KeeperException.AuthFailedException();
             }
         } else {
-            LOG.warn("Auth provider not found for schema");
+            log.warn("Auth provider not found for schema");
             throw new KeeperException.AuthFailedException();
         }
     }
@@ -664,19 +663,19 @@ public class Commands {
             final boolean restoreEnabled = Boolean.parseBoolean(System.getProperty(ADMIN_RESTORE_ENABLED, "true"));
             if (!restoreEnabled) {
                 response.setStatusCode(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-                LOG.warn("Restore command is disabled");
+                log.warn("Restore command is disabled");
                 return response;
             }
 
             if (!ZooKeeperServer.isSerializeLastProcessedZxidEnabled()) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                LOG.warn("Restore command requires serializeLastProcessedZxidEnable flag is set to true");
+                log.warn("Restore command requires serializeLastProcessedZxidEnable flag is set to true");
                 return response;
             }
 
             if (inputStream == null) {
                 response.setStatusCode(HttpServletResponse.SC_BAD_REQUEST);
-                LOG.warn("InputStream from restore request is null");
+                log.warn("InputStream from restore request is null");
                 return response;
             }
 
@@ -684,7 +683,7 @@ public class Commands {
             if (!rateLimiter.allow()) {
                 response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS_429);
                 ServerMetrics.getMetrics().RESTORE_RATE_LIMITED_COUNT.add(1);
-                LOG.warn("Restore request was rate limited");
+                log.warn("Restore request was rate limited");
                 return response;
             }
 
@@ -695,7 +694,8 @@ public class Commands {
             } catch (final Exception e) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 ServerMetrics.getMetrics().RESTORE_ERROR_COUNT.add(1);
-                LOG.warn("Exception occurred when restore snapshot via the restore command", e);
+                log.warn().exception(e)
+                        .log("Exception occurred when restore snapshot via the restore command");
             }
             return response;
         }
@@ -786,13 +786,13 @@ public class Commands {
             final boolean snapshotEnabled = Boolean.parseBoolean(System.getProperty(ADMIN_SNAPSHOT_ENABLED, "true"));
             if (!snapshotEnabled) {
                 response.setStatusCode(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-                LOG.warn("Snapshot command is disabled");
+                log.warn("Snapshot command is disabled");
                 return response;
             }
 
             if (!ZooKeeperServer.isSerializeLastProcessedZxidEnabled()) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                LOG.warn("Snapshot command requires serializeLastProcessedZxidEnable flag is set to true");
+                log.warn("Snapshot command requires serializeLastProcessedZxidEnable flag is set to true");
                 return response;
             }
 
@@ -800,7 +800,7 @@ public class Commands {
             if (!rateLimiter.allow()) {
                 response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS_429);
                 ServerMetrics.getMetrics().SNAPSHOT_RATE_LIMITED_COUNT.add(1);
-                LOG.warn("Snapshot request was rate limited");
+                log.warn("Snapshot request was rate limited");
                 return response;
             }
 
@@ -822,14 +822,15 @@ public class Commands {
                 if (size == 0) {
                     response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                     ServerMetrics.getMetrics().SNAPSHOT_ERROR_COUNT.add(1);
-                    LOG.warn("Snapshot file {} is empty", snapshotFile);
+                    log.warn().attr("snapshotFile", snapshotFile).log("Snapshot file is empty");
                 } else if (streaming) {
                     response.setInputStream(new FileInputStream(snapshotFile));
                 }
             } catch (final Exception e) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 ServerMetrics.getMetrics().SNAPSHOT_ERROR_COUNT.add(1);
-                LOG.warn("Exception occurred when taking the snapshot via the snapshot admin command", e);
+                log.warn().exception(e)
+                        .log("Exception occurred when taking the snapshot via the snapshot admin command");
             }
             return response;
         }
@@ -858,7 +859,7 @@ public class Commands {
         @Override
         public CommandResponse runGet(ZooKeeperServer zkServer, Map<String, String> kwargs) {
             CommandResponse response = initializeResponse();
-            LOG.info("running stat");
+            log.info("running stat");
             response.put("version", Version.getFullVersion());
             response.put("read_only", zkServer instanceof ReadOnlyZooKeeperServer);
             response.put("server_stats", zkServer.serverStats());

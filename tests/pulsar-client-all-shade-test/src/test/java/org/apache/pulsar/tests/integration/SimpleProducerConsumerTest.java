@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
@@ -61,15 +62,13 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import org.apache.pulsar.tests.TestRetrySupport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class SimpleProducerConsumerTest extends TestRetrySupport {
-    private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
     private PulsarContainer pulsarContainer;
     private URI lookupUrl;
@@ -196,7 +195,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message: [ ]");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -374,7 +373,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                         keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
+                        log.error().attr("from", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;
@@ -388,7 +387,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                         keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
+                        log.error().attr("from", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;
@@ -464,7 +463,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message: [ ]");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }

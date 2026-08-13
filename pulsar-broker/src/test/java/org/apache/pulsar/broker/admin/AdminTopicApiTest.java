@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -50,15 +51,13 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminTopicApiTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
 
     @Test
     public void testDeleteNonExistTopic() throws Exception {
@@ -150,7 +149,7 @@ public class AdminTopicApiTest extends SharedPulsarBaseTest {
 
         for (int i = 0; i < numMessages; i++) {
             Message<byte[]> msg = consumer.receive();
-            log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
+            log.info().attr("message", new String(msg.getValue(), UTF_8)).log("Received message");
         }
         List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
         Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");

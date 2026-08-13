@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -73,8 +74,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -85,8 +84,8 @@ import org.testng.annotations.Test;
  * Tests replicated subscriptions (PIP-33).
  */
 @Test(groups = "broker-replication")
+@CustomLog
 public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
-    private static final Logger log = LoggerFactory.getLogger(ReplicatedSubscriptionTest.class);
 
     @Override
     @BeforeClass(timeOut = 300000)
@@ -145,7 +144,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             for (int i = 0; i < numMessages; i++) {
                 String body = "message" + i;
                 MessageId messageId = producer.send(body.getBytes(StandardCharsets.UTF_8));
-                log.info("Sent message: {} with msgId: {}", body, messageId);
+                log.info().attr("sentMessage", body).attr("withMsgId", messageId).log("Sent message: with msgId");
                 sentMessages.add(body);
                 if (i == 2) {
                     // wait for subscription snapshot to be created
@@ -250,7 +249,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         }
         producer.close();
 
-
         // consume 3 messages in r1
         Set<String> receivedMessages = new LinkedHashSet<>();
         try (Consumer<byte[]> consumer1 = client1.newConsumer()
@@ -273,7 +271,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         while (reader.hasMessageAvailable()) {
             Message<byte[]> message = reader.readNext(10, TimeUnit.SECONDS);
             assertNotNull(message);
-            log.info("Receive message: " + new String(message.getValue()) + " msgId: " + message.getMessageId());
+            log.info().attr("value", new String(message.getValue())).attr("messageId", message.getMessageId())
+                    .log("Receive message: msgId");
             readNum++;
         }
         assertEquals(readNum, numMessages);
@@ -437,7 +436,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         assertEquals(t2.getLastPosition(), p2);
         assertEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
-
 
         @Cleanup
         Producer<String> producer2 = client2.newProducer(Schema.STRING)

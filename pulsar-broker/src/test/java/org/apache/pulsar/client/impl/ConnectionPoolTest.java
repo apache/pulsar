@@ -211,6 +211,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetProxyToTargetBrokerAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(1);

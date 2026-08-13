@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.commons.lang3.tuple.Pair;
@@ -42,7 +42,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * There's also a check that ensures that the value matches the key. This is used to detect races without impacting
  * consistency.
  */
-@Slf4j
+@CustomLog
 class RangeCache {
     private final ConcurrentNavigableMap<Position, RangeCacheEntryWrapper> entries;
     private final RangeCacheRemovalQueue removalQueue;
@@ -198,9 +198,10 @@ class RangeCache {
      * @return an pair of ints, containing the number of removed entries and the total size
      */
     public Pair<Integer, Long> removeRange(Position first, Position last, boolean lastInclusive) {
-        if (log.isDebugEnabled()) {
-            log.debug("Removing entries in range [{}, {}], lastInclusive: {}", first, last, lastInclusive);
-        }
+        log.debug().attr("first", first)
+                .attr("last", last)
+                .attr("lastInclusive", lastInclusive)
+                .log("Removing entries in range");
         RangeCacheRemovalCounters counters = RangeCacheRemovalCounters.create();
         Map<Position, RangeCacheEntryWrapper> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Position, RangeCacheEntryWrapper> entry : subMap.entrySet()) {
@@ -257,8 +258,9 @@ class RangeCache {
                     // remove the cache reference
                     value.release();
                 } else {
-                    log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
-                            value.refCnt(), key);
+                    log.info().attr("refCnt", value.refCnt())
+                            .attr("key", key)
+                            .log("Unexpected refCnt, removed entry without releasing the value");
                 }
                 return true;
             } else {
@@ -294,9 +296,7 @@ class RangeCache {
      * @return size of removed entries
      */
     public Pair<Integer, Long> clear() {
-        if (log.isDebugEnabled()) {
-            log.debug("Clearing the cache with {} entries and size {}", entries.size(), size.get());
-        }
+        log.debug().attr("numEntries", () -> entries.size()).attr("size", size.get()).log("Clearing the cache");
         RangeCacheRemovalCounters counters = RangeCacheRemovalCounters.create();
         while (!Thread.currentThread().isInterrupted()) {
             Map.Entry<Position, RangeCacheEntryWrapper> entry = entries.firstEntry();

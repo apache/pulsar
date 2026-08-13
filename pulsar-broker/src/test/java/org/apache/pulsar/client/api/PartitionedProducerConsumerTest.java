@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -44,8 +45,6 @@ import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -53,8 +52,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
 
     private ExecutorService executor;
     protected String methodName;
@@ -76,7 +75,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30000)
     public void testRoundRobinProducer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -104,7 +103,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             Assert.assertTrue(messageSet.add(receivedMessage), "Message " + receivedMessage + " already received");
         }
 
@@ -113,12 +112,12 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(timeOut = 30000)
     public void testPartitionedTopicNameWithSpecialCharacter() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String topicName = newTopicName();
         int numPartitions = 4;
@@ -130,7 +129,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicWithSpecialChar)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(timeOut = 30000)
@@ -141,7 +140,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         Consumer<byte[]> consumer = null;
         final int messageCount = 16;
         try {
-            log.info("-- Starting {} test --", methodName);
+            log.info().attr("starting", methodName).log("-- Starting test");
 
             int numPartitions = 4;
 
@@ -167,7 +166,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
                 Assert.assertNotNull(msg, "Message should not be null");
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message: [{}]", receivedMessage);
+                log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
                 String expectedMessage = "my-message-" + i;
                 testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             }
@@ -177,13 +176,13 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             consumer.close();
             pulsarClient.close();
 
-            log.info("-- Exiting {} test --", methodName);
+            log.info().attr("exiting", methodName).log("-- Exiting test");
         }
     }
 
     @Test(timeOut = 30000)
     public void testSinglePartitionProducer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -210,7 +209,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -220,12 +219,12 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(timeOut = 30000)
     public void testKeyBasedProducer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -254,7 +253,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             testKeyBasedOrder(messageSet, receivedMessage);
 
         }
@@ -264,7 +263,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     private void testKeyBasedOrder(Set<String> messageSet, String message) {
@@ -278,7 +277,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 100000)
     public void testPauseAndResume() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -297,7 +296,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-partitioned-subscriber").messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     c1.acknowledgeAsync(msg);
                     received.incrementAndGet();
                     latch.get().countDown();
@@ -311,7 +310,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             producer.send(("my-message-" + i).getBytes());
         }
 
-        log.info("Waiting for message listener to ack " + numMessages + " messages");
+        log.info().attr("numMessages", numMessages).log("Waiting for message listener to ack messages");
         assertTrue(latch.get().await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
@@ -328,7 +327,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         producer.close();
         pulsarClient.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(timeOut = 30000)
@@ -383,7 +382,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30000)
     public void testInvalidSequence() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
 
         int numPartitions = 4;
@@ -421,7 +420,6 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             // ok
         }
 
-
         producer.close();
 
         try {
@@ -430,7 +428,6 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         } catch (PulsarClientException.AlreadyClosedException e) {
             // ok
         }
-
 
     }
 
@@ -473,7 +470,6 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             consumer.close();
         }
 
-
     }
 
     @Test(timeOut = 30000)
@@ -499,7 +495,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30000)
     public void testAsyncPartitionedProducerConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
 
         final int totalMsg = 100;
@@ -541,12 +537,12 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.unsubscribe();
         consumer.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(timeOut = 30000)
     public void testAsyncPartitionedProducerConsumerQueueSizeOne() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -591,7 +587,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -601,7 +597,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
      */
     @Test(timeOut = 30000)
     public void testFairDistributionForPartitionConsumers() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -654,7 +650,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     private void receiveAsync(Consumer<byte[]> consumer, int totalMessage, int currentMessage, CountDownLatch latch,
@@ -718,7 +714,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         final int totalMessages = 30;
 
         try {
-            log.info("-- Starting {} test --", methodName);
+            log.info().attr("starting", methodName).log("-- Starting test");
 
             admin.topics().createPartitionedTopic(topicName, numPartitions);
 
@@ -766,10 +762,9 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             consumer2.close();
             pulsarClient.close();
 
-            log.info("-- Exiting {} test --", methodName);
+            log.info().attr("exiting", methodName).log("-- Exiting test");
         }
     }
-
 
     /**
      * It verifies that consumer producer auto update for partitions extend.
@@ -784,7 +779,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
      */
     @Test(timeOut = 30000)
     public void testAutoUpdatePartitionsForProducerConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -815,7 +810,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         do {
             messageSet++;
             consumer.acknowledge(message);
-            log.info("Consumer acknowledged : " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Consumer acknowledged");
             message = consumer.receive(200, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageSet, totalMessages);
@@ -837,7 +832,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         do {
             messageSet++;
             consumer.acknowledge(message);
-            log.info("Consumer acknowledged : " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Consumer acknowledged");
             message = consumer.receive(200, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageSet, totalMessages * 2 / 3);
@@ -854,7 +849,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         do {
             messageSet++;
             consumer.acknowledge(message);
-            log.info("Consumer acknowledged : " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Consumer acknowledged");
             message = consumer.receive(200, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageSet, totalMessages / 3);
@@ -868,14 +863,14 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         do {
             messageSet++;
             consumer.acknowledge(message);
-            log.info("Consumer acknowledged : " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Consumer acknowledged");
             message = consumer.receive(200, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageSet, totalMessages);
 
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test
@@ -884,7 +879,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         PulsarClient pulsarClient = newPulsarClient();
         Producer<byte[]> producer = null;
         try {
-            log.info("-- Starting {} test --", methodName);
+            log.info().attr("starting", methodName).log("-- Starting test");
 
             int numPartitions = 4;
 
@@ -902,7 +897,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         } finally {
             producer.close();
             pulsarClient.close();
-            log.info("-- Exiting {} test --", methodName);
+            log.info().attr("exiting", methodName).log("-- Exiting test");
         }
     }
 
@@ -915,7 +910,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
     @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void testPartitionedTopicInterceptor() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         final String topicName = newTopicName();
         PulsarClient pulsarClient = newPulsarClient();
 
@@ -1004,7 +999,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
         pulsarClient.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     private <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,

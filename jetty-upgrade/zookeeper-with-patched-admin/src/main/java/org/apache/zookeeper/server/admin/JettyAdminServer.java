@@ -29,6 +29,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.zookeeper.common.QuorumX509Util;
 import org.apache.zookeeper.common.SecretUtils;
 import org.apache.zookeeper.common.X509Util;
@@ -49,8 +50,6 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class encapsulates a Jetty server for running Commands.
@@ -65,10 +64,8 @@ import org.slf4j.LoggerFactory;
  * @see Commands
  * @see CommandOutputter
  */
+@CustomLog
 public class JettyAdminServer implements AdminServer {
-
-    static final Logger LOG = LoggerFactory.getLogger(JettyAdminServer.class);
-
     public static final int DEFAULT_PORT = 8080;
     public static final int DEFAULT_IDLE_TIMEOUT = 30000;
     public static final String DEFAULT_COMMAND_URL = "/commands";
@@ -141,10 +138,13 @@ public class JettyAdminServer implements AdminServer {
                 try {
                     keyStore = X509Util.loadKeyStore(privateKeyPath, privateKeyPassword, privateKeyType);
                     trustStore = X509Util.loadTrustStore(certAuthPath, certAuthPassword, certAuthType);
-                    LOG.info("Successfully loaded private key from {}", privateKeyPath);
-                    LOG.info("Successfully loaded certificate authority from {}", certAuthPath);
+                    log.info().attr("path", privateKeyPath)
+                            .log("Successfully loaded private key");
+                    log.info().attr("path", certAuthPath)
+                            .log("Successfully loaded certificate authority");
                 } catch (Exception e) {
-                    LOG.error("Failed to load authentication certificates for admin server.", e);
+                    log.error().exception(e)
+                            .log("Failed to load authentication certificates for admin server");
                     throw e;
                 }
 
@@ -202,7 +202,8 @@ public class JettyAdminServer implements AdminServer {
                     commandUrl);
             throw new AdminServerException(message, e);
         }
-        LOG.info("Started AdminServer on address {}, port {} and command URL {}", address, port, commandUrl);
+        log.info().attr("address", address).attr("port", port)
+                .attr("commandUrl", commandUrl).log("Started AdminServer");
     }
 
     /**

@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
@@ -53,9 +54,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public abstract class ReplicatorTestBase extends TestRetrySupport {
     URL url1;
     URL urlTls1;
@@ -155,7 +155,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         globalZkS.start();
 
         // Start region 1
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
 
         // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
@@ -174,7 +174,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 2
 
         // Start zk & bks
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble2.start();
 
         setConfig2DefaultValue();
@@ -190,7 +190,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 3
 
         // Start zk & bks
-        bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble3.start();
 
         setConfig3DefaultValue();
@@ -206,7 +206,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 4
 
         // Start zk & bks
-        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble4.start();
 
         setConfig4DefaultValue();
@@ -217,7 +217,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         url4 = new URL(pulsar4.getWebServiceAddress());
         urlTls4 = new URL(pulsar4.getWebServiceAddressTls());
         admin4 = PulsarAdmin.builder().serviceHttpUrl(url4.toString()).build();
-
 
         // Provision the global namespace
         admin1.clusters().createCluster(cluster1, ClusterData.builder()
@@ -319,8 +318,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
         assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
-
-
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
 
@@ -330,7 +327,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         return new PulsarService(config,
                 new WorkerConfig(),
                 Optional.empty(),
-                exitCode -> log.info("Pulsar service finished with exit code {}", exitCode),
+                exitCode -> log.info().attr("exitCode", exitCode).log("Pulsar service finished"),
                 BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(metricReader));
     }
 
@@ -551,7 +548,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
             for (int i = 0; i < messages; i++) {
                 producer.sendAsync(("test-" + i).getBytes());
-                log.info("queued message {}", ("test-" + i));
+                log.info().attr("queuedMessage", ("test-" + i)).log("queued message");
             }
             producer.flush();
         }
@@ -561,7 +558,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
                 producer.send(("test-" + i).getBytes());
-                log.info("Sent message {}", ("test-" + i));
+                log.info().attr("sentMessage", ("test-" + i)).log("Sent message");
             }
 
         }
@@ -575,7 +572,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             for (int i = 0; i < messages; i++) {
                 final String m = "test-" + i;
                 messageBuilder.value(m.getBytes()).send();
-                log.info("Sent message {}", m);
+                log.info().attr("sentMessage", m).log("Sent message");
             }
         }
 
@@ -583,7 +580,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             try {
                 client.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close client", e);
+                log.warn().exception(e).log("Failed to close client");
             }
         }
 
@@ -617,6 +614,10 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         }
 
         void receive(int messages) throws Exception {
+            receive(messages, 10);
+        }
+
+        void receive(int messages, int timeoutSeconds) throws Exception {
             log.info("Start receiving messages");
             Message<byte[]> msg;
 
@@ -624,19 +625,19 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
             int i = 0;
             while (i < messages) {
-                msg = consumer.receive(10, TimeUnit.SECONDS);
+                msg = consumer.receive(timeoutSeconds, TimeUnit.SECONDS);
                 assertNotNull(msg);
                 consumer.acknowledge(msg);
 
                 String msgData = new String(msg.getData());
-                log.info("Received message {}", msgData);
+                log.info().attr("receivedMessage", msgData).log("Received message");
 
                 boolean added = receivedMessages.add(msgData);
                 if (added) {
                     assertEquals(msgData, "test-" + i);
                     i++;
                 } else {
-                    log.info("Ignoring duplicate {}", msgData);
+                    log.info().attr("ignoringDuplicate", msgData).log("Ignoring duplicate");
                 }
             }
         }
@@ -649,10 +650,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             try {
                 client.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close client", e);
+                log.warn().exception(e).log("Failed to close client");
             }
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorTestBase.class);
 }

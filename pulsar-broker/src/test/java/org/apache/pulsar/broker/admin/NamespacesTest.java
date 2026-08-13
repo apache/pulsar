@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -36,9 +35,17 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,16 +65,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.servlet.ServletContext;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -77,6 +76,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -130,17 +130,15 @@ import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker-admin")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
@@ -187,12 +185,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void cleanupAfterMethod() throws Exception{
-        // cleanup.
+    public void cleanupAfterMethod() {
+        // Best-effort cleanup. Transient infra failures (e.g. ZK session expiry from a
+        // long-running test or GC pause) can make the admin call fail here; log and
+        // continue so the test method's actual result is preserved.
         Set<String> existsNsSetAferSetup = Stream.concat(testLocalNamespaces.stream(), testGlobalNamespaces.stream())
                 .map(Objects::toString).collect(Collectors.toSet());
-        cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
-        cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
+        try {
+            cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
+            cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
+        } catch (Exception e) {
+            log.warn().exception(e).log("Failed to clean up namespaces after test method");
+        }
     }
 
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
@@ -444,7 +448,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition1: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition1");
                 return true;
             });
 
@@ -460,7 +464,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition2: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition2");
                 return true;
             });
         try {
@@ -475,7 +479,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition3: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition3");
                 return true;
             });
         try {
@@ -491,7 +495,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition4: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition4");
                 return true;
             });
         try {
@@ -507,7 +511,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition5: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition5");
                 return true;
             });
         try {
@@ -523,7 +527,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition6: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition6");
                 return true;
             });
         try {
@@ -734,8 +738,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(uri).when(uriInfo).getRequestUri();
 
         // setup to redirect to another broker in the same cluster
-        doReturn(Optional.of(new URL("http://otherhost" + ":" + 8080))).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new ArgumentMatcher<NamespaceName>() {
+        doReturn(Optional.of(LookupResult.builder()
+                .type(LookupResult.Type.RedirectUrl)
+                .httpUrl("http://otherhost:8080")
+                .build())).when(nsSvc)
+                .getLookupResultForWebRequest(Mockito.argThat(new ArgumentMatcher<NamespaceName>() {
                     @Override
                     public boolean matches(NamespaceName nsname) {
                         return nsname.equals(NamespacesTest.this.testGlobalNamespaces.get(0));
@@ -779,10 +786,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 new byte[0], null, null);
 
         // setup ownership to localhost
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         LookupOptions options = LookupOptions.builder().authoritative(false)
-                .readOnly(false).requestHttps(false).build();
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
+                .readOnly(false).build();
+        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getLookupResultForWebRequest(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
 
         response = mock(AsyncResponse.class);
@@ -812,7 +822,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
+        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getLookupResultForWebRequest(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(),
@@ -823,7 +833,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         testNs = this.testLocalNamespaces.get(0);
         // setup ownership to localhost
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
+        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getLookupResultForWebRequest(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(),
@@ -840,7 +850,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         testNs = this.testLocalNamespaces.get(1);
         // setup ownership to localhost
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
+        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getLookupResultForWebRequest(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(),
@@ -858,7 +868,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         uriField.set(namespaces, uriInfo);
         doReturn(URI.create(pulsar.getWebServiceAddress() + "/dummy/uri")).when(uriInfo).getRequestUri();
 
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         String bundledNsLocal = "test-delete-namespace-with-bundles";
         List<String> boundaries = List.of("0x00000000", "0x80000000", "0xffffffff");
         BundlesData bundleData = BundlesData.builder()
@@ -873,7 +886,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(namespacesAdmin).when(admin).namespaces();
 
         doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
-                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
+                .getLookupResultForWebRequestAsync(
+                        Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
                         Mockito.any());
         doReturn(CompletableFuture.completedFuture(false)).when(nsSvc)
                 .isServiceUnitOwnedAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
@@ -897,16 +911,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         NamespaceBundles nsBundles = nsSvc.getNamespaceBundleFactory().getBundles(testNs, bundleData);
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(nsSvc)
-                .getWebServiceUrlAsync(any(NamespaceBundle.class), any(LookupOptions.class));
+                .getLookupResultForWebRequestAsync(any(NamespaceBundle.class), any(LookupOptions.class));
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testTenant, bundledNsLocal, false, false);
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         // make one bundle owned
         LookupOptions optionsHttps = LookupOptions.builder().authoritative(false)
-                .requestHttps(true).readOnly(false).build();
+                .readOnly(false).build();
         doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
-                .getWebServiceUrlAsync(nsBundles.getBundles().get(0), optionsHttps);
+                .getLookupResultForWebRequestAsync(nsBundles.getBundles().get(0), optionsHttps);
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc)
                 .isServiceUnitOwnedAsync(nsBundles.getBundles().get(0));
         doReturn(CompletableFuture.completedFuture(null)).when(namespacesAdmin).deleteNamespaceBundleAsync(
@@ -919,7 +933,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(captor.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         response = mock(AsyncResponse.class);
         doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
-                .getWebServiceUrlAsync(any(NamespaceBundle.class), any(LookupOptions.class));
+                .getLookupResultForWebRequestAsync(any(NamespaceBundle.class), any(LookupOptions.class));
         for (NamespaceBundle bundle : nsBundles.getBundles()) {
             doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitOwnedAsync(bundle);
         }
@@ -935,13 +949,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnloadNamespaces() throws Exception {
         final NamespaceName testNs = this.testLocalNamespaces.get(1);
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(ns -> ns.equals(testNs)), Mockito.any());
+                .getLookupResultForWebRequest(Mockito.argThat(ns -> ns.equals(testNs)), Mockito.any());
         doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(ns -> ns.equals(testNs)));
-
-        NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
-        doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
 
         // The namespace unload should succeed on all the bundles
         AsyncResponse response = mock(AsyncResponse.class);
@@ -957,7 +971,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundles() throws Exception {
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         String bundledNsLocal = "test-bundled-namespace-1";
         List<String> boundaries = List.of("0x00000000", "0xffffffff");
         BundlesData bundleData = BundlesData.builder()
@@ -1002,7 +1019,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundleWithUnDividedRange() throws Exception {
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         String bundledNsLocal = "test-bundled-namespace-1";
         List<String> boundaries = List.of("0x00000000", "0x08375b1a", "0x08375b1b", "0xffffffff");
         BundlesData bundleData = BundlesData.builder()
@@ -1033,7 +1053,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUnloadNamespaceWithBundles() throws Exception {
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         String bundledNsLocal = "test-bundled-namespace-1";
         List<String> boundaries = List.of("0x00000000", "0x80000000", "0xffffffff");
         BundlesData bundleData = BundlesData.builder()
@@ -1044,7 +1067,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
 
         doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
-                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
+                .getLookupResultForWebRequestAsync(
+                        Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
                         Mockito.any());
         doReturn(true).when(nsSvc)
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
@@ -1053,9 +1077,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle testBundle = nsBundles.getBundles().get(0);
         // make one bundle owned
         LookupOptions optionsHttps = LookupOptions.builder().authoritative(false)
-                .requestHttps(true).readOnly(false).build();
+                .readOnly(false).build();
         doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl)))
-                .when(nsSvc).getWebServiceUrlAsync(testBundle, optionsHttps);
+                .when(nsSvc).getLookupResultForWebRequestAsync(testBundle, optionsHttps);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
         doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
@@ -1110,7 +1134,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRetention() throws Exception {
         try {
-            URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+            LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
             String bundledNsLocal = "test-bundled-namespace-1";
             List<String> boundaries = List.of("0x00000000", "0xffffffff");
             BundlesData bundleData = BundlesData.builder()
@@ -1200,7 +1227,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testValidateTopicOwnership() throws Exception {
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         String bundledNsLocal = "test-bundled-namespace-1";
         List<String> boundaries = List.of("0x00000000", "0xffffffff");
         BundlesData bundleData = BundlesData.builder()
@@ -1593,9 +1623,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
+    private void mockWebUrl(LookupResult localWebServiceUrl, NamespaceName namespace) throws Exception {
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)),
+                .getLookupResultForWebRequest(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)),
                         Mockito.any());
         doReturn(true).when(nsSvc)
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)));
@@ -1762,7 +1792,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // remove namespace limit
@@ -1791,7 +1821,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // set namespace limit to 5
@@ -1802,7 +1832,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // remove namespace limit
@@ -2054,7 +2084,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         int initBundleCount = 4;
         BundlesData data = BundlesData.builder().numBundles(initBundleCount).build();
         admin.namespaces().createNamespace(namespace, data);
-        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
         final NamespaceName testNs = NamespaceName.get(namespace);
         mockWebUrl(localWebServiceUrl, testNs);
         for (int i = 0; i < 10; i++) {
@@ -2564,6 +2597,129 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 namespacesWithAntiAffinityGroup.stream().map(ns -> NamespaceName.get(testTenant, ns))
                         .map(NamespaceName::toString).toList();
         assertEquals(namespacesResp, namespacesWithFullPath);
+    }
+
+    @Test
+    public void testBundleValidationWithNonExistentNamespace() throws Exception {
+        String nonExistentNs = "non-existent-namespace";
+        String bundleRange = "0x00000000_0x80000000";
+
+        // Test unload on non-existent namespace - should return 404
+        // The error is thrown by validateGlobalNamespaceOwnershipAsync before reaching bundle validation
+        AsyncResponse unloadResponse = mock(AsyncResponse.class);
+        namespaces.unloadNamespaceBundle(unloadResponse, testTenant, nonExistentNs,
+                bundleRange, false, null);
+        ArgumentCaptor<RestException> unloadCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(unloadResponse, timeout(5000).times(1)).resume(unloadCaptor.capture());
+        assertEquals(unloadCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode(),
+                "Non-existent namespace should return 404");
+
+        // Test split on non-existent namespace - should return 404
+        AsyncResponse splitResponse = mock(AsyncResponse.class);
+        namespaces.splitNamespaceBundle(splitResponse, testTenant, nonExistentNs,
+                bundleRange, false, true, null, null);
+        ArgumentCaptor<RestException> splitCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(splitResponse, timeout(5000).times(1)).resume(splitCaptor.capture());
+        assertEquals(splitCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode(),
+                "Non-existent namespace should return 404");
+
+        // Test clear backlog on non-existent namespace - should return 404
+        AsyncResponse clearResponse = mock(AsyncResponse.class);
+        namespaces.clearNamespaceBundleBacklog(clearResponse, testTenant, nonExistentNs,
+                bundleRange, false);
+        ArgumentCaptor<RestException> clearCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(clearResponse, timeout(5000).times(1)).resume(clearCaptor.capture());
+        assertEquals(clearCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode(),
+                "Non-existent namespace should return 404");
+
+        // Test clear backlog for subscription on non-existent namespace - should return 404
+        AsyncResponse clearSubResponse = mock(AsyncResponse.class);
+        namespaces.clearNamespaceBundleBacklogForSubscription(clearSubResponse, testTenant, nonExistentNs,
+                bundleRange, "test-sub", false);
+        ArgumentCaptor<RestException> clearSubCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(clearSubResponse, timeout(5000).times(1)).resume(clearSubCaptor.capture());
+        assertEquals(clearSubCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode(),
+                "Non-existent namespace should return 404");
+    }
+
+    @Test
+    public void testBundleValidationAfterSplit() throws Exception {
+        LookupResult localWebServiceUrl = LookupResult.builder()
+                .type(LookupResult.Type.BrokerUrl)
+                .httpUrl(pulsar.getSafeWebServiceAddress())
+                .build();
+        String bundledNsLocal = "test-bundle-validation-after-split";
+        List<String> boundaries = List.of("0x00000000", "0xffffffff");
+        BundlesData bundleData = BundlesData.builder()
+                .boundaries(boundaries)
+                .numBundles(boundaries.size() - 1)
+                .build();
+        createBundledTestNamespaces(this.testTenant, bundledNsLocal, bundleData);
+        final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
+
+        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
+                .disableOwnership(any(NamespaceBundle.class));
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
+        mockWebUrl(localWebServiceUrl, testNs);
+
+        // Split the bundle
+        AsyncResponse splitResponse = mock(AsyncResponse.class);
+        namespaces.splitNamespaceBundle(splitResponse, testTenant, bundledNsLocal,
+                "0x00000000_0xffffffff",
+                false, true, null, null);
+        ArgumentCaptor<Response> splitCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(splitResponse, timeout(5000).times(1)).resume(splitCaptor.capture());
+
+        // Verify split was successful
+        BundlesData bundlesDataAfterSplit = (BundlesData) asyncRequests(ctx -> namespaces.getBundlesData(ctx,
+                testTenant, bundledNsLocal));
+        assertNotNull(bundlesDataAfterSplit);
+        assertEquals(bundlesDataAfterSplit.getBoundaries().size(), 3);
+        assertEquals(bundlesDataAfterSplit.getBoundaries().get(0), "0x00000000");
+        assertEquals(bundlesDataAfterSplit.getBoundaries().get(1), "0x7fffffff");
+        assertEquals(bundlesDataAfterSplit.getBoundaries().get(2), "0xffffffff");
+
+        // Now test bundle validation with the old (invalid) bundle range - should return 412
+        AsyncResponse unloadOldBundleResponse = mock(AsyncResponse.class);
+        namespaces.unloadNamespaceBundle(unloadOldBundleResponse, testTenant, bundledNsLocal,
+                "0x00000000_0xffffffff", false, null);
+        ArgumentCaptor<RestException> unloadOldCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(unloadOldBundleResponse, timeout(5000).times(1)).resume(unloadOldCaptor.capture());
+        assertEquals(unloadOldCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode(),
+                "Old bundle range after split should return 412");
+
+        // Test bundle validation with new valid bundle ranges - should succeed
+        doReturn(true).when(nsSvc)
+                .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
+        doReturn(CompletableFuture.completedFuture(null)).when(nsSvc)
+                .unloadNamespaceBundle(any(NamespaceBundle.class));
+
+        AsyncResponse unloadNewBundle1Response = mock(AsyncResponse.class);
+        namespaces.unloadNamespaceBundle(unloadNewBundle1Response, testTenant, bundledNsLocal,
+                "0x00000000_0x7fffffff", false, null);
+        ArgumentCaptor<Response> newBundle1Captor = ArgumentCaptor.forClass(Response.class);
+        verify(unloadNewBundle1Response, timeout(5000).times(1)).resume(newBundle1Captor.capture());
+        assertEquals(newBundle1Captor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode(),
+                "New bundle range should be valid");
+
+        AsyncResponse unloadNewBundle2Response = mock(AsyncResponse.class);
+        namespaces.unloadNamespaceBundle(unloadNewBundle2Response, testTenant, bundledNsLocal,
+                "0x7fffffff_0xffffffff", false, null);
+        ArgumentCaptor<Response> newBundle2Captor = ArgumentCaptor.forClass(Response.class);
+        verify(unloadNewBundle2Response, timeout(5000).times(1)).resume(newBundle2Captor.capture());
+        assertEquals(newBundle2Captor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode(),
+                "New bundle range should be valid");
+
+        // cleanup
+        resetBroker();
     }
 
 }

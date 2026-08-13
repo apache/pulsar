@@ -22,7 +22,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -34,7 +34,7 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
  * This plugin requires these parameters: keyStoreType, keyStorePath, and  keyStorePassword.
  * This parameter will construct a AuthenticationDataProvider
  */
-@Slf4j
+@CustomLog
 public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
 
@@ -69,6 +69,17 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
         return AUTH_NAME;
     }
 
+    /**
+     * The configured keystore parameters (type / path / password). Exposed so the v5 client builder can
+     * fold a bridged {@code AuthenticationKeyStoreTls}'s mTLS material into the client's TLS policy on the
+     * new PIP-478 TLS path.
+     *
+     * @return the keystore params, or {@code null} if not configured
+     */
+    public KeyStoreParams getKeyStoreParams() {
+        return keyStoreParams;
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
@@ -89,7 +100,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
             params = AuthenticationUtil.configureFromJsonString(paramsString);
         } catch (Exception e) {
             // auth-param is not in json format
-            log.info("parameter not in Json format: {}", paramsString);
+            log.info().attr("format", paramsString).log("parameter not in Json format");
         }
 
         // in ":" "," format.

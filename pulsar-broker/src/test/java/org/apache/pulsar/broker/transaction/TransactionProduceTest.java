@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -69,7 +69,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
@@ -91,7 +91,6 @@ public class TransactionProduceTest extends TransactionTestBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-
 
     @Test
     public void produceAndCommitTest() throws Exception {
@@ -143,7 +142,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(topic, i);
             Assert.assertNotNull(originTopicCursor);
-            log.info("entries count: {}", originTopicCursor.getNumberOfEntries());
+            log.info().attr("entriesCount", originTopicCursor.getNumberOfEntries()).log("entries count");
             Assert.assertEquals(messageCntPerPartition, originTopicCursor.getNumberOfEntries());
 
             List<Entry> entries = originTopicCursor.readEntries(messageCnt);
@@ -183,7 +182,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         Assert.assertEquals(0, messageSet.size());
-        log.info("produce and {} test finished.", endAction ? "commit" : "abort");
+        log.info().attr("endAction", endAction ? "commit" : "abort").log("produce and commit/abort test finished");
     }
 
     @Test
@@ -225,7 +224,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 MessageId messageId = messageIdFuture.get(1, TimeUnit.SECONDS);
                 if (isFinished) {
                     Assert.assertNotNull(messageId);
-                    log.info("Tnx finished success! messageId: {}", messageId);
+                    log.info().attr("messageid", messageId).log("Tnx finished success! messageId");
                 } else {
                     Assert.fail("MessageId shouldn't be get before txn abort.");
                 }
@@ -234,11 +233,11 @@ public class TransactionProduceTest extends TransactionTestBase {
                     if (e instanceof TimeoutException) {
                         log.info("This is a expected exception.");
                     } else {
-                        log.error("This exception is not expected.", e);
+                        log.error().exception(e).log("This exception is not expected.");
                         Assert.fail("This exception is not expected.");
                     }
                 } else {
-                    log.error("Tnx commit failed!", e);
+                    log.error().exception(e).log("Tnx commit failed!");
                     Assert.fail("Tnx commit failed!");
                 }
             }
@@ -254,7 +253,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                     TopicName.get(topic).getPersistenceNamingEncoding(),
                     PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
-            log.error("Failed to get origin topic readonly cursor.", e);
+            log.error().exception(e).log("Failed to get origin topic readonly cursor.");
             Assert.fail("Failed to get origin topic readonly cursor.");
             return null;
         }
@@ -267,7 +266,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        log.info("init transaction {}.", txn);
+        log.info().attr("initTransaction", txn).log("init transaction.");
 
         @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
@@ -293,7 +292,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
-            log.info("receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("receive messageId");
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
@@ -330,7 +329,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS)
                 .build().get();
-        log.info("init transaction {}.", txn);
+        log.info().attr("initTransaction", txn).log("init transaction.");
 
         @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
@@ -355,7 +354,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
-            log.info("receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("receive messageId");
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
@@ -380,7 +379,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         for (int i = 0; i < incomingMessageCnt; i++) {
             message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("second receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("second receive messageId");
         }
 
         log.info("finish test ackAbortTest");
@@ -411,7 +410,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                 }
             }
         }
-        log.info("subscriptionName: {}, pendingAckCount: {}", subscriptionName, pendingAckCount);
+        log.info().attr("subscriptionname", subscriptionName).attr("pendingackcount", pendingAckCount)
+                .log("subscriptionName, pendingAckCount");
         return pendingAckCount;
     }
 

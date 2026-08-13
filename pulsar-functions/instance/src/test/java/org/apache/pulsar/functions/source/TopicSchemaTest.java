@@ -25,7 +25,7 @@ import static org.testng.Assert.assertEquals;
 import com.google.protobuf.Any;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -35,7 +35,7 @@ import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TopicSchemaTest {
 
     @Test

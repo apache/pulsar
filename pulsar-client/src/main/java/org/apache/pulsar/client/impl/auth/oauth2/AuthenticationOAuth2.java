@@ -24,12 +24,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
@@ -38,9 +39,17 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
+import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 
 /**
  * Pulsar client authentication provider based on OAuth 2.0.
@@ -69,10 +78,13 @@ import org.apache.pulsar.common.util.Backoff;
  *
  * This class is intended to be called from multiple threads, and is therefore designed to be thread-safe.
  */
-@Slf4j
-public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
+@CustomLog
+public class AuthenticationOAuth2
+        implements Authentication, EncodedAuthenticationParameterSupport, AsyncAuthenticationDriver,
+        ClientAuthenticationServicesAware {
 
     public static final String CONFIG_PARAM_TYPE = "type";
+    public static final String CONFIG_PARAM_TOKEN_ENDPOINT_AUTH_METHOD = "tokenEndpointAuthMethod";
     public static final String CONFIG_PARAM_EARLY_TOKEN_REFRESH_PERCENT = "earlyTokenRefreshPercent";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
     public static final int EARLY_TOKEN_REFRESH_PERCENT_DEFAULT = 1; // feature disabled by default
@@ -104,6 +116,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     // Only ever updated on the single scheduler thread. Do not need to be volatile.
     private transient Backoff backoff;
     private transient ScheduledFuture<?> nextRefreshAttempt;
+
+    // PIP-478: the client's framework services, late-bound before start(); null until then.
+    private transient volatile ClientAuthenticationServices authServices;
 
     // No args constructor used when creating class with reflection
     public AuthenticationOAuth2() {
@@ -158,7 +173,16 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         Map<String, String> params = parseAuthParameters(encodedAuthParamString);
         String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
         if (TYPE_CLIENT_CREDENTIALS.equals(type)) {
-            this.flow = ClientCredentialsFlow.fromParameters(params);
+            TokenEndpointAuthMethod authMethod = TokenEndpointAuthMethod.fromValue(
+                    params.getOrDefault(CONFIG_PARAM_TOKEN_ENDPOINT_AUTH_METHOD,
+                            TokenEndpointAuthMethod.CLIENT_SECRET_POST.value()));
+            if (authMethod == TokenEndpointAuthMethod.CLIENT_SECRET_POST) {
+                this.flow = ClientCredentialsFlow.fromParameters(params);
+            } else if (authMethod == TokenEndpointAuthMethod.TLS_CLIENT_AUTH) {
+                this.flow = TlsClientAuthFlow.fromParameters(params);
+            } else {
+                throw new IllegalArgumentException("Unsupported auth method: " + authMethod);
+            }
         } else {
             throw new IllegalArgumentException("Unsupported authentication type: " + type);
         }
@@ -248,12 +272,55 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     }
 
     /**
+     * The IdP TLS material the configured flow carries, folded into a {@link TlsPurpose#CLIENT_OAUTH2}
+     * {@link TlsPolicy} so the framework HTTP client can serve IdP mTLS / custom trust on the new PIP-478 TLS
+     * path. Read at client-build / TLS-compose time (the flow is created during
+     * {@link #configure}, before the client is constructed). Empty when no flow is configured or it carries
+     * no IdP TLS material.
+     *
+     * @return the CLIENT_OAUTH2 policy, or empty
+     */
+    public Optional<TlsPolicy> idpTlsPolicy() {
+        Flow currentFlow = this.flow;
+        return currentFlow instanceof FlowBase flowBase ? flowBase.idpTlsPolicy() : Optional.empty();
+    }
+
+    @Override
+    public void bindClientAuthenticationServices(ClientAuthenticationServices services) {
+        this.authServices = services;
+        // PIP-478: thread the framework HTTP client factory into the flow (built during configure(),
+        // before services existed) so its lazily-built client — resolved on initialize()/start() — is the
+        // framework-managed one sharing the client's event loop / timer / DNS resolver.
+        Flow currentFlow = this.flow;
+        if (services != null && currentFlow instanceof FlowBase flowBase) {
+            flowBase.bindHttpClientFactory(services.httpClientFactory());
+        }
+    }
+
+    @Override
+    public AuthenticationExchange newAuthenticationExchange(String brokerHostName) {
+        // PIP-478: drive the v5-native OAuth2 body on the async binary path. The heavy flow — token
+        // acquisition, caching and early refresh — stays on this shim; the body reads the current access
+        // token through getAuthData(), so a broker-pushed REFRESH re-fetches an expired token here exactly
+        // as the synchronous path does. The bound blocking executor off-loads that (network-blocking)
+        // fetch so it never runs on the Netty event loop.
+        return new V5BinaryAuthenticationDriver(new OAuth2AuthenticationV5(this::currentAccessToken), authServices)
+                .newAuthenticationExchange(brokerHostName);
+    }
+
+    private String currentAccessToken() {
+        try {
+            return getAuthData().getCommandData();
+        } catch (PulsarClientException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Retrieve the token (synchronously), and then schedule refresh runnable.
      */
     private void authenticate() throws PulsarClientException {
-        if (log.isDebugEnabled()) {
             log.debug("Attempting to retrieve OAuth2 token now.");
-        }
         TokenResult tr = this.flow.authenticate();
         this.cachedToken = new CachedToken(tr);
         handleSuccessfulTokenRefresh();
@@ -285,7 +352,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
             this.authenticate();
         } catch (PulsarClientException | RuntimeException e) {
             long delayMillis = backoff.next().toMillis();
-            log.error("Error refreshing token. Will retry in {} millis.", delayMillis, e);
+            log.error().attr("delayMillis", delayMillis)
+                    .exception(e)
+                    .log("Error refreshing token. Will retry later");
             scheduleRefresh(delayMillis);
         }
     }
@@ -351,4 +420,3 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         }
     }
 }
-

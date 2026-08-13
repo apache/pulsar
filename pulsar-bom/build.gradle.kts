@@ -23,10 +23,8 @@
 
 plugins {
     `java-platform`
+    id("pulsar.publish-conventions")
 }
-
-group = "org.apache.pulsar"
-version = the<VersionCatalogsExtension>().named("libs").findVersion("pulsar").get().requiredVersion
 
 // Allow the platform to depend on other projects
 javaPlatform {
@@ -38,6 +36,10 @@ dependencies {
         // Client API
         api(project(":pulsar-client-api"))
         api(project(":pulsar-client-admin-api"))
+
+        // Focused SPI modules (PIP-478): TLS factory SPI + HTTP client SPI
+        api(project(":pulsar-tls-factory-api"))
+        api(project(":pulsar-http-client-api"))
 
         // Shaded clients (the published artifacts users depend on)
         api(project(":pulsar-client-shaded"))
@@ -79,7 +81,6 @@ dependencies {
         api(project(":pulsar-client-tools"))
         api(project(":pulsar-client-tools-api"))
         api(project(":pulsar-opentelemetry"))
-        api(project(":structured-event-log"))
         api(project(":testmocks"))
 
         // Transaction
@@ -94,10 +95,6 @@ dependencies {
         api(project(":pulsar-functions:pulsar-functions-proto"))
         api(project(":pulsar-functions:pulsar-functions-secrets"))
         api(project(":pulsar-functions:pulsar-functions-utils"))
-
-        // Bouncy Castle
-        api(project(":bouncy-castle:bouncy-castle-bc"))
-        api(project(":bouncy-castle:bcfips"))
 
         // Athenz auth
         api(project(":pulsar-client-auth-athenz"))

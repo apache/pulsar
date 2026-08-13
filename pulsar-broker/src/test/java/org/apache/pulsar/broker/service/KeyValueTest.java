@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 /**
  * KeyValue schema produce and consume test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class KeyValueTest extends SharedPulsarBaseTest {
 

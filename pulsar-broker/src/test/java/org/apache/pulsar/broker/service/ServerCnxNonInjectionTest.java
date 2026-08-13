@@ -19,12 +19,12 @@
 
 package org.apache.pulsar.broker.service;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ServerCnxNonInjectionTest extends SharedPulsarBaseTest {
 

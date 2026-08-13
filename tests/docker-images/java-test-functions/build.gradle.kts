@@ -23,8 +23,9 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":pulsar-io:pulsar-io-core"))
-    implementation(project(":pulsar-functions:pulsar-functions-api"))
+    implementation(libs.slog)
+    api(project(":pulsar-io:pulsar-io-core"))
+    api(project(":pulsar-functions:pulsar-functions-api"))
     compileOnly(libs.avro)
     compileOnly(libs.jackson.databind)
     compileOnly(libs.protobuf.java)

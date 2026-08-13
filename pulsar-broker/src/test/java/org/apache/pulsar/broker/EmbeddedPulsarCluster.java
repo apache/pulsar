@@ -35,10 +35,8 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
 
     private static final String CLUSTER_NAME = "embedded";
 
-    @Builder.Default
     private int numBrokers = 1;
 
-    @Builder.Default
     private int numBookies = 1;
 
     private final String metadataStoreUrl;

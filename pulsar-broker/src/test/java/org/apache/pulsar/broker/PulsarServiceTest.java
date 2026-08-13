@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -50,7 +50,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     private boolean useStaticPorts = false;
@@ -373,7 +373,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
                 // Verify the serialization and deserialization are handled by the same thread
                 assertEquals(serDes.threadNameToSerializedPaths, serDes.threadNameToDeserializedPaths);
             }
-            log.info("SerDes thread mapping: {}", serDes.threadNameToSerializedPaths);
+            log.info().attr("threadMapping", serDes.threadNameToSerializedPaths)
+                    .log("SerDes thread mapping");
             assertEquals(serDes.threadNameToSerializedPaths.keySet().size(), numSerDesThreads);
             // Verify a path cannot be handled by multiple threads
             final var paths = serDes.threadNameToSerializedPaths.values().stream()

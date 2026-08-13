@@ -48,7 +48,16 @@ public interface Subscription extends MessageExpirer {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties);
+    /**
+     * @deprecated Use {@link #acknowledgeMessageAsync(List, AckType, Map)} instead.
+     */
+    @Deprecated
+    default void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+        acknowledgeMessageAsync(positions, ackType, properties);
+    }
+
+    CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                    Map<String, Long> properties);
 
     String getTopicName();
 
@@ -57,6 +66,10 @@ public interface Subscription extends MessageExpirer {
     Dispatcher getDispatcher();
 
     long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
+
+    default boolean hasBacklog(boolean getPreciseBacklog) {
+        return getNumberOfEntriesInBacklog(getPreciseBacklog) > 0;
+    }
 
     default long getNumberOfEntriesDelayed() {
         return 0;

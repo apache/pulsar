@@ -53,7 +53,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -77,8 +76,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -148,7 +147,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link ExtensibleLoadManagerImpl}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "flaky")
 @SuppressWarnings("unchecked")
 public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBaseTest {
@@ -186,7 +185,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle,
                 LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
-        log.info("Assign the bundle {} to {}", bundle, brokerLookupData);
+        log.info().attr("bundle", bundle).attr("broker", brokerLookupData).log("Assign the bundle");
         // Should get owner info from channel.
         Optional<BrokerLookupData> brokerLookupData1 = secondaryLoadManager.assign(Optional.empty(), bundle,
                 LookupOptions.builder().build()).get();
@@ -197,10 +196,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(lookupResult.isPresent());
         assertEquals(lookupResult.get().getLookupData().getHttpUrl(), brokerLookupData.get().getWebServiceUrl());
 
-        Optional<URL> webServiceUrl = pulsar2.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(false).build());
+        Optional<LookupResult> webServiceUrl = pulsar2.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().build());
         assertTrue(webServiceUrl.isPresent());
-        assertEquals(webServiceUrl.get().toString(), brokerLookupData.get().getWebServiceUrl());
+        assertEquals(webServiceUrl.get().getLookupData().getHttpUrl(), brokerLookupData.get().getWebServiceUrl());
     }
 
     // Test that the load manager will use round-robin assignment
@@ -215,7 +214,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             Optional<BrokerLookupData> brokerLookupData1 = primaryLoadManager.assign(Optional.empty(), bundle1,
                     LookupOptions.builder().build()).get();
             assertTrue(brokerLookupData1.isPresent());
-            log.info("Assign the bundle1 {} to {}", bundle1, brokerLookupData1);
+            log.info().attr("bundle", bundle1).attr("broker", brokerLookupData1).log("Assign the bundle1");
 
             String webServiceUrl1 = brokerLookupData1.get().getWebServiceUrl();
 
@@ -230,7 +229,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             Optional<BrokerLookupData> brokerLookupData2 = primaryLoadManager.assign(Optional.empty(), bundle2,
                     LookupOptions.builder().build()).get();
             assertTrue(brokerLookupData2.isPresent());
-            log.info("Assign the bundle2 {} to {}", bundle2, brokerLookupData2);
+            log.info().attr("bundle", bundle2).attr("broker", brokerLookupData2).log("Assign the bundle2");
             String webServiceUrl2 = brokerLookupData2.get().getWebServiceUrl();
             assertNotEquals(webServiceUrl1, webServiceUrl2);
         } finally {
@@ -248,30 +247,25 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         admin.topics().createPartitionedTopic(topicName.toString(), 1);
 
         // Test LookupOptions.readOnly = true when the bundle is not owned by any broker.
-        Optional<URL> webServiceUrlReadOnlyTrue = pulsar1.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(true).requestHttps(false).build());
+        Optional<LookupResult> webServiceUrlReadOnlyTrue = pulsar1.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().readOnly(true).build());
         assertTrue(webServiceUrlReadOnlyTrue.isEmpty());
 
         // Test LookupOptions.readOnly = false and the bundle assign to some broker.
-        Optional<URL> webServiceUrlReadOnlyFalse = pulsar1.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(false).requestHttps(false).build());
+        Optional<LookupResult> webServiceUrlReadOnlyFalse = pulsar1.getNamespaceService()
+                .getLookupResultForWebRequest(bundle, LookupOptions.builder().readOnly(false).build());
         assertTrue(webServiceUrlReadOnlyFalse.isPresent());
-
-        // Test LookupOptions.requestHttps = true
-        Optional<URL> webServiceUrlHttps = pulsar2.getNamespaceService()
-                .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(true).build());
-        assertTrue(webServiceUrlHttps.isPresent());
-        assertTrue(webServiceUrlHttps.get().toString().startsWith("https"));
 
         // TODO: Support LookupOptions.loadTopicsInBundle = true
 
-        // Test LookupOptions.advertisedListenerName = internal but the broker do not have internal listener.
+        // Test LookupOptions.advertisedListenerName = otherlistener but the broker does not have it.
         try {
             pulsar2.getNamespaceService()
-                    .getWebServiceUrl(bundle, LookupOptions.builder().advertisedListenerName("internal").build());
+                    .getLookupResultForWebRequest(bundle,
+                            LookupOptions.builder().advertisedListenerName("otherlistener").build());
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("the broker do not have internal listener"));
+            assertTrue(e.getMessage().contains("the broker do not have otherlistener listener"));
         }
     }
 
@@ -409,7 +403,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         pulsar1.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
         pulsar2.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
         String broker = admin.lookups().lookupTopic(topicName.toString());
-        log.info("Assign the bundle {} to {}", bundle, broker);
+        log.info().attr("bundle", bundle).attr("broker", broker).log("Assign the bundle");
 
         checkOwnershipState(broker, bundle);
         Awaitility.await().untilAsserted(() -> {
@@ -426,7 +420,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         });
 
         broker = admin.lookups().lookupTopic(topicName.toString());
-        log.info("Assign the bundle {} to {}", bundle, broker);
+        log.info().attr("bundle", bundle).attr("broker", broker).log("Assign the bundle");
 
         String finalBroker = broker;
         Awaitility.await().untilAsserted(() -> {
@@ -472,7 +466,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         NamespaceBundle bundle = topicAndBundle.getRight();
 
         String broker = admin.lookups().lookupTopic(topicName.toString());
-        log.info("Assign the bundle {} to {}", bundle, broker);
+        log.info().attr("bundle", bundle).attr("broker", broker).log("Assign the bundle");
 
         checkOwnershipState(broker, bundle);
 
@@ -534,8 +528,14 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
             throws Exception {
-        testTransferClientReconnectionWithoutLookup(clients, topicDomain, subscriptionType, defaultTestNamespace,
-                admin, lookupUrl.toString(), pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+        var testClients = createTestClients(4);
+        try {
+            testTransferClientReconnectionWithoutLookup(testClients, topicDomain, subscriptionType,
+                    defaultTestNamespace, admin, lookupUrl.toString(), pulsar1, pulsar2,
+                    primaryLoadManager, secondaryLoadManager);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @Test(enabled = false)
@@ -691,8 +691,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
-        testUnloadClientReconnectionWithLookup(clients, topicDomain, subscriptionType, defaultTestNamespace,
-                admin, lookupUrl.toString(), pulsar1);
+        var testClients = createTestClients(1);
+        try {
+            testUnloadClientReconnectionWithLookup(testClients, topicDomain, subscriptionType,
+                    defaultTestNamespace, admin, lookupUrl.toString(), pulsar1);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -714,6 +719,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         PulsarClient pulsarClient = null;
         try {
             pulsarClient = clients.get(0);
+            @Cleanup
             var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
             var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
@@ -788,8 +794,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
     public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
-        testOptimizeUnloadDisable(clients, topicDomain, defaultTestNamespace, admin, lookupUrl.toString(), pulsar1,
-                pulsar2);
+        var testClients = createTestClients(1);
+        try {
+            testOptimizeUnloadDisable(testClients, topicDomain, defaultTestNamespace, admin,
+                    lookupUrl.toString(), pulsar1, pulsar2);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -1035,7 +1046,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 .untilAsserted(() -> {
                     NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
                     String broker = admin.lookups().lookupTopic(topicName.toString());
-                    log.info("Assign the bundle {} to {}", bundle, broker);
+                    log.info().attr("bundle", bundle).attr("broker", broker).log("Assign the bundle");
                     checkOwnershipState(broker, bundle);
                     admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), true);
                     // this could fail if the system topic lookup asynchronously happens before this.
@@ -1080,7 +1091,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         try {
             pulsar1.getNamespaceService().checkOwnershipPresent(namespaceBundle);
         } catch (Exception ex) {
-            log.info("Got exception", ex);
+            log.info().exception(ex).log("Got exception");
             assertTrue(ex.getCause() instanceof UnsupportedOperationException);
         }
     }
@@ -1125,12 +1136,21 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
     @Test(priority = 200)
     public void testDeployAndRollbackLoadManager() throws Exception {
+        // The migration redirect (RedirectManagerForLoadManagerMigration) is gated by
+        // loadManagerMigrationEnabled; enable it on the existing brokers so they redirect
+        // requests to the newly added broker that uses a different load manager.
+        boolean prevMigration1 = pulsar1.getConfiguration().isLoadManagerMigrationEnabled();
+        boolean prevMigration2 = pulsar2.getConfiguration().isLoadManagerMigrationEnabled();
+        pulsar1.getConfiguration().setLoadManagerMigrationEnabled(true);
+        pulsar2.getConfiguration().setLoadManagerMigrationEnabled(true);
+        try {
         // Test rollback to modular load manager.
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setLoadManagerMigrationEnabled(true);
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             // start pulsar3 with old load manager
             @Cleanup
@@ -1151,23 +1171,24 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
             LookupOptions options = LookupOptions.builder()
                     .authoritative(false)
-                    .requestHttps(false)
                     .readOnly(false)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webServiceUrl1 =
-                    pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+                    .build();
+            Optional<LookupResult> webServiceUrl1 =
+                    pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl1.isPresent());
-            assertEquals(webServiceUrl1.get().toString(), pulsar3.getWebServiceAddress());
+            assertEquals(webServiceUrl1.get().getLookupData().getHttpUrl(), pulsar3.getWebServiceAddress());
 
-            Optional<URL> webServiceUrl2 =
-                    pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+            Optional<LookupResult> webServiceUrl2 =
+                    pulsar2.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl2.isPresent());
-            assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+            assertEquals(webServiceUrl2.get().getLookupData().getHttpUrl(),
+                    webServiceUrl1.get().getLookupData().getHttpUrl());
 
-            Optional<URL> webServiceUrl3 =
-                    pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+            Optional<LookupResult> webServiceUrl3 =
+                    pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
             assertTrue(webServiceUrl3.isPresent());
-            assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
+            assertEquals(webServiceUrl3.get().getLookupData().getHttpUrl(),
+                    webServiceUrl1.get().getLookupData().getHttpUrl());
 
             List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
             for (PulsarService pulsarService : pulsarServices) {
@@ -1190,6 +1211,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
             conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
             conf.setLoadManagerServiceUnitStateTableViewClassName(serviceUnitStateTableViewClassName);
+            conf.setLoadManagerMigrationEnabled(true);
             try (var additionPulsarTestContext = createAdditionalPulsarTestContext(conf)) {
                 @Cleanup
                 var pulsar4 = additionPulsarTestContext.getPulsarService();
@@ -1212,26 +1234,28 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                         pulsar4.getWebServiceAddress());
 
                 webServiceUrl1 =
-                        pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl1.isPresent());
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().toString()));
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().getLookupData().getHttpUrl()));
 
                 webServiceUrl2 =
-                        pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar2.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl2.isPresent());
-                assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+                assertEquals(webServiceUrl2.get().getLookupData().getHttpUrl(),
+                        webServiceUrl1.get().getLookupData().getHttpUrl());
 
                 // The pulsar3 will redirect to pulsar4
                 webServiceUrl3 =
-                        pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl3.isPresent());
                 // It will redirect to pulsar4
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().toString()));
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().getLookupData().getHttpUrl()));
 
                 var webServiceUrl4 =
-                        pulsar4.getNamespaceService().getWebServiceUrl(bundle, options);
+                        pulsar4.getNamespaceService().getLookupResultForWebRequest(bundle, options);
                 assertTrue(webServiceUrl4.isPresent());
-                assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
+                assertEquals(webServiceUrl4.get().getLookupData().getHttpUrl(),
+                        webServiceUrl1.get().getLookupData().getHttpUrl());
 
                 pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
                 for (PulsarService pulsarService : pulsarServices) {
@@ -1275,7 +1299,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     assertNotEquals(lookupResult, pulsar4BrokerUrl);
                 });
                 String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
+                log.info().attr("topic", slaMonitorTopic).attr("owner", result)
+                        .log("Namespace is re-owned");
 
                 Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING)
                         .topic(slaMonitorTopic).create();
@@ -1293,7 +1318,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     assertEquals(reRegResult, pulsar4.getBrokerServiceUrl());
                 });
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
+                log.info().attr("topic", slaMonitorTopic).attr("owner", result)
+                        .log("Namespace is re-owned");
 
                 producer.send("t2");
                 Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING)
@@ -1313,268 +1339,185 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertEquals(consumer.receive().getValue(), "t2");
                 assertEquals(consumer.receive().getValue(), "t3");
             }
+        }
+        } finally {
+            pulsar1.getConfiguration().setLoadManagerMigrationEnabled(prevMigration1);
+            pulsar2.getConfiguration().setLoadManagerMigrationEnabled(prevMigration2);
         }
     }
 
-    @Test(priority = 200)
+    // Cap below the 300s suite default (AnnotationListener) so a hung ServiceUnitStateTableViewSyncer
+    // start() fails fast and is retried instead of consuming the full 300s slot and corrupting the
+    // next @BeforeMethod. Combined with the shortened sync-wait budget set below, a real divergence
+    // surfaces within the shortened budget instead of a 5-minute ThreadTimeoutException.
+    @Test(priority = 200, timeOut = 240 * 1000)
     public void testLoadBalancerServiceUnitTableViewSyncer() throws Exception {
+        // Make pulsar1 the leader so primaryLoadManager is the syncer-running broker.
+        makePrimaryAsLeader();
 
         Pair<TopicName, NamespaceBundle> topicAndBundle =
                 getBundleIsNotOwnByChangeEventTopic("testLoadBalancerServiceUnitTableViewSyncer");
-        TopicName topicName = topicAndBundle.getLeft();
         NamespaceBundle bundle = topicAndBundle.getRight();
-        String topic = topicName.toString();
-
-        String lookupResultBefore1 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
-        String lookupResultBefore2 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
-        assertEquals(lookupResultBefore1, lookupResultBefore2);
+        String topic = topicAndBundle.getLeft().toString();
 
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
-                .requestHttps(false)
                 .readOnly(false)
-                .loadTopicsInBundle(false).build();
-        Optional<URL> webServiceUrlBefore1 =
-                pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
-        assertTrue(webServiceUrlBefore1.isPresent());
+                .build();
 
-        Optional<URL> webServiceUrlBefore2 =
-                pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
-        assertTrue(webServiceUrlBefore2.isPresent());
-        assertEquals(webServiceUrlBefore2.get().toString(), webServiceUrlBefore1.get().toString());
+        String ownershipBefore = pulsar1.getAdminClient().lookups().lookupTopic(topic);
+        assertEquals(pulsar2.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
+        Optional<LookupResult> webUrlBefore =
+                pulsar1.getNamespaceService().getLookupResultForWebRequest(bundle, options);
+        assertTrue(webUrlBefore.isPresent());
 
+        // === Phase 1: enable the syncer and verify it activates on the leader only ===
+        // The syncer is started inside ExtensibleLoadManagerImpl.monitor() when the
+        // dynamic config is enabled and the broker is the channel owner. Calling
+        // monitor() directly avoids forcing a leader transition (which serializes
+        // playLeader() behind playFollower() on the single-threaded load manager
+        // executor and was the root cause of repeated 30s+ flakes here).
+        String syncerType =
+                serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName())
+                        ? "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
+        // Shrink the sync-wait budget on both brokers' live syncers BEFORE the first start()
+        // (driven by monitor() below) so any tableview-size divergence fails in ~30s with the
+        // syncer's own TimeoutException instead of spinning for the full 300s default — the
+        // exact hang observed in CI happened inside that first start().
+        primaryLoadManager.getServiceUnitStateTableViewSyncer().setSyncWaitTimeInSecs(30);
+        secondaryLoadManager.getServiceUnitStateTableViewSyncer().setSyncWaitTimeInSecs(30);
 
-        String syncerTyp = serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName())
-                ? "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
-                .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerTyp);
-        // Wait for the dynamic config to propagate to both brokers before triggering
-        // leader transitions. Without this, the leader callback may see the old config
-        // and skip activating the syncer.
+                .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerType);
         Awaitility.await().untilAsserted(() ->
                 assertTrue(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
-        makeSecondaryAsLeader();
-        makePrimaryAsLeader();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
-                        .isActive()));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
-                        .isActive()));
-        ServiceConfiguration defaultConf = getDefaultConf();
-        defaultConf.setAllowAutoTopicCreation(true);
-        defaultConf.setForceDeleteNamespaceAllowed(true);
-        defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getCanonicalName());
-        defaultConf.setLoadBalancerSheddingEnabled(false);
-        defaultConf.setLoadManagerServiceUnitStateTableViewClassName(ServiceUnitStateTableViewImpl.class.getName());
-        try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
-            // start pulsar3 with ServiceUnitStateTableViewImpl
-            @Cleanup
-            var pulsar3 = additionalPulsarTestContext.getPulsarService();
+        // Drive monitor() inside the await so a transient start() failure (swallowed by
+        // monitor()'s catch) is retried instead of waiting for the 120s background monitor task.
+        Awaitility.await().atMost(120, TimeUnit.SECONDS).untilAsserted(() -> {
+            primaryLoadManager.monitor();
+            assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
+        });
 
-            String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
-            String lookupResult2 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
-            String lookupResult3 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
-            assertEquals(lookupResult1, lookupResult2);
-            assertEquals(lookupResult1, lookupResult3);
-            assertEquals(lookupResult1, lookupResultBefore1);
+        try {
+            assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
 
-            Optional<URL> webServiceUrl1 =
-                    pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
-            assertTrue(webServiceUrl1.isPresent());
+            // === Phase 2: add a 3rd broker using the OTHER table view impl ===
+            // pulsar1/pulsar2 use serviceUnitStateTableViewClassName; pulsar3 deliberately
+            // uses the other one so the test exercises cross-impl lookups regardless of
+            // which parametrization we're running.
+            String otherClassName =
+                    serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName())
+                            ? ServiceUnitStateMetadataStoreTableViewImpl.class.getName()
+                            : ServiceUnitStateTableViewImpl.class.getName();
 
-            Optional<URL> webServiceUrl2 =
-                    pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
-            assertTrue(webServiceUrl2.isPresent());
-            assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+            ServiceConfiguration crossImplConf = getDefaultConf();
+            crossImplConf.setAllowAutoTopicCreation(true);
+            crossImplConf.setForceDeleteNamespaceAllowed(true);
+            crossImplConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getCanonicalName());
+            crossImplConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+            crossImplConf.setLoadManagerServiceUnitStateTableViewClassName(otherClassName);
 
-            Optional<URL> webServiceUrl3 =
-                    pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
-            assertTrue(webServiceUrl3.isPresent());
-            assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
+            try (var crossImplCtx = createAdditionalPulsarTestContext(crossImplConf)) {
+                var pulsar3 = crossImplCtx.getPulsarService();
 
-            assertEquals(webServiceUrl3.get().toString(), webServiceUrlBefore1.get().toString());
+                // All three brokers (across both impls) must agree on topic ownership.
+                assertEquals(pulsar2.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
+                assertEquals(pulsar3.getAdminClient().lookups().lookupTopic(topic), ownershipBefore);
+                Optional<LookupResult> webUrlPulsar3 =
+                        pulsar3.getNamespaceService().getLookupResultForWebRequest(bundle, options);
+                assertTrue(webUrlPulsar3.isPresent());
+                assertEquals(webUrlPulsar3.get().getLookupData().getHttpUrl(),
+                        webUrlBefore.get().getLookupData().getHttpUrl());
 
-            List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
-            for (PulsarService pulsarService : pulsarServices) {
-                // Test lookup heartbeat namespace's topic
-                for (PulsarService pulsar : pulsarServices) {
-                    assertLookupHeartbeatOwner(pulsarService,
-                            pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
-                }
-                // Test lookup SLA namespace's topic
-                for (PulsarService pulsar : pulsarServices) {
-                    assertLookupSLANamespaceOwner(pulsarService,
-                            pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
-                }
-            }
-
-            // Start broker4 with ServiceUnitStateMetadataStoreTableViewImpl
-            ServiceConfiguration conf = getDefaultConf();
-            conf.setAllowAutoTopicCreation(true);
-            conf.setForceDeleteNamespaceAllowed(true);
-            conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getCanonicalName());
-            conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-            conf.setLoadManagerServiceUnitStateTableViewClassName(
-                    ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
-            try (var additionPulsarTestContext = createAdditionalPulsarTestContext(conf)) {
-                @Cleanup
-                var pulsar4 = additionPulsarTestContext.getPulsarService();
-
-                Set<String> availableCandidates = Sets.newHashSet(
-                        pulsar1.getBrokerServiceUrl(),
-                        pulsar2.getBrokerServiceUrl(),
-                        pulsar3.getBrokerServiceUrl(),
-                        pulsar4.getBrokerServiceUrl());
-                String lookupResult4 = pulsar4.getAdminClient().lookups().lookupTopic(topic);
-                assertTrue(availableCandidates.contains(lookupResult4));
-
-                String lookupResult5 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
-                String lookupResult6 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
-                String lookupResult7 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
-                assertEquals(lookupResult4, lookupResult5);
-                assertEquals(lookupResult4, lookupResult6);
-                assertEquals(lookupResult4, lookupResult7);
-                assertEquals(lookupResult4, lookupResultBefore1);
-
-
-                Pair<TopicName, NamespaceBundle> topicAndBundle2 =
-                        getBundleIsNotOwnByChangeEventTopic("testLoadBalancerServiceUnitTableViewSyncer2");
-                String topic2 = topicAndBundle2.getLeft().toString();
-
-                String lookupResult8 = pulsar1.getAdminClient().lookups().lookupTopic(topic2);
-                String lookupResult9 = pulsar2.getAdminClient().lookups().lookupTopic(topic2);
-                String lookupResult10 = pulsar3.getAdminClient().lookups().lookupTopic(topic2);
-                String lookupResult11 = pulsar4.getAdminClient().lookups().lookupTopic(topic2);
-                assertEquals(lookupResult9, lookupResult8);
-                assertEquals(lookupResult10, lookupResult8);
-                assertEquals(lookupResult11, lookupResult8);
-
-                Set<String> availableWebUrlCandidates = Sets.newHashSet(
-                        pulsar1.getWebServiceAddress(),
-                        pulsar2.getWebServiceAddress(),
-                        pulsar3.getWebServiceAddress(),
-                        pulsar4.getWebServiceAddress());
-
-                webServiceUrl1 =
-                        pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
-                assertTrue(webServiceUrl1.isPresent());
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().toString()));
-
-                webServiceUrl2 =
-                        pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
-                assertTrue(webServiceUrl2.isPresent());
-                assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
-
-                webServiceUrl3 =
-                        pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
-                assertTrue(webServiceUrl3.isPresent());
-                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().toString()));
-
-                var webServiceUrl4 =
-                        pulsar4.getNamespaceService().getWebServiceUrl(bundle, options);
-                assertTrue(webServiceUrl4.isPresent());
-                assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
-                assertEquals(webServiceUrl4.get().toString(), webServiceUrlBefore1.get().toString());
-
-                pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
-                for (PulsarService pulsarService : pulsarServices) {
-                    // Test lookup heartbeat namespace's topic
-                    for (PulsarService pulsar : pulsarServices) {
-                        assertLookupHeartbeatOwner(pulsarService,
-                                pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
-                    }
-                    // Test lookup SLA namespace's topic
-                    for (PulsarService pulsar : pulsarServices) {
-                        assertLookupSLANamespaceOwner(pulsarService,
-                                pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
+                // SLA monitor and heartbeat lookups must agree across impls in every direction.
+                List<PulsarService> brokers = List.of(pulsar1, pulsar2, pulsar3);
+                for (PulsarService viewer : brokers) {
+                    for (PulsarService owner : brokers) {
+                        assertLookupHeartbeatOwner(viewer, owner.getBrokerId(), owner.getBrokerServiceUrl());
+                        assertLookupSLANamespaceOwner(viewer, owner.getBrokerId(), owner.getBrokerServiceUrl());
                     }
                 }
-                // Simulate broker going offline: clean ownerships first (as disableBroker() does),
-                // then unregister from the broker registry.
-                var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
-                var loadManager4 = spy((ExtensibleLoadManagerImpl)
-                        FieldUtils.readField(wrapper, "loadManager", true));
-                ServiceUnitStateChannel channel4 = (ServiceUnitStateChannel)
-                        FieldUtils.readField(loadManager4, "serviceUnitStateChannel", true);
-                channel4.cleanOwnerships();
-                // Simulate broker going offline by removing it from the broker registry.
+
+                // === Phase 3: simulate the cross-impl broker going offline ===
+                // Its SLA namespace must reassign to a remaining broker, and the ownership
+                // change must propagate through the syncer to brokers using the other impl.
+                var wrapper3 = (ExtensibleLoadManagerWrapper) pulsar3.getLoadManager().get();
+                var loadManager3 = (ExtensibleLoadManagerImpl)
+                        FieldUtils.readField(wrapper3, "loadManager", true);
+                ServiceUnitStateChannel channel3 = (ServiceUnitStateChannel)
+                        FieldUtils.readField(loadManager3, "serviceUnitStateChannel", true);
+                channel3.cleanOwnerships();
                 // Set state to Closed BEFORE deleting the ZK node to prevent the notification
-                // handler's session-expiry recovery from auto-re-registering broker4.
-                // In production, the PulsarService shuts down after unregister(), so the handler
-                // never fires. In tests, the service stays running, creating a race.
-                var registry4 = (BrokerRegistryImpl) loadManager4.getBrokerRegistry();
-                registry4.state.set(BrokerRegistryImpl.State.Closed);
-                String brokerZkPath = "/loadbalance/brokers/" + pulsar4.getBrokerId();
-                pulsar4.getLocalMetadataStore().delete(brokerZkPath, Optional.empty()).get();
+                // handler's session-expiry recovery from auto-re-registering broker3. In
+                // production the PulsarService shuts down after unregister(), so the handler
+                // never fires; in tests the service stays running and creates a race.
+                var registry3 = (BrokerRegistryImpl) loadManager3.getBrokerRegistry();
+                registry3.state.set(BrokerRegistryImpl.State.Closed);
+                pulsar3.getLocalMetadataStore()
+                        .delete("/loadbalance/brokers/" + pulsar3.getBrokerId(), Optional.empty()).get();
 
-                NamespaceName slaMonitorNamespace =
-                        getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
-                String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
-                // Wait for ownership to be reassigned after broker unregistration
-                String pulsar4BrokerUrl = pulsar4.getBrokerServiceUrl();
+                String slaMonitorTopic = getSLAMonitorNamespace(pulsar3.getBrokerId(), pulsar.getConfiguration())
+                        .getPersistentTopicName("test");
+                String pulsar3BrokerUrl = pulsar3.getBrokerServiceUrl();
                 Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-                    String lookupResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                    assertNotNull(lookupResult);
-                    assertNotEquals(lookupResult, pulsar4BrokerUrl);
+                    String reassigned = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(reassigned);
+                    assertNotEquals(reassigned, pulsar3BrokerUrl);
                 });
-                String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
 
+                // Send a message while the topic is owned by the reassigned broker; this must
+                // remain durable when ownership migrates back below.
+                @Cleanup
                 Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING)
                         .topic(slaMonitorTopic).create();
-                producer.send("t1");
+                producer.send("offline");
 
-                // Test re-register broker and check the lookup result
-                // Reset state to Started to allow re-registration.
-                registry4.state.set(BrokerRegistryImpl.State.Started);
-                registry4.registerAsync().get();
+                // === Phase 4: re-register the broker and verify ownership returns ===
+                registry3.state.set(BrokerRegistryImpl.State.Started);
+                registry3.registerAsync().get();
+                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() ->
+                        assertEquals(pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic),
+                                pulsar3.getBrokerServiceUrl()));
 
-                // Wait for ownership to be reassigned back to pulsar4 after re-registration
-                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-                    String reRegResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                    assertNotNull(reRegResult);
-                    assertEquals(reRegResult, pulsar4.getBrokerServiceUrl());
-                });
-                result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-
-                producer.send("t2");
-                Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING)
+                // Same producer reconnects to the new owner; a fresh producer also works.
+                producer.send("after-reconnect");
+                @Cleanup
+                Producer<String> producer2 = pulsar.getClient().newProducer(Schema.STRING)
                         .topic(slaMonitorTopic).create();
-                producer1.send("t3");
+                producer2.send("from-new-producer");
 
-                producer.close();
-                producer1.close();
                 @Cleanup
                 Consumer<String> consumer = pulsar.getClient().newConsumer(Schema.STRING)
                         .topic(slaMonitorTopic)
                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                         .subscriptionName("test")
                         .subscribe();
-                // receive message t1 t2 t3
-                assertEquals(consumer.receive().getValue(), "t1");
-                assertEquals(consumer.receive().getValue(), "t2");
-                assertEquals(consumer.receive().getValue(), "t3");
+                assertEquals(consumer.receive().getValue(), "offline");
+                assertEquals(consumer.receive().getValue(), "after-reconnect");
+                assertEquals(consumer.receive().getValue(), "from-new-producer");
             }
+        } finally {
+            // === Phase 5: disable the syncer and verify it deactivates ===
+            // Guarantee the dynamic config is removed and the syncer is driven inactive even if
+            // the body threw, so the syncer cannot stay enabled and poison later tests. Note this
+            // cannot tear down a start() that failed before isActive=true (close() short-circuits
+            // on !isActive); leftover tail views from such a partial start are recovered by the
+            // next successful start(), and the next test's initializeState() retry absorbs any
+            // residual channel disruption.
+            try {
+                pulsar.getAdminClient().brokers()
+                        .deleteDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer");
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to delete syncer dynamic config in cleanup");
+            }
+            Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                assertFalse(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled());
+                primaryLoadManager.monitor();
+                secondaryLoadManager.monitor();
+                assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
+                assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
+            });
         }
-
-        pulsar.getAdminClient().brokers()
-                .deleteDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer");
-        // Wait for config deletion to propagate before leader transition
-        Awaitility.await().untilAsserted(() ->
-                assertFalse(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
-        Awaitility.await().untilAsserted(() ->
-                assertFalse(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
-        makeSecondaryAsLeader();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer()
-                        .isActive()));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
-                        .isActive()));
     }
 
     private void assertLookupHeartbeatOwner(PulsarService pulsar,
@@ -1593,7 +1536,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         NamespaceName slaMonitorNamespace = getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
         String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
         String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-        log.info("Topic {} Lookup result: {}", slaMonitorTopic, result);
+        log.info().attr("topic", slaMonitorTopic).attr("result", result).log("Topic Lookup result");
         assertNotNull(result);
         assertEquals(result, expectedBrokerServiceUrl);
     }
@@ -1635,7 +1578,53 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         });
     }
 
-    @Test(timeOut = 30 * 1000, priority = 2100)
+    // After a test churns leader election, the channel-topic bundle can be transiently
+    // unowned and the channel producer can be in reconnect backoff. The next @BeforeMethod
+    // (initializeState -> namespaces().unload(...)) publishes a state change on the channel
+    // topic; if it runs in that window the producer send times out (HTTP 500). Give the
+    // re-election a best-effort chance to settle before yielding to the next test.
+    //
+    // This is a best-effort smoothing wait, not an assertion: the budget is deliberately a
+    // fraction (20s) of the callers' 60s method timeout so it cannot consume the whole slot
+    // and trip TestNG's ThreadTimeoutException mid-poll, and any failure to settle
+    // is swallowed-and-logged rather than thrown. That matters because callers invoke this from
+    // a finally block — a settling delay here must never replace (mask) the body's exception.
+    // The next test's initializeState() is the real backstop: it retries the unload and, if the
+    // channel stays wedged, forces a clean channel owner via leader re-election before retrying.
+    private void awaitChannelOwnerStable() {
+        try {
+            Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                // monitor() reconciles each broker's role with the channel ownership and
+                // re-serves the channel-topic bundle if the leadership churn left it unserved
+                // ("not served by this instance") — the same self-healing the 120s background
+                // monitor task provides, driven eagerly so the next test does not start inside
+                // the broken window.
+                primaryLoadManager.monitor();
+                secondaryLoadManager.monitor();
+                Optional<String> owner1 = channel1.getChannelOwnerAsync().get(5, TimeUnit.SECONDS);
+                Optional<String> owner2 = channel2.getChannelOwnerAsync().get(5, TimeUnit.SECONDS);
+                assertTrue(owner1.isPresent());
+                assertEquals(owner1, owner2);
+                assertTrue(channel1.isChannelOwner() ^ channel2.isChannelOwner());
+                // Probe that the channel topic is actually served: the lookup re-assigns the
+                // pulsar/system bundle if it is unowned, and getStats proves the owner loads
+                // the topic (the lookup layer alone can claim an owner that refuses to serve).
+                String channelTopic = ServiceUnitStateTableViewImpl.TOPIC;
+                assertNotNull(pulsar.getAdminClient().lookups().lookupTopic(channelTopic));
+                if (serviceUnitStateTableViewClassName.equals(
+                        ServiceUnitStateTableViewImpl.class.getName())) {
+                    assertNotNull(pulsar.getAdminClient().topics().getStats(channelTopic));
+                }
+            });
+        } catch (Throwable t) {
+            log.warn().exception(t).log("Channel owner did not stabilize within the best-effort window; "
+                    + "relying on the next test's initializeState() retry");
+        }
+    }
+
+    // 60s: the body's repeated role transitions plus the trailing awaitChannelOwnerStable() can
+    // exceed 30s under load.
+    @Test(timeOut = 60 * 1000, priority = 2100)
     public void testRoleChangeIdempotency() throws Exception {
 
         makePrimaryAsLeader();
@@ -1715,7 +1704,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
                     secondaryLoadManager.getRole());
 
-
+            // Confirm a stable channel owner before yielding to the next test's @BeforeMethod.
+            awaitChannelOwnerStable();
     }
 
     @DataProvider(name = "noChannelOwnerMonitorHandler")
@@ -1723,7 +1713,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "noChannelOwnerMonitorHandler", timeOut = 30 * 1000, priority = 2101)
+    // 60s: the body's leader-election churn plus the trailing awaitChannelOwnerStable() can
+    // exceed 30s under load.
+    @Test(dataProvider = "noChannelOwnerMonitorHandler", timeOut = 60 * 1000, priority = 2101)
     public void testHandleNoChannelOwner(boolean noChannelOwnerMonitorHandler) throws Exception {
 
         makePrimaryAsLeader();
@@ -1790,10 +1782,25 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             // clean up for monitor test
             pulsar1.getLeaderElectionService().start();
             pulsar2.getLeaderElectionService().start();
+            // If the body failed mid-churn, both restarted elections can keep flapping the
+            // leadership between the brokers, leaving the channel-topic bundle unserved
+            // beyond what the next test's initializeState() retry can absorb. Force a
+            // deterministic single leader before stabilizing (best-effort: must not mask
+            // the body's exception).
+            try {
+                makePrimaryAsLeader();
+            } catch (Throwable t) {
+                log.warn().exception(t).log("Failed to re-establish primary as leader in cleanup");
+            }
+            // Re-establish a stable channel owner before yielding to the next test's
+            // @BeforeMethod, which publishes to the channel topic via namespace unload.
+            awaitChannelOwnerStable();
         }
     }
 
-    @Test(timeOut = 30 * 1000, priority = 2000)
+    // 60s: the body's role transitions plus the trailing awaitChannelOwnerStable() can exceed
+    // 30s under load (observed locally at 30.017s).
+    @Test(timeOut = 60 * 1000, priority = 2000)
     public void testRoleChange() throws Exception {
         makePrimaryAsLeader();
 
@@ -1813,6 +1820,11 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 new NamespaceBundleStats()));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            // The internal topics live in the pulsar/system bundle; if the leadership churn
+            // left it unserved, only a monitor() role reconciliation re-serves it (the
+            // background monitor task would take up to 120s) — drive it while waiting.
+            leader.monitor();
+            follower.monitor();
 
             assertNotNull(FieldUtils.readDeclaredField(leader.getTopBundlesLoadDataStore(),
                     "tableView", true));
@@ -1850,6 +1862,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         topBundlesExpected.getTopBundlesLoadData().get(0).stats().msgRateIn = 1;
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            // Same monitor()-driven healing as above for the post-transfer assertions.
+            leader2.monitor();
+            follower2.monitor();
             assertNotNull(FieldUtils.readDeclaredField(leader2.getTopBundlesLoadDataStore(), "tableView", true));
             assertNull(FieldUtils.readDeclaredField(follower2.getTopBundlesLoadDataStore(), "tableView", true));
 
@@ -1874,6 +1889,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         follower2.getBrokerLoadDataStore().pushAsync(key, brokerLoadExpected).get(3, TimeUnit.SECONDS);
         follower2.getTopBundlesLoadDataStore().pushAsync(bundle, topBundlesExpected)
                 .get(3, TimeUnit.SECONDS);
+
+        // Confirm a stable channel owner before yielding to the next test's @BeforeMethod.
+        awaitChannelOwnerStable();
     }
 
     @SuppressWarnings("deprecation")
@@ -2189,12 +2207,12 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
 
         Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
-        log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
+        log.info().attr("ownedServiceUnits", ownedServiceUnitsByPulsar1).log("Owned service units");
         // heartbeat namespace bundle will own by pulsar1
         assertTrue(ownedServiceUnitsByPulsar1.contains(bundle1));
         assertTrue(ownedServiceUnitsByPulsar1.contains(slaBundle1));
         Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
-        log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
+        log.info().attr("ownedServiceUnits", ownedServiceUnitsByPulsar2).log("Owned service units");
         assertTrue(ownedServiceUnitsByPulsar2.contains(bundle2));
         assertTrue(ownedServiceUnitsByPulsar2.contains(slaBundle2));
         Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar1 =

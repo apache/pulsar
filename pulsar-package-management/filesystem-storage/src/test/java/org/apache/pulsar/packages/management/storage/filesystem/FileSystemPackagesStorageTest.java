@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
@@ -41,7 +41,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class FileSystemPackagesStorageTest {
     private PackagesStorage storage;
     private Path storagePath;
@@ -49,7 +49,7 @@ public class FileSystemPackagesStorageTest {
     @BeforeMethod()
     public void setup() throws Exception {
         this.storagePath = Files.createTempDirectory("package-storage-test");
-        log.info("Test using storage path: {}", storagePath);
+        log.info().attr("storagePath", storagePath).log("Test using storage path");
 
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(FileSystemPackagesStorageProvider.class.getName());

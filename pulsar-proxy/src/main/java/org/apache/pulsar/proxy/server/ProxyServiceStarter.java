@@ -38,7 +38,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import javax.servlet.Servlet;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -63,12 +63,10 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.eclipse.jetty.ee8.proxy.ProxyServlet;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.ee8.websocket.server.config.JettyWebSocketServletContainerInitializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -77,6 +75,7 @@ import picocli.CommandLine.ScopeType;
 /**
  * Starts an instance of the Pulsar ProxyService.
  */
+@CustomLog
 @Command(name = "proxy", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class ProxyServiceStarter {
 
@@ -233,7 +232,7 @@ public class ProxyServiceStarter {
             }
 
         } catch (Exception e) {
-            log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
+            log.error().exception(e).log("Failed to start pulsar proxy service");
             throw new PulsarServerException(e);
         }
     }
@@ -248,7 +247,7 @@ public class ProxyServiceStarter {
         try {
             serviceStarter.start();
         } catch (Throwable t) {
-            log.error("Failed to start proxy.", t);
+            log.error().exception(t).log("Failed to start proxy.");
             ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
@@ -267,7 +266,7 @@ public class ProxyServiceStarter {
                 try {
                     proxyClientAuthentication.close();
                 } catch (IOException ioe) {
-                    log.error("Failed to close the authentication service", ioe);
+                    log.error().exception(ioe).log("Failed to close the authentication service");
                 }
                 throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
             }
@@ -277,8 +276,9 @@ public class ProxyServiceStarter {
 
         // create proxy service
         proxyService = new ProxyService(config, authenticationService, proxyClientAuthentication);
-        // create a web-service
-        server = new WebServer(config, authenticationService);
+        // create a web-service (PIP-478: share the proxy's OpenTelemetry root so the WEB-purpose TLS factory
+        // emits pulsar.tls.reload instead of a no-op)
+        server = new WebServer(config, authenticationService, proxyService.getOpenTelemetry().getOpenTelemetry());
 
         if (!embeddedMode) {
             Runtime.getRuntime().addShutdownHook(new Thread(this::close));
@@ -303,7 +303,9 @@ public class ProxyServiceStarter {
                 registry.register(jvmMemoryDirectBytesUsed);
             } catch (IllegalArgumentException e) {
                 // workaround issue in tests where the metric is already registered
-                log.debug("Failed to register jvm_memory_direct_bytes_used metric: {}", e.getMessage());
+                log.debug()
+                        .exceptionMessage(e)
+                        .log("Failed to register jvm_memory_direct_bytes_used");
             }
 
             Collector jvmMemoryDirectBytesMax =
@@ -317,7 +319,9 @@ public class ProxyServiceStarter {
                 registry.register(jvmMemoryDirectBytesMax);
             } catch (IllegalArgumentException e) {
                 // workaround issue in tests where the metric is already registered
-                log.debug("Failed to register jvm_memory_direct_bytes_max metric: {}", e.getMessage());
+                log.debug()
+                        .exceptionMessage(e)
+                        .log("Failed to register jvm_memory_direct_bytes_max");
             }
 
             metricsInitialized = true;
@@ -347,7 +351,9 @@ public class ProxyServiceStarter {
                 proxyClientAuthentication.close();
             }
         } catch (Exception e) {
-            log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+            log.warn()
+                    .exception(e)
+                    .log("server couldn't stop gracefully");
         } finally {
             if (!embeddedMode) {
                 LogManager.shutdown();
@@ -385,14 +391,20 @@ public class ProxyServiceStarter {
             }
         }
 
+        // PIP-478: thread the proxy's OpenTelemetry root so the admin handler's BROKER_CLIENT TLS factory
+        // emits pulsar.tls.reload (no-op when no ProxyService is available, e.g. in tests).
+        io.opentelemetry.api.OpenTelemetry telemetryRoot = service != null
+                ? service.getOpenTelemetry().getOpenTelemetry() : io.opentelemetry.api.OpenTelemetry.noop();
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider,
-                proxyClientAuthentication);
+                proxyClientAuthentication, telemetryRoot);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
 
         for (ProxyConfiguration.HttpReverseProxyConfig revProxy : config.getHttpReverseProxyConfigs()) {
-            log.debug("Adding reverse proxy with config {}", revProxy);
+            log.debug()
+                    .attr("revProxy", revProxy)
+                    .log("Adding reverse proxy with config");
             ServletHolder proxyHolder = new ServletHolder(ProxyServlet.Transparent.class);
             proxyHolder.setInitParameter("proxyTo", revProxy.getProxyTo());
             proxyHolder.setInitParameter("prefix", "/");
@@ -407,31 +419,74 @@ public class ProxyServiceStarter {
                 servletWithClassLoader.loadConfig(config);
                 switch (servletWithClassLoader.getServletType()) {
                     case JAVAX_SERVLET -> {
+                        // Legacy javax.servlet handlers are routed to Jetty's ee8 environment (PIP-472).
                         Object servletInstance = servletWithClassLoader.getServletInstance();
                         if (!(servletInstance instanceof javax.servlet.Servlet)) {
-                            log.error("AdditionalServletWithClassLoader {} has invalid servlet instance type {} which "
-                                            + "doesn't match {}. Skipping.", servletWithClassLoader,
-                                    servletInstance.getClass().getName(), servletWithClassLoader.getServletType());
+                            log.error()
+                                    .attr("servletWithClassLoader", servletWithClassLoader)
+                                    .attr("servletInstance", servletInstance.getClass().getName())
+                                    .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
+                                    .log("AdditionalServletWithClassLoader has invalid"
+                                            + " servlet instance type. Skipping.");
                             try {
                                 servletWithClassLoader.close();
                             } catch (Exception e) {
-                                log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                                log.error()
+                                        .attr("servletWithClassLoader", servletWithClassLoader)
+                                        .exception(e)
+                                        .log("Failed to close servlet");
+                            }
+                            continue;
+                        }
+                        org.eclipse.jetty.ee8.servlet.ServletHolder additionalServletHolder =
+                                new org.eclipse.jetty.ee8.servlet.ServletHolder(
+                                        (javax.servlet.Servlet) servletInstance);
+                        server.addServletEe8(servletWithClassLoader.getBasePath(), additionalServletHolder,
+                                Collections.emptyList(), config.isAuthenticationEnabled());
+                        log.info()
+                                .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
+                                .log("proxy add additional servlet basePath");
+                    }
+                    case JAKARTA_SERVLET -> {
+                        // jakarta.servlet handlers are routed to Jetty's ee10 environment (PIP-472).
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof jakarta.servlet.Servlet)) {
+                            log.error()
+                                    .attr("servletWithClassLoader", servletWithClassLoader)
+                                    .attr("servletInstance", servletInstance.getClass().getName())
+                                    .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
+                                    .log("AdditionalServletWithClassLoader has invalid"
+                                            + " servlet instance type. Skipping.");
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                log.error()
+                                        .attr("servletWithClassLoader", servletWithClassLoader)
+                                        .exception(e)
+                                        .log("Failed to close servlet");
                             }
                             continue;
                         }
                         ServletHolder additionalServletHolder =
-                                new ServletHolder((Servlet) servletInstance);
+                                new ServletHolder((jakarta.servlet.Servlet) servletInstance);
                         server.addServlet(servletWithClassLoader.getBasePath(), additionalServletHolder,
                                 Collections.emptyList(), config.isAuthenticationEnabled());
-                        log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                        log.info()
+                                .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
+                                .log("proxy add additional servlet basePath");
                     }
                     default -> {
-                        log.error("AdditionalServletWithClassLoader {} has unsupported servlet type {}. Skipping.",
-                                servletWithClassLoader, servletWithClassLoader.getServletType());
+                        log.error()
+                                .attr("servletWithClassLoader", servletWithClassLoader)
+                                .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
+                                .log("AdditionalServletWithClassLoader has unsupported servlet type . Skipping");
                         try {
                             servletWithClassLoader.close();
                         } catch (Exception e) {
-                            log.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                            log.error()
+                                    .attr("servletWithClassLoader", servletWithClassLoader)
+                                    .exception(e)
+                                    .log("Failed to close servlet");
                         }
                         continue;
                     }
@@ -498,7 +553,5 @@ public class ProxyServiceStarter {
     public WebServer getServer() {
         return server;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);
 
 }

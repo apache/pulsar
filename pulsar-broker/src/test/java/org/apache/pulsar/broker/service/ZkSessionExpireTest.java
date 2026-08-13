@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -51,7 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ZkSessionExpireTest extends NetworkErrorTestBase {
 
@@ -140,7 +140,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
                 .sendTimeout(10, TimeUnit.SECONDS).create();
         Topic broker1Topic1 = pulsar1.getBrokerService().getTopic(topicName, false).join().get();
         final String brokerAddr1 = admin1.lookups().lookupTopic(topicName);
-        log.info("the addr of broker 1: {}", brokerAddr1);
+        log.info().attr("broker1", brokerAddr1).log("the addr of broker 1");
         assertNotNull(broker1Topic1);
         clearPreferBroker();
 
@@ -203,8 +203,8 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         Awaitility.await().untilAsserted(() -> {
             Set<String> availableBrokers1 = getAvailableBrokers(pulsar1);
             Set<String> availableBrokers2 = getAvailableBrokers(pulsar2);
-            log.info("Available brokers 1: {}", availableBrokers1);
-            log.info("Available brokers 2: {}", availableBrokers2);
+            log.info().attr("brokers1", availableBrokers1).log("Available brokers 1");
+            log.info().attr("brokers2", availableBrokers2).log("Available brokers 2");
             assertEquals(availableBrokers1.size(), 2);
             assertEquals(availableBrokers2.size(), 2);
         });
@@ -213,22 +213,28 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         // Verify: the topic on broker-2 is fine.
         Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
             CompletableFuture<Optional<Topic>> future1 = pulsar1.getBrokerService().getTopic(topicName, false);
-            log.info("broker 1 topics {}", pulsar1.getBrokerService().getTopics().keySet());
-            log.info("broker 2 topics {}", pulsar2.getBrokerService().getTopics().keySet());
-            log.info("broker 1 bundles {}", getOwnedBundles(pulsar1).stream()
-                    .filter(s -> s.contains(defaultNamespace)).collect(Collectors.toList()));
-            log.info("broker 2 bundles {}", getOwnedBundles(pulsar1).stream()
-                    .filter(s -> s.contains(defaultNamespace)).collect(Collectors.toList()));
+            log.info().attr("topics", pulsar1.getBrokerService().getTopics().keySet()).log("broker 1 topics");
+            log.info().attr("topics", pulsar2.getBrokerService().getTopics().keySet()).log("broker 2 topics");
+            log.info()
+                    .attr("bundles", getOwnedBundles(pulsar1).stream()
+                            .filter(s -> s.contains(defaultNamespace))
+                            .collect(Collectors.toList()))
+                    .log("broker 1 bundles");
+            log.info()
+                    .attr("bundles", getOwnedBundles(pulsar1).stream()
+                            .filter(s -> s.contains(defaultNamespace))
+                            .collect(Collectors.toList()))
+                    .log("broker 2 bundles");
             String lookup1 = admin1.lookups().lookupTopic(topicName);
             String lookup2 = admin2.lookups().lookupTopic(topicName);
-            log.info("lookup 1: {}", lookup1);
-            log.info("lookup 2: {}", lookup2);
+            log.info().attr("lookup1", lookup1).log("lookup 1");
+            log.info().attr("lookup2", lookup2).log("lookup 2");
             // Both responses from different brokers should be the same.
             assertEquals(lookup1, lookup2, "both lookup result should be the same");
             // Except the system topic based load balancer, the topic should be loaded up on the broker-2.
-            log.info("future 1: {}, isDone: {}, isCompletedExceptionally: {}",
-                    future1, future1 == null ? "null" : future1.isDone(),
-                    future1 == null ? "null" : future1.isCompletedExceptionally());
+            log.info().attr("future1", future1).attr("isdone", future1 == null ? "null" : future1.isDone())
+                    .attr("iscompletedexceptionally", future1 == null ? "null" : future1.isCompletedExceptionally())
+                    .log("future 1, isDone, isCompletedExceptionally");
             boolean topicDoesNotExists1 = future1 == null
                     || !pulsar1.getBrokerService().getTopics().containsKey(topicName)
                     || (future1.isDone() && !future1.isCompletedExceptionally() && future1.get().isEmpty())
@@ -242,8 +248,8 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
                         .filter(s -> s.contains(defaultNamespace)).collect(Collectors.toList());
                 List<String> bundle2 = getOwnedBundles(pulsar2).stream()
                         .filter(s -> s.contains(defaultNamespace)).collect(Collectors.toList());
-                log.info("broker 1 bundles the second time {}", bundle1);
-                log.info("broker 2 bundles the second time {}", bundle2);
+                log.info().attr("secondTime", bundle1).log("broker 1 bundles the second time");
+                log.info().attr("secondTime", bundle2).log("broker 2 bundles the second time");
                 assertEquals(bundle1.size(), 0);
                 assertEquals(bundle2.size(), 1);
                 if (TableViewType.MetadataStore.equals(tableViewType)) {
@@ -256,7 +262,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
             // Regarding the system topic based load balancer, which does not rely on ZK, the topic may be owned by any
             // broker.
             if (TableViewType.SystemTopic.equals(tableViewType)) {
-                // This implementation will be finished by a seperated PR.
+                // This implementation will be finished by a separate PR.
             }
         });
         Topic broker2Topic3 = pulsar2.getBrokerService().getTopic(topicName, false).join().get();
@@ -274,7 +280,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         broker2Send3.join();
 
         long msgBacklog = admin2.topics().getStats(topicName).getSubscriptions().get("s1").getMsgBacklog();
-        log.info("msgBacklog: {}", msgBacklog);
+        log.info().attr("msgbacklog", msgBacklog).log("msgBacklog");
 
         // cleanup.
         p1.close();

@@ -21,8 +21,7 @@ package org.apache.pulsar.tests;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
@@ -33,8 +32,8 @@ import org.testng.ITestNGMethod;
  * assuming that a single test class is run in each context.
  * This is the case when running tests with maven-surefire-plugin.
  */
+@CustomLog
 abstract class BetweenTestClassesListenerAdapter implements ITestListener {
-    private static final Logger log = LoggerFactory.getLogger(BetweenTestClassesListenerAdapter.class);
 
     @Override
     public final void onFinish(ITestContext context) {

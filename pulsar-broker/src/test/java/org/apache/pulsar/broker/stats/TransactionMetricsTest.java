@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -63,7 +63,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TransactionMetricsTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
@@ -146,7 +146,6 @@ public class TransactionMetricsTest extends BrokerTestBase {
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
-
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .subscriptionName(subName).topic(topic).subscribe();

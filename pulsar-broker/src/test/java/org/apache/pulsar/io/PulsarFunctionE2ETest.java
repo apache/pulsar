@@ -76,6 +76,7 @@ import org.zeroturnaround.zip.ZipUtil;
 /**
  * Test Pulsar sink on function.
  */
+@lombok.CustomLog
 @Test(groups = "broker-io")
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
     @SuppressWarnings("deprecation")
@@ -398,7 +399,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Assert.assertEquals(count, cntMsg);
 
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
         Map<String, TestPulsarFunctionUtils.Metric> statsMetrics =
                 TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
 
@@ -497,7 +498,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // validate prometheus metrics empty
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_function_received_total");
@@ -670,7 +671,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // validate prometheus metrics
         prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_function_received_total");

@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link ExtensibleLoadManagerImpl with AdvertisedListeners broker configs}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "flaky")
 @SuppressWarnings("unchecked")
 public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends ExtensibleLoadManagerImplBaseTest {
@@ -46,8 +46,10 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Override
     protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
         super.updateConfig(conf);
-        int privatePulsarPort = nextLockedFreePort();
-        int publicPulsarPort = nextLockedFreePort();
+        // Pre-allocate ports because advertised listener URLs are baked into config
+        // before the broker starts.
+        int privatePulsarPort = PortManager.nextLockedFreePort();
+        int publicPulsarPort = PortManager.nextLockedFreePort();
         conf.setInternalListenerName("internal");
         conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
         conf.setAdvertisedListeners(
@@ -72,23 +74,33 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
             throws Exception {
-        ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+        var testClients = createTestClients(4);
+        try {
+            ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
+                    testClients,
+                    topicDomain, subscriptionType,
+                    defaultTestNamespace, admin,
+                    brokerServiceUrl,
+                    pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
-        ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1);
+        var testClients = createTestClients(1);
+        try {
+            ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
+                    testClients,
+                    topicDomain, subscriptionType,
+                    defaultTestNamespace, admin,
+                    brokerServiceUrl,
+                    pulsar1);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @DataProvider(name = "isPersistentTopicTest")
@@ -98,10 +110,15 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
     public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
-        ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
-                clients,
-                topicDomain, defaultTestNamespace, admin,
-                brokerServiceUrl, pulsar1, pulsar2);
+        var testClients = createTestClients(1);
+        try {
+            ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
+                    testClients,
+                    topicDomain, defaultTestNamespace, admin,
+                    brokerServiceUrl, pulsar1, pulsar2);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
 }

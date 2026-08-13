@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.FileUtils;
@@ -68,7 +68,7 @@ import org.testng.annotations.Test;
  *   ./gradlew :pulsar-broker:test
  *   --tests BrokerEntryCacheRollingRestartTest
  */
-@Slf4j
+@CustomLog
 public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCacheMultiBrokerTest {
     // comment out next line to run a single test run for the default cache type
     @Factory
@@ -97,10 +97,10 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
 
     @Override
     protected void logBKRead(long ledgerId, long firstEntry, long lastEntry, int numberOfEntries) {
-        log.info(
-                "BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}, "
-                        + "last msgid {}, restarting={}",
-                ledgerId, firstEntry, lastEntry, numberOfEntries, lastPublishedMessageId, restarting);
+        log.info().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).attr("numberOfEntries", numberOfEntries)
+                .attr("lastMsgId", lastPublishedMessageId).attr("restarting", restarting)
+                .log("BK read");
     }
 
     private static final int CACHE_SIZE_MB = 250;
@@ -246,10 +246,10 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                     long startTimeMillis = System.currentTimeMillis();
                     log.info("Starting restarting main broker");
                     restartBroker();
-                    log.info("Finished restarting main broker, took {} ms",
-                            System.currentTimeMillis() - startTimeMillis);
+                    log.info().attr("durationMs", System.currentTimeMillis() - startTimeMillis)
+                            .log("Finished restarting main broker");
                 } catch (Exception e) {
-                    log.error("Error while restarting broker ", e);
+                    log.error().exception(e).log("Error while restarting broker");
                 }
             });
             for (int i = 0; i < numberOfAdditionalBrokers(); i++) {
@@ -257,17 +257,21 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 restartRunnables.add(() -> {
                     try {
                         long startTimeMillis = System.currentTimeMillis();
-                        log.info("Starting restarting additional broker {}", brokerIndex);
+                        log.info().attr("brokerIndex", brokerIndex)
+                                .log("Starting restarting additional broker");
                         restartAdditionalBroker(brokerIndex);
-                        log.info("Finished restarting additional broker {}, took {} ms", brokerIndex,
-                                System.currentTimeMillis() - startTimeMillis);
+                        log.info().attr("brokerIndex", brokerIndex)
+                                .attr("durationMs", System.currentTimeMillis() - startTimeMillis)
+                                .log("Finished restarting additional broker");
                     } catch (Exception e) {
-                        log.error("Error while restarting additional broker {}", brokerIndex, e);
+                        log.error().attr("brokerIndex", brokerIndex).exception(e)
+                                .log("Error while restarting additional broker");
                     }
                 });
             }
             long targetIntervalBetweenRestarts = testTimeInSeconds * 1000 / (numberOfRestarts + 1);
-            log.info("Rolling restart injector will restart the brokers every {} ms", targetIntervalBetweenRestarts);
+            log.info().attr("intervalMs", targetIntervalBetweenRestarts)
+                    .log("Rolling restart injector will restart the brokers");
             long restartsStartTimeMillis = System.currentTimeMillis();
             while (!Thread.currentThread().isInterrupted()) {
                 try {
@@ -279,7 +283,8 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                         long waitingTimeMillis =
                                 targetIntervalBetweenRestarts - ((System.currentTimeMillis() - restartsStartTimeMillis)
                                         % targetIntervalBetweenRestarts);
-                        log.info("Waiting for {} ms before restarting broker", waitingTimeMillis);
+                        log.info().attr("waitingTimeMs", waitingTimeMillis)
+                                .log("Waiting before restarting broker");
                         // Wait for some time before restarting the broker
                         Thread.sleep(waitingTimeMillis);
                         // Now restart the next broker
@@ -348,7 +353,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
 
         long waitingTimeMillis = endTimeMillis - System.currentTimeMillis();
         if (waitingTimeMillis > 0) {
-            log.info("Waiting for {} ms for test to complete.", waitingTimeMillis);
+            log.info().attr("waitingTimeMs", waitingTimeMillis).log("Waiting for test to complete.");
             Thread.sleep(waitingTimeMillis);
         }
 
@@ -362,7 +367,8 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
 
         log.info("Waiting up to 5 seconds for consumers to complete.");
         boolean allCompleted = consumersLatch.await(5, TimeUnit.SECONDS);
-        log.info("All consumers completed: {} (latch count: {})", allCompleted, consumersLatch.getCount());
+        log.info().attr("allCompleted", allCompleted).attr("latchCount", consumersLatch.getCount())
+                .log("All consumers completed");
 
         log.info("Stopping consumers.");
         consumerThreadsCloseable.close();
@@ -387,9 +393,15 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 numberOfMessagesConsumed, numConsumers, readCount, readEntryCount,
                 String.format("%.2f", cacheHitPercentage), String.format("%.2f", cacheMissPercentage),
                 actualNumberOfRestarts};
-        log.info("[{}] Produced {} and Consumed {} messages (across {} consumers with unique subscriptions) in total. "
-                + "Number of BK reads {} with {} entries. Cache hits {}%, Cache misses {}%, Number of "
-                + "restarts {}", msgArgs);
+        log.info().attr("testConfig", testConfigDescriptionInResult)
+                .attr("produced", numberOfMessagesProduced)
+                .attr("consumed", numberOfMessagesConsumed)
+                .attr("numConsumers", numConsumers)
+                .attr("bkReads", readCount).attr("bkReadEntries", readEntryCount)
+                .attr("cacheHitPct", String.format("%.2f", cacheHitPercentage))
+                .attr("cacheMissPct", String.format("%.2f", cacheMissPercentage))
+                .attr("restarts", actualNumberOfRestarts)
+                .log("Test results");
 
         // record results in csv files for later processing with DuckDB, for example:
         // { cat pulsar-broker/target/rolling_restarts_result_header.txt; \

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
 import java.util.ArrayList;
@@ -38,7 +39,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateM
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.LookupService;
@@ -47,7 +47,8 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -86,8 +87,28 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         return conf;
     }
 
-    protected ArrayList<PulsarClient> clients = new ArrayList<>();
-    private final java.util.Map<PulsarClient, LookupService> originalLookupServices = new java.util.HashMap<>();
+    /**
+     * Create fresh PulsarClient instances for use within a single test method.
+     * Each test creates and closes its own clients to avoid shared mutable state
+     * that causes "Client already closed" flakiness.
+     */
+    protected List<PulsarClient> createTestClients(int count) throws Exception {
+        List<PulsarClient> testClients = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            testClients.add(pulsarClient(lookupUrl.toString(), 100));
+        }
+        return testClients;
+    }
+
+    protected static void closeTestClients(List<PulsarClient> testClients) {
+        for (PulsarClient client : testClients) {
+            try {
+                client.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
@@ -151,13 +172,6 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                 Sets.newHashSet(this.conf.getClusterName()), false);
         lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
-
-        for (int i = 0; i < 4; i++) {
-            PulsarClient client = pulsarClient(lookupUrl.toString(), 100);
-            clients.add(client);
-            originalLookupServices.put(client,
-                    (LookupService) FieldUtils.readDeclaredField(client, "lookup", true));
-        }
     }
 
     @SuppressWarnings("deprecation")
@@ -172,44 +186,91 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (PulsarClient client : clients) {
-            futures.add(client.closeAsync());
-        }
-        futures.add(pulsar2.closeAsync());
-
         if (additionalPulsarTestContext != null) {
             additionalPulsarTestContext.close();
             additionalPulsarTestContext = null;
         }
         super.internalCleanup();
-        try {
-            FutureUtil.waitForAll(futures).join();
-        } catch (Throwable e) {
-            // skip error
-        }
         pulsar1 = pulsar2 = null;
         primaryLoadManager = secondaryLoadManager = null;
         channel1 = channel2 = null;
         lookupService = null;
-
     }
 
     @BeforeMethod(alwaysRun = true)
-    protected void initializeState() throws PulsarAdminException, IllegalAccessException {
-        admin.namespaces().unload(defaultTestNamespace);
+    protected void initializeState() throws Exception {
+        // Reset to a clean state before each test: reconcile each broker's role with the channel
+        // ownership and unload the test namespace so no bundle ownership carries over. The unload
+        // publishes a state change on the channel system topic.
+        //
+        // A prior role-churning test (e.g. the direct playLeader()/playFollower() calls in
+        // testRoleChangeIdempotency) can leave the channel system topic owned by a broker that no
+        // longer serves it ("not served by this instance, redo the lookup"), with the channel
+        // producer stuck in escalating reconnect backoff, so the unload's channel publish keeps
+        // failing. Each unload attempt force-serves the channel topic (an admin lookup re-assigns
+        // the pulsar/system bundle and getStats makes the owner load it); if that still does not
+        // recover, force a clean channel owner via leader re-election (which reassigns and
+        // re-serves the channel topic and makes clients redo their lookups) and retry.
+        try {
+            awaitTestNamespaceUnloaded(30);
+        } catch (ConditionTimeoutException channelWedged) {
+            recoverChannelOwnership();
+            awaitTestNamespaceUnloaded(60);
+        }
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
-        // Restore original lookup services for all shared clients to prevent state leakage
-        // between tests when a previous test fails before resetting spied lookup services.
-        for (PulsarClient client : clients) {
-            LookupService original = originalLookupServices.get(client);
-            if (original != null) {
-                FieldUtils.writeDeclaredField(client, "lookup", original, true);
-            }
-        }
         pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
         pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
+    }
+
+    // Drive monitor() to reconcile roles and force-serve the channel topic (monitor() only
+    // self-heals when there is *no* channel owner, not when an owner is recorded but the bundle is
+    // not served), then unload. ignoreExceptions() retries transient channel-publish failures; each
+    // unload attempt is bounded so a synchronous unload cannot block longer than the retry window.
+    private void awaitTestNamespaceUnloaded(long atMostSeconds) {
+        boolean systemTopicChannel =
+                serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName());
+        Awaitility.await().atMost(atMostSeconds, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    primaryLoadManager.monitor();
+                    secondaryLoadManager.monitor();
+                    if (systemTopicChannel) {
+                        admin.lookups().lookupTopic(ServiceUnitStateTableViewImpl.TOPIC);
+                        admin.topics().getStats(ServiceUnitStateTableViewImpl.TOPIC);
+                    }
+                    admin.namespaces().unloadAsync(defaultTestNamespace).get(15, TimeUnit.SECONDS);
+                });
+    }
+
+    /**
+     * Force a clean channel owner via leader re-election. After heavy direct
+     * playLeader()/playFollower() churn the channel system topic can be left owned by a broker
+     * that no longer serves it, leaving the channel producer stuck on a stale lookup in
+     * escalating reconnect backoff. Closing the current owner's LeaderElectionService moves
+     * ownership to the other broker; its playLeader() re-creates and re-serves the channel
+     * topic, and the ownership change makes clients redo their (stale) lookups.
+     */
+    private void recoverChannelOwnership() throws Exception {
+        boolean pulsar1Owns;
+        try {
+            pulsar1Owns = channel1.isChannelOwner();
+        } catch (Exception e) {
+            // Owner can't be determined (e.g. no channel owner now); default to moving to pulsar2.
+            pulsar1Owns = true;
+        }
+        PulsarService currentOwner = pulsar1Owns ? pulsar1 : pulsar2;
+        ServiceUnitStateChannelImpl newOwnerChannel = pulsar1Owns ? channel2 : channel1;
+        currentOwner.getLeaderElectionService().close();
+        try {
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions()
+                    .untilAsserted(() -> assertTrue(newOwnerChannel.isChannelOwner()));
+        } catch (ConditionTimeoutException ignore) {
+            // Best effort: the subsequent unload retry is the real backstop.
+        } finally {
+            currentOwner.getLeaderElectionService().start();
+        }
     }
 
     protected void setPrimaryLoadManager() throws IllegalAccessException {

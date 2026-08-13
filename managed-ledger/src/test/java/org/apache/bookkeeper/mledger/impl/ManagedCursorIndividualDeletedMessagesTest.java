@@ -43,7 +43,6 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         BookKeeper bookkeeper = mock(BookKeeper.class);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setUnackedRangesOpenCacheSetEnabled(true);
 
         NavigableMap<Long, LedgerInfo> ledgersInfo = new ConcurrentSkipListMap<>();
         ledgersInfo.put(1L, createLedgerInfo(1, 100, 1024));

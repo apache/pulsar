@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -41,9 +40,9 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.apache.bookkeeper.mledger.proto.OffloadDriverMetadata;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.proto.DataFormats;
+import org.apache.bookkeeper.proto.LedgerMetadataFormat;
 
-@Slf4j
+@CustomLog
 public final class OffloadUtils {
 
     private OffloadUtils() {}
@@ -107,38 +106,38 @@ public final class OffloadUtils {
     }
 
     public static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
-        DataFormats.LedgerMetadataFormat.Builder builder = DataFormats.LedgerMetadataFormat.newBuilder();
+        LedgerMetadataFormat builder = new LedgerMetadataFormat();
         builder.setQuorumSize(metadata.getWriteQuorumSize())
                 .setAckQuorumSize(metadata.getAckQuorumSize())
                 .setEnsembleSize(metadata.getEnsembleSize())
                 .setLength(metadata.getLength())
-                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED :
-                        DataFormats.LedgerMetadataFormat.State.OPEN)
+                .setState(metadata.isClosed() ? LedgerMetadataFormat.State.CLOSED :
+                        LedgerMetadataFormat.State.OPEN)
                 .setLastEntryId(metadata.getLastEntryId())
                 .setCtime(metadata.getCtime())
                 .setDigestType(BookKeeper.DigestType.toProtoDigestType(
                         BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
 
         for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
-            builder.addCustomMetadataBuilder()
-                    .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
+            builder.addCustomMetadata()
+                    .setKey(e.getKey()).setValue(e.getValue());
         }
 
         for (Map.Entry<Long, ? extends List<BookieId>> e : metadata.getAllEnsembles().entrySet()) {
-            builder.addSegmentBuilder()
+            builder.addSegment()
                     .setFirstEntryId(e.getKey())
-                    .addAllEnsembleMember(e.getValue().stream().map(BookieId::toString).collect(Collectors.toList()));
+                    .addAllEnsembleMembers(e.getValue().stream().map(BookieId::toString).collect(Collectors.toList()));
         }
 
-        return builder.build().toByteArray();
+        return builder.toByteArray();
     }
 
     public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder()
-                .mergeFrom(bytes).build();
+        LedgerMetadataFormat ledgerMetadataFormat = new LedgerMetadataFormat();
+        ledgerMetadataFormat.parseFrom(bytes);
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
-                .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
+                .withPassword(ledgerMetadataFormat.getPassword())
                 .withClosedState()
                 .withId(id)
                 .withMetadataFormatVersion(2)
@@ -147,22 +146,22 @@ public final class OffloadUtils {
                 .withCreationTime(ledgerMetadataFormat.getCtime())
                 .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
                 .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
-        ledgerMetadataFormat.getSegmentList().forEach(segment -> {
+        ledgerMetadataFormat.getSegmentsList().forEach(segment -> {
             ArrayList<BookieId> addressArrayList = new ArrayList<>();
-            segment.getEnsembleMemberList().forEach(address -> {
+            segment.getEnsembleMembersList().forEach(address -> {
                 try {
                     addressArrayList.add(BookieId.parse(address));
                 } catch (IllegalArgumentException e) {
-                    log.error("Exception when create BookieId {}. ", address, e);
+                    log.error().attr("address", address).exception(e).log("Exception when create BookieId");
                 }
             });
             builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);
         });
 
-        if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
+        if (ledgerMetadataFormat.getCustomMetadatasCount() > 0) {
             Map<String, byte[]> customMetadata = new HashMap<>();
-            ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+            ledgerMetadataFormat.getCustomMetadatasList().forEach(
+                    entry -> customMetadata.put(entry.getKey(), entry.getValue()));
             builder.withCustomMetadata(customMetadata);
         }
 
@@ -190,8 +189,11 @@ public final class OffloadUtils {
     public static CompletableFuture<Void> cleanupOffloaded(long ledgerId, UUID uuid, ManagedLedgerConfig mlConfig,
                                      Map<String, String> offloadDriverMetadata, String cleanupReason,
                                      String name, org.apache.bookkeeper.common.util.OrderedScheduler executor) {
-        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
-                name, ledgerId, uuid.toString(), cleanupReason);
+        log.info().attr("name", name)
+                .attr("ledgerId", ledgerId)
+                .attr("uuid", uuid.toString())
+                .attr("cleanupReason", cleanupReason)
+                .log("Cleanup offload");
         Map<String, String> metadataMap = new HashMap<>(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
@@ -201,8 +203,11 @@ public final class OffloadUtils {
                 () -> mlConfig.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
                 executor, name).whenComplete((ignored, exception) -> {
             if (exception != null) {
-                log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
-                        name, ledgerId, cleanupReason, exception);
+                log.warn().attr("name", name)
+                        .attr("ledgerId", ledgerId)
+                        .attr("cleanupReason", cleanupReason)
+                        .exception(exception)
+                        .log("Error cleaning up offload");
             }
         });
     }

@@ -26,7 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerBase {
 
@@ -80,7 +80,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
         Awaitility.await().atMost(Duration.ofSeconds(1500)).until(() -> {
             Message<Integer> message3 = consumer.receive(2, TimeUnit.SECONDS);
             if (message3 != null) {
-                log.info("===> {}", message3.getRedeliveryCount());
+                log.info().attr("redeliveryCount", message3.getRedeliveryCount()).log("===>");
                 consumer.negativeAcknowledge(message3);
             }
             List<String> topicList = pulsar.getPulsarResources().getTopicResources()

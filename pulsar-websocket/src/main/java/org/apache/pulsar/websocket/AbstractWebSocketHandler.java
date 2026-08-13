@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,8 +34,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -56,13 +57,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
-import org.eclipse.jetty.ee8.websocket.api.Session;
-import org.eclipse.jetty.ee8.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Session;
 
-public abstract class AbstractWebSocketHandler extends WebSocketAdapter implements Closeable {
+@CustomLog
+public abstract class AbstractWebSocketHandler extends Session.Listener.AbstractAutoDemanding implements Closeable {
 
     protected final WebSocketService service;
     protected final HttpServletRequest request;
@@ -108,17 +108,30 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 } else {
                     authRole = service.getAuthenticationService().authenticateHttpRequest(request);
                 }
-                log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), authRole, topic);
+                log.info()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("client", authRole)
+                        .attr("topic", topic)
+                        .log("Authenticated WebSocket client on topic");
 
             } catch (javax.naming.AuthenticationException e) {
-                log.warn("[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
-                        request.getRemotePort(), authRole, topic, e.getMessage());
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("client", authRole)
+                        .attr("topic", topic)
+                        .attr("message", e.getMessage())
+                        .log("Failed to authenticated WebSocket client on topic");
                 try {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
                 } catch (IOException e1) {
-                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                            e1.getMessage(), e1);
+                    log.warn()
+                            .attr("remoteAddr", request.getRemoteAddr())
+                            .attr("remotePort", request.getRemotePort())
+                            .exceptionMessage(e1)
+                            .exception(e1)
+                            .log("Failed to send error");
                 }
                 return false;
             }
@@ -133,19 +146,32 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             }
             try {
                 if (!isAuthorized(authRole, authenticationData)) {
-                    log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
-                            request.getRemotePort(), authRole, topic);
+                    log.warn()
+                            .attr("remoteAddr", request.getRemoteAddr())
+                            .attr("remotePort", request.getRemotePort())
+                            .attr("client", authRole)
+                            .attr("topic", topic)
+                            .log("WebSocket Client is not authorized on topic");
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
                     return false;
                 }
             } catch (Exception e) {
-                log.warn("[{}:{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
-                        request.getRemoteAddr(), request.getRemotePort(), authRole, topic, e.getMessage());
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("client", authRole)
+                        .attr("topic", topic)
+                        .attr("message", e.getMessage())
+                        .log("Got an exception when authorizing WebSocket client on topic on");
                 try {
                     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server error");
                 } catch (IOException e1) {
-                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                            e1.getMessage(), e1);
+                    log.warn()
+                            .attr("remoteAddr", request.getRemoteAddr())
+                            .attr("remotePort", request.getRemotePort())
+                            .exceptionMessage(e1)
+                            .exception(e1)
+                            .log("Failed to send error");
                 }
                 return false;
             }
@@ -192,59 +218,87 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
+    public void onWebSocketOpen(Session session) {
         if (!allowConnect) {
             throw new IllegalStateException("allowConnect is false. "
                     + "JettyWebSocketCreator should have returned null to prevent connecting.");
         }
-        super.onWebSocketConnect(session);
+        super.onWebSocketOpen(session);
         int webSocketPingDurationSeconds = service.getConfig().getWebSocketPingDurationSeconds();
         if (webSocketPingDurationSeconds > 0) {
             pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                try {
-                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                } catch (IOException e) {
-                    log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
-                }
+                session.sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)),
+                        Callback.from(() -> { }, e -> {
+                            log.warn()
+                                    .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                                    .exception(e)
+                                    .log("WebSocket send ping");
+                        }));
             }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
         }
-        log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
+        log.info()
+                .attr("remoteAddress", session.getRemoteSocketAddress())
+                .attr("topic", topic)
+                .log("New WebSocket session on topic");
     }
 
     @Override
     public void onWebSocketError(Throwable cause) {
         super.onWebSocketError(cause);
-        log.info("[{}] WebSocket error on topic {} : {}", getSession().getRemoteAddress(), topic, cause.getMessage());
+        log.info()
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                .attr("topic", topic)
+                .attr("message", cause.getMessage())
+                .log("WebSocket error on topic");
         try {
             closePingFuture();
             close();
         } catch (IOException e) {
-            log.error("Failed in closing WebSocket session for topic {} with error: {}", topic, e.getMessage());
+            log.error()
+                    .attr("topic", topic)
+                    .exceptionMessage(e)
+                    .log("Failed in closing WebSocket session for topic with error");
         }
     }
 
     @Override
     public void onWebSocketClose(int statusCode, String reason) {
-        log.info("[{}] Closed WebSocket session on topic {}. status: {} - reason: {}", getSession().getRemoteAddress(),
-                topic, statusCode, reason);
+        log.info()
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                .attr("topic", topic)
+                .attr("status", statusCode)
+                .attr("reason", reason)
+                .log("Closed WebSocket session on topic . status: - reason");
         try {
             closePingFuture();
             close();
         } catch (IOException e) {
-            log.warn("[{}] Failed to close handler for topic {}. ", getSession().getRemoteAddress(), topic, e);
+            log.warn()
+                    .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                    .attr("topic", topic)
+                    .exception(e)
+                    .log("Failed to close handler for topic");
         }
     }
 
     public void close(WebSocketError error) {
-        log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription());
-        getSession().close(error.getCode(), error.getDescription());
+        log.warn()
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                .attr("topic", topic)
+                .attr("code", error.getCode())
+                .attr("reason", error.getDescription())
+                .log("Closing WebSocket session for topic - code: , reason");
+        getSession().close(error.getCode(), error.getDescription(), Callback.NOOP);
     }
 
     public void close(WebSocketError error, String message) {
-        log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription() + ": " + message);
-        getSession().close(error.getCode(), error.getDescription() + ": " + message);
+        log.warn()
+                .attr("remoteAddress", getSession().getRemoteSocketAddress())
+                .attr("topic", topic)
+                .attr("code", error.getCode())
+                .attr("reason", error.getDescription() + ": " + message)
+                .log("Closing WebSocket session for topic - code: , reason");
+        getSession().close(error.getCode(), error.getDescription() + ": " + message, Callback.NOOP);
     }
 
     protected String checkAuthentication() {
@@ -285,8 +339,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected abstract Boolean isAuthorized(String authRole,
                                             AuthenticationDataSource authenticationData) throws Exception;
-
-    private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 
     protected ObjectWriter objectWriter() {
         return ObjectMapperFactory.getMapper().writer();

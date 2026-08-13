@@ -36,15 +36,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -55,6 +59,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,15 +72,18 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -96,27 +106,37 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ClientImplInternalSetter;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.glassfish.jersey.client.JerseyClient;
@@ -128,7 +148,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
@@ -142,6 +162,59 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     @AfterClass(alwaysRun = true, timeOut = 300000)
     public void cleanup() throws Exception {
         super.cleanup();
+    }
+
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
+                                     LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
+        super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+    }
+
+    @Test(timeOut = 45 * 1000)
+    public void testReceiverSideReplicationStats() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).create();
+        waitReplicatorStarted(topic);
+
+        // Keep publishing to cluster-1.
+        AtomicBoolean keepPublishing = new AtomicBoolean(true);
+        Thread publisherThread = new Thread(() -> {
+            while (keepPublishing.get()) {
+                try {
+                    producer1.send("msg");
+                    Thread.sleep(100);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        publisherThread.start();
+
+        // Verify: in-bound replication stats.
+        PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(topic, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            persistentTopic2.getProducers().values().forEach(org.apache.pulsar.broker.service.Producer::updateRates);
+            TopicStats topicStats = admin2.topics().getStats(topic);
+            assertNotNull(topicStats);
+            assertNotNull(topicStats.getReplication());
+            ReplicatorStats replicatorStats = topicStats.getReplication().get(cluster1);
+            assertNotNull(replicatorStats);
+            assertTrue(replicatorStats.getMsgRateIn() > 0);
+            assertTrue(replicatorStats.getMsgThroughputIn() > 0);
+            assertNotNull(replicatorStats.getInboundConnection());
+            assertNotNull(replicatorStats.getInboundConnectedSince());
+            // The connected attribute means out-bound connection so far.
+            assertFalse(replicatorStats.isConnected());
+        });
+
+        // cleanup.
+        keepPublishing.set(false);
+        producer1.close();
+        cleanupTopics(() -> {
+            admin1.topics().delete(topic);
+            admin2.topics().delete(topic);
+        });
     }
 
     @Test(timeOut = 45 * 1000)
@@ -173,6 +246,189 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName1);
             admin2.topics().deletePartitionedTopic(topicName2);
         });
+    }
+
+    @DataProvider
+    public Object[][] paramsDisconnectReplicator() {
+        // Binary way replication.
+        // local producers on cluster-1 registered.
+        // local producers on cluster-1 have traffic.
+        // replicator producer from cluster-2 has traffic.
+        // replicator producer from cluster-2 is present.
+        return new Object[][] {
+                {true, true, false, true, true}, // verify-cluster-2: no replicator terminate occurs.
+                {true, true, false, false, true}, // verify-cluster-2: replicator terminated and resumed.
+                {true, true, false, false, false}, // verify-cluster-2: replicator terminated and resumed.
+                {true, false, false, true, true}, // verify-cluster-2: no replicator terminate occurs.
+                {true, false, false, false, true}, // verify-cluster-2: replicator terminated and resumed.
+                {true, false, false, false, false}, // verify-cluster-2: replicator terminated and resumed.
+
+                {false, false, false, false, false}, // verify-cluster-2: replicator terminated and resumed.
+                {false, true, false, false, false} // verify-cluster-2: replicator terminated and resumed.
+        };
+    }
+
+    @Test(timeOut = 240 * 1000, dataProvider = "paramsDisconnectReplicator")
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        ScheduledExecutorService executor1 = Executors.newScheduledThreadPool(1);
+        ScheduledExecutorService executor2 = Executors.newScheduledThreadPool(1);
+        ScheduledFuture<?> checkInactiveTopic = executor1.scheduleWithFixedDelay(() -> {
+            pulsar1.getBrokerService().checkInactiveReplication();
+        }, 10, 10, TimeUnit.SECONDS);
+        // local cluster: let inactive replicator check faster.
+        int replicationInactiveThresholdSeconds1 = pulsar1.getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(30);
+        // remote cluster: let inactive topic deletion never occur.
+        int replicationInactiveThresholdSeconds2 = pulsar2.getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        pulsar2.getConfig().setBrokerReplicationInactiveThresholdSeconds(3600 * 24);
+        // Lat topic GC does not execute.
+        int inactiveTopicsMaxInactiveDurationSeconds = pulsar1.getConfig()
+                .getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
+        pulsar1.getConfig().setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(3600 * 24);
+
+        // Check params.
+        if (hasRemoteProducerTraffic && !hasRemoteProducerRegistered) {
+            throw new Exception("If has traffic from remote cluster, the param \"hasRemoteProducer\" can not be false");
+        }
+        // Check params.
+        if (localProducerHasTraffic && !hasLocalProducerRegistered) {
+            throw new Exception("If has local traffic, the param \"localProducerEmpty\" can not be true");
+        }
+
+        ScheduledFuture<?> scheduledPublish1 = null;
+        ScheduledFuture<?> scheduledPublish2 = null;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+
+        // Init by params: local producers.
+        final Producer<String> producer1A = client1.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer1B = null;
+        if (!hasLocalProducerRegistered) {
+            producer1A.close();
+        }
+        // Init by params: local producer traffic.
+        if (localProducerHasTraffic) {
+            AtomicInteger msgCount = new AtomicInteger();
+            scheduledPublish1 = executor1.scheduleWithFixedDelay(() -> {
+                producer1A.sendAsync(msgCount.incrementAndGet() + "");
+            }, 1, 1, TimeUnit.SECONDS);
+        }
+        // Init by params: binary way replication.
+        waitReplicatorStarted(topic, pulsar2);
+        if (binaryWayRepl) {
+            admin2.topics().setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
+            waitReplicatorStarted(topic, pulsar1);
+        }
+        final PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(topic, false).join().get();
+        final PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(topic, false).join().get();
+        // Init by params: remote producer traffic.
+        final Producer<String> producer2 = client2.newProducer(Schema.STRING).topic(topic).create();
+        if (hasRemoteProducerTraffic) {
+            AtomicInteger msgCount = new AtomicInteger();
+            scheduledPublish2 = executor2.scheduleWithFixedDelay(() -> {
+                producer2.sendAsync(msgCount.incrementAndGet() + "");
+            }, 1, 1, TimeUnit.SECONDS);
+        }
+        // Init by params: remote producers.
+        if (binaryWayRepl && !hasRemoteProducerTraffic && !hasRemoteProducerRegistered) {
+            persistentTopic2.getReplicators().get(cluster1).terminate();
+        }
+
+        // Verify: all states match params.
+        Thread.sleep(3000);
+        // All states match: local producers.
+        if (!hasLocalProducerRegistered) {
+            assertFalse(persistentTopic1.getProducers().values().stream()
+                    .filter(p -> !p.isRemote()).findAny().isPresent());
+        } else {
+            Optional<org.apache.pulsar.broker.service.Producer> serviceProducer1 = persistentTopic1.getProducers()
+                    .values().stream().filter(p -> !p.isRemote()).findAny();
+            assertTrue(serviceProducer1.isPresent());
+        }
+        // All states match: remote producers.
+        if (binaryWayRepl) {
+            if (!hasRemoteProducerRegistered) {
+                assertFalse(persistentTopic1.getProducers().values().stream()
+                        .filter(p -> p.isRemote()).findAny().isPresent());
+            } else {
+                Optional<org.apache.pulsar.broker.service.Producer> serviceProducer1 = persistentTopic1.getProducers()
+                        .values().stream().filter(p -> p.isRemote()).findAny();
+                assertTrue(serviceProducer1.isPresent());
+            }
+        }
+
+        // Verify: replicator terminated or not.
+        if (hasRemoteProducerTraffic || localProducerHasTraffic) {
+            long verifyStartTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - verifyStartTime < 100_000) {
+                assertFalse(persistentTopic1.getReplicators().isEmpty());
+                PersistentReplicator persistentReplicator =
+                        (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+                assertTrue(persistentReplicator.isConnected());
+                assertEquals(persistentReplicator.getState(), AbstractReplicator.State.Started);
+                Thread.sleep(1000);
+            }
+        } else {
+            Thread.sleep(100_000);
+            assertFalse(persistentTopic1.getReplicators().isEmpty());
+            PersistentReplicator persistentReplicatorA =
+                    (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+            assertFalse(persistentReplicatorA.isConnected());
+            assertEquals(persistentReplicatorA.getState(), AbstractReplicator.State.Disconnected);
+
+            // Verify: resume.
+            if (hasRemoteProducerRegistered && !hasRemoteProducerTraffic) {
+                producer2.send("msg-remote");
+            }
+            if (!hasLocalProducerRegistered) {
+                producer1B = client1.newProducer(Schema.STRING).topic(topic).create();
+                producer1B.send("msg-local");
+            } else {
+                producer1A.send("msg-local");
+            }
+            Awaitility.await().untilAsserted(() -> {
+                assertFalse(persistentTopic1.getReplicators().isEmpty());
+                PersistentReplicator persistentReplicatorB =
+                        (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+                assertTrue(persistentReplicatorB.isConnected());
+                assertEquals(persistentReplicatorB.getState(), AbstractReplicator.State.Started);
+            });
+        }
+
+        // cleanup.
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(replicationInactiveThresholdSeconds1);
+        pulsar2.getConfig().setBrokerReplicationInactiveThresholdSeconds(replicationInactiveThresholdSeconds2);
+        pulsar1.getConfig().setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(
+                inactiveTopicsMaxInactiveDurationSeconds);
+        if (scheduledPublish1 != null) {
+            scheduledPublish1.cancel(true);
+        }
+        if (scheduledPublish2 != null) {
+            scheduledPublish2.cancel(true);
+        }
+        checkInactiveTopic.cancel(true);
+        if (producer1A.isConnected()) {
+            producer1A.close();
+        }
+        if (producer1B != null && producer1B.isConnected()) {
+            producer1B.close();
+        }
+        if (producer2.isConnected()) {
+            producer2.close();
+        }
+        if (binaryWayRepl) {
+            admin2.topics().setReplicationClusters(topic, Arrays.asList(cluster2));
+            waitReplicatorStopped(pulsar2, pulsar1, topic);
+        }
+        cleanupTopics(() -> {
+            admin1.topics().delete(topic);
+            admin2.topics().delete(topic);
+        });
+        executor1.shutdown();
+        executor2.shutdown();
     }
 
     @Test(timeOut = 45 * 1000)
@@ -231,6 +487,207 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    @DataProvider
+    public Object[][] autoUpdateSchemaParams() {
+        return new Object[][] {
+                {true, true},
+                {true, null},
+                {false, true},
+                {false, false},
+                {false, null},
+        };
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Data
+    private static class Customer {
+        String name;
+        int age;
+    }
+
+    @Test(dataProvider = "autoUpdateSchemaParams", timeOut = 60_000)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        final String ns = BrokerTestUtil.newUniqueName("public/ns");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_123");
+        final String subscribeName = "s1";
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+        waitReplicatorStarted(topicName);
+        admin1.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        admin2.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, null);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
+        admin1.namespaces().setRetention(ns, retentionPolicies);
+        admin2.namespaces().setRetention(ns, retentionPolicies);
+        AtomicReference<PersistentTopic> topic1 = new AtomicReference<>((PersistentTopic) broker1
+                .getTopic(topicName, false).join().get());
+        PersistentTopic topic2 = (PersistentTopic) broker2.getTopic(topicName, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            HierarchyTopicPolicies policies1 = topic1.get().getHierarchyTopicPolicies();
+            HierarchyTopicPolicies policies2 = topic2.getHierarchyTopicPolicies();
+            assertEquals(policies1.getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+            assertEquals(policies2.getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+            assertTrue(topic1.get().isAllowAutoUpdateSchema);
+            assertTrue(topic1.get().isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+            assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(policies1.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+            assertEquals(policies2.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+        });
+        // Build different schemas.
+        HashMap<String, String> schemaProps = new HashMap<>();
+        schemaProps.put("__jsr310ConversionEnabled", "false");
+        schemaProps.put("__alwaysAllowNull", "true");
+        SchemaInfoImpl schemaInfoV1 = new SchemaInfoImpl("", """
+            {
+              "type" : "record",
+              "name" : "Student",
+              "namespace" : "org.apache.pulsar.broker.service.OneWayReplicatorTest",
+              "fields" : [ {
+                "name" : "age",
+                "type" : "int"
+              }]
+            }
+        """.getBytes(StandardCharsets.UTF_8), SchemaType.AVRO, 0, schemaProps);
+        SchemaInfoImpl schemaInfoV2 = new SchemaInfoImpl("", """
+            {
+              "type" : "record",
+              "name" : "Student",
+              "namespace" : "org.apache.pulsar.broker.service.OneWayReplicatorTest",
+              "fields" : [ {
+                "name" : "age",
+                "type" : "int"
+              }, {
+                "name" : "name",
+                "type" : [ "null", "string" ],
+                "default" : null
+              } ]
+            }
+        """.getBytes(StandardCharsets.UTF_8), SchemaType.AVRO, 0, schemaProps);
+        admin1.schemas().createSchema(topicName, schemaInfoV1);
+        admin1.schemas().createSchema(topicName, schemaInfoV2);
+        long longSchemaVersion1 = admin1.schemas().getVersionBySchemaAsync(topicName, schemaInfoV1)
+                .get(2, TimeUnit.SECONDS);
+        long longSchemaVersion2 = admin1.schemas().getVersionBySchemaAsync(topicName, schemaInfoV2)
+                .get(2, TimeUnit.SECONDS);
+        LongSchemaVersion schemaVersion1 = new LongSchemaVersion(longSchemaVersion1);
+        LongSchemaVersion schemaVersion2 = new LongSchemaVersion(longSchemaVersion2);
+
+        // Publish messages with different schemas.
+        ProducerImpl<byte[]> producer1 =
+                (ProducerImpl<byte[]>) client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        TypedMessageBuilderImpl typedMessageBuilder1 = (TypedMessageBuilderImpl) producer1
+                .newMessage(Schema.AVRO(Customer.class)).value(new Customer(null, 16));
+        MessageImpl message1 = (MessageImpl) typedMessageBuilder1.getMessage();
+        message1.getMessageBuilder().setSchemaVersion(schemaVersion1.bytes());
+        ClientImplInternalSetter.setMessageSchemaState(message1, "Ready");
+        producer1.send(message1);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
+        });
+
+        // Change policies.
+        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
+                allowAutoUpdateSchemaWithReplicator);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(topic1.get().isAllowAutoUpdateSchema);
+            assertTrue(topic1.get().isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+            if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
+                assertFalse(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            } else {
+                assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            }
+        });
+
+        TypedMessageBuilderImpl typedMessageBuilder2 = (TypedMessageBuilderImpl) producer1
+                .newMessage(Schema.AVRO(Customer.class)).value(new Customer("Apache", 26));
+        MessageImpl message2 = (MessageImpl) typedMessageBuilder2.getMessage();
+        message2.getMessageBuilder().setSchemaVersion(schemaVersion2.bytes());
+        ClientImplInternalSetter.setMessageSchemaState(message2, "Ready");
+        producer1.send(message2);
+        if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
+            Thread.sleep(3000);
+            // The message can not be replicated to the remote side.
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
+            // Change the policy to allow replicator update schemas.
+            admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, true);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+                assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            });
+            // Unload topic. Highlight, please do not remove this line, it is in order to test whether the replication
+            // can be recovered from the following case: the internal producer of replicator is closed when it's state
+            // is registering schema.
+            admin1.topics().unload(topicName);
+            topic1.set((PersistentTopic) broker1.getTopic(topicName, false).join().get());
+            waitReplicatorStarted(topicName);
+            //return;
+        }
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
+        });
+
+        // Verify: the messages were built successfully.
+        admin1.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
+        Consumer<Customer> consumer1 = client1.newConsumer(Schema.AVRO(Customer.class))
+                .subscriptionName(subscribeName).topic(topicName).subscribe();
+        Message<Customer> msg1 = consumer1.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+        byte[] bytesVersion1 = msg1.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion1).getLong(), longSchemaVersion1);
+        assertNull(msg1.getValue().getName());
+        assertEquals(msg1.getValue().getAge(), 16);
+        consumer1.acknowledge(msg1);
+        Message<Customer> msg2 = consumer1.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        byte[] bytesVersion2 = msg2.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion2).getLong(), longSchemaVersion2);
+        assertEquals(msg2.getValue().getName(), "Apache");
+        assertEquals(msg2.getValue().getAge(), 26);
+        consumer1.acknowledge(msg2);
+
+        admin2.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
+        Consumer<Customer> consumer2 = client2.newConsumer(Schema.AVRO(Customer.class))
+                .subscriptionName(subscribeName).topic(topicName).subscribe();
+        Message<Customer> msg21 = consumer2.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg21);
+        byte[] bytesVersion21 = msg21.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion21).getLong(), 0);
+        assertNull(msg21.getValue().getName());
+        assertEquals(msg21.getValue().getAge(), 16);
+        consumer2.acknowledge(msg21);
+        Message<Customer> msg22 = consumer2.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg22);
+        byte[] bytesVersion22 = msg22.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion22).getLong(), 1);
+        assertEquals(msg22.getValue().getName(), "Apache");
+        assertEquals(msg22.getValue().getAge(), 26);
+        consumer2.acknowledge(msg22);
+
+        // cleanup.
+        consumer1.close();
+        consumer2.close();
+        producer1.close();
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1)), true);
+        waitReplicatorStopped(pulsar1, pulsar2, topicName);
+        admin1.topics().delete(topicName);
+        admin2.topics().delete(topicName);
     }
 
     @Test
@@ -443,6 +900,78 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    @Test(timeOut = 45 * 1000)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        // creates topics.
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final String subscription = "s1";
+        final int totalMsg = 10_000;
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(10, -1);
+        admin1.topicPolicies().setRetention(topicName, retentionPolicies);
+        admin2.topicPolicies().setRetention(topicName, retentionPolicies);
+        PersistentTopic topic1 = (PersistentTopic) broker1.getTopic(topicName, false).join().get();
+        ManagedLedgerImpl ml1 = (ManagedLedgerImpl) topic1.getManagedLedger();
+        PersistentTopic topic2 = (PersistentTopic) broker2.getTopic(topicName, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            HierarchyTopicPolicies policies1 = topic1.getHierarchyTopicPolicies();
+            HierarchyTopicPolicies policies2 = topic2.getHierarchyTopicPolicies();
+            assertEquals(policies1.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+            assertEquals(policies2.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+        });
+        // Publishes messages.
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        Set<String> msgPublished = new HashSet<>();
+        for (int i = 0; i < totalMsg; i++) {
+            msgPublished.add("msg" + i);
+            producer1.send("msg" + i);
+        }
+
+        // Inject a probable error.
+        AtomicInteger roundrobin = new  AtomicInteger();
+        Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
+            if (roundrobin.incrementAndGet() % 2 == 0) {
+                return null;
+            }
+            return new ManagedLedgerException.TooManyRequestsException("mocked error");
+        };
+        // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
+        ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
+
+        // Verify: the replication will finish even though received ManagedLedgerException.TooManyRequestsException.
+        pulsar1.getConfig().setReplicationStartAt("earliest");
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        waitReplicatorStarted(topicName);
+        Awaitility.await().atMost(Duration.ofSeconds(600)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
+        });
+
+        // Verify: messages were replicated.
+        admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        Set<String> received = new HashSet<>();
+        Consumer<String> consumer2 = client2.newConsumer(Schema.STRING)
+                .subscriptionName(subscription).topic(topicName).subscribe();
+        while (true) {
+            Message<String> msg = consumer2.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            received.add(msg.getValue());
+        }
+        assertEquals(received.size(), msgPublished.size());
+        assertEquals(received, msgPublished);
+
+        // cleanup.
+        producer1.close();
+        consumer2.close();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName, false);
+        admin1.topics().delete(topicName);
+        admin2.topics().delete(topicName);
     }
 
     /**
@@ -680,7 +1209,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (createProducerCounter.incrementAndGet() > failTimes) {
                     return originalProducer;
                 }
-                log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                log.info().attr("replicatorproducerCount", createProducerCounter)
+                        .log("Retry create replicator.producer count");
                 // Release producer and fail callback.
                 originalProducer.closeAsync();
                 throw new RuntimeException("mock error");
@@ -718,7 +1248,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Delay close cursor, until "replicator.producer" create successfully.
         // The next once retry time of create "replicator.producer" will be 3.2s.
         Thread.sleep(4 * 1000);
-        log.info("Replicator.state: {}", replicator.getState());
+        log.info().attr("replicatorstate", replicator.getState()).log("Replicator.state");
         cursorCloseSignal.startClose();
         cursorCloseSignal.startCallback();
 
@@ -876,7 +1406,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (createProducerCounter.incrementAndGet() > failTimes) {
                     return originalProducer;
                 }
-                log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                log.info().attr("replicatorproducerCount", createProducerCounter)
+                        .log("Retry create replicator.producer count");
                 // Release producer and fail callback.
                 originalProducer.closeAsync();
                 throw new RuntimeException("mock error");
@@ -910,14 +1441,14 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         CompletableFuture<Void> topicCloseFuture = persistentTopic.close(true);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             String state = String.valueOf(replicator.get().getState());
-            log.error("replicator state: {}", state);
+            log.error().attr("replicatorState", state).log("replicator state");
             assertTrue(state.equals("Disconnected") || state.equals("Terminated"));
         });
 
         // 5.Delay close cursor, until "replicator.producer" create successfully.
         // The next once retry time of create "replicator.producer" will be 3.2s.
         Thread.sleep(4 * 1000);
-        log.info("Replicator.state: {}", replicator.get().getState());
+        log.info().attr("replicatorstate", replicator.get().getState()).log("Replicator.state");
         cursorCloseSignal.startClose();
         cursorCloseSignal.startCallback();
         // Wait for topic close successfully.
@@ -968,7 +1499,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             persistentTopic.close(true, false).join();
             fail("Expected close fails due to a producer close fails");
         } catch (Exception ex) {
-            log.info("Expected error: {}", ex.getMessage());
+            log.info().exceptionMessage(ex).log("Expected error");
         }
 
         // Broker will call `topic.unfenceTopicToResume` if close clients fails.
@@ -1071,7 +1602,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Wait for async tasks that were triggered by expanding topic partitions.
         Thread.sleep(3 * 1000);
-
 
         // Verify: the topics on the remote cluster did not been expanded.
         assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
@@ -1181,8 +1711,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Step 4. Verify: the message can be replicated to the remote cluster.
         Awaitility.await().atMost(Duration.ofSeconds(300)).untilAsserted(() -> {
-            log.info("replication backlog: {}",
-                    admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog());
+            log.info()
+                    .attr("replicationBacklog", admin1.topics().getStats(topicName)
+                            .getReplication().get(cluster2).getReplicationBacklog())
+                    .log("replication backlog");
             assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 0);
             assertEquals(getTheLatestMessage(topicName, client2, admin2), msg);
         });
@@ -1434,7 +1966,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             if (topicName.equals(producerCnf.getTopicName())) {
                 // There is a switch to determine create producer successfully or not.
                 if (failedCreateProducer.get()) {
-                    log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                    log.info().attr("replicatorproducerCount", createProducerCounter)
+                            .log("Retry create replicator.producer count");
                     // Release producer and fail callback.
                     originalProducer.closeAsync();
                     throw new RuntimeException("mock error");
@@ -1482,7 +2015,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
-            log.info("{}, {},", topicConnected, topicDisconnected);
+            log.info().attr("topicConnected", topicConnected).attr("topicDisconnected", topicDisconnected).log("done");
             assertEquals(topicConnected, 0);
             assertEquals(topicDisconnected, 1);
         });
@@ -1523,7 +2056,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
-            log.info("{}, {}", topicConnected, topicDisconnected);
+            log.info().attr("topicConnected", topicConnected).attr("topicDisconnected", topicDisconnected).log("done");
             assertEquals(topicConnected, 1);
             assertEquals(topicDisconnected, 0);
         });
@@ -1655,7 +2188,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             SchemaType schemaType = message.getValue().getSchemaType();
             assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
             msgReceived.add(message.getValue().getNativeObject().toString());
-            log.info("received msg: {}", message.getValue().getNativeObject().toString());
+            log.info().attr("receivedMsg", message.getValue().getNativeObject().toString()).log("received msg");
         }
         assertEquals(msgReceived, Arrays.asList("msg1", "false", "msg3"));
         List<SchemaInfo> schemaInfoList = admin2.schemas().getAllSchemas(topicName);
@@ -1784,7 +2317,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             latestSend = producer1.sendAsync(new byte[]{1});
         }
         latestSend.join();
-        log.info("Cluster: {}, Publish finished", cluster1);
+        log.info().attr("cluster", cluster1).log("Cluster, Publish finished");
 
         // Inject two delay:
         // 1. delay publish responding,
@@ -1892,13 +2425,92 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             latestSend = producer1.sendAsync(new byte[]{1});
         }
         latestSend.join();
-        log.info("Cluster: {}, Publish finished", cluster1);
+        log.info().attr("cluster", cluster1).log("Cluster, Publish finished");
         producer1.close();
 
         // Start replication.
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
         ensureNoBacklogByInflightTask(getReplicator(topicName));
+    }
+
+    @DataProvider
+    public Object[][] replicatorDispatchRateLimits() {
+        return new Object[][] {
+                {1, -1L},
+                {-1, 1L}
+        };
+    }
+
+    @Test(timeOut = 90_000, dataProvider = "replicatorDispatchRateLimits")
+    public void testReplicatorContinuesAfterRateLimiterHasNoPermits(int messageRate, long byteRate) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscriptionName = "sub";
+        final List<String> messages = Arrays.asList("msg-0", "msg-1", "msg-2");
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(2)
+                .build();
+        Producer<String> producer = null;
+        Consumer<String> consumer = null;
+        boolean topicCreated = false;
+        boolean dispatchRateConfigured = false;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            topicCreated = true;
+            admin1.topicPolicies().setReplicatorDispatchRate(topicName, dispatchRate);
+            dispatchRateConfigured = true;
+            GeoPersistentReplicator replicator = getReplicator(topicName);
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(replicator.getRateLimiter().isPresent());
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnMsg(), messageRate);
+                assertEquals(replicator.getRateLimiter().get().getDispatchRateOnByte(), byteRate);
+            });
+            consumer = client2.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            producer = client1.newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .create();
+
+            for (String message : messages) {
+                producer.send(message);
+            }
+
+            Set<String> expected = new HashSet<>(messages);
+            Set<String> received = new HashSet<>();
+            Consumer<String> subscribedConsumer = consumer;
+            Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                Message<String> message = subscribedConsumer.receive(1, TimeUnit.SECONDS);
+                if (message != null) {
+                    received.add(message.getValue());
+                    subscribedConsumer.acknowledge(message);
+                }
+                assertEquals(received, expected);
+            });
+            waitForReplicationTaskFinish(topicName);
+            ensureNoBacklogByInflightTask(replicator);
+        } finally {
+            if (producer != null) {
+                producer.close();
+            }
+            if (consumer != null) {
+                consumer.close();
+            }
+            if (dispatchRateConfigured) {
+                admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+            }
+            if (topicCreated) {
+                admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+                waitReplicatorStopped(topicName, false);
+                admin1.topics().delete(topicName, true);
+                admin2.topics().delete(topicName, true);
+            }
+        }
     }
 
     @DataProvider

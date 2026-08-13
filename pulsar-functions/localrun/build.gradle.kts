@@ -18,18 +18,20 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-instance"))
     api(project(":pulsar-functions:pulsar-functions-runtime"))
-    implementation(libs.picocli)
+    api(libs.picocli)
     implementation(libs.gson)
     implementation(libs.commons.lang3)
     implementation(libs.simpleclient.httpserver)
     implementation(libs.jackson.databind)
-    implementation(libs.grpc.all)
+    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.stub)
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))
     runtimeOnly(libs.perfmark.api)

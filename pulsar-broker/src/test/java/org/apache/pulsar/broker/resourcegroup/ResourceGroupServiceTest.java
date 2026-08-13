@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.resourcegroup;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerMonitoringClassFields;
@@ -31,13 +32,12 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
@@ -77,7 +77,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        log.info("numAnonymousQuotaCalculations={}", this.numAnonymousQuotaCalculations);
+        log.info().attr("numAnonymousQuotaCalculations", this.numAnonymousQuotaCalculations)
+                .log("numAnonymousQuotaCalculations");
 
         super.internalCleanup();
     }
@@ -106,8 +107,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
-        log.info("{} iterations of incrementLocalUsageStats on retRG in {} msecs ({} usecs for each)",
-                numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs) / numPerfTestIterations);
+        log.info().attr("iterations", numPerfTestIterations).attr("durationMs", diffMsecs)
+                .attr("usecsEach", (1000 * (float) diffMsecs) / numPerfTestIterations)
+                .log("incrementLocalUsageStats on retRG performance");
 
         // Going through the resource-group service
         final String tenantName = "SomeTenant";
@@ -124,8 +126,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
-        log.info("{} iterations of incrementUsage on RGS in {} msecs ({} usecs for each)",
-                numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs) / numPerfTestIterations);
+        log.info().attr("iterations", numPerfTestIterations).attr("durationMs", diffMsecs)
+                .attr("usecsEach", (1000 * (float) diffMsecs) / numPerfTestIterations)
+                .log("incrementUsage on RGS performance");
         rgs.unRegisterTenant(rgName, tenantName);
         rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
@@ -136,8 +139,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
-        log.info("{} iterations of GET on RGS in {} msecs ({} usecs for each)",
-                numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs) / numPerfTestIterations);
+        log.info().attr("iterations", numPerfTestIterations).attr("durationMs", diffMsecs)
+                .attr("usecsEach", (1000 * (float) diffMsecs) / numPerfTestIterations)
+                .log("GET on RGS performance");
 
         rgs.resourceGroupDelete(rgName);
     }
@@ -302,8 +306,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
     private ResourceGroupService rgs;
     int numAnonymousQuotaCalculations;
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceGroupServiceTest.class);
 
     private static final int PUBLISH_INTERVAL_SECS = 500;
     private void prepareData() throws PulsarAdminException {

@@ -28,7 +28,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.WatermarkCountEvictionPolicy;
@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for {@link WindowManager}.
  */
-@Slf4j
+@CustomLog
 public class WindowManagerTest {
     private WindowManager<Integer> windowManager;
     private Listener listener;

@@ -19,13 +19,13 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
+import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -42,7 +42,7 @@ import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-@Slf4j
+@CustomLog
 public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     private final Functions<PulsarWorkerService> delegate;

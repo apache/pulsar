@@ -27,19 +27,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TraceableMessageId;
-import org.apache.pulsar.client.impl.ConsumerBase;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpenTelemetry consumer interceptor that creates spans for message consumption.
@@ -62,15 +58,13 @@ import org.slf4j.LoggerFactory;
  * map structure (topic partition → message IDs) and {@link TopicMessageId#getOwnerTopic()} to ensure
  * spans are only ended for messages from the acknowledged topic partition.
  */
+@CustomLog
 public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<T> {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenTelemetryConsumerInterceptor.class);
-
-    private Tracer tracer;
-    private TextMapPropagator propagator;
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
     private String topic;
     private String subscription;
-    private boolean initialized = false;
 
     /**
      * Used for cumulative acknowledgment support (Failover/Exclusive subscriptions).
@@ -82,10 +76,12 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
      * instance handles messages from multiple topic partitions. Cumulative ack only affects
      * messages from the same topic partition.
      */
-    private volatile Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
+    private final Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
 
-    public OpenTelemetryConsumerInterceptor() {
-        // Tracer and propagator will be initialized in beforeConsume when we have access to the consumer
+    public OpenTelemetryConsumerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+        this.messageSpansByTopic = new ConcurrentHashMap<>();
     }
 
     /**
@@ -99,52 +95,17 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         return topic != null ? topic : "";
     }
 
-    /**
-     * Initialize the tracer from the consumer's client.
-     * This is called lazily on the first message.
-     */
-    private void initializeIfNeeded(Consumer<T> consumer) {
-        if (!initialized && consumer instanceof ConsumerBase<?> consumerBase) {
-            PulsarClientImpl client = consumerBase.getClient();
-            InstrumentProvider instrumentProvider = client.instrumentProvider();
-
-            this.tracer = instrumentProvider.getTracer();
-            this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-            this.initialized = true;
-            if (consumerBase.getConf().getSubscriptionType() == SubscriptionType.Exclusive
-                    || consumerBase.getConf().getSubscriptionType() == SubscriptionType.Failover) {
-                ensureMapInitialized();
-            }
-        }
-    }
-
-    /**
-     * Ensure the map is initialized for cumulative acknowledgment support.
-     * This is called when we detect cumulative ack is being used.
-     */
-    private void ensureMapInitialized() {
-        if (messageSpansByTopic == null) {
-            messageSpansByTopic = new ConcurrentHashMap<>();
-            log.debug("Initialized message spans map for cumulative acknowledgment support");
-        }
-    }
-
     @Override
     public void close() {
         // Clean up any remaining spans for Failover/Exclusive subscriptions
-        if (messageSpansByTopic != null) {
-            messageSpansByTopic.values().forEach(topicSpans ->
-                topicSpans.values().forEach(TracingContext::endSpan)
-            );
-            messageSpansByTopic.clear();
-        }
+        messageSpansByTopic.values().forEach(topicSpans ->
+            topicSpans.values().forEach(TracingContext::endSpan)
+        );
+        messageSpansByTopic.clear();
     }
 
     @Override
     public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
-        // Initialize tracer from consumer on first call
-        initializeIfNeeded(consumer);
-
         if (tracer == null || propagator == null) {
             return message;
         }
@@ -164,7 +125,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 MessageId messageId = message.getMessageId();
 
                 // Store in map for cumulative ack support (Failover/Exclusive)
-                if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                if (messageId instanceof MessageIdAdv) {
                     String topicKey = getTopicKey(messageId);
                     messageSpansByTopic.computeIfAbsent(topicKey,
                             k -> new ConcurrentSkipListMap<>()).put((MessageIdAdv) messageId, span);
@@ -175,10 +136,12 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(span);
                 }
 
-                log.debug("Created consumer span for message {} on topic {}", messageId, topic);
+                log.debug().attr("messageId", messageId)
+                        .attr("topic", topic)
+                        .log("Created consumer span");
             }
         } catch (Exception e) {
-            log.error("Error creating consumer span", e);
+            log.error().exception(e).log("Error creating consumer span");
         }
 
         return message;
@@ -204,7 +167,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 ((TraceableMessageId) messageId).setTracingSpan(null);
 
                 // Remove from map if it exists (Failover/Exclusive)
-                if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                if (messageId instanceof MessageIdAdv) {
                     String topicKey = getTopicKey(messageId);
                     ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                     if (topicSpans != null) {
@@ -212,7 +175,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     }
                 }
             } catch (Exception e) {
-                log.error("Error ending consumer span on acknowledge", e);
+                log.error().exception(e).log("Error ending consumer span on acknowledge");
             }
         }
     }
@@ -234,7 +197,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                         ((TraceableMessageId) messageId).setTracingSpan(null);
                     } catch (Exception e) {
-                        log.error("Error ending consumer span on cumulative acknowledge", e);
+                        log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
                     }
                 }
             }
@@ -244,8 +207,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         String topicKey = getTopicKey(messageId);
 
         // Get the topic-specific map
-        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic != null
-                ? messageSpansByTopic.get(topicKey) : null;
+        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
 
         // First, try to get the span for the cumulative ack position itself
         Span currentSpan = null;
@@ -277,7 +239,9 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                             ((TraceableMessageId) msgId).setTracingSpan(null);
                         }
                     } catch (Exception e) {
-                        log.error("Error ending consumer span on cumulative acknowledge for message {}", msgId, e);
+                        log.error().attr("messageId", msgId)
+                                .exception(e)
+                                .log("Error ending consumer span on cumulative acknowledge");
                     }
                     iterator.remove();
                 } else {
@@ -293,7 +257,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         }
 
         // If the cumulative ack position span wasn't in the map, end it directly
-        if (currentSpan != null && messageId instanceof TraceableMessageId) {
+        if (currentSpan != null) {
             try {
                 if (exception != null) {
                     TracingContext.endSpan(currentSpan, exception);
@@ -302,7 +266,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 }
                 ((TraceableMessageId) messageId).setTracingSpan(null);
             } catch (Exception e) {
-                log.error("Error ending consumer span on cumulative acknowledge", e);
+                log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
             }
         }
     }
@@ -325,7 +289,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(null);
 
                     // Remove from map if it exists (Failover/Exclusive)
-                    if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                    if (messageId instanceof MessageIdAdv) {
                         String topicKey = getTopicKey(messageId);
                         ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                         if (topicSpans != null) {
@@ -333,7 +297,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error ending consumer span on negative acknowledge", e);
+                    log.error().exception(e).log("Error ending consumer span on negative acknowledge");
                 }
             }
         }
@@ -357,7 +321,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(null);
 
                     // Remove from map if it exists (Failover/Exclusive)
-                    if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                    if (messageId instanceof MessageIdAdv) {
                         String topicKey = getTopicKey(messageId);
                         ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                         if (topicSpans != null) {
@@ -365,7 +329,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error ending consumer span on ack timeout", e);
+                    log.error().exception(e).log("Error ending consumer span on ack timeout");
                 }
             }
         }

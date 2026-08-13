@@ -17,10 +17,6 @@
  * under the License.
  */
 
-group = "org.apache.pulsar"
-version = the<VersionCatalogsExtension>().named("libs").findVersion("pulsar").get().requiredVersion
-
-
 val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")

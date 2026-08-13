@@ -40,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -71,7 +71,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
     public BrokerBkEnsemblesTest() {
@@ -258,7 +258,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    log.warn("failed to delete ledger {}", entry.getKey(), e);
+                    log.warn().attr("ledger", entry.getKey()).exception(e).log("Failed to delete ledger");
                 }
             }
         });
@@ -372,7 +372,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    log.warn("failed to delete ledger {}", entry.getKey(), e);
+                    log.warn().attr("ledger", entry.getKey()).exception(e).log("Failed to delete ledger");
                 }
             }
         });
@@ -387,7 +387,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         admin.topics().truncate(topic1);
 
         ledgerInfo.entrySet().forEach(entry -> {
-            log.warn("found ledger: {}", entry.getKey());
+            log.warn().attr("ledger", entry.getKey()).log("Found ledger");
             assertNotEquals(firstLedgerToDelete, entry.getKey());
         });
 

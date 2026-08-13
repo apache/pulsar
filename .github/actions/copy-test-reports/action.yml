@@ -18,10 +18,11 @@
 #
 
 name: Copy test reports
-description: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+description: Aggregates all test reports to ./test-reports directory and generates an HTML index
 runs:
   using: composite
   steps:
     - run: |
         $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh move_test_reports
+        $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh generate_test_report_index
       shell: bash

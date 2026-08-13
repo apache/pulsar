@@ -25,9 +25,9 @@ on:
       - branch-*
       - pulsar-*
   schedule:
-    # scheduled job with JDK 21
+    # scheduled job with JDK 25
     - cron: '0 12 * * *'
-    # scheduled job with JDK 17
+    # scheduled job with JDK 21
     # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -37,11 +37,9 @@ on:
         required: true
         type: choice
         options:
-          - '17'
-          - '21'
-          - '24'
           - '25'
-        default: '21'
+          - '21'
+        default: '25'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
         required: true
@@ -99,13 +97,13 @@ jobs:
       - name: Select JDK major version
         id: jdk_major_version
         run: |
-          # use JDK 17 for the scheduled build with cron expression '0 6 * * *'
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
           if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
-            echo "jdk_major_version=17" >> $GITHUB_OUTPUT
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
             exit 0
           fi
-          # use JDK 21 for build unless overridden with workflow_dispatch input
-          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '21'}}" >> $GITHUB_OUTPUT
+          # use JDK 25 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -135,14 +133,6 @@ jobs:
           echo "netty_leak_detection=${{
           github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
           }}" >> $GITHUB_OUTPUT
-
-      - name: Check if the PR has been approved for testing
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
-        env:
-          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          pulsar-build/pulsar_ci_tool.sh check_ready_to_test
 
   build-and-license-check:
     needs: preconditions
@@ -186,8 +176,10 @@ jobs:
           --no-configuration-cache
 
       - name: Check binary licenses
-        run: |
-          src/check-binary-license.sh ./distribution/server/build/distributions/apache-pulsar-*-bin.tar.gz
+        run: ./gradlew checkBinaryLicense --no-configuration-cache
+
+      - name: Check that project's public libraries can be published to a Maven repository
+        run: ./gradlew publishAllPublicationsToLocalDeployRepository
 
       - name: Upload Gradle reports
         uses: actions/upload-artifact@v4
@@ -269,8 +261,8 @@ jobs:
             group: CLIENT
           - name: Pulsar Metadata
             group: METADATA
-          - name: Protobuf v4
-            group: PROTOBUFV4
+          - name: Protobuf v3
+            group: PROTOBUFV3
 
     steps:
       - name: checkout
@@ -345,6 +337,7 @@ jobs:
         with:
           name: Unit-${{ matrix.group }}-test-reports
           path: |
+            test-reports/
             **/build/reports/tests/
           retention-days: 7
           if-no-files-found: ignore
@@ -358,6 +351,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            build/threaddumps/
             ${{ env.NETTY_LEAK_DUMP_DIR }}/*
             ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
             ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
@@ -443,7 +437,7 @@ jobs:
         run: tar xf gradle-build-outputs.tar
 
       - name: Build java-test-image Docker image
-        run: ./gradlew :tests:java-test-image:dockerBuild
+        run: ./gradlew :tests:java-test-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
 
       - name: Save docker image to file
         run: |
@@ -500,10 +494,10 @@ jobs:
             upload_name: SHADE_RUN_21
             runtime_jdk: 21
 
-          - name: Shade on Java 24
+          - name: Shade on Java 25
             group: SHADE_RUN
-            upload_name: SHADE_RUN_24
-            runtime_jdk: 24
+            upload_name: SHADE_RUN_25
+            runtime_jdk: 25
 
           - name: Standalone
             group: STANDALONE
@@ -520,6 +514,13 @@ jobs:
           - name: Kubernetes
             group: PULSAR_K8S
 
+          - name: Native Image
+            group: NATIVE_IMAGE
+            runtime_jdk: 25
+            # Native image compilation (even in quick build mode) is slower than a
+            # regular test group, so allow extra headroom over the default timeout.
+            timeout: 40
+
     steps:
       - name: checkout
         uses: actions/checkout@v6
@@ -534,11 +535,23 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
+        if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+          java-version: |
+            ${{ matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && matrix.runtime_jdk || '' }}
+            ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      # The NATIVE_IMAGE group compiles a native binary with GraalVM native-build-tools,
+      # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
+      - name: Set up GraalVM
+        if: ${{ matrix.group == 'NATIVE_IMAGE' }}
+        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
+        with:
+          distribution: 'graalvm-community'
+          java-version: 25 # always use GraalVM 25.x
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
@@ -567,16 +580,9 @@ jobs:
         run: |
           ${{ matrix.setup }}
 
-      - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
-        uses: actions/setup-java@v5
-        if: ${{ matrix.runtime_jdk }}
-        with:
-          distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: ${{ matrix.runtime_jdk }}
-
       - name: Run integration test group '${{ matrix.group }}'
         run: |
-          ./pulsar-build/run_integration_group_gradle.sh ${{ matrix.group }}
+          ./pulsar-build/run_integration_group_gradle.sh ${{ matrix.group }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' -PtestJavaVersion={0}', matrix.runtime_jdk) || '' }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -592,6 +598,7 @@ jobs:
         with:
           name: Integration-${{ matrix.upload_name || matrix.group }}-test-reports
           path: |
+            test-reports/
             **/build/reports/tests/
           retention-days: 7
           if-no-files-found: ignore
@@ -605,6 +612,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            build/threaddumps/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -666,32 +674,28 @@ jobs:
         run: tar xf gradle-build-outputs.tar
 
       - name: Build pulsar-test-latest-version Docker image
-        run: ./gradlew :tests:latest-version-image:dockerBuild
+        run: ./gradlew :tests:latest-version-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
 
-      - name: Check binary licenses
-        run: |
-          src/check-binary-license.sh ./distribution/server/build/distributions/apache-pulsar-*-bin.tar.gz
-          src/check-binary-license.sh ./distribution/shell/build/distributions/apache-pulsar-shell-*-bin.tar.gz
+      - name: Run Trivy container scan
+        id: trivy_scan
+        uses: lhotari/sandboxed-trivy-action@f01374b6cc3bf7264ab238293e94f6db7ada6dd0
+        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        with:
+          scan-type: 'image'
+          scan-ref: "apachepulsar/pulsar:latest"
+          scanners: vuln
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          limit-severities-for-sarif: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-#      - name: Run Trivy container scan
-#        id: trivy_scan
-#        uses: aquasecurity/trivy-action@v0.35.0
-#        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
-#        continue-on-error: true
-#        with:
-#          image-ref: "apachepulsar/pulsar:latest"
-#          scanners: vuln
-#          severity: CRITICAL,HIGH,MEDIUM,LOW
-#          limit-severities-for-sarif: true
-#          format: 'sarif'
-#          output: 'trivy-results.sarif'
-#
-#      - name: Upload Trivy scan results to GitHub Security tab
-#        uses: github/codeql-action/upload-sarif@v3
-#        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
-#        continue-on-error: true
-#        with:
-#          sarif_file: 'trivy-results.sarif'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-results.sarif'
 
       - name: Save docker image to file
         run: |
@@ -807,6 +811,7 @@ jobs:
         with:
           name: System-${{ matrix.group }}-test-reports
           path: |
+            test-reports/
             **/build/reports/tests/
           retention-days: 7
           if-no-files-found: ignore
@@ -820,6 +825,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            build/threaddumps/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -877,17 +883,27 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: true
+
+      - name: Configure Gradle for CodeQL
+        run: |
+          cat >> gradle.properties <<'EOF'
+          
+          org.gradle.configuration-cache=false
+          org.gradle.configureondemand=false
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          org.gradle.daemon=false
+          EOF
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ env.CODEQL_LANGUAGE }}
-
-      - name: Build Java code
-        run: ./gradlew assemble
+          build-mode: none
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ env.CODEQL_LANGUAGE }}"
 

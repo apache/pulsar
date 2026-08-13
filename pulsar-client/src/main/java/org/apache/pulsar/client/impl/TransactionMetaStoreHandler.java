@@ -27,14 +27,17 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -50,16 +53,13 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Handler for transaction meta store.
  */
+@CustomLog
 public class TransactionMetaStoreHandler extends HandlerState
         implements ConnectionHandler.Connection, Closeable, TimerTask {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
     private final long transactionCoordinatorId;
     private final ConnectionHandler connectionHandler;
@@ -92,11 +92,42 @@ public class TransactionMetaStoreHandler extends HandlerState
     private final long lookupDeadline;
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
 
+    // Metadata-store discovery (watch mode): the elected leader broker for this coordinator and
+    // whether it must be reached through the proxy. Null leaderUri means assign-topic mode.
+    private volatile URI leaderUri;
+    private volatile boolean useProxy;
+    private final boolean scalable;
+
 
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
                                        CompletableFuture<Void> connectFuture) {
+        this(transactionCoordinatorId, pulsarClient, topic, null, false, connectFuture);
+    }
+
+    /**
+     * Construct a handler that connects to a fixed leader broker (metadata-store discovery) rather
+     * than resolving a coordinator via an assign-topic lookup. The leader address is dialled
+     * through the proxy when {@code useProxy} is true (the broker URL isn't directly reachable
+     * behind a proxy) or directly otherwise. Use {@link #retargetLeader} when the elected leader
+     * changes.
+     */
+    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient,
+                                       URI leaderUri, boolean useProxy,
+                                       CompletableFuture<Void> connectFuture) {
+        this(transactionCoordinatorId, pulsarClient, null, leaderUri, useProxy, connectFuture);
+    }
+
+    private TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
+                                        URI leaderUri, boolean useProxy,
+                                        CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
+        this.leaderUri = leaderUri;
+        this.useProxy = useProxy;
+        // A handler built with a fixed leader URI is a v5 (metadata-store discovery) handler; one
+        // built with a topic name is a legacy v4 handler. The flag routes each command to the
+        // matching coordinator on the broker so v4 and v5 clients coexist.
+        this.scalable = leaderUri != null;
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
@@ -119,7 +150,13 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public void start() {
-        this.connectionHandler.grabCnx();
+        if (leaderUri != null) {
+            // Metadata-store discovery: dial the elected leader (through the proxy if needed).
+            this.connectionHandler.grabCnx(leaderUri, useProxy);
+        } else {
+            // Assign-topic discovery: resolve the coordinator via a topic lookup.
+            this.connectionHandler.grabCnx();
+        }
     }
 
     @Override
@@ -130,11 +167,15 @@ public class TransactionMetaStoreHandler extends HandlerState
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (connectFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {
-                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
-                            transactionCoordinatorId, exception);
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler failed.");
                 } else {
-                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed after "
-                            + "timeout", transactionCoordinatorId, exception);
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler with transaction"
+                                    + " coordinator id connection failed"
+                                    + " after timeout");
                 }
                 setState(State.Failed);
                 return false;
@@ -149,8 +190,8 @@ public class TransactionMetaStoreHandler extends HandlerState
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
-            LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
-                    transactionCoordinatorId);
+            log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                    .log("Transaction meta handler with transaction coordinator id connection opened.");
 
             State state = getState();
             if (state == State.Closing || state == State.Closed) {
@@ -163,11 +204,13 @@ public class TransactionMetaStoreHandler extends HandlerState
             // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
             if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
                 long requestId = client.newRequestId();
-                ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
+                ByteBuf request =
+                        Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId, scalable);
 
                 cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                     internalPinnedExecutor.execute(() -> {
-                        LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+                        log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .log("Transaction coordinator client connect success! tcId");
                         if (registerToConnection(cnx)) {
                             this.connectionHandler.resetBackoff();
                             pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
@@ -176,8 +219,9 @@ public class TransactionMetaStoreHandler extends HandlerState
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
-                        LOG.error("Transaction coordinator client connect fail! tcId : {}",
-                                transactionCoordinatorId, e.getCause());
+                        log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .exception(e.getCause())
+                                .log("Transaction coordinator client connect fail! tcId");
                         if (getState() == State.Closing || getState() == State.Closed
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
@@ -190,8 +234,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                     return null;
                 });
             } else {
-                LOG.warn("Can not connect to the transaction coordinator because the protocol version {} is "
-                                + "lower than 19", cnx.getRemoteEndpointProtocolVersion());
+                log.warn().attr("version", cnx.getRemoteEndpointProtocolVersion())
+                        .log("Can not connect to the transaction coordinator"
+                                + " because the protocol version is"
+                                + " lower than 19");
                 registerToConnection(cnx);
                 future.complete(null);
             }
@@ -228,15 +274,13 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
-        }
+            log.debug().attr("timeoutMs", unit.toMillis(timeout)).log("New transaction with timeout");
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
+        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
         String description = String.format("Create new transaction %s", transactionCoordinatorId);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
         internalPinnedExecutor.execute(() -> {
@@ -265,31 +309,27 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got new txn response for transaction {}", txnID);
-                }
+                    log.debug().attr("transaction", txnID).log("Got new txn response for transaction");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got new txn response {} for request {}", txnID, requestId);
-                }
+                    log.debug().attr("response", txnID)
+                            .attr("request", requestId)
+                            .log("Got new txn response for request");
                 op.callback.complete(txnID);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {}  request {} error "
-                                        + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.NEW_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.NEW_TXN)
+                                .attr("requestId", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -300,8 +340,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
-                        requestId, error);
+                log.error().attr("name", BaseCommand.Type.NEW_TXN)
+                        .attr("requestId", requestId)
+                        .attr("error", error)
+                        .log("Got for request error");
             }
 
             onResponse(op);
@@ -309,16 +351,14 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add publish partition {} to txn {}", partitions, txnID);
-        }
+            log.debug().attr("partition", partitions).attr("txn", txnID).log("Add publish partition to txn");
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions, scalable);
         String description = String.format("Add partition %s to TXN %s", String.valueOf(partitions),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack
@@ -350,31 +390,26 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got add publish partition to txn response for transaction {}", txnID);
-                }
+                    log.debug().attr("transaction", txnID)
+                            .log("Got add publish partition to txn response for transaction");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add publish partition for request {} success.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add publish partition for request success.");
                 op.callback.complete(null);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} "
-                                        + " error TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request"
+                                        + " error TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -385,8 +420,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId, txnID, error);
+                log.error().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("for request, transaction, error");
 
             }
 
@@ -395,9 +433,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
-        }
+            log.debug().attr("subscription", subscriptionList).attr("txn", txnID).log("Add subscription to txn.");
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
@@ -405,7 +441,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList, scalable);
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
@@ -446,32 +482,29 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add subscription to txn timeout for request {}.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add subscription to txn timeout for request.");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add subscription to txn success for request {}.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add subscription to txn success for request.");
                 op.callback.complete(null);
             } else {
-                LOG.error("Add subscription to txn failed for request {}, transaction {}, error: {}",
-                        requestId, txnID, error);
+                log.error().attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Add subscription to txn failed for request, transaction, error");
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
-                                        + " again", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -482,8 +515,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
-                       requestId, error);
+                log.error().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("error", error)
+                        .log("failed for request error.");
 
             }
             onResponse(op);
@@ -491,15 +526,14 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("End txn {}, action {}", txnID, action);
-        }
+            log.debug().attr("txn", txnID).attr("action", action).log("End txn, action");
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                action, scalable);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
@@ -529,31 +563,28 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response for transaction but no requests pending for txn {}", txnID);
-                }
+                    log.debug().attr("txn", txnID)
+                            .log("Got end txn response for transaction but no requests pending for txn");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response success for request {}, txn {}", requestId, txnID);
-                }
+                    log.debug().attr("request", requestId)
+                            .attr("txn", txnID)
+                            .log("Got end txn response success for request, txn");
                 op.callback.complete(null);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} error "
-                                        + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.END_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.END_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -564,8 +595,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} response for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.END_TXN.name(), requestId, txnID, error);
+                log.error().attr("name", BaseCommand.Type.END_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Got response for request, transaction, error");
 
             }
             onResponse(op);
@@ -724,10 +758,19 @@ public class TransactionMetaStoreHandler extends HandlerState
                     op.cmd.retain();
                     cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
                 } else {
-                    LOG.error("The cnx was null when the TC handler was ready", new NullPointerException());
+                    log.error().exception(new NullPointerException())
+                            .log("The cnx was null when the TC handler was ready");
                 }
                 return true;
             case Connecting:
+            case Uninitialized:
+                // Not connected yet, but the handler is (or will be) establishing the connection. For
+                // the metadata-store coordinator the partition leader is still being resolved via the
+                // assignment watch, so the handler can sit in Uninitialized briefly after the client is
+                // built. Leave the op queued in pendingRequests; it is retried from connectionOpened
+                // once the handler is Ready, and the operation-timeout sweep fails it if the connection
+                // never comes. Failing fast here would make a freshly-built client's first request
+                // race the asynchronous connect.
                 return true;
             case Closing:
             case Closed:
@@ -739,7 +782,6 @@ public class TransactionMetaStoreHandler extends HandlerState
                 onResponse(op);
                 return false;
             case Failed:
-            case Uninitialized:
                 op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
@@ -776,9 +818,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
                                 op.description, op.clientCnx, pendingRequests.size())));
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
-                        }
+                            log.debug().attr("request", lastPolled.requestId)
+                                    .log("Transaction coordinator request is timeout.");
                         onResponse(op);
                     }
                 } else {
@@ -806,8 +847,35 @@ public class TransactionMetaStoreHandler extends HandlerState
         return this.connectionHandler.cnx();
     }
 
+    /**
+     * Point this handler at a (possibly new) elected leader broker and reconnect. Called by the
+     * metadata-store discovery when an assignment snapshot moves this coordinator's leadership to a
+     * different broker. If the leader and proxy-mode are unchanged and the handler is already
+     * connected, this is a no-op; otherwise it (re)connects to the new leader.
+     */
+    public void retargetLeader(URI newLeaderUri, boolean newUseProxy) {
+        if (newLeaderUri.equals(this.leaderUri) && newUseProxy == this.useProxy && cnx() != null) {
+            return;
+        }
+        this.leaderUri = newLeaderUri;
+        this.useProxy = newUseProxy;
+        ClientCnx current = cnx();
+        if (current != null) {
+            // Drop the current connection; connectionClosed re-grabs against the new leader.
+            current.channel().close();
+        } else {
+            connectionHandler.grabCnx(newLeaderUri, newUseProxy);
+        }
+    }
+
     void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+        if (leaderUri != null) {
+            // Metadata-store discovery: reconnect to the elected leader (via the proxy if needed),
+            // not the configured service URL. useProxy is preserved on the ConnectionHandler.
+            this.connectionHandler.connectionClosed(cnx, Optional.empty(), Optional.of(leaderUri));
+        } else {
+            this.connectionHandler.connectionClosed(cnx);
+        }
     }
 
     @Override

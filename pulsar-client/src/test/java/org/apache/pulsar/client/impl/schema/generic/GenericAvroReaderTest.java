@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -31,7 +31,7 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.FooV2;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class GenericAvroReaderTest {
 
     private Foo foo;

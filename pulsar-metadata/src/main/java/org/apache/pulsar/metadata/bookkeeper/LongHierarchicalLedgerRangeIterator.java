@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 /**
  * Iterates recursively through each metadata bucket.
  */
-@Slf4j
+@CustomLog
 class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIterator {
 
     private final MetadataStore store;
@@ -62,9 +62,7 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
             return store.sync(path).thenCompose(__ -> store.getChildrenFromStore(path))
                     .get(AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to get children at {}", path);
-            }
+            log.debug().attr("path", path).log("Failed to get children");
             throw new IOException(e);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -82,9 +80,9 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
         LeafIterator(String path) throws IOException {
             List<String> ledgerLeafNodes = getChildrenAt(path);
             Set<Long> ledgerIds = HierarchicalLedgerUtils.ledgerListToSet(ledgerLeafNodes, ledgerRootPath, path);
-            if (log.isDebugEnabled()) {
-                log.debug("All active ledgers from ZK for hash node {}: {}", path, ledgerIds);
-            }
+            log.debug().attr("hashNode", path)
+                    .attr("ledgers", ledgerIds)
+                    .log("All active ledgers from ZK for hash node");
             if (!ledgerIds.isEmpty()) {
                 range = new LedgerManager.LedgerRange(ledgerIds);
             } // else, hasNext() should return false so that advance will skip us and move on

@@ -19,6 +19,12 @@
 package org.apache.pulsar.common.configuration;
 
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -27,19 +33,13 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.servlet.ServletContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response.Status;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 
 /**
  * Web resource used by the VIP service to check to availability of the service instance.
  */
-@Slf4j
+@CustomLog
 @Path("/status.html")
 public class VipStatus {
 
@@ -114,11 +114,13 @@ public class VipStatus {
                                 .collect(Collectors.joining(", "));
                         if (clock.millis() - lastPrintThreadDumpTimestamp > printThreadDumpIntervalMs) {
                             String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
-                            log.error("Deadlocked threads detected. {}. Service may be unavailable, "
-                                    + "thread stack details are as follows:\n{}", threadNames, diagnosticResult);
+                            log.error()
+                                    .attr("deadlockedThreads", threadNames)
+                                    .attr("threadStacks", diagnosticResult)
+                                    .log("Deadlocked threads detected, service may be unavailable");
                             lastPrintThreadDumpTimestamp = clock.millis();
                         } else {
-                            log.error("Deadlocked threads detected. {}", threadNames);
+                            log.error().attr("deadlockedThreads", threadNames).log("Deadlocked threads detected");
                         }
                         lastCheckStatusResult = false;
                         throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
@@ -129,8 +131,10 @@ public class VipStatus {
                 }
             }
             lastCheckStatusResult = false;
-            log.warn("Status file '{}' doesn't exist or ready probe value ({}) isn't true. The service is not ready",
-                    statusFilePath, isReady);
+            log.warn()
+                    .attr("file", statusFilePath)
+                    .attr("value", isReady)
+                    .log("Status file doesn't exist or ready probe value isn't true. The service is not ready");
             throw new WebApplicationException(Status.NOT_FOUND);
         }
     }

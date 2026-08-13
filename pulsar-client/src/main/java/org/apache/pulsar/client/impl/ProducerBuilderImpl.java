@@ -116,7 +116,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             } else {
                 effectiveInterceptors = new ArrayList<>(effectiveInterceptors);
             }
-            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor());
+            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor(
+                    client.instrumentProvider()));
         }
 
         return effectiveInterceptors == null || effectiveInterceptors.size() == 0
@@ -325,7 +326,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     @Deprecated
-    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }

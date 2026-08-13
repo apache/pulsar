@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
@@ -52,16 +53,13 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker")
 public class BatchMessageTest extends SharedPulsarBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
 
     private long getBacklog(String topicName, String subscriptionName) throws Exception {
         return admin.topics().getStats(topicName)
@@ -212,7 +210,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         FutureUtil.waitForAll(sendFutureList).get();
 
         long backlog = getBacklog(topicName, subscriptionName);
-        LOG.info("Sent {} messages, backlog is {} entries", numMsgs, backlog);
+        log.info().attr("numMsgs", numMsgs).attr("backlog", backlog).log("Sent messages");
         assertTrue(backlog < numMsgs);
 
         producer.close();
@@ -245,7 +243,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         FutureUtil.waitForAll(sendFutureList).get();
 
         long backlog2 = getBacklog(topicName, subscriptionName);
-        LOG.info("Sent {} messages, backlog is {} entries", numMsgs, backlog2);
+        log.info().attr("numMsgs", numMsgs).attr("backlog", backlog2).log("Sent messages");
         assertTrue(backlog2 < numMsgs);
 
         producer.close();
@@ -300,7 +298,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         for (int i = 0; i <= numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
-            LOG.info("received msg size: {}", msg.getData().length);
+            log.info().attr("size", msg.getData().length).log("Received message");
             consumer.acknowledge(msg);
         }
         Awaitility.await().untilAsserted(() ->
@@ -338,7 +336,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
             sendFutureList.add(producer.sendAsync(message));
             if ((i + 1) % numMsgsInBatch == 0) {
                 producer.flush();
-                LOG.info("Flush {} messages", (i + 1));
+                log.info().attr("count", (i + 1)).log("Flush messages");
             }
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -434,10 +432,11 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
             }
         }
         if (sendError != 0) {
-            LOG.warn("[{}] Error sending {} messages", subscriptionName, sendError);
+            log.warn().attr("subscription", subscriptionName)
+                    .attr("sendError", sendError).log("Error sending messages");
             numMsgs = numMsgs - sendError;
         }
-        LOG.info("[{}] sent {} messages", subscriptionName, numMsgs);
+        log.info().attr("subscription", subscriptionName).attr("numMsgs", numMsgs).log("Sent messages");
 
         assertEquals(getBacklog(topicName, subscriptionName), numMsgs / numMsgsInBatch);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -496,7 +495,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
-            LOG.info("received message {}", new String(msg.getData(), UTF_8));
+            log.info().attr("message", new String(msg.getData(), UTF_8)).log("Received message");
             assertNotNull(msg);
             if (i == 8) {
                 consumer.acknowledgeCumulative(msg);
@@ -617,13 +616,17 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         for (int i = 0; i < numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
-            LOG.info("[{}] got message position{} data {}", subscriptionName, msg.getMessageId(),
-                    Arrays.toString(msg.getData()));
+            log.info().attr("subscription", subscriptionName)
+                    .attr("position", msg.getMessageId())
+                    .attr("data", Arrays.toString(msg.getData()))
+                    .log("Got message");
             if (i % 2 == 0) {
                 lastunackedMsg = msg;
             } else {
                 consumer.acknowledgeCumulative(msg);
-                LOG.info("[{}] did cumulative ack on position{} ", subscriptionName, msg.getMessageId());
+                log.info().attr("subscription", subscriptionName)
+                        .attr("position", msg.getMessageId())
+                        .log("Did cumulative ack");
             }
         }
         consumer.acknowledgeCumulative(lastunackedMsg);
@@ -953,7 +956,7 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
         CountDownLatch countDownLatch = new CountDownLatch(messageCount);
         for (int i = 0; i < messageCount; i++) {
             producer.sendAsync((i + "").getBytes()).thenAccept(msgId -> {
-                LOG.info("Published message with msgId: {}", msgId);
+                log.info().attr("msgId", msgId).log("Published message");
                 countDownLatch.countDown();
             });
             // To generate batch message with different batch size

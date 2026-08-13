@@ -18,26 +18,32 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.ServerErrorException;
+import jakarta.ws.rs.ServiceUnavailableException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.net.URI;
+import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-import javax.ws.rs.ServiceUnavailableException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation.Builder;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
@@ -50,16 +56,16 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorExcept
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
+import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for all admin resources.
  */
+@CustomLog
 public abstract class BaseResource {
-    private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
     protected final Authentication auth;
     protected final long requestTimeoutMs;
@@ -80,33 +86,20 @@ public abstract class BaseResource {
     // do the authentication stage, and once authentication completed return a Builder
     public CompletableFuture<Builder> requestAsync(final WebTarget target) {
         CompletableFuture<Builder> builderFuture = new CompletableFuture<>();
-        CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
         try {
-            AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
-
-            if (authData.hasDataForHttp()) {
-                auth.authenticationStage(target.getUri().toString(), authData, null, authFuture);
-            } else {
-                authFuture.complete(null);
-            }
-
-            // auth complete, return a new Builder
-            authFuture.whenComplete((respHeaders, ex) -> {
+            computeAuthHeaders(target.getUri()).whenComplete((authHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(),
-                        ex.getMessage());
-                    builderFuture.completeExceptionally(new PulsarClientException(ex));
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(ex)
+                            .log("Failed to perform http request at auth stage");
+                    builderFuture.completeExceptionally(new PulsarClientException(unwrapCompletion(ex)));
                     return;
                 }
 
                 try {
                     Builder builder = target.request(MediaType.APPLICATION_JSON);
-                    if (authData.hasDataForHttp()) {
-                        Set<Entry<String, String>> headers =
-                            auth.newRequestHeader(target.getUri().toString(), authData, respHeaders);
-                        if (headers != null) {
-                            headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
-                        }
+                    if (authHeaders != null) {
+                        authHeaders.forEach((name, value) -> builder.header(name, value));
                     }
                     builderFuture.complete(builder);
                 } catch (Throwable t) {
@@ -118,6 +111,58 @@ public abstract class BaseResource {
         }
 
         return builderFuture;
+    }
+
+    /**
+     * Compute the authentication headers to attach to the outgoing admin request, or a future of
+     * {@code null} when the plugin contributes none (PIP-478).
+     *
+     * <p>When the plugin exposes the v5-native SASL-over-HTTP capability (via the
+     * {@link AsyncHttpAuthenticationProvider} bridge), the framework {@link HttpAuthenticationDriver} runs
+     * the bounded {@code 401}→resubmit→{@code 200} exchange over the plugin's own HTTP client — a bodiless
+     * {@code GET} to the original URI each round, exactly what the v4 {@code authenticationStage(...)} does
+     * today — and yields the validated role-token headers. Otherwise the deprecated v4
+     * {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks run verbatim, preserving
+     * behaviour for third-party plugins and single-pass built-ins.
+     */
+    protected CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
+        try {
+            if (auth instanceof AsyncHttpAuthenticationProvider provider) {
+                Optional<HttpAuthenticationDriver> driver = provider.httpAuthenticationDriver()
+                        .filter(HttpAuthenticationDriver::supportsHttpChallenge);
+                if (driver.isPresent()) {
+                    Duration budget = Duration.ofMillis(requestTimeoutMs > 0 ? requestTimeoutMs : 60_000L);
+                    // Null transport => the driver uses the plugin's own default transport (its JAX-RS client).
+                    return driver.get().authenticateAsync(uri, null, budget)
+                            .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
+                }
+            }
+            AuthenticationDataProvider authData = auth.getAuthData(uri.getHost());
+            if (!authData.hasDataForHttp()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Map<String, String>> stage = new CompletableFuture<>();
+            auth.authenticationStage(uri.toString(), authData, null, stage);
+            return stage.thenApply(respHeaders -> {
+                try {
+                    Set<Entry<String, String>> headers = auth.newRequestHeader(uri.toString(), authData, respHeaders);
+                    if (headers == null) {
+                        return null;
+                    }
+                    Map<String, String> map = new LinkedHashMap<>();
+                    headers.forEach(entry -> map.put(entry.getKey(), entry.getValue()));
+                    return map;
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            });
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    private static Throwable unwrapCompletion(Throwable ex) {
+        return (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
     }
 
     public <T> CompletableFuture<Void> asyncPutRequest(final WebTarget target, Entity<T> entity) {
@@ -132,7 +177,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http put request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http put request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
@@ -164,7 +211,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http post request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http post request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
@@ -241,7 +290,9 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
-                    log.warn("[{}] Failed to perform http delete request: {}", target.getUri(), throwable.getMessage());
+                    log.warn().attr("uri", target.getUri())
+                            .exceptionMessage(throwable)
+                            .log("Failed to perform http delete request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
             });

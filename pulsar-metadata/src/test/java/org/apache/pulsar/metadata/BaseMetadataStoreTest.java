@@ -146,6 +146,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         return filterImplementations("ZooKeeper", "MockZooKeeper");
     }
 
+
     protected Object[][] filterImplementations(String... providers) {
         Set<String> providersSet = Set.of(providers);
         return Arrays.stream(allImplementations())

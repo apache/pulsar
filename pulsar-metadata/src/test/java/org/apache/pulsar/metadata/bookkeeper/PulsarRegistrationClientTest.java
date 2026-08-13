@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -60,7 +60,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link RegistrationManager}.
  */
-@Slf4j
+@CustomLog
 public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
     private static Set<BookieId> prepareNBookies(int num) {

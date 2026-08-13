@@ -22,6 +22,7 @@ plugins {
     id("pulsar.nar-conventions")
 }
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":managed-ledger"))
     compileOnly(libs.bookkeeper.server)
     compileOnly(libs.netty.buffer)
@@ -34,7 +35,10 @@ dependencies {
     implementation(libs.aws.java.sdk.core)
     implementation(libs.aws.java.sdk.sts)
     runtimeOnly(libs.jakarta.xml.bind.api)
-    runtimeOnly(libs.jakarta.activation)
+    runtimeOnly(libs.angus.activation)
+    // jclouds 2.6.0's ContextBuilder references the legacy javax.xml.bind API, which is no longer on
+    // the classpath after the jakarta migration (PIP-472); restore it for the jclouds dependency.
+    runtimeOnly(libs.jaxb.api)
 
     testImplementation(project(":managed-ledger"))
     testImplementation(project(":testmocks"))

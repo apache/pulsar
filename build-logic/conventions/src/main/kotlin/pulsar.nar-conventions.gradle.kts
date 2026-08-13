@@ -19,10 +19,12 @@
 
 // Convention plugin for NAR (Nifi Archive) modules.
 // Configures platform module exclusions from runtimeClasspath, forces JAR artifacts
-// for bundled-dependencies, and handles archive name qualification.
+// for bundled-dependencies, handles archive name qualification, and publishes the
+// NAR artifact with an empty POM (no dependencies — everything is bundled).
 
 plugins {
     id("io.github.merlimat.nar")
+    id("pulsar.publish-conventions")
 }
 
 // NAR modules should not bundle Pulsar platform dependencies — they are provided
@@ -36,7 +38,6 @@ val pulsarPlatformModules = setOf(
     "pulsar-client",
     "pulsar-common",
     "pulsar-config-validation",
-    "bouncy-castle-bc",
     "pulsar-functions-api",
     "pulsar-functions-instance",
     "pulsar-functions-proto",
@@ -90,4 +91,27 @@ if (parentProject != null && parentProject != rootProject && parentProject.paren
     @Suppress("UNCHECKED_CAST")
     val narIdProp = narExt.javaClass.getMethod("getNarId").invoke(narExt) as org.gradle.api.provider.Property<String>
     narIdProp.set(qualifiedName)
+}
+
+// --- NAR publishing: publish only the .nar artifact with an empty POM ---
+// NAR modules bundle all dependencies, so the POM should have no <dependencies> section.
+publishing {
+    publications {
+        named<MavenPublication>("maven") {
+            // Replace component-based artifacts with just the NAR file
+            artifacts.clear()
+            artifact(tasks.named("nar"))
+            pom {
+                packaging = "nar"
+                // Remove all dependencies — NAR bundles everything
+                withXml {
+                    val root = asNode()
+                    root.children().removeAll { node ->
+                        val name = (node as groovy.util.Node).name()
+                        name.toString().contains("dependencies")
+                    }
+                }
+            }
+        }
+    }
 }

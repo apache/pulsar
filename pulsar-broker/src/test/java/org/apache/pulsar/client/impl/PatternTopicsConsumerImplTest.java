@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
@@ -54,17 +55,15 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
-    private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
     @Override
@@ -230,14 +229,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
 
-        topics.forEach(topic -> log.debug("topic: {}", topic));
-        consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.debug().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.debug().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
-                .forEach(topic -> log.debug("getTopics topic: {}", topic));
+                .forEach(topic -> log.debug().attr("topic", topic).log("getTopics topic"));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -315,8 +314,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 3);
 
-        topics.forEach(topic -> log.info("topic: {}", topic));
-        consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.info().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.info().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
                 assertEquals(consumers.get(index).getTopic(), topics.get(index)));
@@ -395,14 +394,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 1);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
 
-        topics.forEach(topic -> log.debug("topic: {}", topic));
-        consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.debug().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.debug().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
-                .forEach(topic -> log.debug("getTopics topic: {}", topic));
+                .forEach(topic -> log.debug().attr("topic", topic).log("getTopics topic"));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 4; i++) {
@@ -490,14 +489,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 7);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
 
-        topics.forEach(topic -> log.debug("topic: {}", topic));
-        consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.debug().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.debug().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
-                .forEach(topic -> log.debug("getTopics topic: {}", topic));
+                .forEach(topic -> log.debug().attr("topic", topic).log("getTopics topic"));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 4; i++) {
@@ -830,8 +829,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<TopicListWatcher> completableFuture =
                     ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
-            log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
-                    completableFuture.isCompletedExceptionally());
+            log.info()
+                    .attr("isDone", completableFuture.isDone())
+                    .attr("isCompletedExceptionally", completableFuture.isCompletedExceptionally())
+                    .log("Future completed successfully");
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
         });
     }

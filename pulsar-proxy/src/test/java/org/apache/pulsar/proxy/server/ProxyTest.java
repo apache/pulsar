@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -81,17 +82,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyTest.class);
 
     protected ProxyService proxyService;
     protected ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -309,13 +307,17 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         // make sure regex subscription
         String regexSubscriptionPattern = "persistent://public/default/regex-sub-topic.*";
-        log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
+        log.info()
+                .attr("regexSubscriptionPattern", regexSubscriptionPattern)
+                .log("Regex subscribe to topics");
         try (Consumer<byte[]> consumer = client.newConsumer()
             .topicsPattern(regexSubscriptionPattern)
             .subscriptionName(subName)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
             .subscribe()) {
-            log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
+            log.info()
+                    .attr("regexSubscriptionPattern", regexSubscriptionPattern)
+                    .log("Successfully subscribe to topics using regex");
 
             final int numMessages = 20;
 
@@ -525,9 +527,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
 
                     @Override
-                    protected ByteBuf newConnectCommand() throws Exception {
-                        authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                    protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
                         BaseCommand cmd =
                                 Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
                                         this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,

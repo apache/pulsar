@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
 
@@ -76,8 +76,10 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
         Consumer<String> consumer = createConsumer(topicName, subName, subType);
         ProducerAndMessageIds producerAndMessageIds =
                 createProducerAndSendMessages(topicName, msgCount, enabledBatch, maxMsgPerBatch);
-        log.info("send message-ids:{}-{}", producerAndMessageIds.messageIds.size(),
-                toString(producerAndMessageIds.messageIds));
+        log.info()
+                .attr("ids", producerAndMessageIds.messageIds.size())
+                .attr("toString", toString(producerAndMessageIds.messageIds))
+                .log("send message-ids");
 
         // Receive all messages and ack some.
         MessagesEntry messagesEntry = receiveMessages(consumer, msgCount);
@@ -88,7 +90,7 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
                 ackedMessageIds.add(messageIdIterator.next());
             }
             consumer.acknowledge(ackedMessageIds.stream().toList());
-            log.info("ack message-ids: {}", toString(ackedMessageIds.stream().toList()));
+            log.info().attr("ids", toString(ackedMessageIds.stream().toList())).log("ack message-ids");
         }
 
         // Unload subscriber.
@@ -97,8 +99,9 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
         // Receive all messages for the second time.
         int expectedAfterUnload = msgCount - ackMsgCount;
         MessagesEntry messagesEntryForTheSecondTime = receiveMessages(consumer, expectedAfterUnload);
-        log.info("received message-ids for the second time: {}",
-                toString(messagesEntryForTheSecondTime.messageIdSet.stream().toList()));
+        log.info()
+                .attr("time", toString(messagesEntryForTheSecondTime.messageIdSet.stream().toList()))
+                .log("received message-ids for the second time");
 
         // cleanup.
         producerAndMessageIds.producer.close();
@@ -117,8 +120,10 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
         Consumer<String> consumer2 = createConsumer(topicName, subName, subType);
         ProducerAndMessageIds producerAndMessageIds =
                 createProducerAndSendMessages(topicName, msgCount, enabledBatch, maxMsgPerBatch);
-        log.info("send message-ids:{}-{}", producerAndMessageIds.messageIds.size(),
-                toString(producerAndMessageIds.messageIds));
+        log.info()
+                .attr("ids", producerAndMessageIds.messageIds.size())
+                .attr("toString", toString(producerAndMessageIds.messageIds))
+                .log("send message-ids");
 
         // Receive all messages and ack some.
         List<Consumer<String>> consumers = List.of(consumer1, consumer2);
@@ -130,7 +135,7 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
                 ackedMessageIds.add(messageIdIterator.next());
             }
             consumer1.acknowledge(ackedMessageIds.stream().toList());
-            log.info("ack message-ids: {}", toString(ackedMessageIds.stream().toList()));
+            log.info().attr("ids", toString(ackedMessageIds.stream().toList())).log("ack message-ids");
         }
 
         // Unload subscriber.
@@ -140,8 +145,9 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
         // Receive all messages for the second time.
         int expectedAfterUnload = msgCount - ackMsgCount;
         MessagesEntry messagesEntryForTheSecondTime = receiveMessages(consumers, expectedAfterUnload);
-        log.info("received message-ids for the second time: {}",
-                toString(messagesEntryForTheSecondTime.messageIdSet.stream().toList()));
+        log.info()
+                .attr("time", toString(messagesEntryForTheSecondTime.messageIdSet.stream().toList()))
+                .log("received message-ids for the second time");
         assertEquals(messagesEntryForTheSecondTime.messageSet.size(), expectedAfterUnload);
 
         // cleanup.

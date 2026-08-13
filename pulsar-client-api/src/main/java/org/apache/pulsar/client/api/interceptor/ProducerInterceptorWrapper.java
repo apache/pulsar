@@ -29,6 +29,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Stable
+@SuppressWarnings("deprecation")
 public class ProducerInterceptorWrapper implements ProducerInterceptor {
     private final org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor;
 

@@ -26,8 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -49,7 +49,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TopicGCTest extends ProducerConsumerBase {
 
@@ -144,7 +144,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         Consumer<String> consumer2 = consumerBuilder2.subscribe();
         Message<String> msg = consumer2.receive(2, TimeUnit.SECONDS);
         String receivedMsgValue = msg.getValue();
-        log.info("received msg: {}", receivedMsgValue);
+        log.info().attr("receivedMsg", receivedMsgValue).log("received msg");
         consumer2.acknowledge(msg);
 
         // cleanup.
@@ -204,7 +204,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         for (int i = 0; i < 2; i++) {
             Message<String> msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg, "Expected at least received 2 messages.");
-            log.info("received msg[{}]: {}", i, msg.getValue());
+            log.info().attr("i", i).attr("value", msg.getValue()).log("received msg[]");
             TopicMessageId messageId = (TopicMessageId) msg.getMessageId();
             if (messageId.getOwnerTopic().equals(partition1)) {
                 consumer1.acknowledgeAsync(msg);
@@ -223,7 +223,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         Message<String> msg = consumer2.receive(2, TimeUnit.SECONDS);
         assertNotNull(msg);
         String receivedMsgValue = msg.getValue();
-        log.info("received msg: {}", receivedMsgValue);
+        log.info().attr("receivedMsg", receivedMsgValue).log("received msg");
         consumer2.acknowledge(msg);
 
         // cleanup.

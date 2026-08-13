@@ -22,7 +22,7 @@ import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
@@ -46,7 +46,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ResourceGroupUsageAggregationTest extends SharedPulsarBaseTest {
     @org.testng.annotations.BeforeClass(alwaysRun = true)
     public void setupRG() throws Exception {

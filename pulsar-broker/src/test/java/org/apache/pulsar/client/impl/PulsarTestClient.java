@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -53,7 +53,7 @@ import org.awaitility.Awaitility;
  *   called after the message to send out has been added to the pending messages in the client.
  *
  */
-@Slf4j
+@CustomLog
 public class PulsarTestClient extends PulsarClientImpl {
     private volatile int overrideRemoteEndpointProtocolVersion;
     private volatile boolean rejectNewConnections;
@@ -91,7 +91,7 @@ public class PulsarTestClient extends PulsarClientImpl {
     private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                              AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
-        super(conf, eventLoopGroup, cnxPool, null, null, null, null, null, new DnsResolverGroupImpl(conf));
+        super(conf, eventLoopGroup, cnxPool, null, null, null, null, null, new DnsResolverGroupImpl(conf), null);
         // workaround initialization order issue so that ClientCnx can be created in this class
         clientCnxSupplierReference.set(this::createClientCnx);
     }
@@ -241,12 +241,12 @@ public class PulsarTestClient extends PulsarClientImpl {
         try {
             getCnxPool().close();
         } catch (Exception e) {
-            log.warn("Error closing connection pool", e);
+            log.warn().exception(e).log("Error closing connection pool");
         }
         try {
             eventLoopGroup.shutdownGracefully().get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.warn("Error closing event loop group", e);
+            log.warn().exception(e).log("Error closing event loop group");
         }
     }
 }

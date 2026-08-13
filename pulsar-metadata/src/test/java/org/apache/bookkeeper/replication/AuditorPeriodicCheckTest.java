@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieAccessor;
 import org.apache.bookkeeper.bookie.BookieException;
@@ -70,8 +71,6 @@ import org.apache.bookkeeper.test.TestStatsProvider;
 import org.apache.bookkeeper.test.TestStatsProvider.TestOpStatsLogger;
 import org.apache.bookkeeper.test.TestStatsProvider.TestStatsLogger;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -80,9 +79,8 @@ import org.testng.annotations.Test;
  * This test verifies that the period check on the auditor
  * will pick up on missing data in the client.
  */
+@CustomLog
 public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorPeriodicCheckTest.class);
 
     private MetadataBookieDriver driver;
     private HashMap<String, AuditorElector> auditorElectors = new HashMap<String, AuditorElector>();
@@ -112,9 +110,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
             AuditorElector auditorElector = new AuditorElector(addr, conf);
             auditorElectors.put(addr, auditorElector);
             auditorElector.start();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Starting Auditor Elector");
-            }
+                log.debug("Starting Auditor Elector");
         }
 
         URI uri = URI.create(confByIndex(0).getMetadataServiceUri().replaceAll("zk://", "metadata-store:")
@@ -220,7 +216,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
 
         // corrupt of entryLogs
         File index = new File(ledgerDir, IndexPersistenceMgr.getLedgerName(ledgerToCorrupt));
-        LOG.info("file to corrupt{}", index);
+        log.info().attr("file", index).log("file to corrupt");
         ByteBuffer junk = ByteBuffer.allocate(1024 * 1024);
         FileOutputStream out = new FileOutputStream(index);
         out.getChannel().write(junk);
@@ -258,7 +254,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 lh.asyncAddEntry("testdata".getBytes(), new AddCallback() {
                     public void addComplete(int rc2, LedgerHandle lh, long entryId, Object ctx) {
                         if (rc.compareAndSet(BKException.Code.OK, rc2)) {
-                            LOG.info("Failed to add entry : {}", BKException.getMessage(rc2));
+                            log.info().attr("error", BKException.getMessage(rc2)).log("Failed to add entry");
                         }
                         completeLatch.countDown();
                     }
@@ -317,7 +313,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         underReplicatedLedger = underReplicationManager.pollLedgerToRereplicate();
         assertEquals("There should be no underreplicated ledgers", -1, underReplicatedLedger);
 
-        LOG.info("{} of {} ledgers underreplicated", numUnderreplicated, numUnderreplicated);
+        log.info().attr("underreplicated", numUnderreplicated).attr("total", numUnderreplicated)
+                .log("Ledgers underreplicated");
         assertTrue("All should be underreplicated",
                 numUnderreplicated <= numLedgers && numUnderreplicated > 0);
     }
@@ -355,7 +352,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                             ((AuditorCheckAllLedgersTask) auditor.auditorCheckAllLedgersTask).checkAllLedgers();
                         }
                     } catch (Exception e) {
-                        LOG.error("Caught exception while checking all ledgers", e);
+                        log.error().exception(e).log("Caught exception while checking all ledgers");
                         exceptionCaught.set(true);
                     }
                 }
@@ -388,7 +385,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 lh.close();
             }
         } catch (InterruptedException | BKException e) {
-            LOG.error("Failed to shutdown auditor elector or write data to ledgers ", e);
+            log.error().exception(e).log("Failed to shutdown auditor elector or write data to ledgers");
             fail();
         }
 
@@ -407,7 +404,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
             ((AuditorCheckAllLedgersTask) auditor.auditorCheckAllLedgersTask).checkAllLedgers();
             assertEquals("NUM_LEDGERS_CHECKED", numberLedgers, (long) numLedgersChecked.get());
         } catch (Exception e) {
-            LOG.error("Caught exception while checking all ledgers ", e);
+            log.error().exception(e).log("Caught exception while checking all ledgers");
             fail();
         }
     }
@@ -979,7 +976,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         }
         assertNotSame("Couldn't find ensemble bookie in bookie list", -1, bookieIdx);
 
-        LOG.info("Killing bookie " + addressByIndex(bookieIdx));
+        log.info("Killing bookie " + addressByIndex(bookieIdx));
         ServerConfiguration conf = killBookie(bookieIdx);
         Bookie writeFailingBookie = new TestBookieImpl(conf) {
             @Override
@@ -987,7 +984,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                                  Object ctx, byte[] masterKey)
                     throws IOException, BookieException {
                 try {
-                    LOG.info("Failing write to entry ");
+                    log.info("Failing write to entry ");
                     // sleep a bit so that writes to other bookies succeed before
                     // the client hears about the failure on this bookie. If the
                     // client gets ack-quorum number of acks first, it won't care

@@ -19,14 +19,15 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.opentelemetry.api.common.Attributes;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -46,10 +47,11 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class AbstractReplicator implements Replicator {
+
+    private static final Logger LOG = Logger.get(AbstractReplicator.class);
+    protected final Logger log;
 
     protected final BrokerService brokerService;
     protected final String localTopicName;
@@ -84,6 +86,11 @@ public abstract class AbstractReplicator implements Replicator {
     private static final AtomicReferenceFieldUpdater<AbstractReplicator, Attributes> ATTRIBUTES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, Attributes.class, "attributes");
 
+    protected volatile long latestPublishTime = System.currentTimeMillis();
+
+    // The estimated time when the producer connection is successful, "0" means it will be connected immediately.
+    protected volatile long estimatedTimeStampProducerConnected = 0;
+
     public enum State {
         /**
          * This enum has two mean meanings：
@@ -107,6 +114,7 @@ public abstract class AbstractReplicator implements Replicator {
         Terminated;
     }
 
+    @SuppressWarnings("deprecation")
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
                               String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient,
                               PulsarAdmin replicationAdmin)
@@ -125,10 +133,23 @@ public abstract class AbstractReplicator implements Replicator {
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         this.replicatorId = String.format("%s | %s",
-                StringUtils.equals(localTopicName, remoteTopicName) ? localTopicName :
+                Objects.equals(localTopicName, remoteTopicName) ? localTopicName :
                         localTopicName + "-->" + remoteTopicName,
-                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
+                Objects.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
         );
+        var logBuilder = LOG.with()
+                .attr("topic", localTopicName)
+                .attr("state", () -> state);
+        if (!Objects.equals(localTopicName, remoteTopicName)) {
+            logBuilder.attr("remoteTopic", remoteTopicName);
+        }
+        if (!Objects.equals(localCluster, remoteCluster)) {
+            logBuilder.attr("localCluster", localCluster);
+            logBuilder.attr("remoteCluster", remoteCluster);
+        } else {
+            logBuilder.attr("cluster", localCluster);
+        }
+        this.log = logBuilder.build();
         this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(remoteTopicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -168,32 +189,26 @@ public abstract class AbstractReplicator implements Replicator {
         return CompletableFuture.completedFuture(null);
     }
 
-    public void startProducer() {
+    protected void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
         if (!setStartingRes.getLeft()) {
             if (setStartingRes.getRight() == State.Starting) {
-                log.info("[{}] Skip the producer creation since other thread is doing starting, state : {}",
-                        replicatorId, state);
+                log.info("Skip the producer creation since other thread is starting");
             } else if (setStartingRes.getRight() == State.Started) {
                 // Since the method "startProducer" will be called even if it is started, only print debug-level log.
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Replicator was already running. state: {}", replicatorId, state);
-                }
+                log.debug("Replicator was already running");
             } else if (setStartingRes.getRight() == State.Disconnecting) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Rep.producer is closing, delay to retry(wait the producer close success)."
-                            + " state: {}", replicatorId, state);
-                }
+                log.debug("Rep.producer is closing, delay to retry (wait the producer close success)");
                 delayStartProducerAfterDisconnected();
             } else {
                 /** {@link State.Terminating}, {@link State.Terminated}. **/
-                log.info("[{}] Skip the producer creation since the replicator state is : {}", replicatorId, state);
+                log.info("Skip the producer creation since the replicator is terminating");
             }
             return;
         }
 
-        log.info("[{}] Starting replicator", replicatorId);
+        log.info("Starting replicator");
 
         // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
         // the remote cluster.
@@ -202,28 +217,29 @@ public abstract class AbstractReplicator implements Replicator {
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
             builderImpl.getConf().setReplProducer(true);
             return producerBuilder.createAsync().thenAccept(producer -> {
+                estimatedTimeStampProducerConnected = 0;
                 setProducerAndTriggerReadEntries(producer);
             });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next().toMillis();
-                log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
-                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+                estimatedTimeStampProducerConnected = System.currentTimeMillis() + waitTimeMs;
+                log.warn()
+                        .exceptionMessage(ex)
+                        .attr("waitTimeSec", waitTimeMs / 1000.0)
+                        .log("Failed to create remote producer, retrying");
                 // BackOff before retrying
                 scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
             } else {
                 if (setDisconnectedRes.getRight() == State.Terminating
                         || setDisconnectedRes.getRight() == State.Terminated) {
-                    log.info("[{}] Skip to create producer, because it has been terminated, state is : {}",
-                            replicatorId, state);
+                    log.info("Skip to create producer, because it has been terminated");
                 } else {
                     /** {@link  State.Disconnected}, {@link  State.Starting}, {@link  State.Started} **/
                     // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
                     // So print a warn log.
-                    log.warn("[{}] Other thread will try to create the producer again. so skipped current one task."
-                                    + " State is : {}",
-                            replicatorId, state);
+                    log.warn("Other thread will try to create the producer again, skipping current task");
                 }
             }
             return null;
@@ -237,57 +253,51 @@ public abstract class AbstractReplicator implements Replicator {
      */
     protected void delayStartProducerAfterDisconnected() {
         long waitTimeMs = backOff.next().toMillis();
-        if (log.isDebugEnabled()) {
-            log.debug(
-                    "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
-                    replicatorId, waitTimeMs / 1000.0);
-        }
+        log.debug()
+                .attr("waitTimeSec", waitTimeMs / 1000.0)
+                .log("Waiting for producer to close before attempting to reconnect");
         scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
     }
 
     protected void scheduleCheckTopicActiveAndStartProducer(final long waitTimeMs) {
         brokerService.executor().schedule(() -> {
             if (state == State.Terminating || state == State.Terminated) {
-                log.info("[{}] Skip scheduled to start the producer since the replicator state is : {}",
-                        replicatorId, state);
+                log.info("Skip scheduled to start the producer since the replicator is terminating");
                 return;
             }
             CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
             if (topicFuture == null) {
                 // Topic closed.
-                log.info("[{}] Skip scheduled to start the producer since the topic was closed successfully."
-                        + " And trigger a terminate.", replicatorId);
+                log.info("Skip scheduled to start the producer since the topic was closed, triggering terminate");
                 terminate();
                 return;
             }
             topicFuture.thenAccept(optional -> {
                 if (optional.isEmpty()) {
                     // Topic closed.
-                    log.info("[{}] Skip scheduled to start the producer since the topic was closed. And trigger a"
-                            + " terminate.", replicatorId);
+                    log.info("Skip scheduled to start the producer since the topic was closed, triggering terminate");
                     terminate();
                     return;
                 }
                 if (optional.get() != localTopic) {
                     // Topic closed and created a new one, current replicator is outdated.
-                    log.info("[{}] Skip scheduled to start the producer since the topic was closed. And trigger a"
-                            + " terminate.", replicatorId);
+                    log.info("Skip scheduled to start the producer since the topic was closed, triggering terminate");
                     terminate();
                     return;
                 }
                 Replicator replicator = localTopic.getReplicators().get(remoteCluster);
                 if (replicator != AbstractReplicator.this) {
                     // Current replicator has been closed, and created a new one.
-                    log.info("[{}] Skip scheduled to start the producer since a new replicator has instead current"
-                            + " one. And trigger a terminate.", replicatorId);
+                    log.info("Skip scheduled to start the producer since a new replicator replaced the current one, "
+                            + "triggering terminate");
                     terminate();
                     return;
                 }
                 startProducer();
             }).exceptionally(ex -> {
-                log.error("[{}] [{}] Stop retry to create producer due to unknown error(topic create failed), and"
-                                + " trigger a terminate. Replicator state: {}",
-                        localTopicName, replicatorId, STATE_UPDATER.get(this), ex);
+                log.error()
+                        .exception(ex)
+                        .log("Stop retry to create producer due to unknown error, triggering terminate");
                 terminate();
                 return null;
             });
@@ -310,19 +320,16 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
-    @Override
-    public CompletableFuture<Void> disconnect() {
-        long backlog = getNumberOfEntriesInBacklog();
-        if (backlog > 0) {
+    protected CompletableFuture<Void> disconnect() {
+        if (hasBacklog()) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Replicator disconnect failed since topic has backlog", replicatorId);
-            }
+            log.debug("Replicator disconnect failed since topic has backlog");
             return disconnectFuture;
         }
-        log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
-                getReplicatorReadPosition(), backlog);
+        log.info()
+                .attr("readPosition", getReplicatorReadPosition())
+                .log("Disconnect replicator at position without backlog");
         return beforeDisconnect()
             .thenCompose(__ -> closeProducerAsync(true))
             .thenApply(__ -> {
@@ -350,6 +357,7 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
+    @SuppressWarnings("unchecked")
     protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
         Pair<Boolean, State> setDisconnectingRes = compareSetAndGetState(State.Started, State.Disconnecting);
         if (!setDisconnectingRes.getLeft()) {
@@ -366,21 +374,17 @@ public abstract class AbstractReplicator implements Replicator {
                     brokerService.executor().schedule(() -> closeProducerAsync(true),
                             waitTimeMs, TimeUnit.MILLISECONDS);
                 } else {
-                    log.info("[{}] Skip current producer closing since the previous producer has been closed,"
-                                    + " and trying start a new one, state : {}",
-                            replicatorId, setDisconnectingRes.getRight());
+                    log.info("Skip current producer closing since the previous producer has been closed "
+                            + "and a new one is starting");
                 }
             } else if (setDisconnectingRes.getRight() == State.Disconnected
                     || setDisconnectingRes.getRight() == State.Disconnecting) {
-                log.info("[{}] Skip current producer closing since other thread did closing, state : {}",
-                        replicatorId, setDisconnectingRes.getRight());
+                log.info("Skip current producer closing since other thread did closing");
             } else if (setDisconnectingRes.getRight() == State.Terminating
                     || setDisconnectingRes.getRight() == State.Terminated) {
-                log.info("[{}] Skip current producer closing since other thread is doing termination, state : {}",
-                        replicatorId, state);
+                log.info("Skip current producer closing since other thread is doing termination");
             }
-            log.info("[{}] Skip current termination since other thread is doing close producer or termination,"
-                            + " state : {}", replicatorId, state);
+            log.info("Skip current termination since other thread is doing close producer or termination");
             return CompletableFuture.completedFuture(null);
         }
 
@@ -389,20 +393,15 @@ public abstract class AbstractReplicator implements Replicator {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Disconnecting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 this.producer = null;
-                // deactivate further read
-                disableReplicatorRead();
                 return;
             }
             if (setDisconnectedRes.getRight() == State.Terminating
                     || setDisconnectingRes.getRight() == State.Terminated) {
-                log.info("[{}] Skip setting state to terminated because it was terminated, state : {}",
-                        replicatorId, state);
+                log.info("Skip setting state to terminated because it was already terminated");
             } else {
                 // Since only one task can call "doCloseProducerAsync(producer, action)", this scenario is not expected.
                 // So print a warn log.
-                log.warn("[{}] Other task has change the state to terminated. so skipped current one task."
-                                + " State is : {}",
-                        replicatorId, state);
+                log.warn("Other task has changed the state to terminated, skipping current task");
             }
         });
     }
@@ -414,10 +413,10 @@ public abstract class AbstractReplicator implements Replicator {
             actionAfterClosed.run();
         }).exceptionally(ex -> {
             long waitTimeMs = backOff.next().toMillis();
-            log.warn(
-                    "[{}] Exception: '{}' occurred while trying to close the producer. Replicator state: {}."
-                            + " Retrying again in {} s.",
-                    replicatorId, ex.getMessage(), state, waitTimeMs / 1000.0);
+            log.warn()
+                    .exceptionMessage(ex)
+                    .attr("waitTimeSec", waitTimeMs / 1000.0)
+                    .log("Exception occurred while trying to close the producer, retrying");
             // BackOff before retrying
             brokerService.executor().schedule(() -> doCloseProducerAsync(producer, actionAfterClosed),
                     waitTimeMs, TimeUnit.MILLISECONDS);
@@ -427,10 +426,10 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void beforeTerminate();
 
+    @SuppressWarnings("unchecked")
     public CompletableFuture<Void> terminate() {
         if (!tryChangeStatusToTerminating()) {
-            log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,
-                    state);
+            log.info("Skip current termination since other thread is doing termination");
             return CompletableFuture.completedFuture(null);
         }
         beforeTerminate();
@@ -508,15 +507,12 @@ public abstract class AbstractReplicator implements Replicator {
                 if (isPartitionedTopic) {
                     String s = topicName
                             + " is a partitioned-topic and replication can't be started for partitioned-producer ";
-                    log.error(s);
+                    LOG.error(s);
                     return FutureUtil.failedFuture(new NamingException(s));
                 }
                 return CompletableFuture.completedFuture(null);
             });
     }
-
-    private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);
-
     public State getState() {
         return state;
     }

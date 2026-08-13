@@ -22,7 +22,7 @@ import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTes
 import static org.testng.Assert.assertEquals;
 import java.util.HashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
  * Differ to {@link ManagedLedgerInterceptorImplTest}, this test can call {@link ManagedLedgerImpl}'s methods modified
  * by "default".
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
 

@@ -28,15 +28,15 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector using consistent hashing to evenly split
  * the number of keys assigned to each consumer.
  */
-@Slf4j
+@CustomLog
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
     // use NUL character as field separator for hash key calculation
     private static final String KEY_SEPARATOR = "\0";
@@ -159,16 +159,20 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             if (hashPointsAdded == 0) {
-                log.error("Failed to add consumer '{}' to the hash ring. There were {} collisions. Consider increasing "
-                                + "the number of points ({}) per consumer by setting "
-                                + "subscriptionKeySharedConsistentHashingReplicaPoints={}",
-                        consumer, hashPointCollisions, numberOfPoints,
-                        Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1));
+                log.error()
+                        .attr("consumer", consumer)
+                        .attr("hashPointCollisions", hashPointCollisions)
+                        .attr("numberOfPoints", numberOfPoints)
+                        .attr("suggestedReplicaPoints",
+                                Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1))
+                        .log("Failed to add consumer to the hash ring due to collisions. Consider increasing "
+                                + "subscriptionKeySharedConsistentHashingReplicaPoints");
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Added consumer '{}' with {} points, {} collisions", consumer, hashPointsAdded,
-                        hashPointCollisions);
-            }
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("hashPointsAdded", hashPointsAdded)
+                    .attr("hashPointCollisions", hashPointCollisions)
+                    .log("Added consumer");
             if (!addOrRemoveReturnsImpactedConsumersResult) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }

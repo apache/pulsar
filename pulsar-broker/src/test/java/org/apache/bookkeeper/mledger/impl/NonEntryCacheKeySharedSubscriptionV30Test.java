@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.Position;
@@ -53,7 +53,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerBase {
 
@@ -139,10 +139,14 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         Position lastConfirmed = ml.getLastConfirmedEntry();
         assertTrue(readPosition.compareTo(lastConfirmed) >= 0);
         Position firstWaitingAckPos = ml.getNextValidPosition(mdPosition);
-        log.info("md-pos {}:{}", mdPosition.getLedgerId(), mdPosition.getEntryId());
-        log.info("rd-pos {}:{}", readPosition.getLedgerId(), readPosition.getEntryId());
-        log.info("lac-pos {}:{}", lastConfirmed.getLedgerId(), lastConfirmed.getEntryId());
-        log.info("first-waiting-ack-pos {}:{}", firstWaitingAckPos.getLedgerId(), firstWaitingAckPos.getEntryId());
+        log.info().attr("ledgerId", mdPosition.getLedgerId()).attr("entryId", mdPosition.getEntryId())
+                .log("md-pos");
+        log.info().attr("ledgerId", readPosition.getLedgerId()).attr("entryId", readPosition.getEntryId())
+                .log("rd-pos");
+        log.info().attr("ledgerId", lastConfirmed.getLedgerId()).attr("entryId", lastConfirmed.getEntryId())
+                .log("lac-pos");
+        log.info().attr("ledgerId", firstWaitingAckPos.getLedgerId())
+                .attr("entryId", firstWaitingAckPos.getEntryId()).log("first-waiting-ack-pos");
 
         // Inject a delay for the next replay read.
         LedgerHandle firstLedger = ml.currentLedger;
@@ -223,7 +227,8 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
                     }
                 }).start();
             }
-            log.info("recent-joined-consumers {} {}", i, dispatcher.getRecentlyJoinedConsumers().size());
+            log.info().attr("index", i).attr("size", dispatcher.getRecentlyJoinedConsumers().size())
+                    .log("recent-joined-consumers");
             if (dispatcher.getRecentlyJoinedConsumers().size() > 0) {
                 Position mdPosition2 = cursor.getMarkDeletedPosition();
                 Position readPosition2 = cursor.getReadPosition();
@@ -232,12 +237,16 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
                 Position firstWaitingAckPos2 = ml.getNextValidPosition(mdPosition);
                 if (readPosition2.compareTo(firstWaitingAckPos) > 0) {
                     keepPublishing.set(false);
-                    log.info("consumer-index: {}", i);
-                    log.info("md-pos-2 {}:{}", mdPosition2.getLedgerId(), mdPosition2.getEntryId());
-                    log.info("rd-pos-2 {}:{}", readPosition2.getLedgerId(), readPosition2.getEntryId());
-                    log.info("lac-pos-2 {}:{}", lastConfirmed2.getLedgerId(), lastConfirmed2.getEntryId());
-                    log.info("first-waiting-ack-pos-2 {}:{}", firstWaitingAckPos2.getLedgerId(),
-                            firstWaitingAckPos2.getEntryId());
+                    log.info().attr("consumerIndex", i).log("consumer-index");
+                    log.info().attr("ledgerId", mdPosition2.getLedgerId())
+                            .attr("entryId", mdPosition2.getEntryId()).log("md-pos-2");
+                    log.info().attr("ledgerId", readPosition2.getLedgerId())
+                            .attr("entryId", readPosition2.getEntryId()).log("rd-pos-2");
+                    log.info().attr("ledgerId", lastConfirmed2.getLedgerId())
+                            .attr("entryId", lastConfirmed2.getEntryId()).log("lac-pos-2");
+                    log.info().attr("ledgerId", firstWaitingAckPos2.getLedgerId())
+                            .attr("entryId", firstWaitingAckPos2.getEntryId())
+                            .log("first-waiting-ack-pos-2");
                     // finish the replay read here.
                     replyReadSignal.countDown();
                 } else {

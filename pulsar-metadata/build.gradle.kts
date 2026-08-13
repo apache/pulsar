@@ -18,17 +18,18 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
     api(project(":pulsar-common"))
-    implementation(libs.bookkeeper.server)
+    api(libs.bookkeeper.server)
     implementation(libs.zookeeper) {
         exclude(group = "org.slf4j")
     }
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.oxia.client)
+    api(libs.slog)
     implementation(libs.caffeine)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.caffeine)

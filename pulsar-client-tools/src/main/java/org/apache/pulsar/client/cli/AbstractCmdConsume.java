@@ -18,31 +18,31 @@
  */
 package org.apache.pulsar.client.cli;
 
-import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.io.HexDump;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.auth.EncryptionKey;
+import org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Field;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
+import org.apache.pulsar.client.api.v5.schema.KeyValue;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
@@ -62,7 +62,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
     protected static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     protected static final String MESSAGE_BOUNDARY = "----- got message -----";
 
-    protected ClientBuilder clientBuilder;
+    protected PulsarClientBuilder clientBuilder;
     protected Authentication authentication;
     protected String serviceURL;
 
@@ -74,7 +74,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      * Set client configuration.
      *
      */
-    public void updateConfig(ClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
+    public void updateConfig(PulsarClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
         this.clientBuilder = clientBuilder;
         this.authentication = authentication;
         this.serviceURL = serviceURL;
@@ -93,119 +93,85 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             throws IOException {
         StringBuilder sb = new StringBuilder();
 
-        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
+        String properties = Arrays.toString(message.properties().entrySet().toArray());
 
+        Object value = message.value();
         String data;
-        Object value = message.getValue();
         if (value == null) {
             data = "null";
         } else if (value instanceof byte[]) {
-            byte[] msgData = (byte[]) value;
-            data = interpretByteArray(displayHex, msgData);
-        } else if (value instanceof GenericObject) {
-            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
-            data = asMap.toString();
-        } else if (value instanceof ByteBuffer) {
-            data = new String(getBytes((ByteBuffer) value));
+            data = interpretByteArray(displayHex, (byte[]) value);
+        } else if (value instanceof GenericRecord) {
+            data = genericObjectToMap((GenericRecord) value, displayHex).toString();
         } else {
             data = value.toString();
         }
 
-        sb.append("publishTime:[").append(message.getPublishTime()).append("], ");
-        sb.append("eventTime:[").append(message.getEventTime()).append("], ");
-
-        String key = null;
-        if (message.hasKey()) {
-            key = message.getKey();
-        }
-
-        sb.append("key:[").append(key).append("], ");
+        sb.append("publishTime:[").append(message.publishTime()).append("], ");
+        sb.append("eventTime:[").append(message.eventTime().orElse(null)).append("], ");
+        sb.append("key:[").append(message.key().orElse(null)).append("], ");
         if (!properties.isEmpty()) {
             sb.append("properties:").append(properties).append(", ");
         }
         sb.append("content:").append(data);
 
         if (printMetadata) {
-            if (message.getEncryptionCtx().isPresent()) {
-                EncryptionContext encContext = message.getEncryptionCtx().get();
-                if (encContext.getKeys() != null && !encContext.getKeys().isEmpty()) {
-                    sb.append(", ");
-                    sb.append("encryption-keys:").append(", ");
-                    encContext.getKeys().forEach((keyName, keyInfo) -> {
-                        String metadata = Arrays.toString(keyInfo.getMetadata().entrySet().toArray());
-                        sb.append("name:").append(keyName).append(", ").append("key-value:")
-                                .append(Base64.getEncoder().encodeToString(keyInfo.getKeyValue())).append(", ")
-                                .append("metadata:").append(metadata).append(", ");
-
-                    });
-                    sb.append(", ").append("param:").append(Base64.getEncoder().encodeToString(encContext.getParam()))
-                            .append(", ").append("algorithm:").append(encContext.getAlgorithm()).append(", ")
-                            .append("compression-type:").append(encContext.getCompressionType()).append(", ")
-                            .append("uncompressed-size").append(encContext.getUncompressedMessageSize()).append(", ")
-                            .append("batch-size")
-                            .append(encContext.getBatchSize().isPresent() ? encContext.getBatchSize().get() : 1);
-                }
-            }
-            if (message.hasBrokerPublishTime()) {
-                sb.append(", ").append("publish-time:").append(DateFormatter.format(message.getPublishTime()));
-            }
-            sb.append(", ").append("event-time:").append(DateFormatter.format(message.getEventTime()));
-            sb.append(", ").append("message-id:").append(message.getMessageId());
-            sb.append(", ").append("producer-name:").append(message.getProducerName());
-            sb.append(", ").append("sequence-id:").append(message.getSequenceId());
-            sb.append(", ").append("replicated-from:").append(message.getReplicatedFrom());
-            sb.append(", ").append("redelivery-count:").append(message.getRedeliveryCount());
-            sb.append(", ").append("ordering-key:")
-                    .append(message.getOrderingKey() != null ? new String(message.getOrderingKey()) : "");
-            sb.append(", ").append("schema-version:")
-                    .append(message.getSchemaVersion() != null ? new String(message.getSchemaVersion()) : "");
-            if (message.hasIndex()) {
-                sb.append(", ").append("index:").append(message.getIndex());
-            }
+            sb.append(", ").append("message-id:").append(message.id());
+            sb.append(", ").append("producer-name:").append(message.producerName().orElse(null));
+            sb.append(", ").append("sequence-id:").append(message.sequenceId());
+            sb.append(", ").append("replicated-from:").append(message.replicatedFrom().orElse(null));
+            sb.append(", ").append("redelivery-count:").append(message.redeliveryCount());
         }
 
         return sb.toString();
     }
 
     protected static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
-        String data;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
             return new String(msgData);
         } else {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             HexDump.dump(msgData, 0, out, 0);
             return out.toString();
         }
     }
 
-    protected static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex)
+    /**
+     * Render an {@code auto_consume} {@link GenericRecord} value into a {@link Map} for display.
+     * The shape is dispatched on the record's runtime schema type: structured records become a map
+     * of their fields, key/value records become a {@code {key, value}} map, and primitives are
+     * wrapped in a single {@code value} entry.
+     */
+    protected static Map<String, Object> genericObjectToMap(GenericRecord value, boolean displayHex)
             throws IOException {
-        switch (value.getSchemaType()) {
+        switch (value.schemaType()) {
             case AVRO:
             case JSON:
             case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
+                return genericRecordToMap(value, displayHex);
             case KEY_VALUE:
-                    return keyValueToMap((KeyValue<?, ?>) value.getNativeObject(), displayHex);
+                return keyValueToMap((KeyValue<?, ?>) value.nativeObject(), displayHex);
             default:
-                return primitiveValueToMap(value.getNativeObject(), displayHex);
+                return primitiveValueToMap(value.nativeObject(), displayHex);
         }
     }
 
-    protected static Map<String, Object> keyValueToMap(KeyValue<?, ?> value, boolean displayHex) throws IOException {
+    protected static Map<String, Object> keyValueToMap(KeyValue<?, ?> value, boolean displayHex)
+            throws IOException {
         if (value == null) {
             return Map.of("value", "NULL");
         }
-        return Map.of("key", primitiveValueToMap(value.getKey(), displayHex),
-                "value", primitiveValueToMap(value.getValue(), displayHex));
+        return Map.of("key", primitiveValueToMap(value.key(), displayHex),
+                "value", primitiveValueToMap(value.value(), displayHex));
     }
 
-    protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
+    protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex)
+            throws IOException {
         if (value == null) {
             return Map.of("value", "NULL");
         }
-        if (value instanceof GenericObject) {
-            return genericObjectToMap((GenericObject) value, displayHex);
+        if (value instanceof GenericRecord) {
+            return genericObjectToMap((GenericRecord) value, displayHex);
         }
         if (value instanceof byte[]) {
             value = interpretByteArray(displayHex, (byte[]) value);
@@ -216,21 +182,44 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
     protected static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex)
             throws IOException {
         Map<String, Object> res = new HashMap<>();
-        for (Field f : value.getFields()) {
-            Object fieldValue = value.getField(f);
+        for (Field f : value.fields()) {
+            Object fieldValue = value.field(f);
             if (fieldValue instanceof GenericRecord) {
                 fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
             } else if (fieldValue == null) {
-                fieldValue =  "NULL";
+                fieldValue = "NULL";
             } else if (fieldValue instanceof byte[]) {
                 fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
             }
-            res.put(f.getName(), fieldValue);
+            res.put(f.name(), fieldValue);
         }
         return res;
     }
 
+    /**
+     * Build a consumer-side decryption policy from a {@code file://} key URI, mirroring the v4
+     * {@code defaultCryptoKeyReader(uri)} semantics: the private key is loaded once and returned
+     * for any key name. (The producer's logical key name travels in the message metadata, so a
+     * name-keyed provider would not resolve it; the CLI's file-based flow has a single key.)
+     */
+    protected static ConsumerEncryptionPolicy buildFileDecryptionPolicy(
+            String keyUri, ConsumerCryptoFailureAction failureAction) {
+        final byte[] keyBytes;
+        try {
+            keyBytes = Files.readAllBytes(fileUriToPath(keyUri));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read decryption key from " + keyUri, e);
+        }
+        PrivateKeyProvider provider = (keyName, metadata) ->
+                CompletableFuture.completedFuture(EncryptionKey.of(keyBytes));
+        return ConsumerEncryptionPolicy.builder()
+                .privateKeyProvider(provider)
+                .failureAction(failureAction)
+                .build();
+    }
+
     @WebSocket
+    @CustomLog
     public static class ConsumerSocket {
         private static final String X_PULSAR_MESSAGE_ID = "messageId";
         private final CountDownLatch closeLatch;
@@ -250,14 +239,15 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
 
         @OnWebSocketClose
         public void onClose(int statusCode, String reason) {
-            log.info("Connection closed: {} - {}", statusCode, reason);
+            log.info().attr("statusCode", statusCode).attr("reason", reason)
+                    .log("Connection closed");
             this.session = null;
             this.closeLatch.countDown();
         }
 
         @OnWebSocketOpen
         public void onConnect(Session session) throws InterruptedException {
-            log.info("Got connect: {}", session);
+            log.info().attr("session", session).log("Got connect");
             this.session = session;
             this.connected.complete(null);
         }
@@ -285,7 +275,6 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             this.session.close();
         }
 
-        private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
     }
 
 }

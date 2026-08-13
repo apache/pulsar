@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -39,14 +38,12 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.flush.FlushConsolidationHandler;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
@@ -63,13 +60,10 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DirectProxyHandler {
 
     @Getter
@@ -89,9 +83,7 @@ public class DirectProxyHandler {
     private AuthenticationDataProvider authenticationDataProvider;
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
-    private final boolean tlsHostnameVerificationEnabled;
     final boolean tlsEnabledWithBroker;
-    private Map<String, PulsarSslFactory> pulsarSslFactoryMap;
 
     @SneakyThrows
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection) {
@@ -104,9 +96,7 @@ public class DirectProxyHandler {
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.tlsEnabledWithBroker = service.getConfiguration().isTlsEnabledWithBroker();
-        this.tlsHostnameVerificationEnabled = service.getConfiguration().isTlsHostnameVerificationEnabled();
         this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
-        this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
     }
 
     public void connect(String brokerHostAndPort, InetSocketAddress targetBrokerAddress, int protocolVersion,
@@ -115,34 +105,16 @@ public class DirectProxyHandler {
         try {
             remoteHost = parseHost(brokerHostAndPort);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to parse broker host '{}'", inboundChannel, brokerHostAndPort, e);
+            log.warn().attr("channel", inboundChannel)
+                    .attr("brokerHost", brokerHostAndPort).exception(e)
+                    .log("Failed to parse broker host");
             inboundChannel.close();
             return;
         }
-        PulsarSslFactory sslFactory =
-                tlsEnabledWithBroker ? pulsarSslFactoryMap.computeIfAbsent(remoteHost, (hostname) -> {
-                    AuthenticationDataProvider authData = null;
-
-                    if (!isEmpty(service.getConfiguration().getBrokerClientAuthenticationPlugin())) {
-                        try {
-                            authData = authentication.getAuthData(remoteHost);
-                        } catch (PulsarClientException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    PulsarSslConfiguration sslConfiguration =
-                            buildSslConfiguration(service.getConfiguration(), authData);
-                    try {
-                        PulsarSslFactory factory =
-                                (PulsarSslFactory) Class.forName(service.getConfiguration().getSslFactoryPlugin())
-                                        .getConstructor().newInstance();
-                        factory.initialize(sslConfiguration);
-                        factory.createInternalSslContext();
-                        return factory;
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }) : null;
+        // PIP-478: ProxyService holds a shared, rotating SslContext for the BROKER_CLIENT purpose; it is read
+        // and pinned per connection inside initChannel below (the only broker-client TLS path since PIP-337
+        // removal). Reading it at connect time (rather than capturing it here, before the async
+        // connect) both narrows the use-after-free window and uses the freshest rotated material.
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -170,11 +142,13 @@ public class DirectProxyHandler {
                 if (tlsEnabledWithBroker) {
                     String host = targetBrokerAddress.getHostString();
                     int port = targetBrokerAddress.getPort();
-                    SslHandler handler = new SslHandler(sslFactory.createClientSslEngine(ch.alloc(), host, port));
-                    if (tlsHostnameVerificationEnabled) {
-                        SecurityUtility.configureSSLHandler(handler);
-                    }
-                    ch.pipeline().addLast(TLS_HANDLER, handler);
+                    // PIP-478: build the handler from the shared, rotating client SslContext, pinning it across
+                    // newHandler so a concurrent rotation cannot free the native OpenSSL context mid-build
+                    // (use-after-free guard). Hostname verification is baked into the context at build time (per
+                    // the client TlsPolicy), so it is not re-applied here; host/port drive SNI and the
+                    // verification target.
+                    ch.pipeline().addLast(TLS_HANDLER, TlsContextAcquisition.withPinnedContext(
+                            service::getBrokerClientSslContext, ctx -> ctx.newHandler(ch.alloc(), host, port)));
                 }
                 int brokerProxyReadTimeoutMs = service.getConfiguration().getBrokerProxyReadTimeoutMs();
                 if (brokerProxyReadTimeoutMs > 0) {
@@ -192,8 +166,15 @@ public class DirectProxyHandler {
         f.addListener(future -> {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
-                log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
-                        targetBrokerAddress, brokerHostAndPort, future.cause());
+                log.warn().attr("channel", inboundChannel)
+                        .attr("targetAddress", targetBrokerAddress)
+                        .attr("brokerHost", brokerHostAndPort)
+                        .exception(future.cause())
+                        .log("Establishing connection failed. Closing inbound channel.");
+                Channel channel = f.channel();
+                if (channel != null) {
+                    channel.close();
+                }
                 inboundChannel.close();
             }
         });
@@ -319,10 +300,10 @@ public class DirectProxyHandler {
         public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
             switch (state) {
             case Init:
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Received msg on broker connection: {}", inboundChannel, outboundChannel,
-                            msg.getClass());
-                }
+                log.debug().attr("inbound", inboundChannel)
+                        .attr("outbound", outboundChannel)
+                        .attr("msgClass", msg.getClass())
+                        .log("Received msg on broker connection");
 
                 // Do the regular decoding for the Connected message
                 super.channelRead(ctx, msg);
@@ -368,7 +349,9 @@ public class DirectProxyHandler {
                 try {
                     authenticationDataProvider = authentication.getAuthData(remoteHostName);
                 } catch (PulsarClientException e) {
-                    log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                    log.error().attr("channel", ctx.channel())
+                            .exception(e)
+                            .log("Error refreshing authentication data provider");
                     return;
                 }
             }
@@ -385,13 +368,13 @@ public class DirectProxyHandler {
                     this.protocolVersion,
                     PulsarVersion.getVersion());
 
-                if (log.isDebugEnabled()) {
-                    log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
-                }
+                log.debug().attr("channel", ctx.channel())
+                        .attr("authMethod", authentication.getAuthMethodName())
+                        .log("Mutual auth");
 
                 writeAndFlush(request);
             } catch (Exception e) {
-                log.error("Error mutual verify", e);
+                log.error().exception(e).log("Error mutual verify");
             }
         }
 
@@ -403,9 +386,9 @@ public class DirectProxyHandler {
         @Override
         protected void handleConnected(CommandConnected connected) {
             checkArgument(state == BackendState.Init, "Unexpected state %s. BackendState.Init was expected.", state);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
-            }
+            log.debug().attr("inbound", inboundChannel)
+                    .attr("outbound", outboundChannel)
+                    .log("Received Connected from broker");
 
             state = BackendState.HandshakeCompleted;
 
@@ -417,9 +400,9 @@ public class DirectProxyHandler {
 
         private void startDirectProxying(CommandConnected connected) {
             if (service.getProxyLogLevel() == 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
-                }
+                log.debug().attr("inbound", inboundChannel)
+                        .attr("outbound", outboundChannel)
+                        .log("Removing decoder from pipeline");
                 // direct tcp proxy
                 FrameDecoderUtil.removeFrameDecoder(inboundChannel.pipeline());
                 FrameDecoderUtil.removeFrameDecoder(outboundChannel.pipeline());
@@ -460,7 +443,10 @@ public class DirectProxyHandler {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
+            log.warn().attr("inbound", inboundChannel)
+                    .attr("outbound", outboundChannel)
+                    .exception(cause)
+                    .log("Caught exception");
             ctx.close();
         }
     }
@@ -469,29 +455,4 @@ public class DirectProxyHandler {
         NettyChannelUtil.writeAndFlushWithVoidPromise(outboundChannel, cmd);
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config,
-                                                           AuthenticationDataProvider authData) {
-        return PulsarSslConfiguration.builder()
-                .tlsProvider(config.getBrokerClientSslProvider())
-                .tlsKeyStoreType(config.getBrokerClientTlsKeyStoreType())
-                .tlsKeyStorePath(config.getBrokerClientTlsKeyStore())
-                .tlsKeyStorePassword(config.getBrokerClientTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getBrokerClientTlsTrustStoreType())
-                .tlsTrustStorePath(config.getBrokerClientTlsTrustStore())
-                .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword())
-                .tlsCiphers(config.getBrokerClientTlsCiphers())
-                .tlsProtocols(config.getBrokerClientTlsProtocols())
-                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getBrokerClientCertificateFilePath())
-                .tlsKeyFilePath(config.getBrokerClientKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(false)
-                .tlsEnabledWithKeystore(config.isBrokerClientTlsEnabledWithKeyStore())
-                .tlsCustomParams(config.getBrokerClientSslFactoryPluginParams())
-                .authData(authData)
-                .serverMode(false)
-                .build();
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(DirectProxyHandler.class);
 }

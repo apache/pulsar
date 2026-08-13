@@ -93,12 +93,14 @@ public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
         return of(pojo, new HashMap<>());
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
                 .withProperties(properties).build();
         return ProtobufSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufSchema of(SchemaDefinition<T> schemaDefinition) {
         Class<T> pojo = schemaDefinition.getPojo();
 
@@ -122,6 +124,7 @@ public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Message> ProtobufSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }

@@ -65,6 +65,7 @@ public class SchemaUtil {
                 .type(schemaType).build();
     }
 
+    @SuppressWarnings("unchecked")
     public static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
 

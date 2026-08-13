@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -33,10 +32,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -49,11 +49,12 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ManagedLedgerFactoryShutdownTest {
 
     private final String ledgerName = UUID.randomUUID().toString();
@@ -90,8 +91,8 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    log.info("metadataStore.get({}) returned,managedLedgerInfo={},stat={}", path, mli,
-                            stat);
+                    log.info().attr("path", path).attr("managedLedgerInfo", mli)
+                            .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mli.toByteArray(), stat));
                 });
 
@@ -107,8 +108,8 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    log.info("metadataStore.get({}) returned:managedCursorInfo={},stat={}", path, mci,
-                            stat);
+                    log.info().attr("path", path).attr("managedCursorInfo", mci)
+                            .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mci.toByteArray(), stat));
                 });
 
@@ -142,12 +143,9 @@ public class ManagedLedgerFactoryShutdownTest {
             cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
             return null;
         }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any(), anyBoolean());
-        doAnswer(inv -> {
-            AsyncCallback.CreateCallback cb = inv.getArgument(5, AsyncCallback.CreateCallback.class);
-            cb.createComplete(0, newLedgerHandle, inv.getArgument(6, Object.class));
-            return null;
-        }).when(bookKeeper)
-                .asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any()/*callback*/, any(), any());
+        CreateBuilder createBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
+        doAnswer(inv -> CompletableFuture.completedFuture(newLedgerHandle)).when(createBuilder).execute();
+        given(bookKeeper.newCreateLedgerOp()).willReturn(createBuilder);
 
 
 
@@ -184,7 +182,7 @@ public class ManagedLedgerFactoryShutdownTest {
                     }
                 }, null);
 
-        log.info("Shutdown factory...");
+        log.info("Shutdown factory");
 
 
         factory.shutdownAsync().get();

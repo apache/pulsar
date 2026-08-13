@@ -67,8 +67,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Lombok;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -171,7 +171,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionTest extends TransactionTestBase {
 
@@ -190,7 +190,6 @@ public class TransactionTest extends TransactionTestBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-
 
     @Test
     public void testTopicTransactionMetrics() throws Exception {
@@ -358,7 +357,6 @@ public class TransactionTest extends TransactionTestBase {
 
         String topicName = TopicName.get(NAMESPACE1 + "/test").toString();
 
-
         @Cleanup
         Consumer<byte[]> consumer = getConsumer(topicName, subName);
 
@@ -458,7 +456,7 @@ public class TransactionTest extends TransactionTestBase {
                     }
                     countDownLatch.countDown();
                 } catch (Exception e) {
-                    log.error("Failed to send/ack messages with transaction.", e);
+                    log.error().exception(e).log("Failed to send/ack messages with transaction.");
                     countDownLatch.countDown();
                 }
             });
@@ -573,7 +571,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscribe();
         pulsarService.getBrokerService().getTopicIfExists(topic).thenAccept(option -> {
             if (!option.isPresent()) {
-                log.error("Failed o get Topic named: {}", topic);
+                log.error().attr("topicNamed", topic).log("Failed o get Topic named");
                 Assert.fail();
             }
             PersistentTopic originPersistentTopic = (PersistentTopic) option.get();
@@ -585,7 +583,7 @@ public class TransactionTest extends TransactionTestBase {
                 admin.topics().setRetention(pendingAckTopicName,
                         new RetentionPolicies(retentionSizeInMinutesSetTo, retentionSizeInMbSetTo));
             } catch (PulsarAdminException e) {
-                log.error("Failed to get./setRetention of topic with Exception:" + e);
+                log.error().exception(e).log("Failed to get/setRetention of topic");
                 Assert.fail();
             }
             PersistentSubscription subscription = originPersistentTopic
@@ -654,7 +652,6 @@ public class TransactionTest extends TransactionTestBase {
             Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 3);
         });
     }
-
 
     @Test
     public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
@@ -1052,7 +1049,6 @@ public class TransactionTest extends TransactionTestBase {
         field.set(commitTxn, TransactionImpl.State.COMMITTING);
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
-
         Awaitility.await().untilAsserted(() -> assertEquals(listener.getTxnCount(), 2));
         abortTxn.abort().get();
         Awaitility.await().untilAsserted(() -> assertEquals(listener.getAbortedTxnCount(), 1));
@@ -1380,7 +1376,6 @@ public class TransactionTest extends TransactionTestBase {
         consumer.close();
     }
 
-
     @Test(timeOut = 30000)
     public void testTransactionAckMessages() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testTransactionAckMessages";
@@ -1493,7 +1488,6 @@ public class TransactionTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.ConnectException);
         }
     }
-
 
     @Test
     public void testPendingAckBatchMessageCommit() throws Exception {
@@ -1760,7 +1754,6 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
     }
 
-
     @Test
     public void testEncryptionRequired() throws Exception {
         final String namespace = "tnx/testEncryptionRequired";
@@ -1816,7 +1809,6 @@ public class TransactionTest extends TransactionTestBase {
         }
         admin.namespaces().deleteNamespace(namespace, true);
     }
-
 
     @SuppressWarnings({"deprecation", "unchecked"})
     @Test(timeOut = 10_000)
@@ -1958,7 +1950,6 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(messages, List.of("V2", "V3"));
     }
 
-
     @Test
     public void testReadCommittedWithCompaction() throws Exception{
         final String namespace = "tnx/ns-read-committed-compaction";
@@ -2067,7 +2058,6 @@ public class TransactionTest extends TransactionTestBase {
         BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
         PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
 
-
         // send a normal message
         String body = UUID.randomUUID().toString();
         MessageIdImpl msgId = (MessageIdImpl) producer.send(body);
@@ -2090,7 +2080,6 @@ public class TransactionTest extends TransactionTestBase {
         lastDispatchablePosition = persistentTopic.getLastDispatchablePosition().get();
         // the last dispatchable position should be the message id of the normal message
         assertEquals(lastDispatchablePosition, PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId()));
-
 
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)

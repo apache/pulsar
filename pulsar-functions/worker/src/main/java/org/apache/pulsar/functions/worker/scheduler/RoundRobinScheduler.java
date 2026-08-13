@@ -25,11 +25,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.proto.Assignment;
 import org.apache.pulsar.functions.proto.Instance;
 
-@Slf4j
+@CustomLog
 public class RoundRobinScheduler implements IScheduler {
 
     @Override
@@ -118,7 +118,7 @@ public class RoundRobinScheduler implements IScheduler {
             dest.add(instance);
         }
 
-        log.info("Rebalance - iterations: {}", iterations);
+        log.info().attr("iterations", iterations).log("Rebalance completed");
 
         return newAssignments;
     }

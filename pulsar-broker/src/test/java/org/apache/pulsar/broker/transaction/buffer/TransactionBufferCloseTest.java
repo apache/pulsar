@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 /**
  * Transaction buffer close test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionBufferCloseTest extends TransactionTestBase {
 

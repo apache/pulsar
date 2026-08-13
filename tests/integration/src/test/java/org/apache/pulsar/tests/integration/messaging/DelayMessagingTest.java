@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.messaging;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 /**
  * Delay messaging test.
  */
-@Slf4j
+@CustomLog
 public class DelayMessagingTest extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls")
@@ -88,7 +88,7 @@ public class DelayMessagingTest extends PulsarTestSuite {
             message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
             Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
                     + delayTimeSeconds * 2 + "s");
-            log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
+            log.info().attr("reConsumeTimes", message.getProperty("RECONSUMETIMES")).log("receive msg. reConsumeTimes");
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }
 

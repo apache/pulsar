@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Map;
@@ -34,10 +34,13 @@ public class BookieClientsStatsGeneratorTest extends SharedPulsarBaseTest {
 
     @Test
     public void testBookieClientStatsGenerator() throws Exception {
-        // should not generate any NPE or other exceptions..
+        // The intent of this test is just to verify that generate() does not throw
+        // (NPE, etc.). The previous emptiness assertion only held when each test class
+        // got a fresh broker; on the shared cluster prior tests have already exercised
+        // BookKeeper, so stats may be non-empty.
         Map<String, Map<String, PendingBookieOpsStats>> stats =
                 BookieClientStatsGenerator.generate(SharedPulsarCluster.get().getPulsarService());
-        assertTrue(stats.isEmpty());
+        assertNotNull(stats);
     }
 
     @Test

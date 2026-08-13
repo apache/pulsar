@@ -23,11 +23,11 @@ import io.netty.buffer.CompositeByteBuf;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
-@Slf4j
+@CustomLog
 public class BufferedOffloadStream extends InputStream {
     static final int[] BLOCK_END_PADDING = BlockAwareSegmentInputStreamImpl.BLOCK_END_PADDING;
 

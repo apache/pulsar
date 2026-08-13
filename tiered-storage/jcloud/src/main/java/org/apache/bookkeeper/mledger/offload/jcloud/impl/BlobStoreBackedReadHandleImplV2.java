@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.val;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -51,11 +52,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImplV2.class);
 
     private final long ledgerId;
     private final List<OffloadIndexBlockV2> indices;
@@ -172,14 +171,13 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (log.isDebugEnabled()) {
-            log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
-        }
+        log.debug().attr("ledgerId", getId()).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).log("Reading entries");
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
             if (state == State.Closed) {
-                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
+                log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                        .attr("lastEntry", lastEntry).log("Reading a closed read handler");
                 promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
                 return;
             }
@@ -239,8 +237,10 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                                             .getDataOffset());
                             continue;
                         } else if (entryId > groupedReader.lastEntry) {
-                            log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                    nextExpectedId, entryId, groupedReader.lastEntry);
+                            log.info().attr("expected", nextExpectedId)
+                                    .attr("actual", entryId)
+                                    .attr("lastEntry", groupedReader.lastEntry)
+                                    .log("Read entryId greater than last entry");
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
                             val skipped = groupedReader.inputStream.skip(length);
@@ -267,8 +267,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             final OffloadIndexBlockV2 index = indices.get(i);
             final long startEntryId = index.getStartEntryId(ledgerId);
             if (startEntryId > lastEntry) {
-                log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
-                        ledgerId, startEntryId);
+                log.debug().attr("ledgerId", ledgerId).attr("startEntryId", startEntryId)
+                        .log("Entries are in earlier indices, skipping segment");
             } else {
                 groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
                         dataStreams.get(i)));
@@ -337,16 +337,17 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         for (int i = 0; i < indexKeys.size(); i++) {
             String indexKey = indexKeys.get(i);
             String key = keys.get(i);
-            log.debug("open bucket: {} index key: {}", bucket, indexKey);
+            log.debug().attr("bucket", bucket).attr("indexKey", indexKey).log("Opening index");
             long startTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
             if (blob == null) {
-                log.error("{} not found in container {}", indexKey, bucket);
+                log.error().attr("indexKey", indexKey).attr("bucket", bucket)
+                        .log("Index key not found in container");
                 throw new BKException.BKNoSuchLedgerExistsException();
             }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            log.debug("indexKey blob: {} {}", indexKey, blob);
+            log.debug().attr("indexKey", indexKey).attr("blob", blob).log("Got index blob");
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockV2Builder indexBuilder = OffloadIndexBlockV2Builder.create();
             OffloadIndexBlockV2 index;

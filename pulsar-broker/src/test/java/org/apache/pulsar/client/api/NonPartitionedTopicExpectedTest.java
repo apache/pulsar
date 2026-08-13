@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -29,7 +29,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class NonPartitionedTopicExpectedTest extends SharedPulsarBaseTest {
 
     @Test
@@ -59,7 +59,7 @@ public class NonPartitionedTopicExpectedTest extends SharedPulsarBaseTest {
             Assert.fail("expected an error since producer expected a non-partitioned topic");
         } catch (Exception ex) {
             // expected an error.
-            log.error("expected error", ex);
+            log.error().exception(ex).log("expected error");
         }
         // cleanup.
         admin.topics().deletePartitionedTopic(topic, false);

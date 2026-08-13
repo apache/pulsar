@@ -50,11 +50,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -103,7 +106,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "schema")
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
@@ -257,20 +260,20 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(personConsume.getName(), "Tom");
         assertEquals(personConsume.getId(), 1);
         Schema<?> schema = message.getReaderSchema().get();
-        log.info("the-schema {}", schema);
+        log.info().attr("schema", schema).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema.getSchemaInfo());
         org.apache.avro.Schema nativeSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema);
+        log.info().attr("schema", nativeSchema).log("nativeSchema-schema");
         assertNotNull(nativeSchema);
 
         // verify that with AUTO_CONSUME we can access the original schema
         // and the Native AVRO schema
         Message<?> message2 = consumer2.receive();
         Schema<?> schema2 = message2.getReaderSchema().get();
-        log.info("the-schema {}", schema2);
+        log.info().attr("schema", schema2).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema2.getSchemaInfo());
         org.apache.avro.Schema nativeSchema2 = (org.apache.avro.Schema) schema.getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema2);
+        log.info().attr("schema", nativeSchema2).log("nativeSchema-schema");
         assertNotNull(nativeSchema2);
 
         producer.close();
@@ -359,20 +362,20 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(personConsume.getName(), "Tom");
         assertEquals(personConsume.getId(), 1);
         KeyValueSchemaImpl schema = (KeyValueSchemaImpl) message.getReaderSchema().get();
-        log.info("the-schema {}", schema);
+        log.info().attr("schema", schema).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema.getValueSchema().getSchemaInfo());
         org.apache.avro.Schema nativeSchema = (org.apache.avro.Schema) schema.getValueSchema().getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema);
+        log.info().attr("schema", nativeSchema).log("nativeSchema-schema");
         assertNotNull(nativeSchema);
 
         // verify that with AUTO_CONSUME we can access the original schema
         // and the Native AVRO schema
         Message<?> message2 = consumer2.receive();
         KeyValueSchemaImpl schema2 = (KeyValueSchemaImpl) message2.getReaderSchema().get();
-        log.info("the-schema {}", schema2);
+        log.info().attr("schema", schema2).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema2.getValueSchema().getSchemaInfo());
         org.apache.avro.Schema nativeSchema2 = (org.apache.avro.Schema) schema.getValueSchema().getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema2);
+        log.info().attr("schema", nativeSchema2).log("nativeSchema-schema");
         assertNotNull(nativeSchema2);
 
         producer.close();
@@ -505,8 +508,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Schema<?> schema = message.getReaderSchema().get();
         Schema<?> schema1 = message1.getReaderSchema().get();
-        log.info("schema {}", schema);
-        log.info("schema1 {}", schema1);
+        log.info().attr("schema", schema).log("schema");
+        log.info().attr("schema1", schema1).log("schema1");
         assertEquals(schema.getSchemaInfo(), schema1.getSchemaInfo());
 
         producer.close();
@@ -763,9 +766,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        log.info("message: {},{}", message.getValue(), message.getValue().getClass());
-        log.info("message2: {},{}", message2.getValue().getNativeObject(),
-                message2.getValue().getNativeObject().getClass());
+        log.info().attr("message", message.getValue()).attr("class", message.getValue().getClass()).log("message");
+        log.info()
+                .attr("message2", message2.getValue().getNativeObject())
+                .attr("class", message2.getValue().getNativeObject().getClass())
+                .log("message2");
         KeyValue<GenericRecord, GenericRecord> keyValue2 =
                 (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
         assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
@@ -1123,8 +1128,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             if (message == null) {
                 Assert.fail("Failed to receive multiple schema message.");
             }
-            log.info("auto consumer get native object class: {}, value: {}",
-                    message.getValue().getNativeObject().getClass(), message.getValue().getNativeObject());
+            log.info()
+                    .attr("class", message.getValue().getNativeObject().getClass())
+                    .attr("value", message.getValue().getNativeObject())
+                    .log("auto consumer get native object class: , value");
             checkSchemaForAutoSchema(message);
         }
     }
@@ -1376,6 +1383,118 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producers2.clear();
     }
 
+    /**
+     * Test that when multiple producers concurrently create schema for a brand-new topic,
+     * the orphan BookKeeper ledgers created by the losing requests are properly cleaned up.
+     */
+    @Test
+    public void testConcurrentCreateSchemaNoOrphanLedger() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testConcurrentCreateSchemaNoOrphanLedger");
+        final String schemaName = TopicName.get(topic).getSchemaName();
+
+        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
+
+        // Concurrently create producers with the same schema on a brand-new topic
+        int concurrency = 16;
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = createProducersInParallel(
+                topic, Schema.AVRO(Schemas.PersonOne.class), concurrency);
+        try {
+            FutureUtil.waitForAll(producers).join();
+
+            // Verify only 1 schema version exists
+            assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+
+            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
+            assertEquals(schemaLedgerCount, 1,
+                    "Expected exactly 1 schema ledger for the topic, but found "
+                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
+        } finally {
+            closeProducers(producers);
+        }
+    }
+
+    /**
+     * Test that concurrent compatible schema updates clean up ledgers created by requests
+     * that lose the schema locator CAS race.
+     */
+    @Test
+    public void testConcurrentUpdateSchemaNoOrphanLedger() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testConcurrentUpdateSchemaNoOrphanLedger");
+        final String schemaName = TopicName.get(topic).getSchemaName();
+        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
+
+        @Cleanup
+        Producer<Schemas.PersonOne> initialProducer = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+
+        int concurrency = 16;
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers = createProducersInParallel(
+                topic, Schema.AVRO(Schemas.PersonThree.class), concurrency);
+        try {
+            FutureUtil.waitForAll(producers).join();
+
+            assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
+            assertEquals(schemaLedgerCount, 2,
+                    "Expected exactly 2 schema ledgers for the topic, but found "
+                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
+        } finally {
+            closeProducers(producers);
+        }
+    }
+
+    private <T> List<CompletableFuture<Producer<T>>> createProducersInParallel(
+            String topic, Schema<T> schema, int concurrency) throws InterruptedException {
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        List<CompletableFuture<Producer<T>>> producers = Collections.synchronizedList(new ArrayList<>(concurrency));
+        CountDownLatch latch = new CountDownLatch(concurrency);
+        for (int i = 0; i < concurrency; i++) {
+            executor.execute(() -> {
+                try {
+                    producers.add(pulsarClient.newProducer(schema).topic(topic).createAsync());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        return producers;
+    }
+
+    private int countSchemaLedgers(PulsarMockBookKeeper mockBk, String schemaName) {
+        int schemaLedgerCount = 0;
+        for (PulsarMockLedgerHandle lh : mockBk.getLedgerMap().values()) {
+            Map<String, byte[]> metadata = lh.getLedgerMetadata().getCustomMetadata();
+            byte[] schemaIdBytes = metadata.get(LedgerMetadataUtils.METADATA_PROPERTY_SCHEMAID);
+            if (schemaIdBytes != null && schemaName.equals(new String(schemaIdBytes, StandardCharsets.UTF_8))) {
+                schemaLedgerCount++;
+            }
+        }
+        return schemaLedgerCount;
+    }
+
+    private <T> void closeProducers(List<CompletableFuture<Producer<T>>> producers) {
+        producers.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers.clear();
+    }
+
     @EqualsAndHashCode
     static class User implements Serializable {
         private String name;
@@ -1474,10 +1593,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 100; i++) {
             final String msg = "msg-with-broken-schema-" + i;
             latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync().thenApply(v -> {
-                log.info("send complete {}", msg);
+                log.info().attr("complete", msg).log("send complete");
                 return null;
             }).exceptionally(ex -> {
-                log.error("failed to send {}", msg, ex);
+                log.error().attr("message", msg).exception((Throwable) ex).log("Failed to send");
                 return null;
             }));
         }

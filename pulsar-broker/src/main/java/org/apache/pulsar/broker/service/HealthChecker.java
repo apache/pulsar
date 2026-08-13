@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -56,7 +56,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
  * This class implements AutoCloseable to ensure proper cleanup of resources when the broker is shut down.
  * Tests are in AdminApiHealthCheckTest class.
  */
-@Slf4j
+@CustomLog
 public class HealthChecker implements AutoCloseable{
     /**
      * Suffix used for health check topic names.
@@ -145,7 +145,7 @@ public class HealthChecker implements AutoCloseable{
      */
     public CompletableFuture<Void> checkHealth(String clientAppId) {
         final String topicName = heartbeatTopic;
-        log.info("[{}] Running healthCheck with topic={}", clientAppId, topicName);
+        log.info().attr("topic", topicName).log("Running healthCheck with topic");
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
 
@@ -165,8 +165,9 @@ public class HealthChecker implements AutoCloseable{
             pulsar.getBrokerService().getTopic(topicName, true)
                     .thenComposeAsync(topicOptional -> {
                         if (!topicOptional.isPresent()) {
-                            log.error("[{}] Fail to run health check while get topic {}. because get null value.",
-                                    clientAppId, topicName);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .log("Fail to run health check while get topic. because get null value.");
                             return CompletableFuture.failedFuture(new BrokerServiceException.TopicNotFoundException(
                                     String.format("Topic [%s] not found after create.", topicName)));
                         }
@@ -181,8 +182,10 @@ public class HealthChecker implements AutoCloseable{
                         }
                     });
         } catch (Exception e) {
-            log.error("[{}] Fail to run health check while get topic {}. because get exception.",
-                    clientAppId, topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Fail to run health check while get topic. because get exception.");
             resultFuture.completeExceptionally(e);
         }
     }
@@ -209,7 +212,7 @@ public class HealthChecker implements AutoCloseable{
                         .createAsync()
                         .exceptionally(createException -> {
                             producer.closeAsync().exceptionally(ex -> {
-                                log.error("[{}] Close producer fail while heath check.", clientAppId);
+                                log.error("Close producer fail while health check");
                                 return null;
                             });
                             throw FutureUtil.wrapToCompletionException(createException);
@@ -258,29 +261,29 @@ public class HealthChecker implements AutoCloseable{
         return FutureUtil.waitForAll(futures)
                 .exceptionallyAsync(closeException -> {
                     if (readerCloseFuture.isCompletedExceptionally()) {
-                        log.error("[{}] Close reader fail while health check.", clientAppId);
+                        log.error("Close reader fail while health check");
                         Optional<Topic> topic = pulsar.getBrokerService().getTopicReference(topicName);
                         if (topic.isPresent()) {
                             Subscription subscription =
                                     topic.get().getSubscription(subscriptionName);
                             // re-check subscription after reader close
                             if (subscription != null) {
-                                log.warn("[{}] Force delete subscription {} "
-                                                + "when it still exists after the"
-                                                + " reader is closed.",
-                                        clientAppId, subscription);
+                                log.warn()
+                                        .attr("subscription", subscription)
+                                        .log("Force delete subscription when it still exists after "
+                                                + "the reader is closed");
                                 subscription.deleteForcefully()
                                         .exceptionally(ex -> {
-                                            log.error("[{}] Force delete subscription fail"
-                                                            + " while health check",
-                                                    clientAppId, ex);
+                                            log.error()
+                                                    .exception(ex)
+                                                    .log("Force delete subscription fail while health check");
                                             return null;
                                         });
                             }
                         }
                     } else {
                         // producer future fail.
-                        log.error("[{}] Close producer fail while heath check.", clientAppId);
+                        log.error("Close producer fail while health check");
                     }
                     return null;
                 }, healthCheckExecutor);
@@ -310,7 +313,7 @@ public class HealthChecker implements AutoCloseable{
             Throwable realCause = e.getCause();
             if (!(realCause instanceof ManagedLedgerException.MetadataNotFoundException
                     || realCause instanceof MetadataStoreException.NotFoundException)) {
-                log.error("Errors in deleting heartbeat topic [{}]", topicName, e);
+                log.error().attr("topic", topicName).exception(e).log("Errors in deleting heartbeat topic");
             }
         }
     }
@@ -320,17 +323,17 @@ public class HealthChecker implements AutoCloseable{
         try {
             scheduledExecutorProvider.shutdownNow();
         } catch (Exception e) {
-            log.warn("Failed to shutdown scheduled executor", e);
+            log.warn().exception(e).log("Failed to shutdown scheduled executor");
         }
         try {
             lookupExecutor.shutdownNow();
         } catch (Exception e) {
-            log.warn("Failed to shutdown lookup executor", e);
+            log.warn().exception(e).log("Failed to shutdown lookup executor");
         }
         try {
             client.close();
         } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client", e);
+            log.warn().exception(e).log("Failed to close pulsar client");
         }
         for (CompletableFuture<Void> pendingFuture : new ArrayList<>(pendingFutures)) {
             if (!pendingFuture.isDone()) {
@@ -339,7 +342,7 @@ public class HealthChecker implements AutoCloseable{
                         pendingFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException("HealthChecker is closed"));
                     } catch (Exception e) {
-                        log.warn("Failed to complete pending future", e);
+                        log.warn().exception(e).log("Failed to complete pending future");
                     }
                 });
             }

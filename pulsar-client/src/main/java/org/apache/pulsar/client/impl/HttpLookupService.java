@@ -31,6 +31,8 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
@@ -52,9 +54,8 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
@@ -78,7 +79,14 @@ public class HttpLookupService implements LookupService {
                              EventLoopGroup eventLoopGroup, Timer timer,
                              NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
+        this(instrumentProvider, conf, eventLoopGroup, timer, nameResolver, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver, Executor blockingAuthExecutor)
+            throws PulsarClientException {
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver, blockingAuthExecutor);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
@@ -103,14 +111,15 @@ public class HttpLookupService implements LookupService {
      * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
+    @SuppressWarnings("deprecation")
     @Override
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
         if (lookupProperties == null) {
             lookupProperties = httpClient.clientConf.getLookupProperties();
         }
         if (lookupProperties != null && !lookupProperties.isEmpty()) {
-            log.warn("Lookup properties aren't supported for http lookup service. lookupProperties: {}",
-                    lookupProperties);
+            log.warn().attr("lookupProperties", lookupProperties)
+                    .log("Lookup properties aren't supported for http lookup service. lookupProperties");
         }
         String path = BasePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
@@ -144,7 +153,10 @@ public class HttpLookupService implements LookupService {
                         false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
-                log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
+                log.warn().attr("topicName", topicName)
+                        .attr("url", uri)
+                        .exceptionMessage(e)
+                        .log("Lookup Failed due to invalid url");
                 return FutureUtil.failedFuture(e);
             }
         });
@@ -200,7 +212,9 @@ public class HttpLookupService implements LookupService {
                 future.complete(new GetTopicsResult(topics));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                log.warn().attr("namespace", namespace)
+                        .exceptionMessage(cause)
+                        .log("Failed to getTopicsUnderNamespace namespace.");
                 future.completeExceptionally(cause);
                 return null;
             });
@@ -254,10 +268,10 @@ public class HttpLookupService implements LookupService {
             if (cause instanceof NotFoundException) {
                 future.complete(Optional.empty());
             } else {
-                log.warn("Failed to get schema for topic {} version {}",
-                        topicName,
-                        version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        cause);
+                log.warn().attr("topic", topicName)
+                        .attr("version", version != null ? Base64.getEncoder().encodeToString(version) : null)
+                        .exception(cause)
+                        .log("Failed to get schema for topic version");
                 future.completeExceptionally(cause);
             }
             return null;
@@ -276,6 +290,4 @@ public class HttpLookupService implements LookupService {
     public void close() throws Exception {
         httpClient.close();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
 }

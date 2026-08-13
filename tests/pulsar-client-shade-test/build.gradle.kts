@@ -27,6 +27,7 @@ plugins {
 // so the Maven shade tests depend on the shaded JARs, not the originals.
 
 dependencies {
+    implementation(libs.slog)
     testImplementation(project(":pulsar-client-shaded"))
     testImplementation(project(":pulsar-client-admin-shaded"))
     // API modules are not bundled in the shaded JARs

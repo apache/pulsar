@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -51,12 +52,10 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
+@CustomLog
 public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MultiRolesTokenAuthorizationProvider.class);
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -142,15 +141,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                             }).exceptionally(ex -> {
                                 Throwable cause = ex.getCause();
                                 if (cause instanceof MetadataStoreException.NotFoundException) {
-                                    log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                                    log.warn()
+                                            .attr("tenant", tenantName)
+                                            .log("Failed to get tenant info data for non existing tenant");
                                     throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                                 }
-                                log.error("Failed to get tenant {}", tenantName, cause);
+                                log.error().attr("tenant", tenantName).exception(cause).log("Failed to get tenant");
                                 throw new RestException(cause);
                             });
                 });
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private Set<String> getRoles(String role, AuthenticationDataSource authData) {
         if (authData == null || (authData instanceof AuthenticationDataSubscription
                 && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {

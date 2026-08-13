@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# After updating these rules, update .github/workflows/labeler.yml to trigger when a file changes
+# in one of the defined paths.
+
 PIP:
   - changed-files:
       - any-glob-to-any-file: 'pip/**'

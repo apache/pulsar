@@ -18,10 +18,11 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     api(libs.bookkeeper.server)
     api(libs.bookkeeper.server) {
         artifact { classifier = "tests" }

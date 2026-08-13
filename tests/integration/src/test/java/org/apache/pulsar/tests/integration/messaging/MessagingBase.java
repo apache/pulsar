@@ -31,14 +31,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.BeforeMethod;
 
-@Slf4j
+@CustomLog
 public abstract class MessagingBase extends PulsarTestSuite {
 
     protected String methodName;
@@ -75,7 +75,9 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 try {
                     currentReceived = consumer.receive(3, TimeUnit.SECONDS);
                 } catch (PulsarClientException e) {
-                    log.info("no more messages to receive for consumer {}", consumer.getConsumerName());
+                    log.info()
+                            .attr("consumer", consumer.getConsumerName())
+                            .log("no more messages to receive for consumer");
                     break;
                 }
                 // Make sure that messages are received in order
@@ -107,7 +109,9 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 try {
                     currentReceived = consumer.receive(3, TimeUnit.SECONDS);
                 } catch (PulsarClientException e) {
-                    log.info("no more messages to receive for consumer {}", consumer.getConsumerName());
+                    log.info()
+                            .attr("consumer", consumer.getConsumerName())
+                            .log("no more messages to receive for consumer");
                     break;
                 }
                 if (currentReceived != null) {
@@ -133,7 +137,9 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 try {
                     currentReceived = consumer.receive(3, TimeUnit.SECONDS);
                 } catch (PulsarClientException e) {
-                    log.info("no more messages to receive for consumer {}", consumer.getConsumerName());
+                    log.info()
+                            .attr("consumer", consumer.getConsumerName())
+                            .log("no more messages to receive for consumer");
                     break;
                 }
                 if (currentReceived != null) {

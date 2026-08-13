@@ -18,63 +18,72 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 
 /**
  * Admin resource for metadata store migration operations.
  */
-@Slf4j
 public class MetadataMigrationBase extends AdminResource {
 
     @GET
     @Path("/status")
-    @ApiOperation(value = "Get current migration status", response = MigrationState.class)
+    @Operation(summary = "Get current migration status")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Migration status retrieved successfully"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Migration status retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = MigrationState.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public MigrationState getStatus() {
         validateSuperUserAccess();
 
         try {
-            var ogr = pulsar().getLocalMetadataStore().get(MigrationState.MIGRATION_FLAG_PATH).get();
+            // The migration flag lives in the source store. Don't read it through the
+            // DualMetadataStore: once the migration is completed, its reads are routed to the
+            // target store, which doesn't hold the flag.
+            MetadataStore store = pulsar().getLocalMetadataStore();
+            if (store instanceof DualMetadataStore dualStore) {
+                store = dualStore.getSourceStore();
+            }
+            var ogr = store.get(MigrationState.MIGRATION_FLAG_PATH).get();
             if (ogr.isPresent()) {
                 return ObjectMapperFactory.getMapper().reader().readValue(ogr.get().getValue(), MigrationState.class);
             } else {
                 return MigrationState.NOT_STARTED;
             }
         } catch (Exception e) {
-            log.error("Failed to get migration status", e);
+            log.error().exception(e).log("Failed to get migration status");
             throw new RestException(e);
         }
     }
 
     @POST
     @Path("/start")
-    @ApiOperation(value = "Start metadata store migration")
+    @Operation(summary = "Start metadata store migration")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Migration started successfully"),
-            @ApiResponse(code = 400, message = "Invalid target URL"),
-            @ApiResponse(code = 409, message = "Migration already in progress"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "204", description = "Migration started successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid target URL"),
+            @ApiResponse(responseCode = "409", description = "Migration already in progress"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public void startMigration(
-            @ApiParam(value = "Target metadata store URL", required = true)
+            @Parameter(description = "Target metadata store URL", required = true)
             @QueryParam("target")
             String targetUrl) {
         validateSuperUserAccess();
@@ -85,9 +94,27 @@ public class MetadataMigrationBase extends AdminResource {
 
         try {
             // Check if metadata store is wrapped with DualMetadataStore
-            if (!(pulsar().getLocalMetadataStore() instanceof DualMetadataStore)) {
+            if (!(pulsar().getLocalMetadataStore() instanceof DualMetadataStore dualStore)) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Metadata store is not configured for migration. "
                         + "Please ensure you're using a supported source metadata store (e.g., ZooKeeper).");
+            }
+
+            // Reject the request if a migration is already in progress or was completed. The migration
+            // flag is always kept in the source store, so read it from there: after a completed
+            // migration the dual store would route the read to the target store.
+            var existingFlag = dualStore.getSourceStore().get(MigrationState.MIGRATION_FLAG_PATH).get();
+            if (existingFlag.isPresent()) {
+                MigrationState currentState = ObjectMapperFactory.getMapper().reader()
+                        .readValue(existingFlag.get().getValue(), MigrationState.class);
+                switch (currentState.getPhase()) {
+                    case PREPARATION, COPYING -> throw new RestException(Response.Status.CONFLICT,
+                            "Migration is already in progress (phase: " + currentState.getPhase() + ")");
+                    case COMPLETED -> throw new RestException(Response.Status.CONFLICT,
+                            "Migration has already been completed");
+                    default -> {
+                        // NOT_STARTED or FAILED: ok to start (or retry) the migration
+                    }
+                }
             }
 
             // Create coordinator
@@ -96,20 +123,20 @@ public class MetadataMigrationBase extends AdminResource {
             // Start migration in background thread
             pulsar().getExecutor().submit(() -> {
                 try {
-                    log.info("Starting metadata migration to: {}", targetUrl);
+                    log.info().attr("targetUrl", targetUrl).log("Starting metadata migration");
                     coordinator.startMigration();
                     log.info("Metadata migration completed successfully");
                 } catch (Exception e) {
-                    log.error("Metadata migration failed", e);
+                    log.error().exception(e).log("Metadata migration failed");
                 }
             });
 
-            log.info("Migration initiated to target: {}", targetUrl);
+            log.info().attr("targetUrl", targetUrl).log("Migration initiated");
 
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to start migration", e);
+            log.error().exception(e).log("Failed to start migration");
             throw new RestException(e);
         }
     }

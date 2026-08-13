@@ -42,7 +42,7 @@ public class LocalBookkeeperEnsembleTest {
         final int numBk = 1;
 
         // Start local Bookies/ZooKeepers and confirm that they are running at specified ports
-        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, 0, () -> 0);
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, 0);
         ensemble.start();
         assertTrue(ensemble.getZkServer().isRunning());
         assertEquals(ensemble.getZkServer().getClientPort(), ensemble.getZookeeperPort());
@@ -60,8 +60,7 @@ public class LocalBookkeeperEnsembleTest {
     public void testStartWithSpecifiedStreamStoragePort() throws Exception {
         LocalBookkeeperEnsemble ensemble = null;
         try {
-            ensemble =
-                    new LocalBookkeeperEnsemble(1, 0, 0, 4182, null, null, true, null);
+            ensemble = new LocalBookkeeperEnsemble(1, 0, 4182, null, null, true, null);
             ensemble.startStandalone(new ServerConfiguration(), true);
         } finally {
             if (ensemble != null) {

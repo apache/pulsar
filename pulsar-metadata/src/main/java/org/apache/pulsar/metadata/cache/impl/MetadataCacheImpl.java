@@ -27,9 +27,12 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.EnumSet;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,8 +41,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
@@ -54,11 +57,11 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
-@Slf4j
+@CustomLog
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
     @Getter
     private final MetadataStore store;
@@ -107,9 +110,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Loading key {} into metadata cache {}", key, cacheName);
-                        }
+                        log.debug().attr("key", key).attr("cache", cacheName).log("Loading key into metadata cache");
                         return readValueFromStore(key);
                     }
 
@@ -120,9 +121,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             Executor executor) {
                         if (!(store instanceof AbstractMetadataStore)
                                 || ((AbstractMetadataStore) store).isConnected()) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Reloading key {} into metadata cache {}", key, cacheName);
-                            }
+                            log.debug().attr("key", key).attr("cache", cacheName)
+                                    .log("Reloading key into metadata cache");
                             final var future = readValueFromStore(key);
                             future.thenAccept(val -> {
                                 if (cacheConfig.getAsyncReloadConsumer() != null) {
@@ -150,18 +150,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             // Both will call this method and the same result will be read. In this case, we only need to deserialize
             // the value once.
             if (!optRes.isPresent()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Key {} not found in metadata store", path);
-                }
+                log.debug().attr("key", path).log("Key not found in metadata store");
                 return FutureUtils.value(Optional.<CacheGetResult<T>>empty());
             }
             final var res = optRes.get();
             try {
                 T obj = serde.deserialize(path, res.getValue(), res.getStat());
-                if (log.isDebugEnabled()) {
-                    log.debug("Deserialized value for key {} (version: {}): {}", path, res.getStat().getVersion(),
-                        obj);
-                }
+                log.debug().attr("key", path).attr("version", res.getStat().getVersion()).attr("value", obj)
+                        .log("Deserialized value for key");
                 return FutureUtils.value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
             } catch (Throwable t) {
                 return FutureUtils.exception(new ContentDeserializationException(
@@ -239,6 +235,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
+        return readModifyUpdate(path, modifyFunction, v -> Collections.emptyMap());
+    }
+
+    @Override
+    public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction,
+                                                 Function<T, Map<String, String>> indexExtractor) {
         final var executor = this.executor.chooseThread(path);
         return executeWithRetry(() -> objCache.get(path)
                 .thenComposeAsync(optEntry -> {
@@ -261,9 +263,11 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
-                        refresh(path);
-                    }).thenApply(__ -> newValueObj);
+                    final T finalNewValue = newValueObj;
+                    return store.put(path, newValue, Optional.of(expectedVersion),
+                                    toOptions(indexExtractor.apply(finalNewValue)))
+                            .thenAccept(__ -> refresh(path))
+                            .thenApply(__ -> finalNewValue);
                 }, executor), path);
     }
 
@@ -281,8 +285,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> create(String path, T value) {
+        return create(path, value, v -> Collections.emptyMap());
+    }
+
+    @Override
+    public CompletableFuture<Void> create(String path, T value,
+                                          Function<T, Map<String, String>> indexExtractor) {
         final var future = new CompletableFuture<Void>();
-        serialize(path, value).thenCompose(content -> store.put(path, content, Optional.of(-1L)))
+        serialize(path, value).thenCompose(content -> store.put(
+                        path, content, Optional.of(-1L), toOptions(indexExtractor.apply(value))))
             // Make sure we have the value cached before the operation is completed
             // In addition to caching the value, we need to add a watch on the path,
             // so when/if it changes on any other node, we are notified and we can
@@ -301,18 +312,24 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         return future;
     }
 
+    /** Build a {@link Set} of {@link Option.SecondaryIndex} entries from an {@code indexName -> key} map. */
+    private static Set<Option> toOptions(Map<String, String> indexes) {
+        if (indexes == null || indexes.isEmpty()) {
+            return Set.of();
+        }
+        Set<Option> opts = new HashSet<>();
+        for (Map.Entry<String, String> e : indexes.entrySet()) {
+            opts.add(new Option.SecondaryIndex(e.getKey(), e.getValue()));
+        }
+        return opts;
+    }
+
     @Override
-    public CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options) {
-        return serialize(path, value).thenCompose(bytes -> {
-            if (storeExtended != null) {
-                return storeExtended.put(path, bytes, Optional.empty(), options);
-            } else {
-                return store.put(path, bytes, Optional.empty());
-            }
-        }).thenAccept(__ -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Refreshing path {} after put operation", path);
-            }
+    public CompletableFuture<Void> put(String path, T value, Set<Option> opts) {
+        return serialize(path, value).thenCompose(bytes ->
+                store.put(path, bytes, Optional.empty(), opts)
+        ).thenAccept(__ -> {
+            log.debug().attr("path", path).log("Refreshing path after put operation");
             refresh(path);
         });
     }
@@ -354,9 +371,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         switch (t.getType()) {
         case Created:
         case Modified:
-            if (log.isDebugEnabled()) {
-                log.debug("Refreshing path {} for {} notification", path, t.getType());
-            }
+            log.debug().attr("path", path).attr("type", t.getType()).log("Refreshing path for notification");
             refresh(path);
             break;
 
@@ -386,8 +401,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     return null;
                 }
                 final long nextMs = backoff.next().toMillis();
-                log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {}. Elapsed time: {} ms", key,
-                        nextMs, backoff.isMandatoryStopMade(), elapsed);
+                log.info().attr("key", key).attr("retryMs", nextMs)
+                        .attr("mandatoryStop", backoff.isMandatoryStopMade()).attr("elapsedMs", elapsed)
+                        .log("Update key conflicts. Retrying.");
                 schedulerExecutor.schedule(() -> execute(op, key, result, backoff), nextMs, TimeUnit.MILLISECONDS);
                 return null;
             }

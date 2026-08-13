@@ -36,9 +36,26 @@ dependencyResolutionManagement {
             }
         }
     }
+
+    // override docker-jdk version with -PdockerJavaVersion=21|25
+    val overrideDockerJavaVersion = settings.providers.gradleProperty("dockerJavaVersion")
+    if (overrideDockerJavaVersion.isPresent) {
+        versionCatalogs {
+            create("libs") {
+                version("docker-jdk", overrideDockerJavaVersion.get())
+            }
+        }
+    }
 }
 
 rootProject.name = "pulsar"
+
+// Running this build requires Java 21 or 25. Version check can be skipped with -PskipJavaVersionCheck parameter.
+val javaVersion = providers.provider { JavaVersion.current() }
+val statisfiedJavaVersion = javaVersion.map { it == JavaVersion.VERSION_21 || it == JavaVersion.VERSION_25 }
+require(providers.gradleProperty("skipJavaVersionCheck").isPresent || statisfiedJavaVersion.get()) {
+    "This build requires Java 21 or 25, but is running on Java ${javaVersion.get()}. Pass -PskipJavaVersionCheck to skip this check."
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Core modules
@@ -51,13 +68,12 @@ include("pulsar-bom")
 
 // Tier 0 — no internal dependencies
 include("buildtools")
-// Maven artifactId is "bouncy-castle-bc" (directory is "bouncy-castle/bc")
-include("bouncy-castle:bouncy-castle-bc")
-project(":bouncy-castle:bouncy-castle-bc").projectDir = file("bouncy-castle/bc")
-include("bouncy-castle:bcfips")
 include("pulsar-config-validation")
-include("structured-event-log")
 include("pulsar-client-api")
+include("pulsar-client-api-v5")
+// Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
+include("pulsar-tls-factory-api")
+include("pulsar-http-client-api")
 
 // Tier 1
 include("pulsar-client-admin-api")
@@ -74,6 +90,8 @@ project(":pulsar-client-original").projectDir = file("pulsar-client")
 include("pulsar-metadata")
 include("pulsar-opentelemetry")
 include("pulsar-client-messagecrypto-bc")
+include("pulsar-client-v5")
+
 
 // Tier 4
 // Maven artifactId is "pulsar-client-admin-original" (directory is "pulsar-client-admin")
@@ -156,15 +174,14 @@ include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
 
 // Tier 6.5 — jetty upgrade modules
-include("jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider")
-project(":jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("jetty-upgrade/bookkeeper-prometheus-metrics-provider")
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
 project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file("jetty-upgrade/zookeeper-prometheus-metrics")
 include("jetty-upgrade:zookeeper-with-patched-admin")
 project(":jetty-upgrade:zookeeper-with-patched-admin").projectDir = file("jetty-upgrade/zookeeper-with-patched-admin")
 
-// Tier 6.5 — bouncy castle test
-include("bouncy-castle:bcfips-include-test")
+// Tier 6.5 — FIPS BouncyCastle TLS integration test
+include("tests:pulsar-client-test-bcfips")
+project(":tests:pulsar-client-test-bcfips").projectDir = file("tests/pulsar-client-test-bcfips")
 
 // Tier 7
 include("pulsar-proxy")
@@ -176,6 +193,10 @@ include("pulsar-client-tools-customcommand-example")
 include("pulsar-broker-auth-oidc")
 include("pulsar-broker-auth-sasl")
 include("pulsar-client-auth-sasl")
+
+// Tier 9 — shaded utility modules (in core-modules)
+include("pulsar-client-fastutil-minimized")
+include("pulsar-broker-fastutil-minimized")
 
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
@@ -248,3 +269,5 @@ include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
 include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
+include("tests:pulsar-client-native-image")
+project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")

@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
@@ -30,7 +30,7 @@ import org.apache.pulsar.functions.proto.ProcessingGuarantees;
 /**
  * The record returned by the proxy to the user.
  */
-@Slf4j
+@CustomLog
 public class PulsarFunctionRecord<T> implements Record<T> {
 
     private final Record<T> record;
@@ -93,8 +93,10 @@ public class PulsarFunctionRecord<T> implements Record<T> {
         if (processingGuarantees == ProcessingGuarantees.MANUAL) {
             record.ack();
         } else {
-            log.warn("Ignore this ack option, under this configuration Guarantees:[{}] autoAck:[{}], "
-                    + "the framework will automatically ack", processingGuarantees, functionConfig.isAutoAck());
+            log.warn()
+                    .attr("processingGuarantees", processingGuarantees)
+                    .attr("autoAck", functionConfig.isAutoAck())
+                    .log("Ignore this ack option, the framework will automatically ack");
         }
     }
 

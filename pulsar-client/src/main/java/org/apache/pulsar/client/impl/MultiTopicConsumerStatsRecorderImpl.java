@@ -20,15 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.MultiTopicConsumerStats;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderImpl implements MultiTopicConsumerStats {
 
     private static final long serialVersionUID = 1L;
@@ -76,6 +76,4 @@ public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderIm
                 consumerStats.getRetryLetterProducerStats()));
         return retryLetterStats;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MultiTopicConsumerStatsRecorderImpl.class);
 }

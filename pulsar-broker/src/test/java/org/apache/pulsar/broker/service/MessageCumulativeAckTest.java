@@ -26,7 +26,6 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Sh
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -85,7 +85,7 @@ public class MessageCumulativeAckTest {
         doReturn(Codec.encode("sub-1")).when(cursor).getName();
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             cursor, false));
-        doNothing().when(sub).acknowledgeMessage(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(null)).when(sub).acknowledgeMessageAsync(any(), any(), any());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -125,7 +125,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any());
+        verify(sub, never()).acknowledgeMessageAsync(any(), any(), any());
     }
 
     @Test(timeOut = 5000, dataProvider = "notIndividualAckModes")
@@ -140,7 +140,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, times(1)).acknowledgeMessage(any(), any(), any());
+        verify(sub, times(1)).acknowledgeMessageAsync(any(), any(), any());
     }
 
     @Test(timeOut = 5000)
@@ -156,6 +156,6 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(2L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any());
+        verify(sub, never()).acknowledgeMessageAsync(any(), any(), any());
     }
 }

@@ -18,25 +18,24 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import javax.naming.AuthenticationException;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests.
  */
+@CustomLog
 public class AuthenticationFilter implements Filter {
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     private final AuthenticationService authenticationService;
 
@@ -66,10 +65,16 @@ public class AuthenticationFilter implements Filter {
                     msg = "Authentication required";
                 }
                 httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, msg);
-                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), msg);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("request", msg)
+                        .log("Failed to authenticate HTTP request");
             } else {
                 httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-                LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
+                log.error()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .exception(e)
+                        .log("Error performing authentication for HTTP");
             }
             return;
         }

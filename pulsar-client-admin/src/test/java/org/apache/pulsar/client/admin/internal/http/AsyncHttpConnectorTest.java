@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.admin.internal.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.testng.Assert.assertEquals;
@@ -45,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
@@ -243,6 +246,33 @@ public class AsyncHttpConnectorTest {
     }
 
     @Test
+    void tlsFactoryPathBoundsPooledConnectionTtl() throws Exception {
+        // PIP-478: on the https (new TLS-factory) path the AHC connection TTL must be set so a pooled
+        // HTTPS connection cannot keep pre-rotation TLS material indefinitely — new connections pick up
+        // rotation, and this TTL bounds how long an established one survives. Inject a short TTL and assert it
+        // is honored (the default is 5 minutes).
+        int injectedTtlMs = 1234;
+        String property = TlsContextAcquisition.HTTP_TLS_ROTATION_CONNECTION_TTL_PROPERTY;
+        String previous = System.getProperty(property);
+        System.setProperty(property, Integer.toString(injectedTtlMs));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("https://localhost:65535");
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+            assertTrue(connector.getTlsFactory() != null, "https uses the new PIP-478 TLS-factory path");
+            assertEquals(connector.getConnectionTtlMs(), injectedTtlMs,
+                    "pooled HTTPS connection TTL is bounded on the rotating factory path");
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
+
+    @Test
     void testRelativeRedirect() throws ExecutionException, InterruptedException {
         doTestRedirect("path2");
     }
@@ -280,6 +310,60 @@ public class AsyncHttpConnectorTest {
 
         Response response = connector.executeRequest(request).get();
         assertEquals(response.getResponseBody(), "OK");
+    }
+
+    /**
+     * Locks in that AsyncHttpConnector forwards the {@code Authorization} header across a cross-origin
+     * HTTP redirect (different host:port — serverA → serverB). The admin connector disables AHC's
+     * built-in follow-redirect and runs its own redirect loop that copies the original request headers,
+     * so it must remain unaffected by the async-http-client &gt;= 2.14.5 {@code Authorization} stripping
+     * on cross-origin redirects (CVE-2026-40490 fix). Regressing {@code setFollowRedirect(true)} would
+     * break this test.
+     */
+    @Test
+    void testAuthorizationHeaderOnCrossOriginRedirect() throws ExecutionException, InterruptedException {
+        WireMockServer serverB = new WireMockServer(WireMockConfiguration.wireMockConfig().port(0));
+        serverB.start();
+        try {
+            server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .willReturn(aResponse()
+                            .withStatus(307)
+                            .withHeader("Location",
+                                    "http://127.0.0.1:" + serverB.port() + "/admin/v2/clusters")));
+
+            serverB.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .atPriority(2)
+                    .willReturn(aResponse().withStatus(401).withBody("missing auth")));
+            serverB.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .atPriority(1)
+                    .withHeader("Authorization", equalTo("Bearer test-token"))
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("[\"test-cluster\"]")));
+
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("http://127.0.0.1:" + server.port());
+
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                    5000, 0, conf, false, null);
+
+            Request request = new RequestBuilder("GET")
+                    .setUrl("http://127.0.0.1:" + server.port() + "/admin/v2/clusters")
+                    .addHeader("Authorization", "Bearer test-token")
+                    .build();
+
+            Response response = connector.executeRequest(request).get();
+
+            assertEquals(response.getStatusCode(), 200,
+                    "cross-origin redirect should forward Authorization and return the stubbed body");
+            assertEquals(response.getResponseBody(), "[\"test-cluster\"]");
+            serverB.verify(getRequestedFor(urlEqualTo("/admin/v2/clusters"))
+                    .withHeader("Authorization", equalTo("Bearer test-token")));
+        } finally {
+            serverB.stop();
+        }
     }
 
     @Test

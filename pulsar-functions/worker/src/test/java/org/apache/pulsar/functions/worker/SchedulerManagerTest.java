@@ -47,7 +47,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import lombok.val;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.CompressionType;
@@ -71,7 +71,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class SchedulerManagerTest {
 
     private SchedulerManager schedulerManager;
@@ -292,7 +292,7 @@ public class SchedulerManagerTest {
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
         Assignment assignments = parseAssignment(send);
 
-        log.info("assignments: {}", assignments);
+        log.info().attr("assignments", assignments).log("assignments");
         Assignment assignment2 = createAssignment("worker-1", function2, 0);
         Assert.assertEquals(assignment2.toByteArray(), assignments.toByteArray());
 
@@ -397,7 +397,7 @@ public class SchedulerManagerTest {
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
         Assignment assignments = parseAssignment(send);
 
-        log.info("assignments: {}", assignments);
+        log.info().attr("assignments", assignments).log("assignments");
 
         Assignment assignment2 = createAssignment("worker-1", function2, 0);
         Assert.assertEquals(assignments.toByteArray(), assignment2.toByteArray());

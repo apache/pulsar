@@ -30,13 +30,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class BrokerTestUtilTest {
     @Test
     @SuppressWarnings("unchecked")

@@ -29,12 +29,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
@@ -43,7 +44,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
  *
  * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.4">OAuth 2.0 RFC 6749, section 4.4</a>
  */
-@Slf4j
+@CustomLog
 class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
@@ -64,8 +65,10 @@ class ClientCredentialsFlow extends FlowBase {
     @Builder
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
                                  Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
+                                 String certFile, String keyFile, Duration autoCertRefreshDuration,
                                  String wellKnownMetadataPath) {
-        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, wellKnownMetadataPath);
+        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, certFile, keyFile, autoCertRefreshDuration,
+                wellKnownMetadataPath);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -81,12 +84,15 @@ class ClientCredentialsFlow extends FlowBase {
     public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
         URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
         String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
-        // These are optional parameters, so we only perform a get
+        // These are optional parameters, so we allow null values
         String scope = params.get(CONFIG_PARAM_SCOPE);
         String audience = params.get(CONFIG_PARAM_AUDIENCE);
         Duration connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT);
         Duration readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT);
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
+        String certFile = params.get(CONFIG_PARAM_CERT_FILE);
+        String keyFile = params.get(CONFIG_PARAM_TLS_KEY_FILE);
+        Duration autoCertRefreshDuration = parseParameterDuration(params, CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION);
         String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
 
         return ClientCredentialsFlow.builder()
@@ -97,6 +103,9 @@ class ClientCredentialsFlow extends FlowBase {
                 .connectTimeout(connectTimeout)
                 .readTimeout(readTimeout)
                 .trustCertsFilePath(trustCertsFilePath)
+                .certFile(certFile)
+                .keyFile(keyFile)
+                .autoCertRefreshDuration(autoCertRefreshDuration)
                 .wellKnownMetadataPath(wellKnownMetadataPath)
                 .build();
     }
@@ -138,7 +147,7 @@ class ClientCredentialsFlow extends FlowBase {
         assert this.metadata != null;
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
-        this.exchanger = new TokenClient(tokenUrl, httpClient);
+        this.exchanger = new TokenClient(tokenUrl, getHttpClient());
         initialized = true;
     }
 
@@ -157,6 +166,7 @@ class ClientCredentialsFlow extends FlowBase {
                 .clientSecret(keyFile.getClientSecret())
                 .audience(this.audience)
                 .scope(this.scope)
+                .authMethod(TokenEndpointAuthMethod.CLIENT_SECRET_POST)
                 .build();
         TokenResult tr;
         if (!initialized) {

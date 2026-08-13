@@ -24,18 +24,17 @@ import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 public class PulsarStandaloneStarter extends PulsarStandalone {
 
     private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
@@ -92,12 +91,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
         } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
-            try {
-                config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
-            } catch (Exception e) {
-                log.warn("Failed to resolve FQDN, using 'localhost' as advertised address", e);
-                config.setAdvertisedAddress("localhost");
-            }
+            // Use advertised address as local hostname
+            config.setAdvertisedAddress("localhost");
         } else {
             // Use advertised or advertisedListeners address from config file
         }
@@ -135,7 +130,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             try {
                 doClose(false);
             } catch (Exception e) {
-                log.error("Shutdown failed: {}", e.getMessage(), e);
+                log.error().exception(e).log("Shutdown failed");
             } finally {
                 if (!testMode) {
                     LogManager.shutdown();
@@ -177,7 +172,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
     protected void processTerminator(int exitCode) {
         if (testMode) {
             // In test mode, don't halt the JVM — it would kill the test runner
-            log.info("Ignoring process termination in test mode (exit code {})", exitCode);
+            log.info().attr("exitCode", exitCode).log("Ignoring process termination in test mode");
             return;
         }
         super.processTerminator(exitCode);
@@ -193,7 +188,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         try {
             standalone.start();
         } catch (Throwable th) {
-            log.error("Failed to start pulsar service.", th);
+            log.error().exception(th).log("Failed to start pulsar service.");
             LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }

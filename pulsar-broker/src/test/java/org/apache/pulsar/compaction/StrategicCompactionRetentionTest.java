@@ -19,12 +19,12 @@
 package org.apache.pulsar.compaction;
 
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class StrategicCompactionRetentionTest extends CompactionRetentionTest {
     private TopicCompactionStrategy strategy;

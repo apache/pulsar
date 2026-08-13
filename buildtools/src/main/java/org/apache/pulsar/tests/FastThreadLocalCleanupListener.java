@@ -19,15 +19,14 @@
 package org.apache.pulsar.tests;
 
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.ITestClass;
 
 /**
  * Cleanup Thread Local state attach to Netty's FastThreadLocal.
  */
+@CustomLog
 public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAdapter {
-    private static final Logger LOG = LoggerFactory.getLogger(FastThreadLocalCleanupListener.class);
     private static final boolean FAST_THREAD_LOCAL_CLEANUP_ENABLED =
             Boolean.parseBoolean(System.getProperty("testFastThreadLocalCleanup", "true"));
     private static final String FAST_THREAD_LOCAL_CLEANUP_PACKAGE =
@@ -52,10 +51,12 @@ public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAd
     @Override
     protected void onBetweenTestClasses(List<ITestClass> testClasses) {
         if (FAST_THREAD_LOCAL_CLEANUP_ENABLED && FastThreadLocalStateCleaner.isEnabled()) {
-            LOG.info("Cleaning up FastThreadLocal thread local state.");
+            log.info("Cleaning up FastThreadLocal thread local state.");
             CLEANER.cleanupAllFastThreadLocals((thread, value) -> {
-                LOG.info("Cleaning FastThreadLocal state for thread {}, instance of class {}, value is {}", thread,
-                        value.getClass().getName(), value);
+                log.info().attr("thread", thread)
+                        .attr("class", value.getClass().getName())
+                        .attr("value", value)
+                        .log("Cleaning FastThreadLocal state");
             });
         }
     }

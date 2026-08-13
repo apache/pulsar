@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
@@ -168,7 +167,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
-     * Defaults to 25 seconds.
+     * Defaults to 60 seconds.
      *
      * @return the client builder instance
      */
@@ -724,18 +723,41 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
 
     /**
-     * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.
-     * @param sslFactoryPlugin ssl factory class name
+     * Set the scope that controls which connections are routed through the SOCKS5 proxy.
+     *
+     * <p>The default is {@link Socks5ProxyScope#BINARY_ONLY}, which preserves the pre-existing
+     * behavior where the SOCKS5 proxy only applied to Pulsar binary protocol connections to brokers.
+     * HTTP lookup and failover HTTP clients inside {@code PulsarClient} were not affected.
+     *
+     * <p>Set to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH} to also route
+     * HTTP/HTTPS lookup traffic and failover HTTP clients through the SOCKS5 proxy.
+     *
+     * @param socks5ProxyScope the scope selector; must not be {@code null}
      * @return the client builder instance
+     * @see Socks5ProxyScope
      */
-    ClientBuilder sslFactoryPlugin(String sslFactoryPlugin);
+    ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope);
 
     /**
-     * Set the SSL Factory Plugin params for the ssl factory plugin to use.
-     * @param sslFactoryPluginParams Params in String format that will be inputted to the SSL Factory Plugin
+     * Set the class name of a custom {@code PulsarTlsFactory} (PIP-478) used to build the client's TLS
+     * engines. An empty value or the literal {@code "default"} selects the built-in file-based factory
+     * composed from the {@code tls*} settings; any other value is instantiated reflectively via its public
+     * no-arg constructor. This is the by-name successor of the removed PIP-337 {@code sslFactoryPlugin}.
+     *
+     * @param tlsFactoryClassName the {@code PulsarTlsFactory} class name (blank/{@code default} for built-in)
      * @return the client builder instance
      */
-    ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+    ClientBuilder tlsFactoryClassName(String tlsFactoryClassName);
+
+    /**
+     * Set the configuration parameters passed to a custom {@link #tlsFactoryClassName(String)} as its init
+     * params (PIP-478). Accepts a JSON object or a comma-separated {@code key=value} list; ignored by the
+     * built-in file-based factory.
+     *
+     * @param tlsFactoryConfig the factory configuration (JSON object or {@code key=value} list)
+     * @return the client builder instance
+     */
+    ClientBuilder tlsFactoryConfig(String tlsFactoryConfig);
 
     /**
      * Set Cert Refresh interval in seconds.

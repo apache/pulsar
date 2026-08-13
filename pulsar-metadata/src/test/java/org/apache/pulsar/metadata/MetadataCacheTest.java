@@ -49,9 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -76,7 +76,7 @@ import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     @Data
@@ -200,7 +200,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         MyClass obj = objCache2.get(n.getPath()).get().get();
                         storeObj.set(obj);
                     } catch (Exception e) {
-                        log.error("Got exception {}", e.getMessage());
+                        log.error().attr("message", e.getMessage()).log("Got exception");
                     }
                 });
             }

@@ -37,8 +37,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -68,7 +68,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class AuthenticatedTransactionProducerConsumerTest extends TransactionTestBase {
 
@@ -86,7 +86,6 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
         adminToken = generateToken(kp, "admin");
     }
-
 
     @SuppressWarnings("deprecation")
     private String generateToken(KeyPair kp, String subject) {
@@ -193,7 +192,6 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                 .topic(TOPIC)
                 .subscribe();
 
-
         @Cleanup final Producer<String> producer = pulsarClientOwner
                 .newProducer(Schema.STRING)
                 .sendTimeout(60, TimeUnit.SECONDS)
@@ -285,7 +283,6 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                     .removeTransactionMetadataStore(
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
-
 
         final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
                 .getTcClient().addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));

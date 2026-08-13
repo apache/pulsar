@@ -7,11 +7,20 @@ keytool -keystore ca.truststore.jks -alias ca -importcert -file ca.cert.pem -sto
 
 
 # Create server keystore
-keytool -keystore server.keystore.jks -alias server -keyalg EC -validity 3600 -genkey -storepass serverpw -keypass serverpw -dname 'CN=server,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' -noprompt
-# Export the certificate from the keystore:
+# NOTE (Pulsar 5.0 / PIP-478): TLS hostname verification is enabled by default and is SAN-only, so the server
+# certificate MUST carry a SubjectAltName that matches the connected host (e.g. DNS:localhost / IP:127.0.0.1).
+# The keystore hierarchy has its own CA (this directory's ca.cert.pem / ca.key.pem, trusted via
+# ca.truststore.jks) which is SEPARATE from the PEM hierarchy's CA in the parent directory, so the server
+# certificate here must be signed by THIS directory's ca.key.pem. `keytool -certreq` drops extensions and
+# `openssl x509 -req` only adds a SAN when given -extfile, so the SAN is supplied both at genkey time (-ext SAN)
+# and again on the openssl signing step (-extfile).
+keytool -keystore server.keystore.jks -alias server -keyalg EC -validity 3600 -genkey -storepass serverpw -keypass serverpw -dname 'CN=server,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' -ext 'SAN=dns:pulsar,dns:pulsar.default,dns:localhost,ip:127.0.0.1,ip:192.168.1.2' -noprompt
+# Export the certificate request from the keystore:
 keytool -keystore server.keystore.jks -alias server -certreq -file server.cert.pem -storepass serverpw -keypass serverpw -noprompt
-# Sign it with the CA:
-openssl x509 -req -in server.cert.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out server.signed.cert.pem -days 3650 -sha256
+# Sign it with the CA, re-adding the SAN via an extfile:
+printf 'subjectAltName=DNS:pulsar,DNS:pulsar.default,DNS:localhost,IP:127.0.0.1,IP:192.168.1.2\n' > san.ext
+openssl x509 -req -in server.cert.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out server.signed.cert.pem -days 3650 -sha256 -extfile san.ext
+rm -f san.ext
 # Import signed cert into key store
 keytool -keystore server.keystore.jks -alias ca -importcert -file ca.cert.pem -storepass serverpw -keypass serverpw -noprompt
 keytool -keystore server.keystore.jks -alias server -importcert -file server.signed.cert.pem -storepass serverpw -keypass serverpw -noprompt

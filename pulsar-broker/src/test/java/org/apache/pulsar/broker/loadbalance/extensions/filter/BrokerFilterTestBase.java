@@ -124,6 +124,7 @@ public class BrokerFilterTestBase {
     }
 
     public BrokerLookupData getLookupData(String version, String loadManagerClassName) {
+        String brokerId = "localhost:8080";
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -132,7 +133,7 @@ public class BrokerFilterTestBase {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        return new BrokerLookupData(
+        return new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
                 loadManagerClassName, -1, version, Collections.emptyMap());

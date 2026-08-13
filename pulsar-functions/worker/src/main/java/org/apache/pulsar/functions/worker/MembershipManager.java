@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -43,7 +43,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
-@Slf4j
+@CustomLog
 public class MembershipManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
@@ -71,8 +71,10 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error().attr("topic",
+                    this.workerConfig.getClusterCoordinationTopic())
+                    .exception(e)
+                    .log("Failed to get status of coordinate topic");
             throw new RuntimeException(e);
         }
 
@@ -89,8 +91,10 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error().attr("topic",
+                    this.workerConfig.getClusterCoordinationTopic())
+                    .exception(e)
+                    .log("Failed to get status of coordinate topic");
             throw new RuntimeException(e);
         }
 
@@ -229,11 +233,12 @@ public class MembershipManager implements AutoCloseable {
             functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
-            log.info(
-                    "Failure check - Total number of instances that need to be scheduled/rescheduled: {} "
-                            + "| Number of unassigned instances that need to be scheduled: {} | Number of instances "
-                            + "on dead workers that need to be reassigned {}",
-                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
+            log.info().attr("totalInstances", needSchedule.size())
+                    .attr("unassignedInstances",
+                            needSchedule.size() - needRemove.size())
+                    .attr("deadWorkerInstances", numRemoved)
+                    .log("Failure check - instances that need to be"
+                            + " scheduled/rescheduled");
             schedulerManager.schedule();
         }
     }

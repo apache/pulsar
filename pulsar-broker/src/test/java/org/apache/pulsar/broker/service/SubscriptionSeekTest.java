@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -86,7 +86,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class SubscriptionSeekTest extends BrokerTestBase {
 
@@ -152,7 +152,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         MessageIdImpl afterLatest = new MessageIdImpl(
                 messageId.getLedgerId() + 1, messageId.getEntryId(), messageId.getPartitionIndex());
 
-        log.info("MessageId {}: beforeEarliest: {}, afterLatest: {}", messageId, beforeEarliest, afterLatest);
+        log.info().attr("messageid", messageId).attr("beforeearliest", beforeEarliest).attr("afterlatest", afterLatest)
+                .log("MessageId: beforeEarliest, afterLatest");
 
         Awaitility.await().until(consumer::isConnected);
         consumer.seek(beforeEarliest);
@@ -200,7 +201,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .topic(topicName).create();
 
-
         List<MessageId> messageIds = new ArrayList<>();
         List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
 
@@ -218,7 +218,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
 
         producer.close();
-
 
         @Cleanup
         org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -258,7 +257,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 // set batch max publish delay big enough to make sure entry has 3 messages
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .topic(topicName).create();
-
 
         List<MessageId> messageIds = new ArrayList<>();
         List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
@@ -313,7 +311,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) msgId;
         assertEquals(batchMsgId, msgIdToSeekFirst);
 
-
         consumer.seek(MessageId.earliest);
         Message<String> receiveBeforEarliest = consumer.receive();
         assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
@@ -341,7 +338,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .batchingMaxMessages(3)
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .topic(topicName).create();
-
 
         List<MessageId> messageIds = new ArrayList<>();
         List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
@@ -412,7 +408,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(received.getMessageId(), messageIds.get(0));
     }
 
-
     @Test
     public void testConcurrentResetCursor() throws Exception {
         final String topicName = "persistent://prop/ns-abc/testConcurrentReset_" + System.currentTimeMillis();
@@ -458,7 +453,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
 
         for (PulsarAdminException exception : exceptions) {
-            log.error("Meet Exception", exception);
+            log.error().exception(exception).log("Meet Exception");
             assertTrue(exception.getMessage().contains("Failed to fence subscription"));
         }
     }
@@ -655,7 +650,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
         while (reader.hasMessageAvailable()) {
             Message<String> message = reader.readNext();
-            log.info("message: {} ----- {}", message.getMessageId(), message.getPublishTime());
+            log.info().attr("message", message.getMessageId()).attr("publishTime", message.getPublishTime())
+                    .log("message:");
             timestampToMessageId.put(message.getPublishTime(), (MessageIdImpl) message.getMessageId());
             long ledgerId = ((MessageIdImpl) message.getMessageId()).getLedgerId();
             if (!ledgerIds.contains(ledgerId)) {
@@ -673,7 +669,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         for (Long deletedLedgerId : deletedLedgerIds) {
             pulsar.getBookKeeperClient().deleteLedger(deletedLedgerId);
-            log.info("delete ledger: {}", deletedLedgerId);
+            log.info().attr("deleteLedger", deletedLedgerId).log("delete ledger");
         }
 
         admin.topics().unload(topicName);

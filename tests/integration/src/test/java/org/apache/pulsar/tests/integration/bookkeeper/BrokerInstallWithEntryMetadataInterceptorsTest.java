@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.bookkeeper;
 import static java.util.stream.Collectors.joining;
 import static org.testng.AssertJUnit.assertEquals;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
  *
  * Anti-regression test for issue https://github.com/apache/pulsar/issues/20091.
  */
-@Slf4j
+@CustomLog
 public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarClusterTestBase {
     private static final String PREFIX = "PULSAR_PREFIX_";
 
@@ -57,13 +57,16 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)

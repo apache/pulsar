@@ -37,7 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -76,7 +76,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
@@ -156,10 +156,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 // receive normal messages successfully
                 message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                log.info("Receive exclusive normal msg: {}" + new String(message.getData(), UTF_8));
+                log.info().attr("msg", new String(message.getData(), UTF_8))
+                        .log("Receive exclusive normal msg");
                 message = sharedConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
+                log.info().attr("msg", new String(message.getData(), UTF_8))
+                        .log("Receive shared normal msg");
             } else {
                 // can't receive transaction messages before commit
                 message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
@@ -179,11 +181,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
         for (int i = 0; i < transactionMessageCnt + messageCntAfterTxn; i++) {
             message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("exclusiveId", message.getMessageId()).attr("msg", new String(message.getData()))
+                    .log("Receive txn exclusive id, msg");
 
             message = sharedConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("sharedId", message.getMessageId()).attr("msg", new String(message.getData()))
+                    .log("Receive txn shared id, msg");
         }
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
@@ -235,11 +239,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
             message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
-            log.info("Receive exclusive normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+            log.info().attr("normalMsg", new String(message.getData(), UTF_8)).attr("index", i)
+                    .log("Receive exclusive normal msg, index");
             message = sharedConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
-            log.info("Receive shared normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+            log.info().attr("normalMsg", new String(message.getData(), UTF_8)).attr("index", i)
+                    .log("Receive shared normal msg, index");
         }
         log.info("TransactionConsumeTest sortedTest finish.");
     }

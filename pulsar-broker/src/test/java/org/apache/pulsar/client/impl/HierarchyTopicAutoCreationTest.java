@@ -20,8 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import java.util.List;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.Producer;
@@ -33,7 +33,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class HierarchyTopicAutoCreationTest extends SharedPulsarBaseTest {
 
     @Test(invocationCount = 3)

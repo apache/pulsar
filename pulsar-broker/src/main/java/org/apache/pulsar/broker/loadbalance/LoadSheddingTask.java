@@ -22,17 +22,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * LoadManager load shedding task.
  */
+@CustomLog
 public class LoadSheddingTask implements Runnable {
-    private static final Logger LOG = LoggerFactory.getLogger(LoadSheddingTask.class);
     private final AtomicReference<LoadManager> loadManager;
     private final ScheduledExecutorService loadManagerExecutor;
 
@@ -66,7 +65,7 @@ public class LoadSheddingTask implements Runnable {
             }
             loadManager.get().doLoadShedding();
         } catch (Exception e) {
-            LOG.warn("Error during the load shedding", e);
+            log.warn().exception(e).log("Error during the load shedding");
         } finally {
             start();
         }

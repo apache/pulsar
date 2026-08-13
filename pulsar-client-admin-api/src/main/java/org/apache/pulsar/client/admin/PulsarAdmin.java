@@ -170,6 +170,11 @@ public interface PulsarAdmin extends Closeable {
     MetadataMigration metadataMigration();
 
     /**
+     * @return the scalable topics management object
+     */
+    ScalableTopics scalableTopics();
+
+    /**
      * Close the PulsarAdminClient and release all the resources.
      *
      */

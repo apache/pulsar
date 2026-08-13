@@ -89,8 +89,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         // No-op
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
-        @SuppressWarnings("unchecked")
         var antiAffinityGroupPolicyHelper =
                 (AntiAffinityGroupPolicyHelper)
                         FieldUtils.readDeclaredField(

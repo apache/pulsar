@@ -73,7 +73,7 @@ public class PartitionedProducerImplTest {
     private CompletableFuture producerCreatedFuture;
 
     @BeforeMethod(alwaysRun = true)
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void setup() {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);

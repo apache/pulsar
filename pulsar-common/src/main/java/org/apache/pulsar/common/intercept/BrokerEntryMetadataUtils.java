@@ -22,16 +22,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A tool class for loading BrokerEntryMetadataInterceptor classes.
  */
+@CustomLog
 public class BrokerEntryMetadataUtils<T> {
-
-    private static final Logger log = LoggerFactory.getLogger(BrokerEntryMetadataUtils.class);
 
     public static Set<BrokerEntryMetadataInterceptor> loadBrokerEntryMetadataInterceptors(
             Set<String> interceptorNames, ClassLoader classLoader) {
@@ -46,12 +44,17 @@ public class BrokerEntryMetadataUtils<T> {
                         interceptors.add(clz.getDeclaredConstructor().newInstance());
                     } catch (InstantiationException | IllegalAccessException
                             | InvocationTargetException | NoSuchMethodException e) {
-                        log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
-                                interceptorName, e);
+                        log.error()
+                                .attr("interceptorName", interceptorName)
+                                .exception(e)
+                                .log("Create new BrokerEntryMetadataInterceptor instance failed.");
                         throw new RuntimeException(e);
                     }
                 } catch (ClassNotFoundException e) {
-                    log.error("Load BrokerEntryMetadataInterceptor class for {} failed.", interceptorName, e);
+                    log.error()
+                            .attr("interceptorName", interceptorName)
+                            .exception(e)
+                            .log("Load BrokerEntryMetadataInterceptor class failed.");
                     throw new RuntimeException(e);
                 }
             }
@@ -71,12 +74,17 @@ public class BrokerEntryMetadataUtils<T> {
                         interceptors.add(clz.getDeclaredConstructor().newInstance());
                     } catch (InstantiationException | IllegalAccessException
                         | InvocationTargetException | NoSuchMethodException e) {
-                        log.error("Create new instance for {} failed. Exception is {}",
-                            interceptorName, e);
+                        log.error()
+                            .attr("interceptorName", interceptorName)
+                            .exception(e)
+                            .log("Create new instance failed.");
                         throw new RuntimeException(e);
                     }
                 } catch (ClassNotFoundException e) {
-                    log.error("Load class for {} failed. Exception is {}", interceptorName, e);
+                    log.error()
+                        .attr("interceptorName", interceptorName)
+                        .exception(e)
+                        .log("Load class failed.");
                     throw new RuntimeException(e);
                 }
             }

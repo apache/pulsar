@@ -20,7 +20,7 @@ package org.apache.pulsar.client.processor;
 
 import io.netty.buffer.ByteBuf;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.MessagePayloadContext;
@@ -29,7 +29,7 @@ import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessagePayloadUtils;
 
-@Slf4j
+@CustomLog
 public class CustomBatchPayloadProcessor implements MessagePayloadProcessor {
 
     @Override

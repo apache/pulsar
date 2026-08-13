@@ -25,8 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import picocli.CommandLine;
@@ -39,7 +39,7 @@ import picocli.CommandLine.Spec;
 
 @Getter
 @Command(description = "Generate documents automatically.")
-@Slf4j
+@CustomLog
 public class CmdGenerateDocument extends CmdBase {
 
     @Spec

@@ -2141,7 +2141,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         execFlag = setAuthorizationPolicyOperationChecker(subject,
                 PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setIsAllowAutoUpdateSchema(namespace, true));
+                () -> subAdmin.namespaces().setIsAllowAutoUpdateSchema(namespace, true, true));
         Assert.assertTrue(execFlag.get());
     }
 

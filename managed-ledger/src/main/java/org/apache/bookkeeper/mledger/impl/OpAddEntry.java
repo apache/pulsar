@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -44,7 +44,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
  * Handles the life-cycle of an addEntry() operation.
  *
  */
-@Slf4j
+@CustomLog
 public class OpAddEntry implements AddCallback, CloseCallback, Runnable, ManagedLedgerInterceptor.AddEntryOperation {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
@@ -84,9 +84,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
     public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback,
                                                   Object ctx, AtomicBoolean timeoutTriggered) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
+        log.debug().attr("op", op).log("Created new OpAddEntry");
         return op;
     }
 
@@ -95,9 +93,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                                                   AtomicBoolean timeoutTriggered) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
         op.numberOfMessages = numberOfMessages;
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
+        log.debug().attr("op", op).log("Created new OpAddEntry");
         return op;
     }
 
@@ -154,7 +150,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                     ml.fenceForInterceptorException(mle);
                     ml.pendingAddEntries.remove(this);
                     ReferenceCountUtil.safeRelease(duplicateBuffer);
-                    log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
+                    log.error().attr("managedLedger", ml.getName()).exception(e)
+                            .log("Error processing payload before ledger write");
                     this.failed(mle);
                     // Don't recycle the object here
                     // see: https://lists.apache.org/thread/po08w0tkhc7q8gc5khpdft6stxnr1v2y
@@ -171,7 +168,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
-            log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            log.warn().attr("managedLedger", ml.getName())
+                    .attr("state", state)
+                    .log("initiate with unexpected state, expect OPEN state");
         }
     }
 
@@ -182,7 +181,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             //Use entryId in PublishContext and call addComplete directly.
             this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
         } else {
-            log.warn("[{}] initiateShadowWrite with unexpected state {}, expect OPEN state.", ml.getName(), state);
+            log.warn().attr("managedLedger", ml.getName())
+                    .attr("state", state)
+                    .log("initiateShadowWrite with unexpected state, expect OPEN state");
         }
     }
 
@@ -202,8 +203,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
     @Override
     public void addComplete(int rc, final LedgerHandle lh, long entryId, Object ctx) {
         if (!STATE_UPDATER.compareAndSet(OpAddEntry.this, State.INITIATED, State.COMPLETED)) {
-            log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(),
-                    entryId);
+            log.warn().attr("managedLedger", ml.getName())
+                    .attr("ledgerId", lh.getId())
+                    .attr("entryId", entryId)
+                    .log("The add op is terminal legacy callback for entry adding");
             // Since there is a thread is coping this object, do not recycle this object to avoid other problems.
             // For example: we recycled this object, other thread get a null "opAddEntry.{variable_name}".
             // Recycling is not mandatory, JVM GC will collect it.
@@ -212,8 +215,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         if (ledger != null && lh != null) {
             if (ledger.getId() != lh.getId()) {
-                log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(),
-                        lh.getId());
+                log.warn().attr("managedLedger", ml.getName())
+                        .attr("ledgerId", ledger.getId())
+                        .attr("ackedLedgerId", lh.getId())
+                        .log("ledgerId doesn't match with acked ledgerId");
             }
             checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s",
                     ledger.getId(), lh.getId());
@@ -225,10 +230,12 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         }
 
         this.entryId = entryId;
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] write-complete: ledger-id={} entry-id={} size={} rc={}", this, ml.getName(),
-                    lh == null ? -1 : lh.getId(), entryId, dataLength, rc);
-        }
+        log.debug().attr("managedLedger", ml.getName())
+                .attr("ledgerId", lh == null ? -1 : lh.getId())
+                .attr("entryId", entryId)
+                .attr("size", dataLength)
+                .attr("rc", rc)
+                .log("write-complete");
 
         if (rc != BKException.Code.OK || timeoutTriggered.get()) {
             handleAddFailure(lh, rc);
@@ -281,7 +288,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
-            log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
+            log.info().attr("managedLedger", ml.getName())
+                    .attr("ledgerId", ledgerId)
+                    .log("Closing ledger for being full");
             // `data` will be released in `closeComplete`
             if (ledger != null) {
                 ledger.asyncClose(this, ctx);
@@ -298,9 +307,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                 lh.getId());
 
         if (rc == BKException.Code.OK) {
-            log.debug("Successfully closed ledger {}", lh.getId());
+            log.debug().attr("ledgerId", lh.getId()).log("Successfully closed ledger");
         } else {
-            log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
+            log.warn().attr("ledgerId", lh.getId())
+                    .attr("status", BKException.getMessage(rc))
+                    .log("Error when closing ledger");
         }
 
         ml.ledgerClosed(lh);
@@ -336,7 +347,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, addOpCount, -1)) {
             return true;
         }
-        log.info("Add-entry already completed for {}-{}", ledger != null ? ledger.getId() : -1, entryId);
+        log.info().attr("ledgerId", ledger != null ? ledger.getId() : -1)
+                .attr("entryId", entryId)
+                .log("Add-entry already completed");
         return false;
     }
 

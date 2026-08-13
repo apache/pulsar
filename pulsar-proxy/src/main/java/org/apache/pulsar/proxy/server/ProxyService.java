@@ -31,6 +31,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslContext;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -54,6 +55,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -62,13 +64,18 @@ import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -76,12 +83,15 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.proxy.extensions.ProxyExtensions;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.proxy.stats.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 
 /**
  * Pulsar proxy service.
  */
+@CustomLog
 public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
@@ -122,6 +132,19 @@ public class ProxyService implements Closeable {
 
     private final ScheduledExecutorService statsExecutor;
     private ScheduledExecutorService sslContextRefresher;
+    // PIP-478: the TLS front-end channel initializer that may own a PulsarTlsFactory (closed on shutdown),
+    // and the shared broker-client (proxy->broker) TLS. DirectProxyHandler reads the volatile SslContext
+    // without blocking the event loop; the subscription delivers rotation.
+    private ServiceChannelInitializer tlsServiceChannelInitializer;
+    private volatile PulsarTlsFactory brokerClientTlsFactory;
+    private TlsHandle<SslContext> brokerClientTlsSubscription;
+    private volatile SslContext brokerClientSslContext;
+    // PIP-478: the shared client TLS factory serving the CLIENT_DEFAULT purpose for the proxy's binary
+    // lookup ConnectionPool (ProxyConnection stashes it on each self-built ClientConfigurationData). The
+    // proxy->broker lookup transport is a normal Pulsar client, whose PulsarChannelInitializer requests
+    // CLIENT_DEFAULT — the BROKER_CLIENT-purpose brokerClientTlsFactory above cannot serve it, so this is a
+    // second factory built from the same broker-client tls* material. Closed with the ProxyService.
+    private volatile PulsarTlsFactory lookupClientTlsFactory;
 
     static final Gauge ACTIVE_CONNECTIONS = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
@@ -268,13 +291,61 @@ public class ProxyService implements Closeable {
             proxyZeroCopyModeEnabled = true;
         }
 
+        // Build the broker-client TLS before binding any listener: a connection accepted while these
+        // were still being constructed would read a null brokerClientSslContext in DirectProxyHandler,
+        // or a null lookup factory from ProxyConnection.createClientConfiguration. Under PIP-337 no such
+        // window existed because DirectProxyHandler built its factory lazily per remote host.
+        // PIP-478: for the proxy->broker binary path, build one shared PulsarTlsFactory serving the
+        // BROKER_CLIENT purpose and subscribe to a volatile SslContext that DirectProxyHandler reads without
+        // blocking the event loop (rotation delivered by the subscription). This uses the subscribing overload
+        // rather than the client one-shot form on purpose: the proxy is a long-lived server holding outbound
+        // connections, and blocking createInstance().get() on the Netty event loop per connection is not
+        // acceptable. The endpoint hint is moot for the default file-based factory, which ignores it.
+        if (proxyConfig.isTlsEnabledWithBroker()) {
+            this.brokerClientTlsFactory = TlsFactorySupport.createFactory(
+                    proxyConfig.getBrokerClientTlsFactoryClassName(), null,
+                    () -> ProxyTlsFactories.brokerClientFactory(proxyConfig, proxyClientAuthentication));
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(proxyConfig.getBrokerClientTlsFactoryConfig()),
+                    statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry());
+            TlsFactorySupport.initializeBlocking(this.brokerClientTlsFactory, initContext);
+            this.brokerClientTlsSubscription = TlsContextAcquisition.acquireNettyContext(
+                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT,
+                            TlsSynthesisSpec.client(proxyConfig.isTlsHostnameVerificationEnabled()),
+                            ctx -> this.brokerClientSslContext = ctx)
+                    .get()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "TLS factory supplied no Netty SslContext for purpose " + TlsPurpose.BROKER_CLIENT));
+
+            // PIP-478: the proxy's binary lookup ConnectionPool uses a normal Pulsar client transport, whose
+            // PulsarChannelInitializer requests a CLIENT_DEFAULT SslContext from the factory stashed on its
+            // ClientConfigurationData. ProxyConnection builds that config per connection but does not run the
+            // PulsarClientImpl setup that resolves the client factory, so build one shared CLIENT_DEFAULT
+            // factory here (from the same broker-client tls* material, initialized off the event loop) and let
+            // ProxyConnection stash it on each config. Built from a representative config; the factory itself is
+            // still null at this point, so resolveClientTlsFactory takes the default (non-adopted) path.
+            // serviceUrl / serviceUrlTls are still null here — they need the actual bound port, which is why
+            // they are computed after the binds below. That is fine: this representative config is read only
+            // for its tls* fields (see createClientConfiguration's javadoc), and ClientTlsFactorySupport never
+            // looks at the service URL. Do not start depending on the URL here without moving this back.
+            ClientConfigurationData lookupClientConf = ProxyConnection.createClientConfiguration(this);
+            // brokerClientPurpose=true: this lookup transport reuses tlsFactoryClassName to carry the
+            // brokerClientTlsFactoryClassName selection, so a custom by-name factory is wrapped to resolve the
+            // transport's CLIENT_DEFAULT request under the fixed BROKER_CLIENT purpose (matches the direct path
+            // above, which requests BROKER_CLIENT).
+            this.lookupClientTlsFactory = ClientTlsFactorySupport.resolveClientTlsFactory(
+                    lookupClientConf, statsExecutor, statsExecutor, openTelemetry.getOpenTelemetry(), true);
+        }
+
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false, null));
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
                 listenChannel = bootstrap.bind(proxyConfig.getBindAddress(),
                         proxyConfig.getServicePort().get()).sync().channel();
-                LOG.info("Started Pulsar Proxy at {}", listenChannel.localAddress());
+                log.info()
+                        .attr("localAddress", listenChannel.localAddress())
+                        .log("Started Pulsar Proxy at");
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
             }
@@ -285,11 +356,14 @@ public class ProxyService implements Closeable {
                     .newSingleThreadScheduledExecutor(
                             new DefaultThreadFactory("proxy-ssl-context-refresher"));
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true,
-                    sslContextRefresher));
+            this.tlsServiceChannelInitializer = new ServiceChannelInitializer(this, proxyConfig, true,
+                    sslContextRefresher);
+            tlsBootstrap.childHandler(this.tlsServiceChannelInitializer);
             listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(),
                     proxyConfig.getServicePortTls().get()).sync().channel();
-            LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
+            log.info()
+                    .attr("localAddress", listenChannelTls.localAddress())
+                    .log("Started Pulsar TLS Proxy on");
         }
 
         final String hostname =
@@ -336,7 +410,10 @@ public class ProxyService implements Closeable {
                 try {
                     startProxyExtension(extensionName, address, initializer, serverBootstrap);
                 } catch (IOException e) {
-                    LOG.error("{}", e.getMessage(), e.getCause());
+                    log.error()
+                            .exceptionMessage(e)
+                            .exception(e.getCause())
+                            .log("Failed to start proxy extension");
                     throw new RuntimeException(e.getMessage(), e.getCause());
                 }
             });
@@ -373,7 +450,10 @@ public class ProxyService implements Closeable {
         } catch (Exception e) {
             throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
         }
-        LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
+        log.info()
+                .attr("extensionName", extensionName)
+                .attr("address", address)
+                .log("Successfully bound extension");
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -385,7 +465,7 @@ public class ProxyService implements Closeable {
             try {
                 listenChannel.close().sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of listenChannel interrupted");
+                log.info("Shutdown of listenChannel interrupted");
                 Thread.currentThread().interrupt();
             }
         }
@@ -394,7 +474,7 @@ public class ProxyService implements Closeable {
             try {
                 listenChannelTls.close().sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of listenChannelTls interrupted");
+                log.info("Shutdown of listenChannelTls interrupted");
                 Thread.currentThread().interrupt();
             }
         }
@@ -403,7 +483,7 @@ public class ProxyService implements Closeable {
         try {
             shutdownEventLoop(acceptorGroup).sync();
         } catch (InterruptedException e) {
-            LOG.info("Shutdown of acceptorGroup interrupted");
+            log.info("Shutdown of acceptorGroup interrupted");
             Thread.currentThread().interrupt();
         }
 
@@ -452,18 +532,44 @@ public class ProxyService implements Closeable {
         try {
             shutdownEventLoop(workerGroup).sync();
         } catch (InterruptedException e) {
-            LOG.info("Shutdown of workerGroup interrupted");
+            log.info("Shutdown of workerGroup interrupted");
             Thread.currentThread().interrupt();
         }
         for (EventLoopGroup group : extensionsWorkerGroups) {
             try {
                 shutdownEventLoop(group).sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of {} interrupted", group);
+                log.info()
+                        .attr("group", group)
+                        .log("Shutdown of interrupted");
                 Thread.currentThread().interrupt();
             }
         }
-        LOG.info("ProxyService closed.");
+
+        // PIP-478: dispose the new-SPI TLS resources (front-end subscription + shared broker-client
+        // factory) ONLY AFTER the worker and extension event loops are fully quiesced. Those loops run the
+        // proxy's inbound TLS handshakes (ServiceChannelInitializer) and outbound broker-connects
+        // (DirectProxyHandler), both of which build handlers from these factory-owned Netty contexts. Freeing
+        // the contexts while a loop can still start a connection would run newHandler on a released native
+        // OpenSSL context (use-after-free) — mirror the broker's loops-before-initializer-close ordering.
+        if (this.tlsServiceChannelInitializer != null) {
+            this.tlsServiceChannelInitializer.close();
+            this.tlsServiceChannelInitializer = null;
+        }
+        if (this.brokerClientTlsSubscription != null) {
+            this.brokerClientTlsSubscription.dispose();
+            this.brokerClientTlsSubscription = null;
+        }
+        if (this.brokerClientTlsFactory != null) {
+            this.brokerClientTlsFactory.close();
+            this.brokerClientTlsFactory = null;
+        }
+        if (this.lookupClientTlsFactory != null) {
+            this.lookupClientTlsFactory.close();
+            this.lookupClientTlsFactory = null;
+        }
+
+        log.info("ProxyService closed.");
     }
 
     private void closeAllConnections() {
@@ -471,16 +577,18 @@ public class ProxyService implements Closeable {
             workerGroup.submit(() -> {
                 // Close all the connections
                 if (!clientCnxs.isEmpty()) {
-                    LOG.info("Closing {} proxy connections, including connections to brokers", clientCnxs.size());
+                    log.info()
+                            .attr("size", clientCnxs.size())
+                            .log("Closing proxy connections, including connections to brokers");
                     for (ProxyConnection clientCnx : clientCnxs) {
                         clientCnx.ctx().close();
                     }
                 } else {
-                    LOG.info("No proxy connections to close");
+                    log.info("No proxy connections to close");
                 }
             }).sync();
         } catch (InterruptedException e) {
-            LOG.info("Closing of connections interrupted");
+            log.info("Closing of connections interrupted");
             Thread.currentThread().interrupt();
         }
     }
@@ -499,6 +607,28 @@ public class ProxyService implements Closeable {
 
     public ProxyConfiguration getConfiguration() {
         return proxyConfig;
+    }
+
+    /**
+     * PIP-478: the current proxy&rarr;broker (BROKER_CLIENT) Netty {@link SslContext} when the new TLS SPI is
+     * selected for broker-client TLS, or {@code null} when the legacy PIP-337 path is used. Read by
+     * {@code DirectProxyHandler} to build the outbound SslHandler without blocking the event loop.
+     *
+     * @return the shared broker-client SslContext, or {@code null} on the legacy path
+     */
+    public SslContext getBrokerClientSslContext() {
+        return brokerClientSslContext;
+    }
+
+    /**
+     * The shared CLIENT_DEFAULT TLS factory for the proxy's binary lookup ConnectionPool (PIP-478).
+     * {@code null} when TLS with the broker is disabled, and transiently {@code null} while it is being
+     * built at startup (the factory is resolved from a representative {@code ClientConfigurationData}).
+     *
+     * @return the lookup client TLS factory, or {@code null}
+     */
+    public PulsarTlsFactory getLookupClientTlsFactory() {
+        return lookupClientTlsFactory;
     }
 
     public AuthenticationService getAuthenticationService() {
@@ -563,8 +693,6 @@ public class ProxyService implements Closeable {
             this.metricsServlet.addRawMetricsProvider(metricsProvider);
         }
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
 
     protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
         return new LookupProxyHandler(this, proxyConnection);

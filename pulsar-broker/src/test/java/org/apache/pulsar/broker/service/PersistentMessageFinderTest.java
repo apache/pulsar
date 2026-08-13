@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -32,20 +33,23 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -83,7 +87,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) {
@@ -355,7 +359,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Thread.sleep(100);
         long timeAfterBrokerTimestamp = System.currentTimeMillis();
 
-
         CompletableFuture<Void> publishTimeFuture = findMessage(result, cursorNew, timeAfterPublishTime);
         publishTimeFuture.get();
         assertNull(result.exception);
@@ -548,19 +551,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         bkc.deleteLedger(ledgers.get(9).getLedgerId());
 
         MessageId messageId = findMessageIdByPublishTime(initTimeMillis + 17, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(3).getLedgerId(), 2, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 27, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(4).getLedgerId(), 0, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 43, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(8).getLedgerId(), 3, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 48, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(9).getLedgerId(), 0, -1));
 
         ledger.close();
@@ -612,19 +615,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Result result = new Result();
 
         findMessage(result, cursor, initTimeMillis + 17, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 1));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 27, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 4));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 43, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(8).getLedgerId(), 2));
 
@@ -638,7 +641,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
-                log.error("Error deserializing message for message position find", e);
+                log.error().exception(e).log("Error deserializing message for message position find");
             } finally {
                 entry.release();
             }
@@ -1098,5 +1101,59 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
         assertEquals(range.getLeft(), PositionFactory.create(1, 9));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testExpireMessagesNeverLoseMarkDeleteProperties() throws Exception {
+        final String ledgerAndCursorName = "testExpireMessagesNeverLoseMarkDeleteProperties";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(10);
+        config.setRetentionTime(1, TimeUnit.HOURS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        ManagedCursorImpl spyCursor = spy(cursor);
+
+        Position pos1 = ledger.addEntry(createMessageWrittenToLedger("msg-1"));
+        Position pos2 = ledger.addEntry(createMessageWrittenToLedger("msg-2"));
+
+        CountDownLatch expiryMarkDeleteEnteredLatch = new CountDownLatch(1);
+        CountDownLatch cursorMarkDeleteCompletedLatch = new CountDownLatch(1);
+        CountDownLatch expiryMarkDeleteCompletedLatch = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            Map<String, Long> invocationProperties = invocation.getArgument(1);
+            // Pause the expiry-triggered mark-delete so the user markDelete() can complete first.
+            if (invocationProperties == null || invocationProperties.isEmpty()) {
+                expiryMarkDeleteEnteredLatch.countDown();
+                assertTrue(cursorMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+                try {
+                    return invocation.callRealMethod();
+                } finally {
+                    expiryMarkDeleteCompletedLatch.countDown();
+                }
+            }
+
+            return invocation.callRealMethod();
+        }).when(spyCursor)
+                .asyncMarkDelete(any(Position.class), nullable(Map.class), any(AsyncCallbacks.MarkDeleteCallback.class),
+                        nullable(Object.class));
+
+        PersistentTopic topic = mockPersistentTopic("topicname");
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(topic,
+                spyCursor.getName(), spyCursor, null);
+
+        CompletableFuture.runAsync(() -> monitor.findEntryComplete(pos2, null));
+        assertTrue(expiryMarkDeleteEnteredLatch.await(5, TimeUnit.SECONDS));
+
+        Map<String, Long> properties = new HashMap<>();
+        properties.put("test-property", 1L);
+        spyCursor.markDelete(pos1, properties);
+        cursorMarkDeleteCompletedLatch.countDown();
+
+        assertTrue(expiryMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
+        assertEquals(spyCursor.getMarkDeletedPosition(), pos2);
+        assertEquals(spyCursor.getProperties(), properties);
     }
 }

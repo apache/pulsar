@@ -140,7 +140,20 @@ test_group_shade_run() {
   ./gradlew --no-configuration-cache \
     :tests:pulsar-client-shade-test:test \
     :tests:pulsar-client-admin-shade-test:test \
-    :tests:pulsar-client-all-shade-test:test
+    :tests:pulsar-client-all-shade-test:test \
+    "$@"
+  echo "::endgroup::"
+  "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
+}
+
+test_group_native_image() {
+  echo "::group::Run GraalVM native image smoke tests"
+  # Compiles NativeImageTesterApp to a native binary (using the embedded
+  # META-INF/native-image reachability metadata) and runs the produce/consume
+  # smoke test that drives the binary via ProcessBuilder. Requires a GraalVM JDK.
+  ./gradlew --no-configuration-cache \
+    :tests:pulsar-client-native-image:test \
+    "$@"
   echo "::endgroup::"
   "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
 }

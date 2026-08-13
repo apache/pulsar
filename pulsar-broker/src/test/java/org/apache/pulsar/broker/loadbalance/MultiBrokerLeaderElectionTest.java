@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.Lookup;
@@ -47,7 +47,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
     public MultiBrokerLeaderElectionTest() {
@@ -118,13 +118,14 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         for (PulsarAdmin brokerAdmin : allAdmins) {
             phaser.register();
             Lookup lookups = brokerAdmin.lookups();
-            log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
+            log.info().attr("broker", brokerAdmin.getServiceUrl()).log("Doing lookup to broker");
             resultFutures.add(executorService.submit(() -> topicNames.stream().map(topicName -> {
                 phaser.arriveAndAwaitAdvance();
                 try {
                     return lookups.lookupTopic(topicName);
                 } catch (PulsarAdminException e) {
-                    log.error("Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
+                    log.error().attr("topic", topicName).attr("broker", brokerAdmin.getServiceUrl())
+                            .log("Error looking up topic");
                     throw new RuntimeException(e);
                 }
             }).collect(Collectors.toList())));
@@ -161,7 +162,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
             phaser.register();
             String serviceUrl = ((PulsarClientImpl) brokerClient).getConfiguration().getServiceUrl();
             LookupService lookupService = ((PulsarClientImpl) brokerClient).getLookup();
-            log.info("Doing lookup to broker {}", serviceUrl);
+            log.info().attr("broker", serviceUrl).log("Doing lookup to broker");
             resultFutures.add(executorService.submit(() -> topicNames.stream().map(topicName -> {
                 phaser.arriveAndAwaitAdvance();
                 try {
@@ -169,7 +170,8 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
                             lookupService.getBroker(TopicName.get(topicName)).get().getLogicalAddress();
                     return logicalAddress.getHostString() + ":" + logicalAddress.getPort();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Error looking up topic {} in {}", topicName, serviceUrl);
+                    log.error().attr("topic", topicName).attr("broker", serviceUrl)
+                            .log("Error looking up topic");
                     throw new RuntimeException(e);
                 }
             }).collect(Collectors.toList())));
