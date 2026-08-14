@@ -197,7 +197,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.18</slf4j.version>
     <commons.collections4.version>4.5.0</commons.collections4.version>
-    <log4j2.version>2.26.0</log4j2.version>
+    <log4j2.version>2.26.1</log4j2.version>
     <!-- bouncycastle dependencies aren't necessarily aligned -->
     <bouncycastle.version>1.84</bouncycastle.version>
     <bouncycastle.bcprov-jdk18on.version>${bouncycastle.version}</bouncycastle.bcprov-jdk18on.version>
