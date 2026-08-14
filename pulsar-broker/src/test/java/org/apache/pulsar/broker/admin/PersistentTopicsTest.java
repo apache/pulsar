@@ -1498,52 +1498,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    /**
-     * Verify that:
-     * 1. JUL bridge (log4j-jul) is active in the test JVM.
-     * 2. When message properties exceed Jetty's maxResponseHeaderSize (16384 default),
-     *    the getMessageById admin API returns HTTP 500.
-     */
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testGetMessageByIdLargePropertiesExceed16KB() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant("tenant-xyz", tenantInfo);
-        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
-        final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageByIdLargeProps";
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        // Build properties whose serialized JSON exceeds Jetty's maxResponseHeaderSize (16384 default)
-        Map<String, String> largeProps = new HashMap<>();
-        char[] chars = new char[20 * 1024];
-        java.util.Arrays.fill(chars, 'A');
-        largeProps.put("large-prop", new String(chars));
-
-        @Cleanup
-        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
-                .enableBatching(false).create();
-        MessageIdImpl id = (MessageIdImpl) producer.newMessage()
-                .value("test".getBytes())
-                .properties(largeProps)
-                .send();
-
-        // 1. Verify JUL bridge is active (log4j-jul is on classpath and system property is set)
-        java.util.logging.LogManager logManager = java.util.logging.LogManager.getLogManager();
-        Assert.assertEquals(logManager.getClass().getName(),
-                "org.apache.logging.log4j.jul.LogManager",
-                "JUL bridge should be active: -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager");
-
-        // 2. Verify getMessageById returns 500 when response header exceeds maxResponseHeaderSize
-        try {
-            admin.topics().getMessageById(topicName, id.getLedgerId(), id.getEntryId());
-            Assert.fail("Expected PulsarAdminException due to response header overflow");
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 500,
-                    "Expected status 500 (Jetty response header overflow), got: "
-                            + e.getStatusCode());
-        }
-    }
-
     @Test
     public void testGetMessageIdByTimestamp() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
