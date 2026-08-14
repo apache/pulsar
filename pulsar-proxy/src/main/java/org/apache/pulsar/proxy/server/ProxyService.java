@@ -100,7 +100,8 @@ public class ProxyService implements Closeable {
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
     // PIP-478: lazily built from proxyClientAuthentication; see getProxyClientAuthenticationDriver().
-    private BinaryAuthenticationDriver proxyClientAuthenticationDriver;
+    // Volatile because that getter reads it without holding the monitor.
+    private volatile BinaryAuthenticationDriver proxyClientAuthenticationDriver;
     @Getter
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
     @Getter
@@ -697,14 +698,25 @@ public class ProxyService implements Closeable {
      * pool, which is the case {@code V5AuthContexts} documents for exactly this caller — the alternative,
      * running it inline, is the Netty event loop.
      *
+     * <p>Read on every backend connection's {@code channelActive}, so the hit path is lock-free and only a
+     * miss takes the monitor — as {@code ClientCnx.resolveAuthDriver} does, and for the same reason: this
+     * monitor is the {@link ProxyService} one, shared with the metrics-servlet accessors, and a connection
+     * being set up should not have to queue behind unrelated machinery.
+     *
      * @return the shared binary authentication driver
      */
-    public synchronized BinaryAuthenticationDriver getProxyClientAuthenticationDriver() {
-        if (proxyClientAuthenticationDriver == null) {
-            proxyClientAuthenticationDriver = new V5BinaryAuthenticationDriver(
-                    V5AuthenticationLoader.forStartedV4Plugin(proxyClientAuthentication));
+    public BinaryAuthenticationDriver getProxyClientAuthenticationDriver() {
+        BinaryAuthenticationDriver resolved = proxyClientAuthenticationDriver;
+        if (resolved != null) {
+            return resolved;
         }
-        return proxyClientAuthenticationDriver;
+        synchronized (this) {
+            if (proxyClientAuthenticationDriver == null) {
+                proxyClientAuthenticationDriver = new V5BinaryAuthenticationDriver(
+                        V5AuthenticationLoader.forStartedV4Plugin(proxyClientAuthentication));
+            }
+            return proxyClientAuthenticationDriver;
+        }
     }
 
     public synchronized PrometheusMetricsServlet getMetricsServlet() {
