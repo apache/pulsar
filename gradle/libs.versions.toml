@@ -189,6 +189,7 @@ log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "lo
 log4j-web = { module = "org.apache.logging.log4j:log4j-web", version.ref = "log4j2" }
 log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j2" }
 log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j2" }
+log4j-jul = { module = "org.apache.logging.log4j:log4j-jul", version.ref = "log4j2" }
 # slog
 slog = { module = "io.github.merlimat.slog:slog", version.ref = "slog" }
 # Lombok

@@ -166,6 +166,9 @@ fi
 OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are routed to pulsar.log instead of stdout
+OPTS="$OPTS -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
