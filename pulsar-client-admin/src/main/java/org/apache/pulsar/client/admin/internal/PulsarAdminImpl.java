@@ -29,7 +29,6 @@ import java.net.URL;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -132,9 +131,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
     // plugin does not implement ClientAuthenticationServicesAware. Closed with this admin.
     private FrameworkHttpClientFactory authHttpClientFactory;
     // PIP-478: the admin's own bounded executor for potentially-blocking authentication work — the v4
-    // credential composition on every request, and whatever a services-aware plugin off-loads. Created
-    // lazily so an admin whose plugin never needs one pays nothing, and shut down with this admin.
-    private volatile ThreadPoolExecutor blockingAuthExecutor;
+    // credential composition on every request, and whatever a services-aware plugin off-loads. Shut down
+    // with this admin. Constructing it costs one object: a ThreadPoolExecutor starts no threads until a
+    // task arrives, and with core threads timing out an admin that issues no authenticated request keeps
+    // none.
+    private final ThreadPoolExecutor blockingAuthExecutor;
     @Getter
     private AsyncHttpConnectorProvider asyncConnectorProvider;
 
@@ -165,6 +166,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
         // URL first is part of that — the provider reads it to decide whether a factory is needed at all.
         asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
                 clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
+
+        this.blockingAuthExecutor = newBlockingAuthExecutor();
 
         boolean constructed = false;
         try {
@@ -204,29 +207,29 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 clientConfigData.getAutoCertRefreshSeconds(), sharedResources);
 
         long requestTimeoutMs = clientConfigData.getRequestTimeoutMs();
-        this.clusters = new ClustersImpl(root, auth, requestTimeoutMs);
-        this.brokers = new BrokersImpl(root, auth, requestTimeoutMs);
-        this.brokerStats = new BrokerStatsImpl(root, auth, requestTimeoutMs);
-        this.proxyStats = new ProxyStatsImpl(root, auth, requestTimeoutMs);
-        this.tenants = new TenantsImpl(root, auth, requestTimeoutMs);
-        this.resourcegroups = new ResourceGroupsImpl(root, auth, requestTimeoutMs);
-        this.namespaces = new NamespacesImpl(root, auth, requestTimeoutMs);
-        this.topics = new TopicsImpl(root, auth, requestTimeoutMs);
-        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, requestTimeoutMs, false);
-        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, requestTimeoutMs, true);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, requestTimeoutMs);
-        this.resourceQuotas = new ResourceQuotasImpl(root, auth, requestTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, requestTimeoutMs, topics);
-        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
-        this.sources = new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
-        this.sinks = new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
-        this.worker = new WorkerImpl(root, auth, requestTimeoutMs);
-        this.schemas = new SchemasImpl(root, auth, requestTimeoutMs);
-        this.bookies = new BookiesImpl(root, auth, requestTimeoutMs);
-        this.packages = new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
-        this.transactions = new TransactionsImpl(root, auth, requestTimeoutMs);
-        this.metadataMigration = new MetadataMigrationImpl(root, auth, requestTimeoutMs);
-        this.scalableTopics = new ScalableTopicsImpl(root, auth, requestTimeoutMs);
+        this.clusters = lendAuthExecutor(new ClustersImpl(root, auth, requestTimeoutMs));
+        this.brokers = lendAuthExecutor(new BrokersImpl(root, auth, requestTimeoutMs));
+        this.brokerStats = lendAuthExecutor(new BrokerStatsImpl(root, auth, requestTimeoutMs));
+        this.proxyStats = lendAuthExecutor(new ProxyStatsImpl(root, auth, requestTimeoutMs));
+        this.tenants = lendAuthExecutor(new TenantsImpl(root, auth, requestTimeoutMs));
+        this.resourcegroups = lendAuthExecutor(new ResourceGroupsImpl(root, auth, requestTimeoutMs));
+        this.namespaces = lendAuthExecutor(new NamespacesImpl(root, auth, requestTimeoutMs));
+        this.topics = lendAuthExecutor(new TopicsImpl(root, auth, requestTimeoutMs));
+        this.localTopicPolicies = lendAuthExecutor(new TopicPoliciesImpl(root, auth, requestTimeoutMs, false));
+        this.globalTopicPolicies = lendAuthExecutor(new TopicPoliciesImpl(root, auth, requestTimeoutMs, true));
+        this.nonPersistentTopics = lendAuthExecutor(new NonPersistentTopicsImpl(root, auth, requestTimeoutMs));
+        this.resourceQuotas = lendAuthExecutor(new ResourceQuotasImpl(root, auth, requestTimeoutMs));
+        this.lookups = lendAuthExecutor(new LookupImpl(root, auth, useTls, requestTimeoutMs, topics));
+        this.functions = lendAuthExecutor(new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.sources = lendAuthExecutor(new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.sinks = lendAuthExecutor(new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.worker = lendAuthExecutor(new WorkerImpl(root, auth, requestTimeoutMs));
+        this.schemas = lendAuthExecutor(new SchemasImpl(root, auth, requestTimeoutMs));
+        this.bookies = lendAuthExecutor(new BookiesImpl(root, auth, requestTimeoutMs));
+        this.packages = lendAuthExecutor(new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.transactions = lendAuthExecutor(new TransactionsImpl(root, auth, requestTimeoutMs));
+        this.metadataMigration = lendAuthExecutor(new MetadataMigrationImpl(root, auth, requestTimeoutMs));
+        this.scalableTopics = lendAuthExecutor(new ScalableTopicsImpl(root, auth, requestTimeoutMs));
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -240,6 +243,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 // trustCertsFilePath being the common case) leaks one of each. The connectors release only
                 // their own borrowed handles, which is exactly why this has to happen here.
                 asyncConnectorProvider.close();
+                // A services-aware plugin's start() may already have run work here before the failure.
+                blockingAuthExecutor.shutdown();
             }
         }
     }
@@ -610,40 +615,53 @@ public class PulsarAdminImpl implements PulsarAdmin {
         // does schedule some gets the framework's shared one — binding a scheduled pool per admin to sit idle
         // would cost more than it buys.
         //
-        // The blocking executor *is* the admin's own. This is where the SASL-over-HTTP challenge rounds put
-        // their GSSAPI work, so it must never be the admin's request threads — a slow KDC would consume them
-        // — but leaving it unbound is not right either: the plugin then shares one process-wide pool with
-        // every other client in the JVM, so a stalled identity provider reached by one admin throttles
-        // authentication for all of them. A small bounded pool per admin keeps that blast radius inside the
-        // admin that owns the plugin, and is shut down with it.
+        // The blocking executor *is* the admin's own — the same pool BaseResource runs the deprecated v4
+        // composition on. This is where the SASL-over-HTTP challenge rounds put their GSSAPI work, so it must
+        // never be the admin's request threads — a slow KDC would consume them — but leaving it unbound is
+        // not right either: the plugin then shares one process-wide pool with every other client in the JVM,
+        // so a stalled identity provider reached by one admin throttles authentication for all of them. A
+        // small bounded pool per admin keeps that blast radius inside the admin that owns the plugin, and is
+        // shut down with it.
         ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
-                authHttpClientFactory, null, blockingAuthExecutor(), Clock.systemDefaultZone(), openTelemetry,
+                authHttpClientFactory, null, blockingAuthExecutor, Clock.systemDefaultZone(), openTelemetry,
                 clientInstanceId);
         aware.bindClientAuthenticationServices(services);
     }
 
     /**
-     * The admin's bounded executor for potentially-blocking authentication work (PIP-478).
+     * Lend a resource this admin's blocking authentication executor, so the deprecated v4 credential
+     * composition it runs per request stays on the admin's own pool (PIP-478).
      *
-     * <p>Queues rather than rejects: every caller is an authenticated request, so a saturated pool must slow
-     * requests down rather than fail them. Core threads time out, so an admin whose plugin never blocks pays
-     * for nothing. Created lazily under this admin's monitor and shut down in {@link #close()}.
+     * @param resource the freshly constructed resource
+     * @param <T> the resource type
+     * @return the same resource
+     */
+    private <T extends BaseResource> T lendAuthExecutor(T resource) {
+        resource.setBlockingAuthExecutor(blockingAuthExecutor);
+        return resource;
+    }
+
+    /**
+     * Build the admin's bounded executor for potentially-blocking authentication work (PIP-478).
+     *
+     * <p>Queues rather than rejects, matching the framework's shared pool: every caller is an authenticated
+     * request, so a saturated pool must slow requests down rather than fail them — and a queued task is far
+     * smaller than what the caller already retains to produce it (a synchronous admin call is a parked
+     * thread, bounded by its own {@code requestTimeoutMs}). Core threads time out, so an admin whose plugin
+     * never blocks holds no threads. Shut down in {@link #close()}.
      *
      * @return the blocking authentication executor
      */
-    private synchronized Executor blockingAuthExecutor() {
-        if (blockingAuthExecutor == null) {
-            ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
-                    AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-                    runnable -> {
-                        Thread thread = new Thread(runnable, "pulsar-admin-auth-blocking");
-                        thread.setDaemon(true);
-                        return thread;
-                    });
-            executor.allowCoreThreadTimeOut(true);
-            blockingAuthExecutor = executor;
-        }
-        return blockingAuthExecutor;
+    private static ThreadPoolExecutor newBlockingAuthExecutor() {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
+                AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                runnable -> {
+                    Thread thread = new Thread(runnable, "pulsar-admin-auth-blocking");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+        executor.allowCoreThreadTimeOut(true);
+        return executor;
     }
 
     @Override
@@ -667,10 +685,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         // PIP-478: after auth.close(), so a plugin shutting down over this executor still has it. shutdown()
         // rather than shutdownNow(): queued work is a credential call for a request already in flight, and
         // the threads are daemons, so a straggler cannot hold the JVM up.
-        ThreadPoolExecutor authExecutor = blockingAuthExecutor;
-        if (authExecutor != null) {
-            authExecutor.shutdown();
-        }
+        blockingAuthExecutor.shutdown();
     }
 
     @VisibleForTesting
