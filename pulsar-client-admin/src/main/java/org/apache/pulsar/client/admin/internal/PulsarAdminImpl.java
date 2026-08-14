@@ -642,6 +642,17 @@ public class PulsarAdminImpl implements PulsarAdmin {
     }
 
     /**
+     * The pool the resources above are lent, so a test can assert every one of them got it
+     * (VisibleForTesting). Lending is per construction site: a resource added later without the wrapper
+     * compiles, runs, and silently falls back to the shared pool.
+     *
+     * @return this admin's blocking authentication executor
+     */
+    ThreadPoolExecutor blockingAuthExecutorForTest() {
+        return blockingAuthExecutor;
+    }
+
+    /**
      * Build the admin's bounded executor for potentially-blocking authentication work (PIP-478).
      *
      * <p>Queues rather than rejects, matching the framework's shared pool: every caller is an authenticated

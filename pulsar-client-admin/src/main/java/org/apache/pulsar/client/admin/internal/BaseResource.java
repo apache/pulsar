@@ -95,6 +95,18 @@ public abstract class BaseResource {
         this.blockingAuthExecutor = blockingAuthExecutor;
     }
 
+    /**
+     * The executor lent by {@link PulsarAdminImpl}, or {@code null} when none was (VisibleForTesting). The
+     * lending is opt-in per construction site, and a resource that misses it still works — it just falls
+     * back to the shared pool — so the only thing that can catch a resource added without it is a test that
+     * reads this.
+     *
+     * @return the lent blocking authentication executor, or {@code null}
+     */
+    Executor blockingAuthExecutorForTest() {
+        return blockingAuthExecutor;
+    }
+
     public Builder request(final WebTarget target) throws PulsarAdminException {
         try {
             return requestAsync(target).get();
