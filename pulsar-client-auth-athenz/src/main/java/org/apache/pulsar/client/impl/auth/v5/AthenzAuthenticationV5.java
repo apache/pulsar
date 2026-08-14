@@ -59,7 +59,8 @@ public class AthenzAuthenticationV5 implements SinglePassAuthentication, Seriali
 
     // Late-bound at initializeAsync(...): the client's bounded blocking executor, onto which the
     // (ZTS-blocking) role-token fetch is off-loaded so it never runs on the Netty event loop
-    // (PIP-478). Null when used outside a client, in which case the fetch runs inline.
+    // (PIP-478). Null when used outside a client, in which case V5AuthContexts.supplyBlocking substitutes the
+    // shared blocking pool — the fetch never runs inline on the caller thread.
     private transient volatile Executor blockingExecutor;
 
     /**

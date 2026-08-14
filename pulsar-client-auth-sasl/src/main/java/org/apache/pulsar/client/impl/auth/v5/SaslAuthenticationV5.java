@@ -33,6 +33,7 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -88,7 +89,8 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
 
     // PIP-478 FIX D: the client's bounded blocking executor, late-bound at initializeAsync(...). The SASL
     // provider creation and evaluateChallenge/authenticate (GSSAPI/Kerberos) work is off-loaded onto it so
-    // it never runs on the Netty event loop. Null when used outside a client -> degraded inline computation.
+    // it never runs on the Netty event loop. Null when used outside a client, which is not a degraded inline
+    // path: V5AuthContexts.supplyBlocking substitutes the shared blocking pool rather than running inline.
     private transient volatile Executor blockingExecutor;
 
     // PIP-478 FIX C: the cross-request SASL-over-HTTP role-token cache, restoring the v4
@@ -186,8 +188,11 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
                 }
 
                 Map<String, String> headers = new LinkedHashMap<>();
-                // The SASL data provider's HTTP headers (SASL-Type: Kerberos), on every request.
-                conv.provider.getHttpHeaders().forEach(e -> headers.put(e.getKey(), e.getValue()));
+                // The SASL data provider's HTTP headers (SASL-Type: Kerberos), on every request. Guarded on
+                // hasDataForHttp() as the v4 path is: AuthenticationDataProvider.getHttpHeaders() defaults to
+                // returning null, so an implementation that overrides neither would NPE here. The built-in
+                // SaslAuthenticationDataProvider overrides both, but SaslProviderFactory is a public seam.
+                addHttpHeaders(conv.provider, headers);
 
                 // Role token exists but the server reported it expired: drop it (including the cross-request
                 // cache, FIX C) and restart the SASL exchange.
@@ -279,6 +284,30 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
         return conv.roleToken != null
                 && SASL_TYPE_VALUE.equalsIgnoreCase(header(ctx, SASL_HEADER_TYPE))
                 && SASL_AUTH_ROLE_TOKEN_EXPIRED.equalsIgnoreCase(header(ctx, SASL_HEADER_STATE));
+    }
+
+    /**
+     * Copy a data provider's HTTP headers into {@code headers}, contributing nothing when it has none.
+     *
+     * <p>Mirrors the v4 {@code AuthenticationSasl} guard. {@link AuthenticationDataProvider#getHttpHeaders()}
+     * is a default method returning {@code null} (and {@code hasDataForHttp()} returns {@code false}), so
+     * calling it unguarded NPEs for any provider that overrides neither. The built-in
+     * {@code SaslAuthenticationDataProvider} overrides both, but {@link SaslProviderFactory} is a public
+     * extension seam, so the guard is not merely defensive.
+     *
+     * @param provider the SASL data provider for this exchange
+     * @param headers  the header map to add to
+     * @throws Exception if the provider fails to produce its headers
+     */
+    private static void addHttpHeaders(AuthenticationDataProvider provider, Map<String, String> headers)
+            throws Exception {
+        if (!provider.hasDataForHttp()) {
+            return;
+        }
+        Set<Map.Entry<String, String>> httpHeaders = provider.getHttpHeaders();
+        if (httpHeaders != null) {
+            httpHeaders.forEach(e -> headers.put(e.getKey(), e.getValue()));
+        }
     }
 
     private static String header(HttpAuthCallContext ctx, String name) {

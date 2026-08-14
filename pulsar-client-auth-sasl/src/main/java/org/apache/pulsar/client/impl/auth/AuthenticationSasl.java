@@ -101,9 +101,28 @@ public class AuthenticationSasl
     // PIP-478: the framework HTTP auth driver for the SASL-over-HTTP flow, created lazily on the
     // first HTTP request after start(). Its default transport is this plugin's own JAX-RS client (the
     // faithful admin-path transport; the lookup path supplies its shared AsyncHttpClient instead).
-    private transient volatile HttpAuthenticationDriver httpAuthenticationDriver;
-    // The services the cached driver was built with, so a later rebind is noticed rather than ignored.
-    private transient volatile ClientAuthenticationServices httpAuthenticationDriverServices;
+    //
+    // The driver and the services it was built with are ONE immutable value behind ONE volatile, not two
+    // fields. Two independently-read volatiles admit a plain temporal interleaving — no reordering needed,
+    // since volatile accesses are totally ordered: a reader can read the old driver, a rebuilding thread can
+    // then publish both new fields, and the reader's subsequent services comparison passes against the new
+    // value while it returns the driver built with the old one. That is precisely the mispairing this cache
+    // exists to prevent, and both HTTP call sites hit this method per request, so concurrent readers are the
+    // normal case for a shared client+admin. Pairing them makes the stale combination unrepresentable.
+    private transient volatile HttpDriverBinding httpDriverBinding;
+
+    /**
+     * A driver together with the services it was built with — read and published as one value.
+     *
+     * @param driver   the HTTP authentication driver
+     * @param services the services the driver was built with; may be {@code null} before any bind
+     */
+    private record HttpDriverBinding(HttpAuthenticationDriver driver, ClientAuthenticationServices services) {
+    }
+
+    // The v5 body the HTTP driver wraps, kept across driver rebuilds so its cached role token survives a
+    // services rebind. Guarded by the same monitor as httpDriverBinding.
+    private transient SaslAuthenticationV5 httpAuthenticationBody;
 
     public AuthenticationSasl() {
     }
@@ -149,23 +168,31 @@ public class AuthenticationSasl
         // The driver captures the services it is built with, so caching it across a rebind would freeze
         // whichever binding happened to come first. One plugin instance is routinely shared between a
         // PulsarClient and a PulsarAdmin, and both bind: caching the first would hand one of them the
-        // other's services for the rest of its life. Rebuild when the binding changes — the driver holds no
-        // cross-request state (that lives in the per-request call context), so replacing it is safe.
+        // other's services for the rest of its life. Rebuild the driver when the binding changes.
+        //
+        // The BODY is deliberately not rebuilt with it. It holds the validated role token across requests
+        // (SaslAuthenticationV5.cachedRoleToken), which exists precisely so a request replays that token
+        // instead of restarting a full Kerberos negotiation. Minting a fresh body on every rebind would
+        // throw it away and force a renegotiation — and this method's own scenario, one plugin shared
+        // between a client and an admin, is exactly when rebinds happen.
         ClientAuthenticationServices services = this.authServices;
-        HttpAuthenticationDriver driver = httpAuthenticationDriver;
-        if (driver != null && httpAuthenticationDriverServices == services) {
-            return Optional.of(driver);
+        // One read, so the driver and the services it was compared against cannot come from different
+        // publications. See the field comment.
+        HttpDriverBinding binding = httpDriverBinding;
+        if (binding != null && binding.services() == services) {
+            return Optional.of(binding.driver());
         }
         synchronized (this) {
-            driver = httpAuthenticationDriver;
-            if (driver == null || httpAuthenticationDriverServices != services) {
-                driver = new HttpAuthenticationDriver(
-                        new SaslAuthenticationV5(new ShimSaslProviderFactory(this)),
-                        services, new JaxRsChallengeTransport());
-                httpAuthenticationDriver = driver;
-                httpAuthenticationDriverServices = services;
+            binding = httpDriverBinding;
+            if (binding == null || binding.services() != services) {
+                if (httpAuthenticationBody == null) {
+                    httpAuthenticationBody = new SaslAuthenticationV5(new ShimSaslProviderFactory(this));
+                }
+                binding = new HttpDriverBinding(new HttpAuthenticationDriver(
+                        httpAuthenticationBody, services, new JaxRsChallengeTransport()), services);
+                httpDriverBinding = binding;
             }
-            return Optional.of(driver);
+            return Optional.of(binding.driver());
         }
     }
 
@@ -239,9 +266,14 @@ public class AuthenticationSasl
                     future.orTimeout(timeout.toNanos(), TimeUnit.NANOSECONDS);
                 }
                 // Cancel the unbounded JAX-RS request on timeout/failure so its socket is released, not leaked.
+                // cancel(false), not cancel(true): the isDone() guard assumes Jersey marks its Future done
+                // before invoking InvocationCallback.completed(...), and if it does not, an interrupting
+                // cancel would fire against the worker thread that just delivered a successful response.
+                // Not interrupting is immune to that ordering either way, and interruption buys nothing here
+                // — releasing the request is what the cancel is for.
                 future.whenComplete((result, throwable) -> {
                     if (!responseFuture.isDone()) {
-                        responseFuture.cancel(true);
+                        responseFuture.cancel(false);
                     }
                 });
             } catch (Throwable t) {
@@ -331,8 +363,12 @@ public class AuthenticationSasl
             client.close();
             client = null;
         }
-        // Drop the cached HTTP driver; its default transport captured the now-closed JAX-RS client.
-        httpAuthenticationDriver = null;
+        // Drop the cached HTTP driver; its default transport captured the now-closed JAX-RS client. The body
+        // goes with it, so the role token it cached does not outlive the plugin that authenticated for it.
+        httpDriverBinding = null;
+        synchronized (this) {
+            httpAuthenticationBody = null;
+        }
         if (jaasCredentialsContainer != null) {
             jaasCredentialsContainer.close();
             jaasCredentialsContainer = null;
