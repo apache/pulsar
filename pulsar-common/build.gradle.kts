@@ -49,7 +49,7 @@ val includeBuildInfo = providers.gradleProperty("pulsarIncludeBuildInfo")
 val buildInfoFile = providers.gradleProperty("pulsarBuildInfoFile")
     .map { rootDir.resolve(it) }
 
-val generatePulsarBuildInfo by tasks.registering {
+val generatePulsarBuildInfo = tasks.register("generatePulsarBuildInfo") {
     description = "Generates pulsar-version.properties with version and (optionally) git/build metadata."
     val outputFile = layout.buildDirectory.file("generated-resources/buildinfo/org/apache/pulsar/pulsar-version.properties")
     val projectVersion = project.version.toString()
