@@ -297,8 +297,10 @@ public final class JcaProviders {
         // Unlike the PIP-337 loader this one installs NO custom hostname verifier, so Conscrypt keeps its
         // built-in default: SAN-only verification, with no fallback to the CN. That is stricter than the
         // fallback RFC 2818 section 3.1 mandates when a hostname is matched against a certificate carrying
-        // no dNSName SAN, and stricter than the last-resort CN-ID check RFC 6125 section 6.4.4 still
-        // permits. (Neither fallback ever applied to an IP literal, which is matched against iPAddress
+        // no dNSName SAN, and stricter than the last-resort CN-ID check RFC 6125 section 6.4.4 permitted —
+        // but it is what RFC 9525 (which obsoletes RFC 6125) now requires: "The Common Name RDN MUST NOT be
+        // used to identify a service". So it is the default engines that are lenient, not Conscrypt that is
+        // eccentric. (Neither fallback ever applied to an IP literal, which is matched against iPAddress
         // SANs only, so pinning Conscrypt changes nothing there.) Since Conscrypt 2.6.0 a
         // TrustManagerImpl falls back to the default verifier on its own
         // (https://github.com/google/conscrypt/pull/1060 fixing issue 1015), so nothing has to be

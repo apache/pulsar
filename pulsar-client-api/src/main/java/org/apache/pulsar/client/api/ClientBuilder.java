@@ -386,7 +386,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
      * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
      *
-     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 818</a>
+     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 2818</a>
      *
      * @param enableTlsHostnameVerification whether to enable TLS hostname verification
      * @return the client builder instance
