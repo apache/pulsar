@@ -205,6 +205,11 @@ public interface PulsarAdminBuilder {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
+     *
      * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
      *
      * @param enableTlsHostnameVerification
