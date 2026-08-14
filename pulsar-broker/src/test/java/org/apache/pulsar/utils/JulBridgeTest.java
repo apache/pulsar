@@ -20,7 +20,6 @@ package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
