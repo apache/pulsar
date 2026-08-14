@@ -73,10 +73,11 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     // The Proxy, Client, and SuperUser Client certs are signed by this CA
     private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
-    // A valid cert (signed by the trusted CA) that has NO Subject Alternative Name. Used only by the two
-    // dedicated hostname-verification tests to prove that SAN-based (RFC 2818) hostname verification correctly
-    // rejects a connection whose server certificate does not match the host. CN-based matching is no longer
-    // supported (PIP-478, Pulsar 5.0), so this cert always fails hostname verification.
+    // A valid cert (signed by the trusted CA) that has NO Subject Alternative Name and CN=Broker. Used only
+    // by the two dedicated hostname-verification tests to prove that hostname verification correctly rejects
+    // a connection whose server certificate does not match the host. It fails on both counts: there is no SAN
+    // to match, and the CN that the JDK and OpenSSL engines fall back to for a SAN-less certificate is
+    // "Broker", not the advertised "localhost".
     private static final String TLS_NO_SUBJECT_CERT_FILE_PATH =
             "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem";
     private static final String TLS_NO_SUBJECT_KEY_FILE_PATH =
@@ -247,8 +248,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         // server certificate's SubjectAltName (tls/server-cert.pem carries DNS:localhost, IP:127.0.0.1). TLS
         // hostname verification is on by default (PIP-478); the default advertised address resolves
         // to the machine's canonical hostname, which is not in the cert SAN (fails on CI runners). The two
-        // dedicated hostname-verification tests still fail as intended because their server presents a no-SAN
-        // certificate, which cannot match any host regardless of the advertised address.
+        // dedicated hostname-verification tests still fail as intended: their server presents a certificate
+        // with no SAN and CN=Broker, which matches neither "localhost" nor the default advertised address.
         proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setClusterName(CLUSTER_NAME);
 

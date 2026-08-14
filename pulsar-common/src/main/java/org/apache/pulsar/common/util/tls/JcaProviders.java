@@ -295,14 +295,17 @@ public final class JcaProviders {
         }
 
         // Unlike the PIP-337 loader this one installs NO custom hostname verifier, so Conscrypt keeps its
-        // built-in default: standard RFC 2818 (SAN-based) verification, matching PIP-478's removal of the
-        // deprecated CN-based matching. Since Conscrypt 2.6.0 a TrustManagerImpl falls back to the default
-        // verifier on its own (https://github.com/google/conscrypt/pull/1060 fixing issue 1015), so nothing
-        // has to be propagated onto the individual trust managers.
+        // built-in default: SAN-only verification, with no fallback to the CN. That is stricter than the
+        // fallback RFC 2818 section 3.1 mandates when a certificate carries no dNSName SAN, and stricter
+        // than the last-resort CN-ID check RFC 6125 section 6.4.4 still permits. Since Conscrypt 2.6.0 a
+        // TrustManagerImpl falls back to the default verifier on its own
+        // (https://github.com/google/conscrypt/pull/1060 fixing issue 1015), so nothing has to be
+        // propagated onto the individual trust managers.
         //
         // Nothing overrides that default any more: the CN-tolerant TlsHostnameVerifier that SecurityUtility
-        // used to install process-wide was removed with it, so a Conscrypt-pinned client gets Conscrypt's
-        // own RFC 2818 verification.
+        // used to install process-wide was removed with it. So a Conscrypt-pinned client rejects a CN-only
+        // server certificate that the JDK and OpenSSL engines still accept — the one deployment-visible
+        // change from removing Pulsar's own CN-matching verifier.
 
         Security.addProvider(provider);
         log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)

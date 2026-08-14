@@ -206,8 +206,8 @@ dependencies {
     // opentelemetry-api as `api` (the SPI exposes OpenTelemetry on its surface), so it reaches this
     // module's compile AND runtime classpaths through the api(project(":pulsar-tls-factory-api")) above.
 
-    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which loads
-    // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
+    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which resolves
+    // org.bouncycastle.jce.provider.BouncyCastleProvider reflectively, on first use). This matches
     // the provider used in production. FIPS is covered separately by the bcfips-include-test
     // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
     // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.

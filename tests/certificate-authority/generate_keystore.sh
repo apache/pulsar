@@ -27,10 +27,12 @@ DAYS=36500
 COMMON_PARAMS="-storetype JKS -storepass 111111 -keypass 111111 -noprompt"
 
 # generate keystore
-# The broker keystore is presented as a TLS *server* certificate. With TLS hostname verification
-# enabled by default in 5.0 (PIP-478), the server cert must
-# carry a SubjectAltName covering the connected host, otherwise every peer that now verifies hostnames
-# rejects it with "No subject alternative names present". Tests reach the broker/proxy over loopback
+# The broker keystore is presented as a TLS *server* certificate, and TLS hostname verification is
+# enabled by default in 5.0 (PIP-478), so it carries a SubjectAltName covering the connected host.
+# CN=localhost on its own would satisfy the JDK and OpenSSL engines, which fall back to the CN for a
+# certificate with no dNSName SAN — but not a Conscrypt-pinned peer, which does not fall back, and not a
+# connection made to the IP literal, which is never matched against the CN. The SAN is what makes this
+# fixture portable across providers and endpoint forms. Tests reach the broker/proxy over loopback
 # (advertised address pinned to localhost), so DNS:localhost + IP:127.0.0.1 is sufficient. The client
 # and proxy keystores below are only ever used as *client* identities (not hostname-verified), so they
 # intentionally keep no SAN.
