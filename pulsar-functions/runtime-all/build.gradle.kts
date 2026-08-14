@@ -50,7 +50,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
 // Consumable configuration exposing the shadow jar for cross-project dependencies.
 // Unlike pulsar.shadow-conventions (which replaces runtimeElements), this project
 // uses the Shadow plugin directly, so we create a dedicated configuration.
-val shadowJarElements by configurations.creating {
+val shadowJarElements = configurations.create("shadowJarElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {

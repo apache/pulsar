@@ -34,7 +34,7 @@ protobuf = "4.35.0"
 grpc = "1.79.0"
 slf4j = "2.0.18"
 slog = "0.10.0"
-log4j2 = "2.26.0"
+log4j2 = "2.26.1"
 lombok = "1.18.42"
 # OpenTelemetry
 opentelemetry = "1.62.0"
@@ -73,6 +73,8 @@ okio = "3.17.0"
 netty-tcnative = "2.0.81.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
+httpcomponents-httpclient5 = "5.6.4"
+httpcomponents-httpcore5 = "5.4.3"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
 reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
@@ -143,7 +145,7 @@ oxia = "0.9.4"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
-graalvm-buildtools = "1.1.1"
+graalvm-buildtools = "1.1.9"
 errorprone = "2.45.0"
 spotbugs = "4.9.6"
 checkerframework = "3.33.0"
@@ -359,6 +361,9 @@ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 httpcomponents-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpcomponents-httpclient" }
 reactive-streams = { module = "org.reactivestreams:reactive-streams", version.ref = "reactive-streams" }
 httpcomponents-httpcore = { module = "org.apache.httpcomponents:httpcore", version.ref = "httpcomponents-httpcore" }
+httpcomponents-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpcomponents-httpclient5" }
+httpcomponents-httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref = "httpcomponents-httpcore5" }
+httpcomponents-httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", version.ref = "httpcomponents-httpcore5" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 ant = { module = "org.apache.ant:ant", version.ref = "ant" }

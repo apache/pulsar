@@ -125,7 +125,7 @@ configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
 }
 
 // Generate Avro test classes from .avsc schema files
-val avroTools by configurations.creating {
+val avroTools = configurations.create("avroTools") {
     // Align the avro-tools codegen classpath with the enforced version platform so its transitive
     // dependencies (commons-*, jetty-util, ...) match the version catalog instead of avro-tools'
     // own older transitives. Build-time only, never published.
@@ -137,7 +137,7 @@ dependencies {
     }
 }
 
-val generateTestAvro by tasks.registering(JavaExec::class) {
+val generateTestAvro = tasks.register<JavaExec>("generateTestAvro") {
     val avscDir = file("src/test/resources/avro")
     val outputDir = layout.buildDirectory.dir("generated-sources/avro-test")
     inputs.dir(avscDir)
