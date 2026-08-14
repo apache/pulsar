@@ -142,7 +142,7 @@ jakarta-servlet = "6.0.0"
 oxia = "0.9.4"
 oxia-testcontainers = "0.7.4"
 # Build plugins
-lightproto = "0.7.3"
+lightproto = "0.8.0"
 graalvm-buildtools = "1.1.1"
 errorprone = "2.45.0"
 spotbugs = "4.9.6"
