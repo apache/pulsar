@@ -73,6 +73,8 @@ okio = "3.17.0"
 netty-tcnative = "2.0.81.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
+httpcomponents-httpclient5 = "5.6.4"
+httpcomponents-httpcore5 = "5.4.3"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
 reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
@@ -358,6 +360,9 @@ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 httpcomponents-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpcomponents-httpclient" }
 reactive-streams = { module = "org.reactivestreams:reactive-streams", version.ref = "reactive-streams" }
 httpcomponents-httpcore = { module = "org.apache.httpcomponents:httpcore", version.ref = "httpcomponents-httpcore" }
+httpcomponents-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpcomponents-httpclient5" }
+httpcomponents-httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref = "httpcomponents-httpcore5" }
+httpcomponents-httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", version.ref = "httpcomponents-httpcore5" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 ant = { module = "org.apache.ant:ant", version.ref = "ant" }
