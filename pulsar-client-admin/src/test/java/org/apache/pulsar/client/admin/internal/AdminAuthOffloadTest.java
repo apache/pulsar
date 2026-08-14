@@ -23,8 +23,11 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -84,6 +87,36 @@ public class AdminAuthOffloadTest {
         }
     }
 
+    /**
+     * A v4 plugin of the multi-round shape: it completes the authentication stage from a thread of its own,
+     * the way a challenge-response plugin completes it from its HTTP callback thread, and records where the
+     * second hook — {@code newRequestHeader} — then ran.
+     */
+    private static class AsyncStageAuthentication extends ThreadRecordingAuthentication {
+
+        private final CompletableFuture<CompletableFuture<Map<String, String>>> stage = new CompletableFuture<>();
+        private final AtomicReference<Thread> newRequestHeaderThread = new AtomicReference<>();
+
+        @Override
+        public void authenticationStage(String requestUrl, AuthenticationDataProvider authData,
+                                        Map<String, String> previousResHeaders,
+                                        CompletableFuture<Map<String, String>> authFuture) {
+            // Hand the stage back to the test rather than completing it here, so the continuation is
+            // registered before the completion happens. Completing it from a thread started here would race:
+            // an already-completed stage runs a plain continuation on the *registering* thread, which is the
+            // blocking executor, and the assertion below would then hold whether or not the hop exists.
+            stage.complete(authFuture);
+        }
+
+        @Override
+        public Set<Map.Entry<String, String>> newRequestHeader(String hostName,
+                                                               AuthenticationDataProvider authData,
+                                                               Map<String, String> previousResHeaders) {
+            newRequestHeaderThread.set(Thread.currentThread());
+            return Set.of(Map.entry("X-Test", "value"));
+        }
+    }
+
     /** The minimal concrete resource needed to reach the protected header composition. */
     private static class TestResource extends BaseResource {
         TestResource(Authentication auth) {
@@ -130,5 +163,67 @@ public class AdminAuthOffloadTest {
                 .headers(URI.create("http://broker.example:8080/admin/v2/clusters")).get(30, TimeUnit.SECONDS);
 
         assertThat(headers).isNull();
+    }
+
+    /**
+     * The composition belongs on the pool of the admin that owns the plugin, not on the framework's
+     * process-wide fallback: a stalled identity provider reached by one admin must not occupy the threads
+     * every other client in the JVM shares. Built through a real {@link PulsarAdminImpl} so what is pinned
+     * is that the admin actually lends its pool to the resources it constructs, not merely that
+     * {@link BaseResource} would use one if given it.
+     */
+    @Test
+    public void theV4CompositionRunsOnTheOwningAdminsOwnPool() throws Exception {
+        ThreadRecordingAuthentication auth = new ThreadRecordingAuthentication();
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://broker.example:8080")
+                .authentication(auth)
+                .build()) {
+            // Same package, so the protected composition is reachable on the admin's own resource. No request
+            // is issued: computeAuthHeaders is the pre-request stage.
+            BaseResource resource = (BaseResource) admin.clusters();
+            resource.computeAuthHeaders(URI.create("http://broker.example:8080/admin/v2/clusters"))
+                    .get(30, TimeUnit.SECONDS);
+
+            assertThat(auth.getAuthDataThread.get()).isNotNull();
+            assertThat(auth.getAuthDataThread.get().getName())
+                    .as("the v4 credential must resolve on the admin's own bounded pool")
+                    .startsWith("pulsar-admin-auth-blocking");
+        }
+    }
+
+    /**
+     * {@code newRequestHeader} is the second synchronous v4 hook. A plugin that completes the stage
+     * asynchronously completes it from a thread of its own — its HTTP callback thread — and a plain
+     * continuation would run the hook there, so off-loading the credential resolution alone would leave half
+     * the composition where PIP-478 says it must not be.
+     */
+    @Test
+    public void theNewRequestHeaderHookIsOffLoadedToo() throws Exception {
+        AsyncStageAuthentication auth = new AsyncStageAuthentication();
+        ExecutorService lentPool = Executors.newSingleThreadExecutor(
+                runnable -> new Thread(runnable, "lent-auth-pool"));
+        try {
+            TestResource resource = new TestResource(auth);
+            resource.setBlockingAuthExecutor(lentPool);
+
+            CompletableFuture<Map<String, String>> composed =
+                    resource.headers(URI.create("http://broker.example:8080/admin/v2/clusters"));
+
+            // The plugin's own thread completes the stage, standing in for its HTTP callback thread.
+            CompletableFuture<Map<String, String>> stage = auth.stage.get(30, TimeUnit.SECONDS);
+            Thread completer = new Thread(() -> stage.complete(Map.of()), "stage-completer");
+            completer.start();
+            completer.join();
+
+            assertThat(composed.get(30, TimeUnit.SECONDS)).containsExactly(Map.entry("X-Test", "value"));
+            assertThat(auth.newRequestHeaderThread.get())
+                    .as("the second v4 hook must not run on the thread the plugin completed the stage from")
+                    .isNotNull()
+                    .isNotSameAs(completer);
+            assertThat(auth.newRequestHeaderThread.get().getName()).isEqualTo("lent-auth-pool");
+        } finally {
+            lentPool.shutdownNow();
+        }
     }
 }
