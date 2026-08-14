@@ -177,7 +177,7 @@ thrift = "0.23.0"
 datasketches-memory = "4.1.0"
 datasketches-java = "7.0.1"
 # Shading
-shadow = "9.4.2"
+shadow = "9.6.1"
 
 [libraries]
 # SLF4J
