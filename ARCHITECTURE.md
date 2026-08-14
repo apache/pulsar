@@ -133,7 +133,10 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   sources, and verify with `--configuration-cache`. Tasks reached by the common flows (`assemble`,
   `test`, `integrationTest`, `rat` / `spotlessCheck` / `checkstyle*`, `checkBinaryLicense`, `docker*`)
   must be compatible; one-off tooling tasks not part of those flows (e.g. `verifyTestGroups`, ad-hoc
-  report tasks) may be exempt.
+  report tasks) may be exempt. When a third-party plugin is incompatible and cannot be fixed locally,
+  opt its tasks out with `notCompatibleWithConfigurationCache("<reason>")` (see
+  `tests/pulsar-client-native-image/build.gradle.kts` for the GraalVM native-build-tools case) so the
+  build degrades to running without the cache instead of failing.
 - **Published modules must not depend on internal modules** at compile/runtime scope — the artifact
   would be unresolvable from Maven Central. A module is published only when it applies
   `pulsar.public-java-library-conventions`.

@@ -264,7 +264,7 @@ tasks.withType<Test>().configureEach {
 }
 
 // Expose test classes for cross-module test dependencies (Maven test-jar equivalent)
-val testJar by tasks.registering(Jar::class) {
+val testJar = tasks.register<Jar>("testJar") {
     archiveClassifier.set("tests")
     from(project.the<SourceSetContainer>()["test"].output)
 }
