@@ -124,7 +124,16 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     static {
         SecureRandom rand;
         try {
-            rand = SecureRandom.getInstance("NativePRNGNonBlocking");
+            Provider bcfips = Security.getProvider("BCFIPS");
+            if (bcfips != null) {
+                // When the BC-FIPS provider is registered, source randomness from its SP 800-90A
+                // DRBG so data-key and IV generation stays within the FIPS-validated module.
+                // Only registered providers are consulted here to avoid triggering BouncyCastle
+                // classpath resolution during class loading (see BcProviderHolder above).
+                rand = SecureRandom.getInstance("DEFAULT", bcfips);
+            } else {
+                rand = SecureRandom.getInstance("NativePRNGNonBlocking");
+            }
         } catch (NoSuchAlgorithmException nsa) {
             rand = new SecureRandom();
         }

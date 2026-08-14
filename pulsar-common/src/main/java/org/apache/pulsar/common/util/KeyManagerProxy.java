@@ -96,7 +96,22 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
             final CertificateFactory cf = CertificateFactory.getInstance("X.509");
             final List<X509Certificate> certificateList = cf.generateCertificates(publicCertStream)
                     .stream().map(o -> (X509Certificate) o).collect(Collectors.toList());
-            keyStore = KeyStore.getInstance("JKS");
+            // In-memory keystore holding the PEM-loaded key and cert chain. JKS is preferred
+            // because it accepts certificate lists that do not form a linked chain (which
+            // PKCS12 rejects); fall back to the platform default type on JVMs where the JKS
+            // keystore type is unavailable, e.g. under a FIPS-restricted security configuration.
+            KeyStore selectedKeyStore;
+            try {
+                selectedKeyStore = KeyStore.getInstance("JKS");
+            } catch (KeyStoreException jksError) {
+                try {
+                    selectedKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                } catch (KeyStoreException defaultError) {
+                    defaultError.addSuppressed(jksError);
+                    throw defaultError;
+                }
+            }
+            keyStore = selectedKeyStore;
             final String alias = certificateList.get(0).getSubjectX500Principal().getName();
             final PrivateKey privateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFile.getFileName());
             keyStore.load(null);
