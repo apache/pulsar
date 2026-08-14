@@ -19,10 +19,15 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -189,6 +194,44 @@ public class AdminAuthOffloadTest {
             assertThat(auth.getAuthDataThread.get().getName())
                     .as("the v4 credential must resolve on the admin's own bounded pool")
                     .startsWith("pulsar-admin-auth-blocking");
+        }
+    }
+
+    /**
+     * Lending is opt-in per construction site, so a resource added to {@link PulsarAdminImpl} later without
+     * the wrapper would compile, run, and silently fall back to the shared pool — the fix undone with no
+     * symptom. Walking the admin's own accessors is what turns that into a test failure; pinning one
+     * resource would not, since the twenty-fourth is the one that would be missed.
+     */
+    @Test
+    public void everyResourceTheAdminExposesIsLentThePool() throws Exception {
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://broker.example:8080").build()) {
+            Executor pool = ((PulsarAdminImpl) admin).blockingAuthExecutorForTest();
+            List<String> notLent = new ArrayList<>();
+            int checked = 0;
+
+            for (Method accessor : PulsarAdmin.class.getMethods()) {
+                if (accessor.getParameterCount() != 0 || Modifier.isStatic(accessor.getModifiers())
+                        || accessor.getReturnType() == void.class) {
+                    continue;
+                }
+                if (accessor.invoke(admin) instanceof BaseResource resource) {
+                    checked++;
+                    if (resource.blockingAuthExecutorForTest() != pool) {
+                        notLent.add(accessor.getName());
+                    }
+                }
+            }
+            // The one resource accessor that takes an argument, so the loop above cannot reach it.
+            checked++;
+            if (((BaseResource) admin.topicPolicies(true)).blockingAuthExecutorForTest() != pool) {
+                notLent.add("topicPolicies(true)");
+            }
+
+            assertThat(notLent).as("admin resources left on the shared pool").isEmpty();
+            assertThat(checked)
+                    .as("the walk must actually reach the admin's resources, not silently filter them all out")
+                    .isGreaterThanOrEqualTo(20);
         }
     }
 
