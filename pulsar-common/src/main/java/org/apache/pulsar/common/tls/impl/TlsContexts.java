@@ -73,7 +73,7 @@ public final class TlsContexts {
     /**
      * The default enabled TLS protocol set, applied whenever the effective protocol list is empty — a policy
      * with no {@code protocols()}, or a synthesized context whose factory companion set none. This preserves
-     * the {@code {TLSv1.3, TLSv1.2}} floor {@code DefaultPulsarSslFactory} forces at engine build:
+     * the {@code {TLSv1.3, TLSv1.2}} floor v4's {@code DefaultPulsarSslFactory} forced at engine build:
      * without it the PIP-478 path would silently defer to the JVM/provider default protocol set, a
      * security-relevant drift on upgrade.
      */
@@ -491,7 +491,7 @@ public final class TlsContexts {
             builder.ciphers(ciphers);
         }
         // Pin the enabled protocols even when the policy configured none, preserving the {TLSv1.3, TLSv1.2}
-        // floor DefaultPulsarSslFactory forces rather than deferring to the provider default.
+        // floor v4's DefaultPulsarSslFactory forced rather than deferring to the provider default.
         String[] enabledProtocols = protocols != null
                 ? protocols.toArray(new String[0])
                 : DEFAULT_ENABLED_PROTOCOLS.toArray(new String[0]);

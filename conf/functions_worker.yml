@@ -348,8 +348,9 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
-# Whether the server hostname is verified against the subject alternative names (SANs) of the
-# server certificate (RFC 2818/6125; CN matching is not supported).
+# Whether the server hostname is verified against the server certificate. The subject alternative names
+# (SANs) are authoritative; the CN is consulted only when the certificate carries no dNSName SAN
+# (RFC 2818 section 3.1). A Conscrypt-pinned client does not fall back to the CN at all.
 # Enabled by default since Pulsar 5.0 (PIP-478).
 tlsEnableHostnameVerification: true
 # Tls cert refresh duration in seconds. Set 0 to disable the background rotation check, so the

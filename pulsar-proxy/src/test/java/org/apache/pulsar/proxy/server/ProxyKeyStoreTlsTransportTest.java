@@ -70,7 +70,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         // Advertise over loopback so the proxy service URL host (localhost) matches the keystore server
-        // certificate's SubjectAltName. TLS hostname verification is on by default (PIP-478, SAN-only),
+        // certificate's SubjectAltName. TLS hostname verification is on by default (PIP-478),
         // and the default advertised address resolves to the machine's canonical hostname, which is not
         // in the cert SAN. This keeps hostname verification genuinely enabled. (The broker already
         // advertises localhost via the base test config, so the proxy->broker TLS connection matches too.)
