@@ -16,20 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-plugins {
-    id("pulsar.public-java-library-conventions")
-}
-
-dependencies {
-    implementation(libs.slog)
-    compileOnly(project(":pulsar-client-original"))
-    implementation(project(":pulsar-common"))
-    implementation(libs.guava)
-    implementation(libs.commons.lang3)
-    implementation(libs.jakarta.ws.rs.api)
-    implementation(libs.jersey.client)
-    // PIP-478 stage 3d: the SASL-over-HTTP conversation test drives the real SaslAuthenticationV5 body
-    // through the framework HttpAuthenticationDriver (both live in pulsar-client-original).
-    testImplementation(project(":pulsar-client-original"))
-}
+/**
+ * v5-native implementation of the built-in Athenz authentication plugin (PIP-478). The v4
+ * {@code AuthenticationAthenz} class in the parent package is a thin shim that keeps its verbatim
+ * synchronous surface and drives {@link org.apache.pulsar.client.impl.auth.v5.AthenzAuthenticationV5} on
+ * the async binary path via the shared {@code V5BinaryAuthenticationDriver}.
+ */
+package org.apache.pulsar.client.impl.auth.v5;
