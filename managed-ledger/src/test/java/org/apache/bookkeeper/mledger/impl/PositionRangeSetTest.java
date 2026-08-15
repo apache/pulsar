@@ -265,6 +265,8 @@ public class PositionRangeSetTest {
         set.addOpenClosed(1, maxEntryId - 1, 1, maxEntryId);
 
         assertTrue(set.containsAny(1, 0, 0));
+        assertTrue(set.containsAny(1, -1, 0));
+        assertFalse(set.containsAny(1, -5, -1));
         assertFalse(set.containsAny(1, 1, 9));
         assertTrue(set.containsAny(1, 9, 10));
         assertTrue(set.containsAny(1, 10, 11));

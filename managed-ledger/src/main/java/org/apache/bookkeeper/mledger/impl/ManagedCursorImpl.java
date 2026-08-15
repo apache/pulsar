@@ -2754,26 +2754,38 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Given a list of entries, filter out the entries that have already been individually deleted.
      *
      * @param entries
-     *            a list of entries
+     *            a non-empty list of entries ordered by position; read paths normally return entries from one ledger
      * @return a list of entries not containing deleted messages
      */
     List<Entry> filterReadEntries(List<Entry> entries) {
         lock.readLock().lock();
         try {
-            Range<Position> entriesRange = Range.closed(entries.get(0).getPosition(),
-                    entries.get(entries.size() - 1).getPosition());
+            Entry firstEntry = entries.get(0);
+            Entry lastEntry = entries.get(entries.size() - 1);
+            long firstLedgerId = firstEntry.getLedgerId();
+            long firstEntryId = firstEntry.getEntryId();
+            long lastLedgerId = lastEntry.getLedgerId();
+            long lastEntryId = lastEntry.getEntryId();
             log.debug()
-                    .attr("entriesRange", entriesRange)
+                    .attr("firstLedgerId", firstLedgerId)
+                    .attr("firstEntryId", firstEntryId)
+                    .attr("lastLedgerId", lastLedgerId)
+                    .attr("lastEntryId", lastEntryId)
                     .attr("deletedMessages", individualDeletedMessages)
                     .log("Filtering entries");
-            Position firstPosition = entriesRange.lowerEndpoint();
-            Position lastPosition = entriesRange.upperEndpoint();
-            boolean containsDeletedMessages = firstPosition.getLedgerId() != lastPosition.getLedgerId()
-                    || individualDeletedMessages.containsAny(firstPosition.getLedgerId(), firstPosition.getEntryId(),
-                    lastPosition.getEntryId());
+            // Read batches are ordered and normally belong to one ledger. For an unexpected cross-ledger or
+            // descending batch, conservatively retain per-entry filtering.
+            boolean containsDeletedMessages = firstLedgerId != lastLedgerId
+                    || firstEntryId > lastEntryId
+                    || individualDeletedMessages.containsAny(firstLedgerId, firstEntryId, lastEntryId);
             if (!containsDeletedMessages) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
-                log.debug().attr("entriesRange", entriesRange).log("No filtering needed for entries");
+                log.debug()
+                        .attr("firstLedgerId", firstLedgerId)
+                        .attr("firstEntryId", firstEntryId)
+                        .attr("lastLedgerId", lastLedgerId)
+                        .attr("lastEntryId", lastEntryId)
+                        .log("No filtering needed for entries");
                 return entries;
             } else {
                 // Remove from the entry list all the entries that were already marked for deletion

@@ -45,9 +45,11 @@ import org.openjdk.jmh.annotations.Warmup;
  * A returned BookKeeper batch is a contiguous range from one ledger, although one cursor read can issue
  * several such reads while moving across ledgers.
  *
- * <p>The {@code *Decision} benchmarks isolate the fast-path lookup. The {@code *ThenFilter} benchmarks
- * include the existing per-entry membership checks and intermediate list allocation whenever the lookup
- * reports a possible individual ack. Run with {@code -prof gc} to compare allocation rates.
+ * <p>The {@code *Decision} benchmarks isolate the fast-path lookup. Their inputs are prepared in
+ * {@link Setup}, so they exclude surrounding read-path work such as retrieving the batch endpoints and
+ * logging; the reported decision time is not end-to-end fast-path latency. The {@code *ThenFilter}
+ * benchmarks include the existing per-entry membership checks and intermediate list allocation whenever
+ * the lookup reports a possible individual ack. Run with {@code -prof gc} to compare allocation rates.
  *
  * <p>Run with:
  * <pre>{@code
