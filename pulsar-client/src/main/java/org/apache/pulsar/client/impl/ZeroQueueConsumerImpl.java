@@ -199,7 +199,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
-                                            boolean isEncrypted) {
+                                            boolean isEncrypted, int messagePermits) {
 
         rejectBatchMessageByClosingConsumer(
                 new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex())

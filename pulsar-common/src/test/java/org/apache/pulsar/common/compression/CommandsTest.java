@@ -30,6 +30,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.Base64;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -38,6 +39,20 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class CommandsTest {
+
+    @Test
+    public void testMessageCommandCarriesPermitDebit() {
+        BaseCommand batched = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 10);
+        assertTrue(batched.getMessage().hasMessagePermits());
+        assertEquals(batched.getMessage().getMessagePermits(), 10);
+
+        BaseCommand single = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 1);
+        Assert.assertFalse(single.getMessage().hasMessagePermits());
+        assertEquals(single.getMessage().getMessagePermits(), 1);
+
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 0));
+    }
 
     @Test
     public void testChecksumSendCommand() throws Exception {

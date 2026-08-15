@@ -324,7 +324,15 @@ public class Consumer {
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker) {
-        return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+        return sendMessages(entries, null, batchSizes, batchIndexesAcks, new EntryBatchPermits(entries.size()),
+                totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
+    }
+
+    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks, EntryBatchPermits batchPermits,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
+        return sendMessages(entries, null, batchSizes, batchIndexesAcks, batchPermits, totalMessages, totalBytes,
                 totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
     }
 
@@ -332,8 +340,8 @@ public class Consumer {
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker, long epoch) {
-        return sendMessages(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                totalChunkedMessages, redeliveryTracker, epoch);
+        return sendMessages(entries, null, batchSizes, batchIndexesAcks, new EntryBatchPermits(entries.size()),
+                totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker, epoch);
     }
 
     /**
@@ -351,6 +359,21 @@ public class Consumer {
                                      long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker,
                                      long epoch) {
+        return sendMessages(entries, stickyKeyHashes, batchSizes, batchIndexesAcks,
+                new EntryBatchPermits(entries.size()), totalMessages, totalBytes, totalChunkedMessages,
+                redeliveryTracker, epoch);
+    }
+
+    private Future<Void> sendMessages(final List<? extends Entry> entries,
+                                      final List<Integer> stickyKeyHashes,
+                                      EntryBatchSizes batchSizes,
+                                      EntryBatchIndexesAcks batchIndexesAcks,
+                                      EntryBatchPermits batchPermits,
+                                      int totalMessages,
+                                      long totalBytes,
+                                      long totalChunkedMessages,
+                                      RedeliveryTracker redeliveryTracker,
+                                      long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -363,18 +386,25 @@ public class Consumer {
             writePromise.setSuccess(null);
             return writePromise;
         }
-        int unackedMessages = totalMessages;
         int totalEntries = 0;
 
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
             if (entry != null) {
                 totalEntries++;
+                int batchSize = batchSizes.getBatchSize(i);
+                int messagePermits = batchIndexesAcks == null
+                        ? batchSize : batchIndexesAcks.getUnackedIndexCount(i, batchSize);
+                if (messagePermits == 0) {
+                    totalEntries--;
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
+                }
                 // Note
                 // Must ensure that the message is written to the pendingAcks before sent is first,
                 // because this consumer is possible to disconnect at this time.
                 if (pendingAcks != null) {
-                    int batchSize = batchSizes.getBatchSize(i);
                     int stickyKeyHash;
                     if (stickyKeyHashes == null) {
                         if (entry instanceof EntryAndMetadata entryAndMetadata) {
@@ -385,18 +415,9 @@ public class Consumer {
                     } else {
                         stickyKeyHash = stickyKeyHashes.get(i);
                     }
-                    boolean sendingAllowed;
-                    long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
-                    int remainingUnacked;
-                    if (ackSet != null) {
-                        remainingUnacked = BitSet.valueOf(ackSet).cardinality();
-                        unackedMessages -= (batchSize - remainingUnacked);
-                    } else {
-                        remainingUnacked = batchSize;
-                    }
-                    sendingAllowed =
+                    boolean sendingAllowed =
                             pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(),
-                                    remainingUnacked, stickyKeyHash);
+                                    messagePermits, stickyKeyHash);
                     if (!sendingAllowed) {
                         // sending isn't allowed when pending acks doesn't accept adding the entry
                         // this happens when Key_Shared draining hashes contains the stickyKeyHash
@@ -415,32 +436,37 @@ public class Consumer {
                                 .attr("entryId", entry.getEntryId())
                                 .attr("batchSize", batchSize)
                                 .log("Added entry to pendingAcks");
+                        batchPermits.setPermits(i, messagePermits);
                     }
+                } else {
+                    batchPermits.setPermits(i, messagePermits);
                 }
             }
         }
 
         // calculate avg message per entry
-        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-            // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-        } else {
-            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / totalEntries);
+        if (totalEntries > 0) {
+            if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
+                // set init value.
+                avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
+            } else {
+                avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
+                        + (1 - avgPercent) * totalMessages / totalEntries);
+            }
         }
 
-        // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
-        MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
+        int sentMessagePermits = batchPermits.getTotalPermits();
+        // Reduce permits by the logical messages represented by commands that survived final admission.
+        MESSAGE_PERMITS_UPDATER.addAndGet(this, -sentMessagePermits);
         log.debug()
-                .attr("ackedCount", ackedCount)
+                .attr("sentMessagePermits", sentMessagePermits)
                 .attr("totalMessages", totalMessages)
                 .attr("avgMessagesPerEntry", avgMessagesPerEntry.get())
                 .log("Added minus messages to MESSAGE_PERMITS_UPDATER");
-        incrementUnackedMessages(unackedMessages);
+        incrementUnackedMessages(sentMessagePermits);
         Future<Void> writeAndFlushPromise =
                 cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                        entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
+                        entries, batchSizes, batchIndexesAcks, batchPermits, redeliveryTracker, epoch);
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {

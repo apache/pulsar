@@ -26,6 +26,25 @@ import org.testng.annotations.Test;
 public class EntryBatchIndexesAcksTest {
 
     @Test
+    void shouldCalculateUnackedIndexesWithinBatchBounds() {
+        BitSetRecyclable bitSet = BitSetRecyclable.create();
+        bitSet.set(1);
+        bitSet.set(4);
+        bitSet.set(8);
+        bitSet.set(63);
+        EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(2);
+        try {
+            acks.setIndexesAcks(0, Pair.of(10, bitSet.toLongArray()));
+
+            assertEquals(acks.getUnackedIndexCount(0, 10), 3);
+            assertEquals(acks.getUnackedIndexCount(1, 7), 7);
+        } finally {
+            acks.recycle();
+            bitSet.recycle();
+        }
+    }
+
+    @Test
     void shouldResetStateBeforeReusing() {
         // given
         // a bitset with 95 bits set

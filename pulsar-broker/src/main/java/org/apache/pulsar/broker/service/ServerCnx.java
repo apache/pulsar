@@ -4487,8 +4487,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     public ByteBufPair newMessageAndIntercept(long consumerId, long ledgerId, long entryId, int partition,
             int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, String topic, long epoch) {
+        return newMessageAndIntercept(consumerId, ledgerId, entryId, partition, redeliveryCount,
+                metadataAndPayload, ackSet, topic, epoch, 1);
+    }
+
+    public ByteBufPair newMessageAndIntercept(long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, String topic, long epoch,
+            int messagePermits) {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
-                ackSet, epoch);
+                ackSet, epoch, messagePermits);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
         if (brokerInterceptor != null) {
             try {

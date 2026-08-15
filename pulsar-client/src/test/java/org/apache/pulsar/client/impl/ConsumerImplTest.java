@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -58,6 +59,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
@@ -113,6 +115,61 @@ public class ConsumerImplTest {
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_EmptyQueueNotThrowsException() {
         consumer.notifyPendingReceivedCallback(null, null);
+    }
+
+    @Test
+    public void testResolveExplicitMessagePermits() {
+        CommandMessage command = new CommandMessage().setMessagePermits(3);
+        command.addAckSet(0b100101L);
+
+        Assert.assertEquals(ConsumerImpl.getMessagePermitsForEarlyFailure(command), 3);
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(command, 10), 3);
+    }
+
+    @Test
+    public void testResolveLegacyMessagePermits() {
+        CommandMessage partialBatch = new CommandMessage();
+        partialBatch.addAckSet((1L << 1) | (1L << 4) | (1L << 63));
+
+        Assert.assertEquals(ConsumerImpl.getMessagePermitsForEarlyFailure(partialBatch), 3);
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(partialBatch, 10), 2);
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(new CommandMessage(), 10), 10);
+    }
+
+    @Test
+    public void testRejectInvalidExplicitMessagePermits() {
+        CommandMessage zero = new CommandMessage().setMessagePermits(0);
+        CommandMessage unsignedOverflow = new CommandMessage().setMessagePermits(-1);
+        CommandMessage mismatch = new CommandMessage().setMessagePermits(2);
+        mismatch.addAckSet(0b111L);
+
+        Assert.expectThrows(IllegalStateException.class,
+                () -> ConsumerImpl.getMessagePermitsForEarlyFailure(zero));
+        Assert.expectThrows(IllegalStateException.class,
+                () -> ConsumerImpl.getMessagePermitsForEarlyFailure(unsignedOverflow));
+        Assert.expectThrows(IllegalStateException.class,
+                () -> ConsumerImpl.getMessagePermits(mismatch, 10));
+    }
+
+    @Test
+    public void testInvalidExplicitMessagePermitsCloseSourceConnection() {
+        CommandMessage command = new CommandMessage()
+                .setConsumerId(consumer.consumerId)
+                .setMessagePermits(0);
+        command.setMessageId().setLedgerId(1).setEntryId(2);
+        ClientCnx messageCnx = mock(ClientCnx.class);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        when(messageCnx.ctx()).thenReturn(context);
+        ByteBuf emptyPayload = Unpooled.buffer(0);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        try {
+            consumer.messageReceived(command, emptyPayload, messageCnx);
+            verify(context).close();
+            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore);
+        } finally {
+            emptyPayload.release();
+        }
     }
 
     @Test(invocationTimeOut = 500)

@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
+import org.apache.pulsar.broker.service.EntryBatchPermits;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
@@ -755,22 +756,23 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
+            EntryBatchPermits batchPermits = new EntryBatchPermits(entriesForThisConsumer.size());
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, batchPermits,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
             start += messagesForC;
             entriesToDispatch -= messagesForC;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -batchPermits.getTotalPermits());
             log.debug()
                     .attr("msgSent", msgSent)
-                    .attr("totalAckedIndexCount", batchIndexesAcks.getTotalAckedIndexCount())
+                    .attr("messagePermits", batchPermits.getTotalPermits())
                     .log("Added -( minus) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                             + "PersistentDispatcherMultipleConsumers");
             totalMessagesSent += sendMessageInfo.getTotalMessages();
@@ -833,10 +835,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             final SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
+            final EntryBatchPermits batchPermits = new EntryBatchPermits(messagesForC);
 
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
-            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
+            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks, batchPermits,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
             ).addListener(future -> {
@@ -845,8 +848,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 }
             });
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -batchPermits.getTotalPermits());
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

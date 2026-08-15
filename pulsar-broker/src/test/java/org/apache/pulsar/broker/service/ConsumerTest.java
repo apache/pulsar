@@ -21,14 +21,29 @@ package org.apache.pulsar.broker.service;
 import static java.util.Collections.emptyMap;
 import static org.apache.pulsar.client.api.MessageId.latest;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclusive;
+import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.api.proto.KeySharedMode.AUTO_SPLIT;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.testng.annotations.BeforeMethod;
@@ -37,19 +52,22 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ConsumerTest {
     private Consumer consumer;
+    private Subscription subscription;
+    private ServerCnx cnx;
     private final ConsumerStatsImpl stats = new ConsumerStatsImpl();
 
     @BeforeMethod
     public void beforeMethod() {
-        Subscription subscription = mock(Subscription.class);
-        ServerCnx cnx = mock(ServerCnx.class);
+        subscription = mock(Subscription.class);
+        cnx = mock(ServerCnx.class);
         SocketAddress address = mock(SocketAddress.class);
-        Topic topic = mock(Topic.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
 
         when(cnx.clientAddress()).thenReturn(address);
+        when(subscription.getName()).thenReturn("subscription");
         when(subscription.getTopic()).thenReturn(topic);
         when(topic.getBrokerService()).thenReturn(brokerService);
         when(brokerService.getPulsar()).thenReturn(pulsarService);
@@ -72,5 +90,59 @@ public class ConsumerTest {
         stats.bytesOutCounter = 1L;
         consumer.updateStats(stats);
         assertEquals(consumer.getBytesOutCounter(), 1L);
+    }
+
+    @Test
+    public void testSendMessagesFinalizesPermitsAfterPendingAckAdmission() {
+        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
+                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
+                DEFAULT_CONSUMER_EPOCH);
+        sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> ledgerId != 2);
+        sharedConsumer.flowPermits(100);
+
+        Entry partialBatch = mock(Entry.class);
+        when(partialBatch.getLedgerId()).thenReturn(1L);
+        when(partialBatch.getEntryId()).thenReturn(1L);
+        Entry rejectedBatch = mock(Entry.class);
+        when(rejectedBatch.getLedgerId()).thenReturn(2L);
+        when(rejectedBatch.getEntryId()).thenReturn(2L);
+        Entry emptyPartialBatch = mock(Entry.class);
+        when(emptyPartialBatch.getLedgerId()).thenReturn(3L);
+        when(emptyPartialBatch.getEntryId()).thenReturn(3L);
+        List<Entry> entries = new ArrayList<>(List.of(partialBatch, rejectedBatch, emptyPartialBatch));
+
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+        batchSizes.setBatchSize(0, 10);
+        batchSizes.setBatchSize(1, 10);
+        batchSizes.setBatchSize(2, 10);
+        EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
+        batchIndexesAcks.setIndexesAcks(0, Pair.of(10, new long[] {0b100101L}));
+        batchIndexesAcks.setIndexesAcks(2, Pair.of(10, new long[] {0L}));
+        EntryBatchPermits batchPermits = new EntryBatchPermits(entries.size());
+
+        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
+        when(cnx.getCommandSender()).thenReturn(commandSender);
+        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
+                any(), any(), anyLong()))
+                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
+
+        try {
+            sharedConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, batchPermits, 23, 0, 0,
+                    mock(RedeliveryTracker.class));
+
+            assertEquals(batchPermits.getTotalPermits(), 3);
+            assertEquals(sharedConsumer.getAvailablePermits(), 97);
+            assertEquals(sharedConsumer.getUnackedMessages(), 3);
+            assertNull(entries.get(1));
+            assertNull(entries.get(2));
+            verify(rejectedBatch).release();
+            verify(emptyPartialBatch).release();
+            verify(commandSender).sendMessagesToConsumer(eq(2L), eq("topic"), eq(subscription), anyInt(), eq(entries),
+                    eq(batchSizes), eq(batchIndexesAcks), eq(batchPermits), any(), eq(DEFAULT_CONSUMER_EPOCH));
+            assertSame(entries.get(0), partialBatch);
+        } finally {
+            batchSizes.recyle();
+            batchIndexesAcks.recycle();
+        }
     }
 }

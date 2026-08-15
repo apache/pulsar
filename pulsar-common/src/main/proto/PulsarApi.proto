@@ -581,6 +581,9 @@ message CommandMessage {
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
     optional uint64 consumer_epoch = 5;
+
+    // Number of consumer permits debited by the broker for this command.
+    optional uint32 message_permits = 6 [default = 1];
 }
 
 message CommandAck {
