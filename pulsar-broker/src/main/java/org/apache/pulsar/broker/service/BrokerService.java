@@ -1770,7 +1770,7 @@ public class BrokerService implements Closeable {
         log.warn()
                 .attr("cluster", cluster)
                 .attr("brokerClientSslFactoryPlugin", data.getBrokerClientSslFactoryPlugin())
-                .attr("brokerClientSslFactoryPluginParamsSet",
+                .attr("hasBrokerClientSslFactoryPluginParams",
                         StringUtils.isNotBlank(data.getBrokerClientSslFactoryPluginParams()))
                 .log("Ignoring the PIP-337 per-cluster SSL factory settings: it was removed in Pulsar 5.0 "
                         + "(PIP-478). Set ClusterData.brokerClientTlsFactoryClassName (per cluster) or the "
