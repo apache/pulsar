@@ -264,6 +264,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     }
 
     private void readSegmentEntries(TopicName topicName, TransactionBufferSnapshotIndexes indexes) throws Exception {
+        if (isClosed()) {
+            return;
+        }
         final var managedLedger = openReadOnlyManagedLedger(topicName);
         boolean hasInvalidIndex = false;
         for (var index : indexes.getIndexList()) {
