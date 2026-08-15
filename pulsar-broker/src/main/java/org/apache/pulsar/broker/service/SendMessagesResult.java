@@ -46,8 +46,9 @@ public final class SendMessagesResult {
         if (messagePermits[entryIdx] != 0) {
             throw new IllegalStateException("Permits already finalized for entry " + entryIdx);
         }
+        int updatedTotalMessagePermits = Math.addExact(totalMessagePermits, permits);
         messagePermits[entryIdx] = permits;
-        totalMessagePermits = Math.addExact(totalMessagePermits, permits);
+        totalMessagePermits = updatedTotalMessagePermits;
     }
 
     int getMessagePermits(int entryIdx) {

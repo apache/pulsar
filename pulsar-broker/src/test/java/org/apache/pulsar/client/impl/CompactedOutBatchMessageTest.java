@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.concurrent.TimeUnit;
@@ -98,44 +97,6 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
     }
 
     @Test
-    public void testPartialBatchDeserializationReturnsOnlyCommandRemainder() throws Exception {
-        final int batchSize = 5;
-        final int parsedMessages = 2;
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("foobar")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-        ByteBuf truncatedBatch = Unpooled.buffer(1000);
-        for (int i = 0; i < parsedMessages; i++) {
-            ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {(byte) i});
-            Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata(), payload, truncatedBatch);
-            payload.release();
-        }
-
-        try (ConsumerImpl<byte[]> consumer =
-                     (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(newTopicName())
-                             .subscriptionName("partial-batch-subscription")
-                             .receiverQueueSize(20)
-                             .subscribe()) {
-            int permitsBefore = consumer.getAvailablePermits();
-            consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, null, truncatedBatch,
-                    new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx(),
-                    DEFAULT_CONSUMER_EPOCH, false, batchSize);
-
-            for (int i = 0; i < parsedMessages; i++) {
-                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-                assertNotNull(message);
-                message.release();
-            }
-            assertEquals(consumer.getAvailablePermits(), permitsBefore + batchSize);
-        } finally {
-            truncatedBatch.release();
-        }
-    }
-
-    @Test
     public void testCompactedOutMessages() throws Exception {
         final String topic1 = newTopicName();
 
@@ -165,6 +126,7 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
         try (ConsumerImpl<byte[]> consumer =
              (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
                 .subscriptionName("my-subscriber-name").subscribe()) {
+            int permitsBefore = consumer.getAvailablePermits();
             // shove it in the sideways
             consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
                     batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567),
@@ -176,6 +138,8 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
             assertEquals(m.getKey(), "key3");
 
             assertEquals(consumer.numMessagesInQueue(), 0);
+            assertEquals(consumer.getAvailablePermits(), permitsBefore + metadata.getNumMessagesInBatch());
+            m.release();
         }
     }
 }

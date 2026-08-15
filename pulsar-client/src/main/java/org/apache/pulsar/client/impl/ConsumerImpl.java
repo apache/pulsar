@@ -98,6 +98,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessagePermitAccounting.Budget;
+import org.apache.pulsar.client.impl.MessagePermitAccounting.InvalidMessagePermitsException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.metrics.Counter;
@@ -146,37 +148,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private static final long[] EMPTY_ACK_SET = new long[0];
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
-
-    private static final class MessagePermitBudget {
-        private int remainingPermits;
-
-        private MessagePermitBudget(int messagePermits) {
-            remainingPermits = messagePermits;
-        }
-
-        private void claim() {
-            if (remainingPermits == 0) {
-                throw new InvalidMessagePermitsException("Batch contains more deliverable messages than permits");
-            }
-            remainingPermits--;
-        }
-
-        private void restore() {
-            remainingPermits++;
-        }
-
-        private int drain() {
-            int permits = remainingPermits;
-            remainingPermits = 0;
-            return permits;
-        }
-    }
-
-    private static final class InvalidMessagePermitsException extends IllegalStateException {
-        private InvalidMessagePermitsException(String message) {
-            super(message);
-        }
-    }
 
     final long consumerId;
 
@@ -1446,7 +1417,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
         internalPinnedExecutor.execute(() -> {
             if (!isValidConsumerEpoch(message)) {
-                completeStaleEpochDiscard(messageCnx, messageSize);
+                completeStaleEpochDiscard(message, messageCnx, messageSize);
                 return;
             }
             Message<T> interceptMsg = onArrival(message);
@@ -1458,10 +1429,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    private void completeStaleEpochDiscard(ClientCnx messageCnx, int messageSize) {
+    private void completeStaleEpochDiscard(MessageImpl<T> message, ClientCnx messageCnx, int messageSize) {
         messagesPrefetchedGauge.decrement();
         bytesPrefetchedGauge.subtract(messageSize);
-        increaseAvailablePermitsForReceivedMessage(messageCnx, 1);
+        returnPermitsToSourceConnection(messageCnx, 1);
+        message.release();
     }
 
     protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
@@ -1500,58 +1472,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         tryTriggerListener();
     }
 
-    @VisibleForTesting
-    static int getMessagePermitsForEarlyFailure(CommandMessage command) {
-        if (command.hasMessagePermits()) {
-            return getExplicitMessagePermits(command);
-        }
-        return command.getAckSetsCount() > 0 ? getAckSetCardinality(command, -1) : 1;
-    }
-
-    @VisibleForTesting
-    static int getMessagePermits(CommandMessage command, int batchSize) {
-        int expectedPermits = command.getAckSetsCount() > 0
-                ? getAckSetCardinality(command, batchSize) : batchSize;
-        if (!command.hasMessagePermits()) {
-            return expectedPermits;
-        }
-
-        int explicitPermits = getExplicitMessagePermits(command);
-        if (explicitPermits != expectedPermits) {
-            throw new InvalidMessagePermitsException("Explicit message permits " + explicitPermits
-                    + " do not match the payload and ack set value " + expectedPermits);
-        }
-        return explicitPermits;
-    }
-
-    private static int getExplicitMessagePermits(CommandMessage command) {
-        long messagePermits = Integer.toUnsignedLong(command.getMessagePermits());
-        if (messagePermits == 0 || messagePermits > Integer.MAX_VALUE) {
-            throw new InvalidMessagePermitsException("Invalid explicit message permits " + messagePermits);
-        }
-        return (int) messagePermits;
-    }
-
-    private static int getAckSetCardinality(CommandMessage command, int batchSize) {
-        int words = command.getAckSetsCount();
-        int completeWords = batchSize < 0 ? words : Math.min(batchSize >>> 6, words);
-        long cardinality = 0;
-        for (int i = 0; i < completeWords; i++) {
-            cardinality += Long.bitCount(command.getAckSetAt(i));
-        }
-        if (batchSize >= 0) {
-            int remainingBits = batchSize & 63;
-            if (remainingBits > 0 && completeWords < words) {
-                long mask = -1L >>> (Long.SIZE - remainingBits);
-                cardinality += Long.bitCount(command.getAckSetAt(completeWords) & mask);
-            }
-        }
-        if (cardinality > Integer.MAX_VALUE) {
-            throw new InvalidMessagePermitsException("Ack set message permits exceed the supported range");
-        }
-        return (int) cardinality;
-    }
-
     void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
         long[] ackSet = EMPTY_ACK_SET;
         if (cmdMessage.getAckSetsCount() > 0) {
@@ -1569,7 +1489,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         final int earlyFailurePermits;
         try {
-            earlyFailurePermits = getMessagePermitsForEarlyFailure(cmdMessage);
+            earlyFailurePermits = MessagePermitAccounting.resolveForEarlyFailure(cmdMessage);
         } catch (InvalidMessagePermitsException e) {
             closeConnectionForInvalidMessagePermits(messageId, cnx, e);
             return;
@@ -1577,8 +1497,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.debug().attr("messageId", messageId)
                 .log("Received message");
 
-        if (!verifyChecksum(headersAndPayload, messageId)) {
-            // discard message with checksum error
+        try {
+            if (!verifyChecksum(headersAndPayload, messageId)) {
+                // discard message with checksum error
+                discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch, earlyFailurePermits);
+                return;
+            }
+        } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch, earlyFailurePermits);
             return;
         }
@@ -1596,7 +1521,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final int numMessages = msgMetadata.getNumMessagesInBatch();
         final int messagePermits;
         try {
-            messagePermits = getMessagePermits(cmdMessage, numMessages);
+            messagePermits = MessagePermitAccounting.resolve(cmdMessage, numMessages);
         } catch (InvalidMessagePermitsException e) {
             closeConnectionForInvalidMessagePermits(messageId, cnx, e);
             return;
@@ -1609,7 +1534,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.debug().attr("messageId", msgId)
                     .log("Ignoring message as it was already being acked earlier by same consumer");
 
-            increaseAvailablePermitsForReceivedMessage(cnx, messagePermits);
+            returnPermitsToSourceConnection(cnx, messagePermits);
             return;
         }
 
@@ -1942,8 +1867,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
-        MessagePermitBudget permitBudget = new MessagePermitBudget(messagePermits);
-        boolean corrupted = false;
+        Budget permitBudget = new Budget(messagePermits);
         try {
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
@@ -1991,7 +1915,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn().exception(e)
                     .log("unable to obtain message in batch");
             discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError, permitBudget.drain());
-            corrupted = true;
         } finally {
             if (ackBitSet != null) {
                 ackBitSet.recycle();
@@ -2012,9 +1935,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .attr("remainingCapacity", incomingMessages.remainingCapacity())
                 .log("enqueued messages in batch. queue size -, available queue size");
 
-        if (!corrupted) {
-            increaseAvailablePermitsForReceivedMessage(cnx, permitBudget.drain());
-        }
+        returnPermitsToSourceConnection(cnx, permitBudget.drain());
     }
 
     private boolean isPriorEntryIndex(long idx) {
@@ -2085,10 +2006,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void increaseAvailablePermits(MessageImpl<?> msg) {
-        increaseAvailablePermitsForReceivedMessage(msg.getCnx(), 1);
+        returnPermitsToSourceConnection(msg.getCnx(), 1);
     }
 
-    private void increaseAvailablePermitsForReceivedMessage(ClientCnx messageCnx, int delta) {
+    private void returnPermitsToSourceConnection(ClientCnx messageCnx, int delta) {
         if (delta <= 0) {
             return;
         }
@@ -2371,7 +2292,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null,
                 AckType.Individual, validationError, Collections.emptyMap(), -1);
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
-        increaseAvailablePermitsForReceivedMessage(currentCnx, messagePermits);
+        returnPermitsToSourceConnection(currentCnx, messagePermits);
         stats.incrementNumReceiveFailed();
     }
 

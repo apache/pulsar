@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.expectThrows;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -131,6 +132,9 @@ public class ConsumerTest {
                     entries, batchSizes, batchIndexesAcks, 23, 0, 0, mock(RedeliveryTracker.class));
 
             assertEquals(sendResult.getTotalMessagePermits(), 3);
+            assertEquals(sendResult.getMessagePermits(0), 3);
+            assertEquals(sendResult.getMessagePermits(1), 0);
+            assertEquals(sendResult.getMessagePermits(2), 0);
             assertEquals(sharedConsumer.getAvailablePermits(), 97);
             assertEquals(sharedConsumer.getUnackedMessages(), 3);
             assertNull(entries.get(1));
@@ -147,5 +151,18 @@ public class ConsumerTest {
             batchSizes.recyle();
             batchIndexesAcks.recycle();
         }
+    }
+
+    @Test
+    public void testSendMessagesResultRejectsPartialFinalization() {
+        SendMessagesResult sendResult = new SendMessagesResult(2);
+        sendResult.setMessagePermits(0, Integer.MAX_VALUE);
+
+        expectThrows(ArithmeticException.class, () -> sendResult.setMessagePermits(1, 1));
+        assertEquals(sendResult.getMessagePermits(0), Integer.MAX_VALUE);
+        assertEquals(sendResult.getMessagePermits(1), 0);
+        assertEquals(sendResult.getTotalMessagePermits(), Integer.MAX_VALUE);
+        expectThrows(IllegalStateException.class, () -> sendResult.setMessagePermits(0, 1));
+        expectThrows(IllegalArgumentException.class, () -> new SendMessagesResult(1).setMessagePermits(0, 0));
     }
 }

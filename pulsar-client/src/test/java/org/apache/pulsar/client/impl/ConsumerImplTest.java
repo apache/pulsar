@@ -34,6 +34,8 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.util.ReferenceCountUtil;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -60,9 +62,12 @@ import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -118,40 +123,6 @@ public class ConsumerImplTest {
     }
 
     @Test
-    public void testResolveExplicitMessagePermits() {
-        CommandMessage command = new CommandMessage().setMessagePermits(3);
-        command.addAckSet(0b100101L);
-
-        Assert.assertEquals(ConsumerImpl.getMessagePermitsForEarlyFailure(command), 3);
-        Assert.assertEquals(ConsumerImpl.getMessagePermits(command, 10), 3);
-    }
-
-    @Test
-    public void testResolveLegacyMessagePermits() {
-        CommandMessage partialBatch = new CommandMessage();
-        partialBatch.addAckSet((1L << 1) | (1L << 4) | (1L << 63));
-
-        Assert.assertEquals(ConsumerImpl.getMessagePermitsForEarlyFailure(partialBatch), 3);
-        Assert.assertEquals(ConsumerImpl.getMessagePermits(partialBatch, 10), 2);
-        Assert.assertEquals(ConsumerImpl.getMessagePermits(new CommandMessage(), 10), 10);
-    }
-
-    @Test
-    public void testRejectInvalidExplicitMessagePermits() {
-        CommandMessage zero = new CommandMessage().setMessagePermits(0);
-        CommandMessage unsignedOverflow = new CommandMessage().setMessagePermits(-1);
-        CommandMessage mismatch = new CommandMessage().setMessagePermits(2);
-        mismatch.addAckSet(0b111L);
-
-        Assert.expectThrows(IllegalStateException.class,
-                () -> ConsumerImpl.getMessagePermitsForEarlyFailure(zero));
-        Assert.expectThrows(IllegalStateException.class,
-                () -> ConsumerImpl.getMessagePermitsForEarlyFailure(unsignedOverflow));
-        Assert.expectThrows(IllegalStateException.class,
-                () -> ConsumerImpl.getMessagePermits(mismatch, 10));
-    }
-
-    @Test
     public void testInvalidExplicitMessagePermitsCloseSourceConnection() {
         CommandMessage command = new CommandMessage()
                 .setConsumerId(consumer.consumerId)
@@ -170,6 +141,102 @@ public class ConsumerImplTest {
         } finally {
             emptyPayload.release();
         }
+    }
+
+    @Test
+    public void testTruncatedFrameAndMetadataFailureReturnExplicitMessagePermits() {
+        ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        int permitsBefore = consumer.getAvailablePermits();
+        ByteBuf[] malformedFrames = {
+                Unpooled.wrappedBuffer(new byte[] {1}),
+                Unpooled.wrappedBuffer(new byte[] {0, 0, 0, 10})
+        };
+
+        try {
+            for (ByteBuf malformedFrame : malformedFrames) {
+                consumer.messageReceived(newCommandMessage(5), malformedFrame, messageCnx);
+            }
+
+            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore + 10);
+            releaseValidationCommands(context, 2);
+        } finally {
+            Arrays.stream(malformedFrames).forEach(ByteBuf::release);
+        }
+    }
+
+    @Test
+    public void testDecompressionFailureReturnsExplicitMessagePermits() {
+        ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(1)
+                .setNumMessagesInBatch(5)
+                .setCompression(CompressionType.ZLIB)
+                .setUncompressedSize(100);
+        ByteBuf invalidCompressedPayload = Unpooled.wrappedBuffer(new byte[] {1});
+        ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, invalidCompressedPayload);
+        invalidCompressedPayload.release();
+        int permitsBefore = consumer.getAvailablePermits();
+
+        try {
+            consumer.messageReceived(newCommandMessage(5), metadataAndPayload, messageCnx);
+
+            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore + 5);
+            releaseValidationCommands(context, 1);
+        } finally {
+            metadataAndPayload.release();
+        }
+    }
+
+    @Test
+    public void testPermitAccumulatorOverflowClosesSourceConnection() {
+        ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        consumer.paused = true;
+        ByteBuf firstMalformedMetadata = Unpooled.wrappedBuffer(new byte[] {1});
+        ByteBuf secondMalformedMetadata = Unpooled.wrappedBuffer(new byte[] {1});
+
+        try {
+            consumer.messageReceived(newCommandMessage(Integer.MAX_VALUE), firstMalformedMetadata, messageCnx);
+            Assert.assertEquals(consumer.getAvailablePermits(), Integer.MAX_VALUE);
+
+            consumer.messageReceived(newCommandMessage(1), secondMalformedMetadata, messageCnx);
+
+            Assert.assertEquals(consumer.getAvailablePermits(), Integer.MAX_VALUE);
+            verify(context).close();
+            releaseValidationCommands(context, 2);
+        } finally {
+            firstMalformedMetadata.release();
+            secondMalformedMetadata.release();
+        }
+    }
+
+    private ClientCnx setCurrentConnection() {
+        ClientCnx messageCnx = mock(ClientCnx.class);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        when(context.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(messageCnx.ctx()).thenReturn(context);
+        consumer.setClientCnx(messageCnx);
+        return messageCnx;
+    }
+
+    private CommandMessage newCommandMessage(int messagePermits) {
+        CommandMessage command = new CommandMessage()
+                .setConsumerId(consumer.consumerId)
+                .setMessagePermits(messagePermits);
+        command.setMessageId().setLedgerId(1).setEntryId(2);
+        return command;
+    }
+
+    private static void releaseValidationCommands(ChannelHandlerContext context, int expectedCommands) {
+        ArgumentCaptor<Object> commandCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(context, times(expectedCommands)).writeAndFlush(
+                commandCaptor.capture(), any(ChannelPromise.class));
+        commandCaptor.getAllValues().forEach(ReferenceCountUtil::release);
     }
 
     @Test(invocationTimeOut = 500)

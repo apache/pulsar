@@ -392,58 +392,54 @@ public class Consumer {
 
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            if (entry != null) {
-                totalEntries++;
-                int batchSize = batchSizes.getBatchSize(i);
-                int messagePermits = batchIndexesAcks == null
-                        ? batchSize : batchIndexesAcks.getUnackedIndexCount(i, batchSize);
-                if (messagePermits == 0) {
-                    totalEntries--;
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                }
-                // Note
-                // Must ensure that the message is written to the pendingAcks before sent is first,
-                // because this consumer is possible to disconnect at this time.
-                if (pendingAcks != null) {
-                    int stickyKeyHash;
-                    if (stickyKeyHashes == null) {
-                        if (entry instanceof EntryAndMetadata entryAndMetadata) {
-                            stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
-                        } else {
-                            stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
-                        }
+            if (entry == null) {
+                continue;
+            }
+            int batchSize = batchSizes.getBatchSize(i);
+            int messagePermits = batchIndexesAcks == null
+                    ? batchSize : batchIndexesAcks.getUnackedIndexCount(i, batchSize);
+            if (messagePermits == 0) {
+                entries.set(i, null);
+                entry.release();
+                continue;
+            }
+            // Note
+            // Must ensure that the message is written to the pendingAcks before sent is first,
+            // because this consumer is possible to disconnect at this time.
+            if (pendingAcks != null) {
+                int stickyKeyHash;
+                if (stickyKeyHashes == null) {
+                    if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                        stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
                     } else {
-                        stickyKeyHash = stickyKeyHashes.get(i);
-                    }
-                    boolean sendingAllowed =
-                            pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(),
-                                    messagePermits, stickyKeyHash);
-                    if (!sendingAllowed) {
-                        // sending isn't allowed when pending acks doesn't accept adding the entry
-                        // this happens when Key_Shared draining hashes contains the stickyKeyHash
-                        // because of race conditions, it might be resolved at the time of sending
-                        totalEntries--;
-                        entries.set(i, null);
-                        entry.release();
-                        log.debug()
-                                .attr("ledgerId", entry.getLedgerId())
-                                .attr("entryId", entry.getEntryId())
-                                .attr("batchSize", batchSize)
-                                .log("Skipping sending of entry since adding to pending acks failed");
-                    } else {
-                        log.debug()
-                                .attr("ledgerId", entry.getLedgerId())
-                                .attr("entryId", entry.getEntryId())
-                                .attr("batchSize", batchSize)
-                                .log("Added entry to pendingAcks");
-                        sendResult.setMessagePermits(i, messagePermits);
+                        stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
                     }
                 } else {
-                    sendResult.setMessagePermits(i, messagePermits);
+                    stickyKeyHash = stickyKeyHashes.get(i);
                 }
+                boolean sendingAllowed = pendingAcks.addPendingAckIfAllowed(
+                        entry.getLedgerId(), entry.getEntryId(), messagePermits, stickyKeyHash);
+                if (!sendingAllowed) {
+                    // sending isn't allowed when pending acks doesn't accept adding the entry
+                    // this happens when Key_Shared draining hashes contains the stickyKeyHash
+                    // because of race conditions, it might be resolved at the time of sending
+                    entries.set(i, null);
+                    entry.release();
+                    log.debug()
+                            .attr("ledgerId", entry.getLedgerId())
+                            .attr("entryId", entry.getEntryId())
+                            .attr("batchSize", batchSize)
+                            .log("Skipping sending of entry since adding to pending acks failed");
+                    continue;
+                }
+                log.debug()
+                        .attr("ledgerId", entry.getLedgerId())
+                        .attr("entryId", entry.getEntryId())
+                        .attr("batchSize", batchSize)
+                        .log("Added entry to pendingAcks");
             }
+            sendResult.setMessagePermits(i, messagePermits);
+            totalEntries++;
         }
 
         // calculate avg message per entry

@@ -47,8 +47,11 @@ public class CommandsTest {
         assertEquals(batched.getMessage().getMessagePermits(), 10);
 
         BaseCommand single = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 1);
-        Assert.assertFalse(single.getMessage().hasMessagePermits());
+        assertTrue(single.getMessage().hasMessagePermits());
         assertEquals(single.getMessage().getMessagePermits(), 1);
+
+        BaseCommand legacy = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1);
+        Assert.assertFalse(legacy.getMessage().hasMessagePermits());
 
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 0));

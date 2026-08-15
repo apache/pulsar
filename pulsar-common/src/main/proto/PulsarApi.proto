@@ -583,7 +583,7 @@ message CommandMessage {
     optional uint64 consumer_epoch = 5;
 
     // Number of consumer permits debited by the broker for this command.
-    optional uint32 message_permits = 6 [default = 1];
+    optional uint32 message_permits = 6;
 }
 
 message CommandAck {
