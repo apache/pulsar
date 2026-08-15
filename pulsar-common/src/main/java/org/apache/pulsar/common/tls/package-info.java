@@ -25,9 +25,14 @@
  * stacks. They carry no dependency beyond the JDK and slog.
  *
  * <p>Hostname verification is delegated to the JDK/provider standard endpoint identification
- * ({@code endpointIdentificationAlgorithm = "HTTPS"}), i.e. SAN-based (RFC 2818) matching. The deprecated
- * custom CN-based hostname verifier was removed in Pulsar 5.0 (PIP-478); certificates must carry the hostname
- * in the SubjectAltName (SAN) extension.
+ * ({@code endpointIdentificationAlgorithm = "HTTPS"}). Pulsar's own CN-based hostname verifier was removed in
+ * 5.0 (PIP-478), so verification is whatever the configured provider implements. Note that the standard
+ * algorithm is not SAN-only: per RFC 2818 §3.1, the JDK and OpenSSL engines consult the CN when the client
+ * connects by hostname and the certificate carries no {@code dNSName} SAN, and ignore it once any is
+ * present — behaviour RFC 9525 has since retired, which is why Conscrypt does not implement it. The
+ * fallback is for hostnames only — a client connecting to an IP literal is matched against {@code iPAddress}
+ * SANs and never against the CN. Conscrypt does not fall back to the CN at all; pinning it is what makes
+ * verification strictly SAN-based.
  *
  * <p>The purpose-driven TLS SPI ({@code PulsarTlsFactory} and companions) lives in its own focused module
  * under {@link org.apache.pulsar.tls}; the default {@code FileBasedTlsFactory} implementation lives in the
