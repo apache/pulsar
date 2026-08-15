@@ -63,12 +63,12 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
-import org.apache.pulsar.broker.service.EntryBatchPermits;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessagesResult;
 import org.apache.pulsar.broker.service.SharedConsumerAssignor;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
@@ -864,14 +864,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            EntryBatchPermits batchPermits = new EntryBatchPermits(entriesForThisConsumer.size());
 
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, batchPermits,
+            SendMessagesResult sendResult = c.sendMessagesWithResult(
+                    entriesForThisConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
@@ -879,10 +879,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             remainingMessages -= msgSent;
             start += maxEntriesInThisBatch;
             entriesToDispatch -= maxEntriesInThisBatch;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -batchPermits.getTotalPermits());
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendResult.getTotalMessagePermits());
             log.debug()
                     .attr("msgSent", msgSent)
-                    .attr("messagePermits", batchPermits.getTotalPermits())
+                    .attr("messagePermits", sendResult.getTotalMessagePermits())
                     .log("Added permits to TOTAL_AVAILABLE_PERMITS_UPDATER");
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -974,21 +974,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             final SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
-            final EntryBatchPermits batchPermits = new EntryBatchPermits(messagesForC);
 
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
-            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks, batchPermits,
+            SendMessagesResult sendResult = consumer.sendMessagesWithResult(
+                    entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
-            ).addListener(future -> {
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+            sendResult.getWriteFuture().addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
                     readMoreEntriesAsync();
                 }
             });
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -batchPermits.getTotalPermits());
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendResult.getTotalMessagePermits());
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -118,7 +119,6 @@ public class ConsumerTest {
         EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
         batchIndexesAcks.setIndexesAcks(0, Pair.of(10, new long[] {0b100101L}));
         batchIndexesAcks.setIndexesAcks(2, Pair.of(10, new long[] {0L}));
-        EntryBatchPermits batchPermits = new EntryBatchPermits(entries.size());
 
         PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
         when(cnx.getCommandSender()).thenReturn(commandSender);
@@ -127,18 +127,21 @@ public class ConsumerTest {
                 .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
 
         try {
-            sharedConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, batchPermits, 23, 0, 0,
-                    mock(RedeliveryTracker.class));
+            SendMessagesResult sendResult = sharedConsumer.sendMessagesWithResult(
+                    entries, batchSizes, batchIndexesAcks, 23, 0, 0, mock(RedeliveryTracker.class));
 
-            assertEquals(batchPermits.getTotalPermits(), 3);
+            assertEquals(sendResult.getTotalMessagePermits(), 3);
             assertEquals(sharedConsumer.getAvailablePermits(), 97);
             assertEquals(sharedConsumer.getUnackedMessages(), 3);
             assertNull(entries.get(1));
             assertNull(entries.get(2));
             verify(rejectedBatch).release();
             verify(emptyPartialBatch).release();
+            ArgumentCaptor<SendMessagesResult> sendResultCaptor = ArgumentCaptor.forClass(SendMessagesResult.class);
             verify(commandSender).sendMessagesToConsumer(eq(2L), eq("topic"), eq(subscription), anyInt(), eq(entries),
-                    eq(batchSizes), eq(batchIndexesAcks), eq(batchPermits), any(), eq(DEFAULT_CONSUMER_EPOCH));
+                    eq(batchSizes), eq(batchIndexesAcks), sendResultCaptor.capture(), any(),
+                    eq(DEFAULT_CONSUMER_EPOCH));
+            assertSame(sendResultCaptor.getValue(), sendResult);
             assertSame(entries.get(0), partialBatch);
         } finally {
             batchSizes.recyle();

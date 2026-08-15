@@ -235,7 +235,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     public ChannelPromise sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
                                                  int partitionIdx, List<? extends Entry> entries,
                                                  EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-                                                 EntryBatchPermits batchPermits, RedeliveryTracker redeliveryTracker,
+                                                 SendMessagesResult sendResult, RedeliveryTracker redeliveryTracker,
                                                  long epoch) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -299,7 +299,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
                                 redeliveryCount, metadataAndPayload,
                                 batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch,
-                                batchPermits.getPermits(i)),
+                                sendResult.getMessagePermits(i)),
                         ctx.voidPromise());
                 entriesToRelease.add(entry);
             }
