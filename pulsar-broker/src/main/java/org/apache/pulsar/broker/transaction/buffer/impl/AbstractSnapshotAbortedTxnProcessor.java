@@ -44,6 +44,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     private volatile State state = State.OPEN;
     private Future<?> recoveryTask;
     private CompletableFuture<Position> recoveryFuture = CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> recoveryStoppedFuture = CompletableFuture.completedFuture(null);
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     protected AbstractSnapshotAbortedTxnProcessor(ScheduledExecutorService recoveryExecutor) {
@@ -60,19 +61,22 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
         }
         // Bind the task to this recovery attempt so a later retry cannot complete the wrong future.
         CompletableFuture<Position> future = new CompletableFuture<>();
+        CompletableFuture<Void> stoppedFuture = new CompletableFuture<>();
         this.recoveryFuture = future;
+        this.recoveryStoppedFuture = stoppedFuture;
         this.state = State.RECOVERY_QUEUED;
         try {
-            this.recoveryTask = recoveryExecutor.submit(() -> runRecovery(future));
+            this.recoveryTask = recoveryExecutor.submit(() -> runRecovery(future, stoppedFuture));
         } catch (RejectedExecutionException e) {
             this.state = State.RECOVERY_FINISHED;
             future.completeExceptionally(e);
+            stoppedFuture.complete(null);
         }
-        // Do not expose the internal future used to determine when recovery has stopped.
+        // Do not let callers complete the internal recovery result.
         return future.copy();
     }
 
-    private void runRecovery(CompletableFuture<Position> future) {
+    private void runRecovery(CompletableFuture<Position> future, CompletableFuture<Void> stoppedFuture) {
         try {
             if (!tryStartRecovery()) {
                 future.completeExceptionally(closedException());
@@ -86,6 +90,8 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
             }
         } catch (Throwable throwable) {
             future.completeExceptionally(tryMarkRecoveryFinished() ? throwable : closedException());
+        } finally {
+            stoppedFuture.complete(null);
         }
     }
 
@@ -121,6 +127,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     public final CompletableFuture<Void> closeAsync() {
         boolean recoveryOwnsFutureCompletion;
         CompletableFuture<Position> currentRecoveryFuture;
+        CompletableFuture<Void> currentRecoveryStoppedFuture;
         synchronized (this) {
             if (this.state == State.CLOSED) {
                 return closeFuture;
@@ -130,15 +137,16 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
             recoveryOwnsFutureCompletion = previousState == State.RECOVERY_RUNNING
                     || previousState == State.RECOVERY_FINISHED;
             currentRecoveryFuture = this.recoveryFuture;
+            currentRecoveryStoppedFuture = this.recoveryStoppedFuture;
             if (this.recoveryTask != null && previousState == State.RECOVERY_QUEUED) {
                 this.recoveryTask.cancel(false);
             }
         }
         if (!recoveryOwnsFutureCompletion) {
             currentRecoveryFuture.completeExceptionally(closedException());
+            currentRecoveryStoppedFuture.complete(null);
         }
-        currentRecoveryFuture.handle((v, throwable) -> null)
-                .thenCompose(v -> closeResources())
+        currentRecoveryStoppedFuture.thenCompose(v -> closeResources())
                 .whenComplete((v, throwable) -> {
                     if (throwable != null) {
                         closeFuture.completeExceptionally(throwable);

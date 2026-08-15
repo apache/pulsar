@@ -83,6 +83,39 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
     }
 
     @Test(timeOut = 10_000)
+    public void testCloseWaitsForSynchronousRecoveryCallback() throws Exception {
+        CountDownLatch callbackStarted = new CountDownLatch(1);
+        CountDownLatch finishCallback = new CountDownLatch(1);
+        try (RecoveryTestContext context = RecoveryTestContext.running()) {
+            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<Void> callbackFuture = recoveryFuture.thenRun(() -> {
+                callbackStarted.countDown();
+                try {
+                    assertTrue(finishCallback.await(5, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+            });
+            context.awaitRecoveryStarted();
+
+            context.finishRecovery();
+            assertTrue(callbackStarted.await(5, TimeUnit.SECONDS));
+            CompletableFuture<Void> closeFuture = context.processor.closeAsync();
+
+            assertFalse(closeFuture.isDone(), "Closing must wait for the recovery callback to return");
+            assertFalse(context.processor.resourcesClosed());
+
+            finishCallback.countDown();
+            callbackFuture.get(5, TimeUnit.SECONDS);
+            closeFuture.get(5, TimeUnit.SECONDS);
+            assertTrue(context.processor.resourcesClosed());
+        } finally {
+            finishCallback.countDown();
+        }
+    }
+
+    @Test(timeOut = 10_000)
     public void testCloseAfterRecoveryCompleted() throws Exception {
         try (RecoveryTestContext context = RecoveryTestContext.running()) {
             CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
