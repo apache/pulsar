@@ -32,6 +32,10 @@ import org.testng.annotations.Test;
  * listener. Without inheritance a FIPS deployment that pins BCJSSE in {@code broker.conf} got an embedded
  * worker running silently on the platform default — the pin is a security control, so failing it open is the
  * bad direction to fail.
+ *
+ * <p>The JCA pins are covered alongside the JSSE ones for the same reason the two axes exist: BCJSSE
+ * without BCFIPS underneath it is FIPS-shaped rather than FIPS-compliant, so an embedded worker that
+ * inherited only half a pinned pair would fail open in exactly the case the pair is configured for.
  */
 public class WorkerConfigProviderInheritanceTest {
 
@@ -42,6 +46,8 @@ public class WorkerConfigProviderInheritanceTest {
         broker.setBrokerClientJsseProvider("BCJSSE");
         broker.setWebServiceTlsProvider("Conscrypt");
         broker.setJsseProvider("SunJSSE");
+        broker.setBrokerClientJcaProvider("BCFIPS");
+        broker.setJcaProvider("SUN");
 
         WorkerConfig worker = PulsarService.initializeWorkerConfigFromBrokerConfig(broker, null);
 
@@ -49,6 +55,8 @@ public class WorkerConfigProviderInheritanceTest {
         assertThat(worker.getBrokerClientJsseProvider()).isEqualTo("BCJSSE");
         assertThat(worker.getTlsProvider()).isEqualTo("Conscrypt");
         assertThat(worker.getJsseProvider()).isEqualTo("SunJSSE");
+        assertThat(worker.getBrokerClientJcaProvider()).isEqualTo("BCFIPS");
+        assertThat(worker.getJcaProvider()).isEqualTo("SUN");
     }
 
     @Test
@@ -57,6 +65,8 @@ public class WorkerConfigProviderInheritanceTest {
 
         assertThat(worker.getBrokerClientSslProvider()).isNull();
         assertThat(worker.getBrokerClientJsseProvider()).isNull();
+        assertThat(worker.getBrokerClientJcaProvider()).isNull();
+        assertThat(worker.getJcaProvider()).isNull();
     }
 
     private static ServiceConfiguration brokerConfig() {
