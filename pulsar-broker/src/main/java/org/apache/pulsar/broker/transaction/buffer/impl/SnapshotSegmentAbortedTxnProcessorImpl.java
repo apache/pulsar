@@ -138,6 +138,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
      * <p>    Clear all snapshot segment. </p>
      */
     private final PersistentWorker persistentWorker;
+    private CompletableFuture<Void> recoveryIndexUpdateFuture = CompletableFuture.completedFuture(null);
 
     private static final String SNAPSHOT_PREFIX = "multiple-";
 
@@ -299,7 +300,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
         }
         if (hasInvalidIndex) {
             // Update the snapshot segment index if there exist invalid indexes.
-            persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+            recoveryIndexUpdateFuture = persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
                     () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot()));
         }
     }
@@ -416,7 +417,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
 
     @Override
     protected CompletableFuture<Void> closeResources() {
-        return persistentWorker.closeAsync();
+        return recoveryIndexUpdateFuture.handle((__, throwable) -> null)
+                .thenCompose(__ -> persistentWorker.closeAsync());
     }
 
     private void handleSnapshotSegmentEntry(Entry entry) {
