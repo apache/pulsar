@@ -37,6 +37,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.expectThrows;
 import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -114,6 +115,8 @@ public class ConsumerTest {
         when(emptyPartialBatch.getLedgerId()).thenReturn(3L);
         when(emptyPartialBatch.getEntryId()).thenReturn(3L);
         List<Entry> entries = new ArrayList<>(List.of(partialBatch, rejectedBatch, emptyPartialBatch));
+        // A null slot represents an entry removed by dispatcher filtering before final send admission.
+        entries.add(null);
 
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
         batchSizes.setBatchSize(0, 10);
@@ -137,6 +140,7 @@ public class ConsumerTest {
             assertEquals(sendResult.getMessagePermits(0), 3);
             assertEquals(sendResult.getMessagePermits(1), 0);
             assertEquals(sendResult.getMessagePermits(2), 0);
+            assertEquals(sendResult.getMessagePermits(3), 0);
             assertEquals(sharedConsumer.getAvailablePermits(), 97);
             assertEquals(sharedConsumer.getUnackedMessages(), 3);
             assertNull(entries.get(1));
@@ -152,6 +156,62 @@ public class ConsumerTest {
         } finally {
             batchSizes.recyle();
             batchIndexesAcks.recycle();
+        }
+    }
+
+    @Test
+    public void testFinalizedPermitsOutliveRecycledSenderInputs() {
+        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
+                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
+                DEFAULT_CONSUMER_EPOCH);
+        sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> true);
+        sharedConsumer.flowPermits(100);
+
+        Entry partialBatch = mock(Entry.class);
+        when(partialBatch.getLedgerId()).thenReturn(1L);
+        when(partialBatch.getEntryId()).thenReturn(1L);
+        Entry completeBatch = mock(Entry.class);
+        when(completeBatch.getLedgerId()).thenReturn(2L);
+        when(completeBatch.getEntryId()).thenReturn(2L);
+        List<Entry> entries = new ArrayList<>(List.of(partialBatch, completeBatch));
+
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+        batchSizes.setBatchSize(0, 10);
+        batchSizes.setBatchSize(1, 4);
+        EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
+        batchIndexesAcks.setIndexesAcks(0, Pair.of(10, new long[] {0b100101L}));
+
+        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
+        when(cnx.getCommandSender()).thenReturn(commandSender);
+        Promise<Void> pendingWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
+                any(), any(), anyLong())).thenReturn(pendingWrite);
+
+        SendMessagesResult sendResult;
+        try {
+            sendResult = sharedConsumer.sendMessagesWithResult(
+                    entries, batchSizes, batchIndexesAcks, 14, 0, 0, mock(RedeliveryTracker.class));
+        } finally {
+            // The command sender owns and recycles these inputs before its asynchronous write completes.
+            batchSizes.recyle();
+            batchIndexesAcks.recycle();
+        }
+
+        EntryBatchSizes reusedBatchSizes = EntryBatchSizes.get(entries.size());
+        EntryBatchIndexesAcks reusedBatchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
+        try {
+            // Mutate the recycled carriers while the write is still pending. The finalized result must be independent.
+            reusedBatchSizes.setBatchSize(0, 1);
+            reusedBatchSizes.setBatchSize(1, 1);
+            reusedBatchIndexesAcks.setIndexesAcks(0, Pair.of(1, new long[] {1L}));
+
+            assertEquals(sendResult.getMessagePermits(0), 3);
+            assertEquals(sendResult.getMessagePermits(1), 4);
+            assertEquals(sendResult.getTotalMessagePermits(), 7);
+        } finally {
+            pendingWrite.trySuccess(null);
+            reusedBatchSizes.recyle();
+            reusedBatchIndexesAcks.recycle();
         }
     }
 
