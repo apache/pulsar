@@ -20,11 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.expectThrows;
+import java.util.BitSet;
+import java.util.SplittableRandom;
 import org.apache.pulsar.client.impl.MessagePermitAccounting.Budget;
 import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.testng.annotations.Test;
 
 public class MessagePermitAccountingTest {
+
+    private static final long RANDOM_SEED = 0x4915A17E5L;
 
     @Test
     public void testResolveExplicitMessagePermits() {
@@ -80,5 +84,72 @@ public class MessagePermitAccountingTest {
         assertEquals(budget.drain(), 1);
         assertEquals(budget.drain(), 0);
         expectThrows(IllegalStateException.class, budget::claim);
+    }
+
+    @Test
+    public void testRandomizedAckSetResolutionMatchesBoundedBitSetCardinality() {
+        SplittableRandom random = new SplittableRandom(RANDOM_SEED);
+        for (int testCase = 0; testCase < 10_000; testCase++) {
+            int batchSize = random.nextInt(1, 513);
+            int requiredWords = (batchSize + Long.SIZE - 1) / Long.SIZE;
+            long[] ackSet = new long[requiredWords + random.nextInt(3)];
+            for (int i = 0; i < ackSet.length; i++) {
+                ackSet[i] = random.nextLong();
+            }
+            // Explicit message permits must be positive. Also guarantees coverage when random data happens to be zero.
+            int requiredIndex = random.nextInt(batchSize);
+            ackSet[requiredIndex / Long.SIZE] |= 1L << (requiredIndex % Long.SIZE);
+
+            BitSet boundedAckSet = BitSet.valueOf(ackSet);
+            boundedAckSet.clear(batchSize, Math.max(batchSize, boundedAckSet.length()));
+            int expectedPermits = boundedAckSet.cardinality();
+            int allAckSetPermits = BitSet.valueOf(ackSet).cardinality();
+            String description = "seed=" + RANDOM_SEED + ", case=" + testCase + ", batchSize=" + batchSize;
+
+            CommandMessage explicit = commandWithAckSet(ackSet).setMessagePermits(expectedPermits);
+            assertEquals(MessagePermitAccounting.resolve(explicit, batchSize), expectedPermits, description);
+            assertEquals(MessagePermitAccounting.resolveForEarlyFailure(explicit), expectedPermits, description);
+
+            CommandMessage legacy = commandWithAckSet(ackSet);
+            assertEquals(MessagePermitAccounting.resolve(legacy, batchSize), expectedPermits, description);
+            assertEquals(MessagePermitAccounting.resolveForEarlyFailure(legacy), allAckSetPermits, description);
+        }
+    }
+
+    @Test
+    public void testRandomizedBudgetConservesPermitsAcrossClaimsAndRestores() {
+        SplittableRandom random = new SplittableRandom(RANDOM_SEED);
+        for (int testCase = 0; testCase < 10_000; testCase++) {
+            int initialPermits = random.nextInt(1, 257);
+            int modeledRemaining = initialPermits;
+            int permanentlyClaimed = 0;
+            Budget budget = new Budget(initialPermits);
+
+            int operations = random.nextInt(1, initialPermits * 3 + 1);
+            for (int operation = 0; operation < operations && modeledRemaining > 0; operation++) {
+                if (random.nextBoolean()) {
+                    budget.claim();
+                    modeledRemaining--;
+                    permanentlyClaimed++;
+                } else {
+                    budget.claim();
+                    budget.restore();
+                }
+            }
+
+            int returnedPermits = budget.drain();
+            String description = "seed=" + RANDOM_SEED + ", case=" + testCase;
+            assertEquals(returnedPermits, modeledRemaining, description);
+            assertEquals(permanentlyClaimed + returnedPermits, initialPermits, description);
+            assertEquals(budget.drain(), 0, description);
+        }
+    }
+
+    private static CommandMessage commandWithAckSet(long[] ackSet) {
+        CommandMessage command = new CommandMessage();
+        for (long word : ackSet) {
+            command.addAckSet(word);
+        }
+        return command;
     }
 }

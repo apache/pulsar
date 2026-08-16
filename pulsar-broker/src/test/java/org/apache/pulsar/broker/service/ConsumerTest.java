@@ -41,8 +41,10 @@ import io.netty.util.concurrent.Promise;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.SplittableRandom;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -56,6 +58,8 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsumerTest {
+    private static final long RANDOM_SEED = 0x491C05E5L;
+
     private Consumer consumer;
     private Subscription subscription;
     private ServerCnx cnx;
@@ -244,6 +248,91 @@ public class ConsumerTest {
             verify(cnx).removedConsumer(sharedConsumer);
         } finally {
             batchSizes.recyle();
+        }
+    }
+
+    @Test
+    public void testRandomizedFinalAdmissionUsesOnePermitResultForAllBrokerCounters() {
+        final int entriesCount = 1_000;
+        final int initialPermits = 1_000_000;
+        SplittableRandom random = new SplittableRandom(RANDOM_SEED);
+        boolean[] admissionAllowed = new boolean[entriesCount];
+        int[] expectedPermits = new int[entriesCount];
+        Entry[] originalEntries = new Entry[entriesCount];
+        List<Entry> entries = new ArrayList<>(entriesCount);
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesCount);
+        EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesCount);
+        int totalMessages = 0;
+        int expectedTotalPermits = 0;
+
+        for (int i = 0; i < entriesCount; i++) {
+            int batchSize = random.nextInt(1, 257);
+            batchSizes.setBatchSize(i, batchSize);
+            totalMessages += batchSize;
+            if (random.nextInt(8) == 0) {
+                entries.add(null);
+                continue;
+            }
+
+            Entry entry = mock(Entry.class);
+            originalEntries[i] = entry;
+            entries.add(entry);
+            when(entry.getLedgerId()).thenReturn((long) i);
+            when(entry.getEntryId()).thenReturn((long) i);
+
+            int messagePermits = batchSize;
+            if (random.nextInt(4) != 0) {
+                int requiredWords = (batchSize + Long.SIZE - 1) / Long.SIZE;
+                long[] ackSet = new long[requiredWords + random.nextInt(2)];
+                for (int word = 0; word < ackSet.length; word++) {
+                    ackSet[word] = random.nextLong();
+                }
+                BitSet boundedAckSet = BitSet.valueOf(ackSet);
+                boundedAckSet.clear(batchSize, Math.max(batchSize, boundedAckSet.length()));
+                messagePermits = boundedAckSet.cardinality();
+                batchIndexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+            }
+
+            admissionAllowed[i] = random.nextInt(5) != 0;
+            if (messagePermits > 0 && admissionAllowed[i]) {
+                expectedPermits[i] = messagePermits;
+                expectedTotalPermits += messagePermits;
+            }
+        }
+
+        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
+                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
+                DEFAULT_CONSUMER_EPOCH);
+        sharedConsumer.setPendingAcksAddHandler(
+                (ignored, ledgerId, entryId, stickyKeyHash) -> admissionAllowed[(int) ledgerId]);
+        sharedConsumer.flowPermits(initialPermits);
+        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
+        when(cnx.getCommandSender()).thenReturn(commandSender);
+        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
+                any(), any(), anyLong()))
+                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
+
+        try {
+            SendMessagesResult sendResult = sharedConsumer.sendMessagesWithResult(
+                    entries, batchSizes, batchIndexesAcks, totalMessages, 0, 0, mock(RedeliveryTracker.class));
+
+            assertEquals(sendResult.getTotalMessagePermits(), expectedTotalPermits, "seed=" + RANDOM_SEED);
+            assertEquals(sharedConsumer.getAvailablePermits(), initialPermits - expectedTotalPermits,
+                    "seed=" + RANDOM_SEED);
+            assertEquals(sharedConsumer.getUnackedMessages(), expectedTotalPermits, "seed=" + RANDOM_SEED);
+            for (int i = 0; i < entriesCount; i++) {
+                assertEquals(sendResult.getMessagePermits(i), expectedPermits[i],
+                        "seed=" + RANDOM_SEED + ", entry=" + i);
+                if (originalEntries[i] != null && expectedPermits[i] == 0) {
+                    assertNull(entries.get(i));
+                    verify(originalEntries[i]).release();
+                } else {
+                    assertSame(entries.get(i), originalEntries[i]);
+                }
+            }
+        } finally {
+            batchSizes.recyle();
+            batchIndexesAcks.recycle();
         }
     }
 

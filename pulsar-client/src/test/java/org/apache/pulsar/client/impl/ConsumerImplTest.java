@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.SplittableRandom;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
@@ -65,11 +66,15 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
@@ -80,12 +85,16 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ConsumerImplTest {
+    private static final long RANDOM_PERMIT_SEED = 0x491C11E17L;
+
     private final String topic = "non-persistent://tenant/ns1/my-topic";
 
     private ExecutorProvider executorProvider;
     private ExecutorService internalExecutor;
     private ConsumerImpl<byte[]> consumer;
     private ConsumerConfigurationData<byte[]> consumerConf;
+    private UpDownCounter messagesPrefetchedGauge;
+    private UpDownCounter bytesPrefetchedGauge;
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
@@ -99,6 +108,13 @@ public class ConsumerImplTest {
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
 
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        InstrumentProvider instrumentProvider = spy(InstrumentProvider.NOOP);
+        messagesPrefetchedGauge = mock(UpDownCounter.class);
+        bytesPrefetchedGauge = mock(UpDownCounter.class);
+        doAnswer(invocation -> invocation.<String>getArgument(0).endsWith(".count")
+                ? messagesPrefetchedGauge : bytesPrefetchedGauge)
+                .when(instrumentProvider).newUpDownCounter(any(), any(), any(), any(), any());
+        when(client.instrumentProvider()).thenReturn(instrumentProvider);
         ClientConfigurationData clientConf = client.getConfiguration();
         clientConf.setOperationTimeoutMs(100);
         clientConf.setStatsIntervalSeconds(0);
@@ -321,6 +337,96 @@ public class ConsumerImplTest {
 
         Assert.assertEquals(consumer.getAvailablePermits(), 0);
         verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
+    }
+
+    @Test
+    public void testStaleEpochBatchOnCurrentIncarnationReturnsPermitAndClosesPrefetchGauges() throws Exception {
+        consumer.paused = true;
+        ClientCnx messageCnx = setCurrentConnection();
+        ConsumerBase.CONSUMER_EPOCH.set(consumer, 2);
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(1)
+                .setNumMessagesInBatch(1);
+        ByteBuf batch = Unpooled.buffer();
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {1});
+        Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
+        payload.release();
+
+        try {
+            consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, null, batch,
+                    new MessageIdData().setLedgerId(1).setEntryId(2), messageCnx, 1, false, 1);
+            consumer.internalPinnedExecutor.submit(
+                    () -> Assert.assertEquals(consumer.numMessagesInQueue(), 0)).get(5, TimeUnit.SECONDS);
+
+            Assert.assertEquals(consumer.numMessagesInQueue(), 0);
+            Assert.assertEquals(consumer.getAvailablePermits(), 1);
+            verify(messagesPrefetchedGauge).increment();
+            verify(messagesPrefetchedGauge).decrement();
+            ArgumentCaptor<Long> addedBytes = ArgumentCaptor.forClass(Long.class);
+            ArgumentCaptor<Long> subtractedBytes = ArgumentCaptor.forClass(Long.class);
+            verify(bytesPrefetchedGauge).add(addedBytes.capture());
+            verify(bytesPrefetchedGauge).subtract(subtractedBytes.capture());
+            Assert.assertEquals(subtractedBytes.getValue(), addedBytes.getValue());
+        } finally {
+            batch.release();
+        }
+    }
+
+    @Test
+    public void testRandomizedBatchDecodeReturnsExactlyTheDeliveredPermits() throws Exception {
+        consumer.paused = true;
+        ClientCnx messageCnx = setCurrentConnection();
+        SplittableRandom random = new SplittableRandom(RANDOM_PERMIT_SEED);
+        int expectedReturnedPermits = 0;
+
+        for (int testCase = 0; testCase < 250; testCase++) {
+            int batchSize = random.nextInt(1, 65);
+            int requiredWords = (batchSize + Long.SIZE - 1) / Long.SIZE;
+            long[] ackSet = new long[requiredWords + random.nextInt(3)];
+            for (int word = 0; word < ackSet.length; word++) {
+                ackSet[word] = random.nextLong();
+            }
+            int requiredIndex = random.nextInt(batchSize);
+            ackSet[requiredIndex / Long.SIZE] |= 1L << (requiredIndex % Long.SIZE);
+            BitSet deliveredIndexes = BitSet.valueOf(ackSet);
+            deliveredIndexes.clear(batchSize, Math.max(batchSize, deliveredIndexes.length()));
+            int messagePermits = deliveredIndexes.cardinality();
+            MessageMetadata metadata = new MessageMetadata()
+                    .setProducerName("producer")
+                    .setSequenceId(testCase)
+                    .setPublishTime(1)
+                    .setNumMessagesInBatch(batchSize);
+            ByteBuf batch = Unpooled.buffer();
+            for (int index = 0; index < batchSize; index++) {
+                ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {(byte) index});
+                Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
+                payload.release();
+            }
+
+            try {
+                consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, ackSet, batch,
+                        new MessageIdData().setLedgerId(1).setEntryId(testCase), messageCnx,
+                        DEFAULT_CONSUMER_EPOCH, false, messagePermits);
+                int queuedMessages = consumer.internalPinnedExecutor.submit(consumer::numMessagesInQueue)
+                        .get(5, TimeUnit.SECONDS);
+
+                Assert.assertEquals(queuedMessages, messagePermits,
+                        "seed=" + RANDOM_PERMIT_SEED + ", case=" + testCase);
+                for (int permit = 0; permit < messagePermits; permit++) {
+                    Message<byte[]> message = consumer.incomingMessages.poll();
+                    Assert.assertNotNull(message);
+                    consumer.messageProcessed(message);
+                    message.release();
+                }
+                expectedReturnedPermits += messagePermits;
+                Assert.assertEquals(consumer.getAvailablePermits(), expectedReturnedPermits,
+                        "seed=" + RANDOM_PERMIT_SEED + ", case=" + testCase);
+            } finally {
+                batch.release();
+            }
+        }
     }
 
     private static void await(CountDownLatch latch) {

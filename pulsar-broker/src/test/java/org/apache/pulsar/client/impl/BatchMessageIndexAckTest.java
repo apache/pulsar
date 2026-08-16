@@ -235,6 +235,18 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
 
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic)
+                .orElseThrow(() -> new IllegalStateException("Topic was not loaded"));
+        PersistentSubscription subscription = topicRef.getSubscription(subscriptionName);
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            Assert.assertEquals(subscription.getConsumers().size(), 1);
+            org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
+            // A batch is an indivisible entry. Its exact permit debit can therefore exceed the one permit that
+            // admitted it, and the resulting negative balance must remain as debt until the messages are consumed.
+            Assert.assertEquals(brokerConsumer.getAvailablePermits(), 1 - remainingMessages);
+            Assert.assertEquals(brokerConsumer.getUnackedMessages(), remainingMessages);
+        });
+
         Set<Integer> expectedValues = new HashSet<>();
         for (int i = acknowledgedMessages; i < batchSize; i++) {
             expectedValues.add(i);
@@ -252,9 +264,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertTrue(expectedValues.isEmpty());
         Assert.assertNull(replacementConsumer.receive(1, TimeUnit.SECONDS));
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic)
-                .orElseThrow(() -> new IllegalStateException("Topic was not loaded"));
-        PersistentSubscription subscription = topicRef.getSubscription(subscriptionName);
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             Assert.assertEquals(subscription.getConsumers().size(), 1);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
