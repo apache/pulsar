@@ -66,6 +66,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     protected MessageId messageId;
     private final MessageMetadata msgMetadata;
     private ClientCnx cnx;
+    private ConsumerImpl.ConsumerPermitState permitState;
     private ByteBuf payload;
 
     private Schema<T> schema;
@@ -102,6 +103,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         msg.messageId = null;
         msg.topic = topic;
         msg.cnx = null;
+        msg.permitState = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
@@ -194,6 +196,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         msg.messageId = batchMessageIdImpl;
         msg.topic = topic;
         msg.cnx = cnx;
+        msg.permitState = null;
         msg.redeliveryCount = redeliveryCount;
         msg.encryptionCtx = encryptionCtx;
         msg.schema = schema;
@@ -721,6 +724,14 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return cnx;
     }
 
+    ConsumerImpl.ConsumerPermitState getPermitState() {
+        return permitState;
+    }
+
+    void setPermitState(ConsumerImpl.ConsumerPermitState permitState) {
+        this.permitState = permitState;
+    }
+
     public void recycle() {
         if (msgMetadata != null) {
             msgMetadata.clear();
@@ -729,6 +740,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
             brokerEntryMetadata.clear();
         }
         cnx = null;
+        permitState = null;
         messageId = null;
         topic = null;
         payload = null;

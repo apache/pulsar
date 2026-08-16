@@ -37,9 +37,11 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.expectThrows;
 import io.netty.util.concurrent.ImmediateEventExecutor;
+import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -150,6 +152,38 @@ public class ConsumerTest {
         } finally {
             batchSizes.recyle();
             batchIndexesAcks.recycle();
+        }
+    }
+
+    @Test
+    public void testSendMessagesWriteFailureDisconnectsConsumer() throws BrokerServiceException {
+        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
+                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
+                DEFAULT_CONSUMER_EPOCH);
+        sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> true);
+        sharedConsumer.flowPermits(100);
+
+        Entry entry = mock(Entry.class);
+        when(entry.getLedgerId()).thenReturn(1L);
+        when(entry.getEntryId()).thenReturn(1L);
+        List<Entry> entries = new ArrayList<>(List.of(entry));
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(1);
+        batchSizes.setBatchSize(0, 1);
+        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
+        when(cnx.getCommandSender()).thenReturn(commandSender);
+        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
+                any(), any(), anyLong()))
+                .thenReturn(ImmediateEventExecutor.INSTANCE.newFailedFuture(new IOException("write failed")));
+
+        try {
+            sharedConsumer.sendMessagesWithResult(
+                    entries, batchSizes, null, 1, 0, 0, mock(RedeliveryTracker.class));
+
+            verify(cnx).closeConsumer(sharedConsumer, Optional.empty());
+            verify(subscription).removeConsumer(sharedConsumer, false);
+            verify(cnx).removedConsumer(sharedConsumer);
+        } finally {
+            batchSizes.recyle();
         }
     }
 

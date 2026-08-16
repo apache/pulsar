@@ -111,15 +111,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             do {
                 message = incomingMessages.take();
                 lastDequeuedMessageId = message.getMessageId();
-                ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
-                // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
-                synchronized (this) {
-                    // if message received due to an old flow - discard it and wait for the message from the
-                    // latest flow command
-                    if (msgCnx == cnx()) {
-                        waitingOnReceiveForZeroQueueSize = false;
-                        break;
-                    }
+                ConsumerPermitState messagePermitState = ((MessageImpl<?>) message).getPermitState();
+                // If the message belongs to an old broker-consumer incarnation, discard it and wait for the message
+                // from the latest Flow command. ClientCnx identity alone is insufficient because it can be reused.
+                if (isCurrentPermitState(messagePermitState)) {
+                    waitingOnReceiveForZeroQueueSize = false;
+                    break;
                 }
             } while (true);
 
@@ -185,7 +182,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         .exception(t)
                         .log("Message listener error in processing unqueued message");
             }
-            increaseAvailablePermits(cnx());
+            increaseAvailablePermits((MessageImpl<?>) message);
             waitingOnListenerForZeroQueueSize = false;
         });
     }
@@ -199,7 +196,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
-                                            boolean isEncrypted, int messagePermits) {
+                                            boolean isEncrypted, int messagePermits,
+                                            ConsumerPermitState messagePermitState) {
 
         rejectBatchMessageByClosingConsumer(
                 new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex())
@@ -216,12 +214,13 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     protected void processPayloadByProcessor(BrokerEntryMetadata brokerEntryMetadata,
                                              MessageMetadata messageMetadata, ByteBuf byteBuf,
                                              MessageIdImpl messageId, Schema<T> schema,
-                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
+                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch,
+                                             ConsumerPermitState messagePermitState) {
         if (this.isBatch(messageMetadata)) {
             rejectBatchMessageByClosingConsumer(messageId);
         } else {
             super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
-                    redeliveryCount, ackSet, consumerEpoch);
+                    redeliveryCount, ackSet, consumerEpoch, messagePermitState);
         }
     }
 

@@ -280,12 +280,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             messages.forEach(msg -> {
                 final boolean skipDueToSeek = duringSeek;
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
-                ClientCnx cnx = msgImpl.getCnx();
+                ConsumerImpl.ConsumerPermitState permitState = msgImpl.getPermitState();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
                 if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
                 } else if (!isValidEpoch) {
-                    consumer.increaseAvailablePermits(cnx);
+                    consumer.increaseAvailablePermits(permitState);
                 } else if (skipDueToSeek) {
                     log.info().attr("messageId", msg.getMessageId())
                             .log("Skip processing message received during seek");

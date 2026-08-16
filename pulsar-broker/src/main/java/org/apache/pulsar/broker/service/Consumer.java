@@ -478,7 +478,8 @@ public class Consumer {
             } else {
                 log.debug()
                         .exceptionMessage(status.cause())
-                        .log("Sent messages to client failed by IO exception, closing the connection");
+                        .log("Sent messages to client failed by IO exception, disconnecting the consumer");
+                disconnect();
             }
         });
         return sendResult.setWriteFuture(writeAndFlushPromise);

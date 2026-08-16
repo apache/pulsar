@@ -23,9 +23,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,14 +35,18 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
 import io.netty.util.ReferenceCountUtil;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -215,12 +221,132 @@ public class ConsumerImplTest {
         }
     }
 
+    @Test
+    public void testSameClientCnxReuseCreatesNewPermitIncarnation() {
+        consumer.setCurrentReceiverQueueSize(2);
+        ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
+        MessageImpl<?> oldMessage = mock(MessageImpl.class);
+        when(oldMessage.getPermitState()).thenReturn(oldPermitState);
+
+        // Recreate the broker consumer while reusing the same pooled physical ClientCnx.
+        consumer.setClientCnx(messageCnx);
+        Assert.assertNotSame(consumer.getPermitState(), oldPermitState);
+        consumer.consumerIsReconnectedToBroker(messageCnx, 0);
+        consumer.increaseAvailablePermits(oldMessage);
+
+        Assert.assertEquals(consumer.getAvailablePermits(), 0);
+        verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
+    }
+
+    @Test(invocationTimeOut = 5000)
+    public void testPermitReturnRaceWithSameClientCnxReconnectDoesNotContaminateNewAccumulator() {
+        consumer.paused = true;
+        ClientCnx messageCnx = setCurrentConnection();
+        ExecutorService raceExecutor = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < 100; i++) {
+                ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
+                MessageImpl<?> oldMessage = mock(MessageImpl.class);
+                when(oldMessage.getPermitState()).thenReturn(oldPermitState);
+                CountDownLatch start = new CountDownLatch(1);
+
+                CompletableFuture<Void> returnPermit = CompletableFuture.runAsync(() -> {
+                    await(start);
+                    consumer.increaseAvailablePermits(oldMessage);
+                }, raceExecutor);
+                CompletableFuture<Void> reconnect = CompletableFuture.runAsync(() -> {
+                    await(start);
+                    consumer.setClientCnx(messageCnx);
+                    consumer.consumerIsReconnectedToBroker(messageCnx, 0);
+                }, raceExecutor);
+
+                start.countDown();
+                CompletableFuture.allOf(returnPermit, reconnect).join();
+                Assert.assertEquals(consumer.getAvailablePermits(), 0);
+            }
+        } finally {
+            raceExecutor.shutdownNow();
+        }
+    }
+
+    @Test(invocationTimeOut = 5000)
+    public void testConcurrentPermitReturnsStayInCurrentIncarnationAccumulator() {
+        consumer.paused = true;
+        setCurrentConnection();
+        ConsumerImpl.ConsumerPermitState currentPermitState = consumer.getPermitState();
+        int threadCount = 8;
+        int returnsPerThread = 1000;
+        ExecutorService returnExecutor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<CompletableFuture<Void>> returns = new ArrayList<>(threadCount);
+            for (int i = 0; i < threadCount; i++) {
+                returns.add(CompletableFuture.runAsync(() -> {
+                    await(start);
+                    for (int permit = 0; permit < returnsPerThread; permit++) {
+                        consumer.increaseAvailablePermits(currentPermitState);
+                    }
+                }, returnExecutor));
+            }
+            start.countDown();
+            CompletableFuture.allOf(returns.toArray(CompletableFuture[]::new)).join();
+
+            Assert.assertEquals(consumer.getAvailablePermits(), threadCount * returnsPerThread);
+        } finally {
+            returnExecutor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testQueuedFlowFromOldIncarnationIsDroppedAfterSameClientCnxReuse() {
+        consumer.setCurrentReceiverQueueSize(2);
+        ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        EventLoop eventLoop = context.channel().eventLoop();
+        List<Runnable> queuedTasks = new ArrayList<>();
+        doAnswer(invocation -> {
+            queuedTasks.add(invocation.getArgument(0));
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
+
+        ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
+        consumer.increaseAvailablePermits(oldPermitState);
+        Assert.assertEquals(queuedTasks.size(), 1);
+
+        // Recreate the broker consumer before the old Flow task reaches the shared physical connection.
+        consumer.setClientCnx(messageCnx);
+        queuedTasks.get(0).run();
+
+        Assert.assertEquals(consumer.getAvailablePermits(), 0);
+        verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CompletionException(e);
+        }
+    }
+
     private ClientCnx setCurrentConnection() {
         ClientCnx messageCnx = mock(ClientCnx.class);
         ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        EventLoop eventLoop = mock(EventLoop.class);
         when(context.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(context.channel()).thenReturn(channel);
+        when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
         when(messageCnx.ctx()).thenReturn(context);
         consumer.setClientCnx(messageCnx);
+        consumer.consumerIsReconnectedToBroker(messageCnx, 0);
         return messageCnx;
     }
 
