@@ -70,6 +70,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -341,8 +342,14 @@ public class ConsumerImplTest {
 
     @Test
     public void testStaleEpochBatchOnCurrentIncarnationReturnsPermitAndClosesPrefetchGauges() throws Exception {
-        consumer.paused = true;
+        consumer.setCurrentReceiverQueueSize(2);
         ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        List<Integer> flowPermits = new ArrayList<>();
+        doAnswer(invocation -> {
+            flowPermits.add(parseFlowPermits(invocation.getArgument(0)));
+            return null;
+        }).when(context).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
         ConsumerBase.CONSUMER_EPOCH.set(consumer, 2);
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("producer")
@@ -361,7 +368,8 @@ public class ConsumerImplTest {
                     () -> Assert.assertEquals(consumer.numMessagesInQueue(), 0)).get(5, TimeUnit.SECONDS);
 
             Assert.assertEquals(consumer.numMessagesInQueue(), 0);
-            Assert.assertEquals(consumer.getAvailablePermits(), 1);
+            Assert.assertEquals(consumer.getAvailablePermits(), 0);
+            Assert.assertEquals(flowPermits, List.of(1));
             verify(messagesPrefetchedGauge).increment();
             verify(messagesPrefetchedGauge).decrement();
             ArgumentCaptor<Long> addedBytes = ArgumentCaptor.forClass(Long.class);
@@ -375,9 +383,15 @@ public class ConsumerImplTest {
     }
 
     @Test
-    public void testRandomizedBatchDecodeReturnsExactlyTheDeliveredPermits() throws Exception {
-        consumer.paused = true;
+    public void testRandomizedBatchDecodeWritesExactlyTheReturnedPermitsToFlow() throws Exception {
+        consumer.setCurrentReceiverQueueSize(2);
         ClientCnx messageCnx = setCurrentConnection();
+        ChannelHandlerContext context = messageCnx.ctx();
+        List<Integer> flowPermits = new ArrayList<>();
+        doAnswer(invocation -> {
+            flowPermits.add(parseFlowPermits(invocation.getArgument(0)));
+            return null;
+        }).when(context).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
         SplittableRandom random = new SplittableRandom(RANDOM_PERMIT_SEED);
         int expectedReturnedPermits = 0;
 
@@ -393,6 +407,7 @@ public class ConsumerImplTest {
             BitSet deliveredIndexes = BitSet.valueOf(ackSet);
             deliveredIndexes.clear(batchSize, Math.max(batchSize, deliveredIndexes.length()));
             int messagePermits = deliveredIndexes.cardinality();
+            int expectedQueuedMessages = 0;
             MessageMetadata metadata = new MessageMetadata()
                     .setProducerName("producer")
                     .setSequenceId(testCase)
@@ -401,7 +416,12 @@ public class ConsumerImplTest {
             ByteBuf batch = Unpooled.buffer();
             for (int index = 0; index < batchSize; index++) {
                 ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {(byte) index});
-                Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
+                boolean compactedOut = deliveredIndexes.get(index) && random.nextInt(5) == 0;
+                if (deliveredIndexes.get(index) && !compactedOut) {
+                    expectedQueuedMessages++;
+                }
+                Commands.serializeSingleMessageInBatchWithPayload(
+                        new SingleMessageMetadata().setCompactedOut(compactedOut), payload, batch);
                 payload.release();
             }
 
@@ -412,20 +432,35 @@ public class ConsumerImplTest {
                 int queuedMessages = consumer.internalPinnedExecutor.submit(consumer::numMessagesInQueue)
                         .get(5, TimeUnit.SECONDS);
 
-                Assert.assertEquals(queuedMessages, messagePermits,
+                Assert.assertEquals(queuedMessages, expectedQueuedMessages,
                         "seed=" + RANDOM_PERMIT_SEED + ", case=" + testCase);
-                for (int permit = 0; permit < messagePermits; permit++) {
+                for (int permit = 0; permit < expectedQueuedMessages; permit++) {
                     Message<byte[]> message = consumer.incomingMessages.poll();
                     Assert.assertNotNull(message);
                     consumer.messageProcessed(message);
                     message.release();
                 }
                 expectedReturnedPermits += messagePermits;
-                Assert.assertEquals(consumer.getAvailablePermits(), expectedReturnedPermits,
+                Assert.assertEquals(consumer.getAvailablePermits(), 0,
+                        "seed=" + RANDOM_PERMIT_SEED + ", case=" + testCase);
+                Assert.assertEquals(flowPermits.stream().mapToInt(Integer::intValue).sum(), expectedReturnedPermits,
                         "seed=" + RANDOM_PERMIT_SEED + ", case=" + testCase);
             } finally {
                 batch.release();
             }
+        }
+    }
+
+    private static int parseFlowPermits(ByteBuf frame) {
+        try {
+            frame.skipBytes(Integer.BYTES);
+            int commandSize = (int) frame.readUnsignedInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            Assert.assertEquals(command.getType(), BaseCommand.Type.FLOW);
+            return command.getFlow().getMessagePermits();
+        } finally {
+            frame.release();
         }
     }
 
