@@ -2010,6 +2010,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNonPersistentNonPartitionedTopicWithTransactionSuffixIsNotRejected() {
+        // NonPersistentTopics inherits createNonPartitionedTopic from PersistentTopics, so this guards the
+        // non-partitioned non-persistent path against the transaction-internal-name check. If validateCreateTopic
+        // wrongly rejected the transaction-internal suffix here, the async response would resume with an error
+        // status rather than NO_CONTENT.
+        AsyncResponse response = mock(AsyncResponse.class);
+        nonPersistentTopic.createNonPartitionedTopic(response, testTenant, testNamespace,
+                "foo__transaction_pending_ack", true, null);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    @Test
     public void testPeekMessageWithProperties() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testPeekMessageWithProperties";
         admin.topics().createNonPartitionedTopic(topicName);
