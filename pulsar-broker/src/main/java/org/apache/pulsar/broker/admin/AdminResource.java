@@ -253,11 +253,13 @@ public abstract class AdminResource extends PulsarWebResource {
      *
      * <p>This is the single source of truth for topic-creation name validation shared by every admin create
      * endpoint (persistent, non-persistent and scalable topics). Rejecting here keeps topics which could never be
-     * reached (e.g. because clients trim topic names) from being created, and lets future create-time checks apply
-     * uniformly to all topic types.
+     * reached (e.g. because clients trim topic names) from being created. The transaction-internal-name rule is
+     * gated on {@link TopicDomain#persistent} so it stays specific to persistent topics, while the whitespace
+     * validation applies uniformly to all topic types.
      */
     protected void validateCreateTopic(TopicName topicName) {
-        if (SystemTopicNames.isTransactionInternalName(topicName)) {
+        if (topicName.getDomain() == TopicDomain.persistent
+                && SystemTopicNames.isTransactionInternalName(topicName)) {
             log.warn().attr("topic", topicName).log("Forbidden to create transaction internal topic");
             throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
         }
