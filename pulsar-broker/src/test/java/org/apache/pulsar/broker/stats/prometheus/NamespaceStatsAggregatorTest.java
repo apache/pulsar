@@ -108,6 +108,8 @@ public class NamespaceStatsAggregatorTest {
         PrometheusMetricStreams metricStreams = Mockito.spy(new PrometheusMetricStreams());
 
         // Populate subscriptions stats
+        ServiceConfiguration config = pulsar.getConfiguration();
+        doReturn(true).when(config).isExposeSubscriptionBacklogAgeInPrometheus();
         subStats.blockedSubscriptionOnUnackedMsgs = true;
         subStats.oldestBacklogMessageAgeSeconds = 123;
         consumerStats.blockedConsumerOnUnackedMsgs = false; // should not affect blockedSubscriptionOnUnackedMsgs

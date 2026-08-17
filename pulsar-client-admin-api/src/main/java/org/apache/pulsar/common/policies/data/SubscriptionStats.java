@@ -65,7 +65,9 @@ public interface SubscriptionStats {
      * represents the value seen in the last check.
      * </p>
      */
-    long getOldestBacklogMessageAgeSeconds();
+    default long getOldestBacklogMessageAgeSeconds() {
+        return -1;
+    }
 
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();

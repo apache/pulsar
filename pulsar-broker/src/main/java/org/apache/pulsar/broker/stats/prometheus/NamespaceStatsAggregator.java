@@ -86,6 +86,8 @@ public class NamespaceStatsAggregator {
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         Map<String, Long> localNamespaceTopicCount = new HashMap<>();
+        boolean exposeSubscriptionBacklogAge =
+                pulsar.getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus();
         pulsar.getBrokerService().getMultiLayerTopicsMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
@@ -118,7 +120,7 @@ public class NamespaceStatsAggregator {
 
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                        splitTopicAndPartitionIndexLabel, customLabelAndValues);
+                        splitTopicAndPartitionIndexLabel, exposeSubscriptionBacklogAge, customLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
