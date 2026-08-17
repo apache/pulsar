@@ -800,6 +800,18 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     return null;
                 })
                 .thenCompose(__ -> {
+                    CompletableFuture<Void> load;
+                    synchronized (BucketDelayedDeliveryTracker.this) {
+                        load = pendingLoad;
+                    }
+                    return (load == null ? CompletableFuture.completedFuture(null) : load)
+                            .exceptionally(t -> {
+                                log.warn().exception(t)
+                                        .log("Failed to load bucket snapshot segment during clear, ignore");
+                                return null;
+                            });
+                })
+                .thenCompose(__ -> {
                     synchronized (BucketDelayedDeliveryTracker.this) {
                         CompletableFuture<Void> future = cleanImmutableBuckets();
                         sharedBucketPriorityQueue.clear();
@@ -898,17 +910,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private CompletableFuture<Void> deleteBucketSnapshot(String ledgerName,
-                                                          Range<Long> range, ImmutableBucket bucket) {
-        // The bucket id is only known once the snapshot creation completes, so wait for an in-flight
-        // creation before deleting. When the creation failed the bucket has already been removed and
-        // downgraded to memory mode, so there is no snapshot left to delete.
-        return bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)
-                .thenCompose(bucketId -> bucketId == null
-                        ? CompletableFuture.<Void>completedFuture(null)
-                        : doDeleteBucketSnapshot(ledgerName, range, bucket));
-    }
-
-    private CompletableFuture<Void> doDeleteBucketSnapshot(String ledgerName,
                                                            Range<Long> range, ImmutableBucket bucket) {
         synchronized (this) {
             if (!isCurrentBucket(range, bucket)) {
