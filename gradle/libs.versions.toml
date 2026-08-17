@@ -55,10 +55,13 @@ commons-logging = "1.3.6"
 commons-beanutils = "1.11.0"
 commons-configuration2 = "2.15.1"
 # BouncyCastle
-bouncycastle = "1.84"
-bouncycastle-bcpkix-fips = "2.0.11"
-bouncycastle-bcutil-fips = "2.0.6"
-bouncycastle-bc-fips = "2.0.1"
+bouncycastle = "1.85"
+# bcprov is versioned separately: BouncyCastle shipped a provider-only patch release (1.85.2)
+# that was not published for bcpkix-jdk18on or bctls-jdk18on, which remain at 1.85
+bouncycastle-bcprov = "1.85.2"
+bouncycastle-bcpkix-fips = "2.1.12"
+bouncycastle-bcutil-fips = "2.1.7"
+bouncycastle-bc-fips = "2.1.3"
 # Serialization
 avro = "1.12.0"
 gson = "2.13.2"
@@ -458,7 +461,7 @@ athenz-cert-refresher = { module = "com.yahoo.athenz:athenz-cert-refresher", ver
 athenz-auth-core = { module = "com.yahoo.athenz:athenz-auth-core", version.ref = "athenz" }
 athenz-zpe-java-client = { module = "com.yahoo.athenz:athenz-zpe-java-client", version.ref = "athenz" }
 # Misc
-bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle-bcprov" }
 bctls-jdk18on = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
 commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
