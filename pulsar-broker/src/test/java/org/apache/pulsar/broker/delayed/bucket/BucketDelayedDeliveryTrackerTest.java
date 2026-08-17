@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
@@ -39,6 +40,7 @@ import io.netty.util.TimerTask;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -977,7 +979,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             // Release the load; clear() then completes and no stale segment state may survive.
             storage.segmentLoadGate.complete(null);
-            clearFuture.get(1, TimeUnit.MINUTES);
+
+            assertThat(clearFuture).succeedsWithin(Duration.ofSeconds(3));
 
             assertEquals(tracker.getNumberOfDelayedMessages(), 0);
             assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
