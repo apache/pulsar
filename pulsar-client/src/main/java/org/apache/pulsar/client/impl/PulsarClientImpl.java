@@ -609,17 +609,9 @@ public class PulsarClientImpl implements PulsarClient {
         return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
-        ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
-        if (!memoryLimitController.isMemoryLimited()) {
-            // set default limits for producers when memory limit controller is disabled
-            producerBuilder.maxPendingMessages(NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES);
-            producerBuilder.maxPendingMessagesAcrossPartitions(
-                    NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
-        }
-        return producerBuilder;
+        return new ProducerBuilderImpl<>(this, schema);
     }
 
     @Override
@@ -701,17 +693,68 @@ public class PulsarClientImpl implements PulsarClient {
                     + " Topic: '" + topic + "'"));
         }
 
+        final ProducerConfigurationData producerConf = resolvePendingMessagesLimits(conf);
+
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
             if (autoProduceBytesSchema.hasUserProvidedSchema()) {
-                return createProducerAsync(topic, conf, schema, interceptors);
+                return createProducerAsync(topic, producerConf, schema, interceptors);
             }
             return reloadSchemaForAutoProduceProducer(topic, autoProduceBytesSchema)
-                    .thenCompose(schemaInfoOptional -> createProducerAsync(topic, conf, schema, interceptors));
+                    .thenCompose(schemaInfoOptional ->
+                            createProducerAsync(topic, producerConf, schema, interceptors));
         } else {
-            return createProducerAsync(topic, conf, schema, interceptors);
+            return createProducerAsync(topic, producerConf, schema, interceptors);
         }
 
+    }
+
+    /**
+     * Resolve the producer's pending-message limits before the producer is created.
+     *
+     * <p>The client memory limit is a producer's primary backpressure: it bounds the memory held by
+     * messages that have been queued but not yet acknowledged by the broker. When it is disabled
+     * there is nothing left to bound that queue, so fall back to message-count limits rather than
+     * let a producer that outruns its broker buffer without any limit at all.
+     *
+     * <p>Only limits that are unset are filled in; an explicit limit is never overwritten. Note that
+     * on a partitioned topic a filled-in across-partitions budget is still divided between the
+     * partitions afterwards, which can lower an explicitly configured per-producer limit. Doing this
+     * at creation time rather than on the builder means the fallback cannot be missed depending on
+     * which {@code newProducer} overload produced the builder, nor undone by a later call setting a
+     * limit back to its unset value. Segment producers created for the V5 client go through
+     * {@link #createSegmentProducerAsync} and do not pass through here.
+     *
+     * @param conf the requested producer configuration
+     * @return the configuration to create the producer with; a resolved copy when a fallback
+     *         applies, otherwise {@code conf} unchanged
+     */
+    private ProducerConfigurationData resolvePendingMessagesLimits(ProducerConfigurationData conf) {
+        if (memoryLimitController.isMemoryLimited()
+                || (conf.getMaxPendingMessages() > 0 && conf.getMaxPendingMessagesAcrossPartitions() > 0)) {
+            return conf;
+        }
+        int maxPendingMessages = conf.getMaxPendingMessages() > 0
+                ? conf.getMaxPendingMessages()
+                : NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES;
+        int maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions() > 0
+                ? conf.getMaxPendingMessagesAcrossPartitions()
+                : Math.max(maxPendingMessages, NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        // The across-partitions limit is a budget shared by every partition, so a single producer's
+        // queue can never exceed it. This also keeps the two limits consistent for the setters below.
+        maxPendingMessages = Math.min(maxPendingMessages, maxPendingMessagesAcrossPartitions);
+
+        // Resolve on a copy: the builder hands over its own configuration instance, so filling in a
+        // limit here would otherwise leak into the next producer built from the same builder.
+        ProducerConfigurationData resolved = conf.clone();
+        // Order matters: the across-partitions setter rejects a value below maxPendingMessages.
+        resolved.setMaxPendingMessages(maxPendingMessages);
+        resolved.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        log.debug().attr("topic", conf.getTopicName())
+                .attr("maxPendingMessages", maxPendingMessages)
+                .attr("maxPendingMessagesAcrossPartitions", maxPendingMessagesAcrossPartitions)
+                .log("Client memory limit is disabled, applying default producer pending message limits");
+        return resolved;
     }
 
     @SuppressWarnings("unchecked")

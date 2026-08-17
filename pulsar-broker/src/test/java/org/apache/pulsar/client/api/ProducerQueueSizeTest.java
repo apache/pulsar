@@ -18,15 +18,30 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.impl.ProducerBase;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
+
+    /**
+     * The bounds {@code PulsarClientImpl} falls back to when the client memory limit is disabled.
+     * Duplicated here on purpose: these are a documented client default, so a change to them should
+     * break a test rather than pass silently.
+     */
+    private static final int NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES = 1000;
+    private static final int NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+
+    private static ProducerConfigurationData confOf(Producer<?> producer) {
+        return ((ProducerBase<?>) producer).getConfiguration();
+    }
 
     @DataProvider(name = "matrix")
     public Object[][] matrix() {
@@ -71,5 +86,184 @@ public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
         for (CompletableFuture<?>f : futures) {
             f.get();
         }
+    }
+
+    /**
+     * A client with the memory limit disabled has no byte-based backpressure, so producers must fall
+     * back to a bounded pending-message queue. This has to hold for the no-argument
+     * {@code newProducer()} overload as well, not just {@code newProducer(Schema)}.
+     */
+    @Test
+    public void testNoArgNewProducerIsBoundedWhenMemoryLimitDisabled() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(newTopicName()).create();
+
+        assertThat(confOf(producer).getMaxPendingMessages())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+    }
+
+    /**
+     * Setting the pending-message limits to 0 after the builder has been created must not leave a
+     * producer with no bound at all when the client memory limit is disabled: 0 means "unset", and
+     * unset falls back to the bounded defaults.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testLateZeroMaxPendingMessagesDoesNotDisableTheBoundWhenMemoryLimitDisabled()
+            throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(newTopicName())
+                .maxPendingMessages(0)
+                .maxPendingMessagesAcrossPartitions(0)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+    }
+
+    /**
+     * {@code maxPendingMessagesAcrossPartitions} must be {@code >= maxPendingMessages}. Filling in
+     * the across-partitions fallback must therefore never lower it below an explicitly configured
+     * per-partition limit, which would fail producer creation.
+     */
+    @Test
+    public void testExplicitMaxPendingMessagesAboveTheFallbackDoesNotFailCreation() throws Exception {
+        int maxPendingMessages = NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS + 10_000;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(newTopicName())
+                .maxPendingMessages(maxPendingMessages)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isEqualTo(maxPendingMessages);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
+                .isGreaterThanOrEqualTo(maxPendingMessages);
+    }
+
+    /**
+     * Filling in the fallback must not write it back into the builder's own configuration. The
+     * builder stays reusable, and a limit set on it afterwards is still validated against what the
+     * caller configured rather than against a filled-in default.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testFallbackLeavesTheBuilderReusable() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        ProducerBuilder<byte[]> builder = client.newProducer();
+
+        @Cleanup
+        Producer<byte[]> first = builder.topic(newTopicName()).create();
+        assertThat(confOf(first).getMaxPendingMessages())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
+
+        // Rejected if creating the first producer had left the fallback in the builder, since the
+        // across-partitions limit has to be >= maxPendingMessages.
+        @Cleanup
+        Producer<byte[]> second = builder.topic(newTopicName())
+                .maxPendingMessagesAcrossPartitions(500)
+                .create();
+        assertThat(confOf(second).getMaxPendingMessages()).isEqualTo(500);
+    }
+
+    /**
+     * The fallback has to reach partitioned producers too, where the per-partition queue is derived
+     * from the across-partitions budget.
+     */
+    @Test
+    public void testPartitionedProducerIsBoundedWhenMemoryLimitDisabled() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(topic).create();
+
+        // The budget spread over 10 partitions is well above the per-producer default, so each
+        // partition keeps the full default.
+        assertThat(confOf(producer).getMaxPendingMessages())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+    }
+
+    /**
+     * The across-partitions limit is a budget shared by every partition, so the per-producer
+     * fallback must be capped by it. Otherwise the fallback would exceed an explicitly configured
+     * budget, which producer creation rejects.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExplicitAcrossPartitionsLimitCapsTheFallback() throws Exception {
+        int maxPendingMessagesAcrossPartitions = 500;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(newTopicName())
+                .maxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages())
+                .isEqualTo(maxPendingMessagesAcrossPartitions);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
+                .isEqualTo(maxPendingMessagesAcrossPartitions);
+    }
+
+    /**
+     * The fallback only exists to replace the missing byte-based backpressure. When a memory limit
+     * is configured, an unset pending-message limit keeps meaning "no message-count limit".
+     */
+    @Test
+    public void testMemoryLimitedClientKeepsUnboundedPendingMessages() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(64, SizeUnit.MEGA_BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(newTopicName()).create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isZero();
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions()).isZero();
     }
 }
