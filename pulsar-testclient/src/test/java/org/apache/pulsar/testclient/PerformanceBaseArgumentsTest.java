@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
+import static org.apache.pulsar.client.impl.conf.ClientConfigurationData.DEFAULT_MEMORY_LIMIT_BYTES;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import java.io.File;
@@ -245,6 +246,38 @@ public class PerformanceBaseArgumentsTest {
             }
             baseArgument.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             baseArgument.parse(new String[]{});
+
+            // Act
+            baseArgument.parseCLI();
+
+            // Assert
+            assertEquals(baseArgument.memoryLimit, DEFAULT_MEMORY_LIMIT_BYTES);
+        }
+    }
+
+    @Test
+    public void testMemoryLimitCanBeDisabled() throws Exception {
+        for (String cmd : List.of(
+                "pulsar-perf read",
+                "pulsar-perf produce",
+                "pulsar-perf consume",
+                "pulsar-perf transaction"
+        )) {
+            // Arrange
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
+                @Override
+                public void run() throws Exception {
+
+                }
+
+            };
+            String confFile = "./src/test/resources/perf_client1.conf";
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            baseArgument.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            baseArgument.parse(new String[]{"-ml", "0"});
 
             // Act
             baseArgument.parseCLI();
