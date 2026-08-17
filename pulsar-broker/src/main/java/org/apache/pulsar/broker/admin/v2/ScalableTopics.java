@@ -71,6 +71,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -178,7 +179,8 @@ public class ScalableTopics extends AdminResource {
             @RequestBody(description = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        String decodedTopic = Codec.decode(encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         validateCreateTopic(tn);
 
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CREATE_TOPIC)
