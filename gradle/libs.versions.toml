@@ -64,7 +64,7 @@ avro = "1.12.0"
 gson = "2.13.2"
 snakeyaml = "2.6"
 # Vert.x
-vertx = "4.5.28"
+vertx = "4.5.32"
 # Networking / HTTP
 asynchttpclient = "3.0.10"
 conscrypt = "2.6.2"
@@ -109,7 +109,7 @@ javassist = "3.25.0-GA"
 rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
 # Misc
-curator = "5.7.1"
+curator = "5.9.0"
 reflections = "0.10.2"
 # OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
 swagger = "2.2.50"
@@ -169,11 +169,11 @@ skyscreamer = "1.5.0"
 # misc
 zstd-jni = "1.5.7-3"
 lz4java = "1.11.1"
-kubernetesclient = "26.0.0"
-aws-sdk = "1.12.788"
+kubernetesclient = "27.0.0"
+aws-sdk = "1.12.797"
 hadoop3 = "3.5.0"
-jclouds = "2.6.0"
-thrift = "0.23.0"
+jclouds = "2.7.0"
+thrift = "0.24.0"
 datasketches-memory = "4.1.0"
 datasketches-java = "7.0.1"
 # Shading
