@@ -316,28 +316,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger read more messages if necessary
-        if (triggerLookAhead.booleanValue() && (allowOutOfOrderDelivery || cursor.hasMoreEntries())) {
+        if (triggerLookAhead.booleanValue() && cursor.hasMoreEntries()) {
             // When all messages get filtered and no messages are sent, we should read more entries, "look ahead"
             // so that a possible next batch of messages might contain messages that can be dispatched.
             // This is done only when there's a consumer with available permits, and it's not able to make progress
             // because of blocked hashes. Without this rule we would be looking ahead in the stream while the
             // new consumers are not ready to accept the new messages,
             // therefore would be most likely only increase the distance between read-position and mark-delete position.
-            // When ordered delivery is required, look-ahead is engaged only when the cursor has more entries.
-            // Otherwise the next readMoreEntries call would skip replaying the replay queue and pulling due messages
-            // from the delayed delivery tracker, and instead issue a normal read that waits at the end of the topic
-            // for new entries. That would leave deliverable messages stuck in the replay queue or the delayed
-            // delivery tracker until an unrelated event (such as a consumer flow request) triggers another read,
-            // stalling dispatch (issue #21554).
-            // When out-of-order delivery is allowed, look-ahead is engaged unconditionally, as before. In that mode
-            // the replay queue doesn't track sticky key hashes, so the replay position filter cannot exclude
-            // messages for consumers without available permits, and each replay would re-read and discard the same
-            // undispatchable messages. Ending the cycle with a look-ahead attempt (that waits at the end of the
-            // topic when there is nothing to read) prevents such repeated read-and-discard loops.
+            // Look-ahead is engaged only when the cursor has more entries. Otherwise the next readMoreEntries call
+            // would skip replaying the replay queue and pulling due messages from the delayed delivery tracker, and
+            // instead issue a normal read that waits at the end of the topic for new entries. That would leave
+            // deliverable messages stuck in the replay queue or the delayed delivery tracker until an unrelated event
+            // (such as a consumer flow request) triggers another read, stalling dispatch (issue #21554).
+            // The former "allowOutOfOrderDelivery ||" escape here was dropped once ReplayPositionFilter started
+            // filtering out-of-order replay positions by available permits; don't re-add it without removing that.
             skipNextReplayToTriggerLookAhead = true;
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
-            // only skip the delay if there are more entries to read
-            skipNextBackoff = cursor.hasMoreEntries();
+            skipNextBackoff = true;
             return true;
         }
 
@@ -566,19 +561,20 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
         // tracks the hashes that have been blocked during the filtering
         // it is necessary to block all later messages after a hash gets blocked so that ordering is preserved
-        private final Set<Long> alreadyBlockedHashes = new HashSet<>();
+        private final Set<Long> hashesBlockedForOrdering = new HashSet<>();
 
         @Override
         public boolean test(Position position) {
-            // if out of order delivery is allowed, then any position will be replayed
-            if (isAllowOutOfOrderDelivery()) {
-                return true;
-            }
-            // lookup the sticky key hash for the entry at the replay position
+            // Out-of-order delivery relaxes ordering, not routing: filterAndGroupEntriesForDispatching selects the
+            // owning consumer by hash in both modes, so the hash is needed in both. It feeds the permit check below,
+            // which keeps this read's bounded budget (see MessageRedeliveryController#getMessagesToReplayNow) off
+            // positions that dispatch would only push straight back into the replay queue. Under out-of-order delivery,
+            // that check and the no-consumer check are the only live rejections here, and they made the
+            // "allowOutOfOrderDelivery ||" look-ahead escape removable.
             Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
             if (stickyKeyHash == null) {
-                // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
-                // dispatch after reading the entry from the ledger
+                // The sticky key hash is missing for delayed messages and positions added through hash-less
+                // redelivery paths. Filtering will happen at dispatch time after reading the entry from the ledger.
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] replay of entry at position {} doesn't contain sticky key hash.", name, position);
                 }
@@ -586,7 +582,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             // check if the hash is already blocked, if so, then replaying of the position should be skipped
             // to preserve ordering
-            if (alreadyBlockedHashes.contains(stickyKeyHash)) {
+            if (hashesBlockedForOrdering.contains(stickyKeyHash)) {
                 return false;
             }
 
@@ -594,7 +590,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = selector.select(stickyKeyHash.intValue());
             // skip replaying the message position if there's no assigned consumer
             if (consumer == null) {
-                alreadyBlockedHashes.add(stickyKeyHash);
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
@@ -604,19 +600,25 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             k -> new MutableInt(getAvailablePermits(consumer)));
             // skip replaying the message position if the consumer has no available permits
             if (availablePermits.intValue() <= 0) {
-                alreadyBlockedHashes.add(stickyKeyHash);
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
             if (drainingHashesRequired
                     && drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
                 // the hash is draining and the consumer is not the draining consumer
-                alreadyBlockedHashes.add(stickyKeyHash);
+                blockStickyKeyHashIfOrderingRequired(stickyKeyHash);
                 return false;
             }
 
             availablePermits.decrement();
             return true;
+        }
+
+        private void blockStickyKeyHashIfOrderingRequired(long stickyKeyHash) {
+            if (!allowOutOfOrderDelivery) {
+                hashesBlockedForOrdering.add(stickyKeyHash);
+            }
         }
     }
 
