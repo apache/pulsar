@@ -4055,11 +4055,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
             activeSubscriptionNames.add(subscriptionName);
             Position markDeletePosition = cursor.getMarkDeletedPosition();
-            if (markDeletePosition == null || !cursor.hasBacklog(preciseTimeBasedBacklogQuotaCheck)) {
+            if (markDeletePosition == null) {
                 clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
                 continue;
             }
             if (isSubscriptionOldPositionInfoReusable(subscriptionName, markDeletePosition)) {
+                continue;
+            }
+            if (!cursor.hasBacklog(preciseTimeBasedBacklogQuotaCheck)) {
+                clearSubscriptionResultIfNewer(subscriptionName, dataVersion);
                 continue;
             }
 
