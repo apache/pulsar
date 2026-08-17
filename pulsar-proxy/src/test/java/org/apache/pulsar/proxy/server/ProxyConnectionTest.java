@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -58,5 +59,38 @@ public class ProxyConnectionTest {
         proxyConfiguration.setTlsEnabledWithBroker(false);
         clientConfiguration = proxyConnection.createClientConfiguration();
         assertEquals(clientConfiguration.getServiceUrl(), proxyUrl);
+    }
+
+    /**
+     * PIP-478: the proxy's lookup leg must carry all three broker-client provider pins, not a subset.
+     *
+     * <p>The {@code ClientConfigurationData} field is the only route: the lookup client's policy is composed
+     * by {@code ClientTlsFactorySupport.clientDefaultPolicy}, which reads it. The direct (broker-connection)
+     * leg reads {@code brokerClientJcaProvider} through {@code ProxyTlsFactories.brokerClientPolicy} instead,
+     * so a key dropped here makes one {@code proxy.conf} setting govern one of its two outbound legs and
+     * silently skip the other — leaving the lookup leg parsing key material on the JVM search order while the
+     * operator believes both are pinned.
+     */
+    @Test
+    public void theLookupLegCarriesEveryBrokerClientProviderPin() {
+        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
+        proxyConfiguration.setTlsEnabledWithBroker(true);
+        proxyConfiguration.setBrokerClientSslProvider("JDK");
+        proxyConfiguration.setBrokerClientJsseProvider("SunJSSE");
+        proxyConfiguration.setBrokerClientJcaProvider("SUN");
+
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(proxyConfiguration).when(proxyService).getConfiguration();
+        doReturn("pulsar+ssl://proxy:6651").when(proxyService).getServiceUrlTls();
+
+        ClientConfigurationData clientConfiguration =
+                new ProxyConnection(proxyService, null).createClientConfiguration();
+
+        assertThat(clientConfiguration.getSslProvider()).isEqualTo("JDK");
+        assertThat(clientConfiguration.getJsseProvider()).isEqualTo("SunJSSE");
+        assertThat(clientConfiguration.getJcaProvider())
+                .as("the JCA pin must reach the lookup leg too: BCJSSE without BCFIPS underneath it is "
+                        + "FIPS-shaped rather than FIPS-compliant")
+                .isEqualTo("SUN");
     }
 }

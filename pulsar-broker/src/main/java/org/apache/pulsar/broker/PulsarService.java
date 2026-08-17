@@ -2008,12 +2008,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (tlsEnabled) {
             conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
             conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
-            // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-            // (jsseProvider) onto the internal client config so the broker's own outbound client honors them —
-            // both are documented as "used by the internal client" but were otherwise dropped here (never
-            // copied into ClientConfigurationData), silently defaulting the engine/provider.
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal client config so the
+            // broker's own outbound client honors them — all three are documented as "used by the internal
+            // client" but were otherwise dropped here (never copied into ClientConfigurationData), silently
+            // defaulting the engine/provider. The client conf field is the only route: the policy this client
+            // builds comes from ClientTlsFactorySupport.clientDefaultPolicy, which reads it.
             conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
             conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
             conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
             conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
             if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
