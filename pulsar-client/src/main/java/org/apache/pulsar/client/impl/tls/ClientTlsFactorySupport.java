@@ -528,7 +528,8 @@ public final class ClientTlsFactorySupport {
         }
     }
 
-    private static Map<TlsPurpose, TlsPolicy> composePolicies(ClientConfigurationData conf) {
+    @VisibleForTesting
+    static Map<TlsPurpose, TlsPolicy> composePolicies(ClientConfigurationData conf) {
         Map<TlsPurpose, TlsPolicy> policies = new LinkedHashMap<>();
         if (conf.getTlsPolicyMap() != null) {
             policies.putAll(conf.getTlsPolicyMap());
@@ -548,7 +549,13 @@ public final class ClientTlsFactorySupport {
 
     private static void foldOAuth2IdpPolicy(ClientConfigurationData conf, Map<TlsPurpose, TlsPolicy> policies) {
         if (conf.getAuthentication() instanceof AuthenticationOAuth2 oauth2) {
-            oauth2.idpTlsPolicy().ifPresent(policy -> policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy));
+            // PIP-478: this is the framework-bound path, so the IdP leg inherits the client's provider pins on
+            // each axis unless the OAuth2 parameters pin their own. Otherwise a FIPS client would parse the IdP
+            // certificate — and any IdP mTLS client key — outside the validated module while its broker
+            // connection is pinned. The JSSE value is the composed one (resolveClientJsseProvider), so the IdP
+            // inherits what CLIENT_DEFAULT actually resolved to rather than the raw field.
+            oauth2.idpTlsPolicy(resolveClientJsseProvider(conf), conf.getJcaProvider())
+                    .ifPresent(policy -> policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy));
         }
     }
 

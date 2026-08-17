@@ -31,6 +31,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -39,6 +40,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.tls.TlsPolicy;
 
@@ -228,6 +230,23 @@ public class PerfClientUtils {
 
         if (arguments.tlsHostnameVerificationEnable != null) {
             pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
+        }
+
+        // PIP-478: the admin leg must be pinned on the same two axes as the binary leg above, otherwise
+        // `pulsar-perf --jsse-provider/--jca-provider` would parse the broker certificate for its HTTPS admin
+        // calls through the JVM provider search order while the data connection is pinned — a FIPS-shaped run
+        // rather than a FIPS one, on the tool whose flags exist to validate exactly that. PulsarAdminBuilder has
+        // no fluent setter for either axis, so this mirrors BrokerService.configAdminTlsSettings and writes them
+        // onto the underlying configuration.
+        if (pulsarAdminBuilder instanceof PulsarAdminBuilderImpl adminBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData adminConf = adminBuilderImpl.getConf();
+            if (isNotBlank(arguments.jsseProvider)) {
+                adminConf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                adminConf.setJcaProvider(arguments.jcaProvider);
+            }
         }
 
         return pulsarAdminBuilder;
