@@ -35,7 +35,7 @@ grpc = "1.79.0"
 slf4j = "2.0.18"
 slog = "0.10.0"
 log4j2 = "2.26.1"
-lombok = "1.18.42"
+lombok = "1.18.46"
 # OpenTelemetry
 opentelemetry = "1.65.0"
 opentelemetry-alpha = "1.65.0-alpha"
@@ -97,36 +97,41 @@ hdrHistogram = "2.1.9"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
-athenz = "1.12.42"
+athenz = "1.12.45"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
-auth0-java-jwt = "4.5.2"
-auth0-jwks-rsa = "0.23.1"
+auth0-java-jwt = "4.6.0"
+auth0-jwks-rsa = "0.24.1"
 # CLI
 picocli = "4.7.7"
-jline3 = "4.2.1"
-javassist = "3.25.0-GA"
+jline3 = "4.3.1"
+javassist = "3.32.0-GA"
 rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
 # Misc
 curator = "5.7.1"
 reflections = "0.10.2"
 # OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
-swagger = "2.2.50"
-typetools = "0.5.0"
-jna = "5.18.1"
-java-semver = "0.9.0"
-oshi = "6.4.0"
+swagger = "2.2.53"
+typetools = "0.6.3"
+jna = "5.19.1"
+java-semver = "0.10.2"
+# oshi is capped at 6.x: at 7.0.0 the oshi-core-java11 artifact became a pom-only
+# relocation stub pointing at com.github.oshi:oshi-core, which is a coordinate change
+oshi = "6.12.0"
 netty-reactive-streams = "2.0.6"
 # 9.2.0+ is required for CronType.SPRING53 (Spring 5.3+ cron syntax)
 cron-utils = "9.2.1"
 failsafe = "3.3.2"
 disruptor = "3.4.3"
-ant = "1.10.12"
+ant = "1.10.17"
+# guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
+# javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
+# jclouds-shaded forces it locally.
 guice = "5.1.0"
 snappy = "1.1.10.8"
-ipaddress = "5.5.0"
-zt-zip = "1.17"
+ipaddress = "5.6.2"
+zt-zip = "1.18.2"
 # Jakarta
 jakarta-ws-rs = "3.1.0"
 jakarta-annotation = "2.1.1"
@@ -146,8 +151,8 @@ oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.7.3"
 graalvm-buildtools = "1.1.9"
-errorprone = "2.45.0"
-spotbugs = "4.9.6"
+errorprone = "2.50.0"
+spotbugs = "4.10.3"
 checkerframework = "3.33.0"
 jsr305 = "3.0.2"
 # Test
@@ -373,7 +378,7 @@ vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
 vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 avro = { module = "org.apache.avro:avro", version.ref = "avro" }
 avro-protobuf = { module = "org.apache.avro:avro-protobuf", version.ref = "avro" }
-joda-time = "joda-time:joda-time:2.10.10"
+joda-time = "joda-time:joda-time:2.14.3"
 java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "java-semver" }
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
@@ -382,7 +387,7 @@ dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", versio
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }
 snappy-java = { module = "org.xerial.snappy:snappy-java", version.ref = "snappy" }
-jspecify = "org.jspecify:jspecify:1.0.0"
+jspecify = "org.jspecify:jspecify:1.0.1"
 reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
 # Auth / Security
 jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jsonwebtoken" }
