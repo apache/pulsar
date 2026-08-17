@@ -196,15 +196,16 @@ public class TopicNameTest {
 
     @Test
     public void testValidateTopicNameForCreation() {
-        // Leading or trailing whitespace makes the topic unreachable: clients trim topic names, so they would
-        // look up the trimmed name instead of the one the topic was created with.
+        // A trailing space in the full name is trimmed by clients, so the topic would be created under one
+        // name and addressed under the trimmed one. Only trailing whitespace is unreachable this way: a
+        // leading space in the local name sits mid-string in a fully-qualified name and is not trimmed.
         String[] invalidNames = {
                 "persistent://myprop/myns/mytopic ",
-                "persistent://myprop/myns/ mytopic",
-                "persistent://myprop/myns/ mytopic ",
                 "persistent://myprop/myns/mytopic\t",
                 "persistent://myprop/myns/mytopic\n",
                 "non-persistent://myprop/myns/mytopic ",
+                // leading space is allowed, but a trailing space is still trimmed away
+                "persistent://myprop/myns/ mytopic ",
         };
         for (String invalidName : invalidNames) {
             TopicName topicName = TopicName.get(invalidName);
@@ -213,12 +214,13 @@ public class TopicNameTest {
                     () -> TopicName.validateTopicNameForCreation(topicName));
         }
 
-        // Whitespace inside the local name round-trips correctly and stays allowed.
+        // Whitespace inside the local name (including a leading space) round-trips correctly and stays allowed.
         String[] validNames = {
                 "persistent://myprop/myns/my topic",
                 "persistent://myprop/myns/mytopic",
                 "persistent://myprop/myns/mytopic-partition-0",
                 "non-persistent://myprop/myns/my topic",
+                "persistent://myprop/myns/ mytopic",
         };
         for (String validName : validNames) {
             TopicName topicName = TopicName.get(validName);

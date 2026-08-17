@@ -110,17 +110,19 @@ public class TopicName implements ServiceUnitId {
     /**
      * Checks whether a topic name can be used to create a new topic.
      *
-     * <p>The local name must not have leading or trailing whitespace. Pulsar clients trim topic names (see
-     * {@link org.apache.pulsar.client.api.ConsumerBuilder#topic(String...)}), so a topic created with whitespace
-     * could never be produced to or consumed from: the creation would target one name while the client targets
-     * the trimmed one.
+     * <p>Pulsar clients trim the <em>entire</em> topic string before resolving it (see
+     * {@link org.apache.pulsar.client.api.ConsumerBuilder#topic(String...)}), so a topic whose full name has
+     * surrounding whitespace would be created under one name but addressed under the trimmed name. Checking the
+     * full name (rather than only the local name) matches that client behavior: a leading space in the local name
+     * of a fully-qualified name sits in the middle of the string and is not trimmed by clients, so it stays
+     * allowed.
      *
-     * <p>This is only meant to be checked on topic creation paths, so that topics which already have such a
-     * name remain listable, readable and deletable.
+     * <p>This is only meant to be checked on topic creation paths, so topics which already have such a name
+     * remain listable, readable and deletable.
      */
     public static boolean isValidForCreation(TopicName topicName) {
-        String localName = topicName.getLocalName();
-        return localName.equals(StringUtils.trim(localName));
+        String topic = topicName.toString();
+        return topic.equals(StringUtils.trim(topic));
     }
 
     /**
@@ -132,7 +134,7 @@ public class TopicName implements ServiceUnitId {
     public static void validateTopicNameForCreation(TopicName topicName) {
         if (!isValidForCreation(topicName)) {
             throw new IllegalArgumentException("Invalid topic name: '" + topicName
-                    + "'. Topic local name must not have leading or trailing whitespace.");
+                    + "'. Topic name must not have leading or trailing whitespace.");
         }
     }
 
