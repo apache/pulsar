@@ -24,6 +24,11 @@ plugins {
 
 dependencies {
     api(project(":pulsar-metadata"))
+    // DefaultBrokerTlsFactory/TlsFactorySupport/JettyTlsFactory expose the TLS factory SPI on this
+    // module's public surface, and DefaultBrokerTlsFactory extends pulsar-common's FileBasedTlsFactory,
+    // so both are direct api dependencies rather than transitive-via-pulsar-metadata.
+    api(project(":pulsar-tls-factory-api"))
+    api(project(":pulsar-common"))
     implementation(libs.slog)
     implementation(libs.guava)
     api(libs.commons.lang3)

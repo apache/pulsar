@@ -454,6 +454,7 @@ athenz-auth-core = { module = "com.yahoo.athenz:athenz-auth-core", version.ref =
 athenz-zpe-java-client = { module = "com.yahoo.athenz:athenz-zpe-java-client", version.ref = "athenz" }
 # Misc
 bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bctls-jdk18on = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
 commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
 commons-configuration2 = { module = "org.apache.commons:commons-configuration2", version.ref = "commons-configuration2" }
