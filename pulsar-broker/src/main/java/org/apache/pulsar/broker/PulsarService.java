@@ -2014,9 +2014,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // client" but were otherwise dropped here (never copied into ClientConfigurationData), silently
             // defaulting the engine/provider. The client conf field is the only route: the policy this client
             // builds comes from ClientTlsFactorySupport.clientDefaultPolicy, which reads it.
-            conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
-            conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
-            conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
+            if (isNotBlank(this.getConfiguration().getBrokerClientSslProvider())) {
+                conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJsseProvider())) {
+                conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJcaProvider())) {
+                conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
+            }
             conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
             conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
             if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {

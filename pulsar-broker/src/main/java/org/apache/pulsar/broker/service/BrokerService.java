@@ -1847,19 +1847,25 @@ public class BrokerService implements Closeable {
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
                 .tlsFactoryClassName(tlsFactoryClassName)
-                .tlsFactoryConfig(tlsFactoryConfig)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
-                // (jsseProvider) and JCA (crypto) provider (jcaProvider) so geo-replication clients honor
-                // them, mirroring PulsarService.createClientConfigurationData. Without this the replication
-                // client silently builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider
-                // downgrade), and pinning only the JSSE half is FIPS-shaped rather than FIPS-compliant.
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // Neither provider axis has a ClientBuilder setter; set both on the underlying config like sslProvider
-        // above.
-        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
-        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData()
-                .setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+                .tlsFactoryConfig(tlsFactoryConfig);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so geo-replication clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the replication client silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. None of the three has a ClientBuilder
+        // setter that reaches the underlying config safely here, so all three are set on it directly — each
+        // only when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by
+        // an unset first-class key.
+        ClientConfigurationData replicationConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            replicationConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            replicationConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            replicationConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1903,19 +1909,24 @@ public class BrokerService implements Closeable {
                     .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
         adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
-                // (jsseProvider) and JCA (crypto) provider (jcaProvider) so cross-cluster admin clients honor
-                // them, mirroring PulsarService.createClientConfigurationData. Without this the cluster admin
-                // silently builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade),
-                // and pinning only the JSSE half is FIPS-shaped rather than FIPS-compliant.
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // Neither provider axis has a PulsarAdminBuilder setter; set both on the underlying config like
-        // sslProvider.
-        ((PulsarAdminBuilderImpl) adminBuilder).getConf()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
-        ((PulsarAdminBuilderImpl) adminBuilder).getConf()
-                .setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so cross-cluster admin clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the cluster admin silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. Set on the underlying config, each only
+        // when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by an
+        // unset first-class key.
+        ClientConfigurationData adminConf = ((PulsarAdminBuilderImpl) adminBuilder).getConf();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            adminConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            adminConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            adminConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {

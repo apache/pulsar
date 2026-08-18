@@ -93,4 +93,28 @@ public class ProxyConnectionTest {
                         + "FIPS-shaped rather than FIPS-compliant")
                 .isEqualTo("SUN");
     }
+
+    /**
+     * The {@code brokerClient_*} passthrough is applied before the first-class keys are mapped, so mapping an
+     * unset first-class key unconditionally would null out a value the operator set through the passthrough.
+     * That is a silent downgrade of a security control, and it is invisible to every test that sets the
+     * first-class key — which is why it needs its own.
+     */
+    @Test
+    public void theBrokerClientPassthroughSurvivesAnUnsetFirstClassKey() {
+        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
+        proxyConfiguration.setTlsEnabledWithBroker(true);
+        proxyConfiguration.getProperties().setProperty("brokerClient_jsseProvider", "SunJSSE");
+        proxyConfiguration.getProperties().setProperty("brokerClient_jcaProvider", "SUN");
+
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(proxyConfiguration).when(proxyService).getConfiguration();
+        doReturn("pulsar+ssl://proxy:6651").when(proxyService).getServiceUrlTls();
+
+        ClientConfigurationData clientConfiguration =
+                new ProxyConnection(proxyService, null).createClientConfiguration();
+
+        assertThat(clientConfiguration.getJsseProvider()).isEqualTo("SunJSSE");
+        assertThat(clientConfiguration.getJcaProvider()).isEqualTo("SUN");
+    }
 }

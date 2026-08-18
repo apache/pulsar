@@ -938,9 +938,15 @@ public class ProxyConnection extends PulsarHandler {
             // ClientConfigurationData) and the engine/provider silently defaults. The JCA pin matters here
             // because ProxyTlsFactories.brokerClientPolicy already honours it on the direct path: one
             // proxy.conf setting drives two outbound legs, and only one of them read it.
-            clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
-            clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
-            clientConf.setJcaProvider(proxyConfig.getBrokerClientJcaProvider());
+            if (isNotBlank(proxyConfig.getBrokerClientSslProvider())) {
+                clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(proxyConfig.getBrokerClientJcaProvider());
+            }
             // PIP-478: propagate the broker-client custom TLS factory selection so resolveClientTlsFactory
             // (run by ProxyService over the representative config built here) instantiates the named factory
             // for the lookup path's shared CLIENT_DEFAULT factory instead of silently defaulting to the
