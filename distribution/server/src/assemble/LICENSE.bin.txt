@@ -479,9 +479,9 @@ The Apache Software License, Version 2.0
     - io.kubernetes-client-java-api-26.0.0.jar
     - io.kubernetes-client-java-proto-26.0.0.jar
   * Dropwizard
-    - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
-    - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
-    - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
+    - io.dropwizard.metrics-metrics-core-4.2.39.jar
+    - io.dropwizard.metrics-metrics-graphite-4.2.39.jar
+    - io.dropwizard.metrics-metrics-jvm-4.2.39.jar
   * Failsafe
     - dev.failsafe-failsafe-3.3.2.jar
   * Prometheus
@@ -561,7 +561,7 @@ BSD 3-clause "New" or "Revised" License
    - org.ow2.asm-asm-tree-9.10.1.jar -- ../licenses/LICENSE-ASM.txt
 
 BSD 2-Clause License
- * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- ../licenses/LICENSE-HdrHistogram.txt
+ * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.2.2.jar -- ../licenses/LICENSE-HdrHistogram.txt
 
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- ../licenses/LICENSE-SemVer.txt
