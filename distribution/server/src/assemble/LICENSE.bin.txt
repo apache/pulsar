@@ -247,7 +247,7 @@ The Apache Software License, Version 2.0
  * Picocli
      - info.picocli-picocli-4.7.7.jar
      - info.picocli-picocli-shell-jline3-4.7.7.jar
- * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
+ * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.10.0.jar
  * Jackson
      - com.fasterxml.jackson.core-jackson-annotations-2.21.jar
      - com.fasterxml.jackson.core-jackson-core-2.21.6.jar
@@ -383,7 +383,7 @@ The Apache Software License, Version 2.0
     - org.apache.distributedlog-distributedlog-protocol-4.18.0.jar
     - org.apache.bookkeeper-native-io-4.18.0.jar
     - org.apache.bookkeeper-native-library-common-4.18.0.jar
-    - at.yawk.lz4-lz4-java-1.11.1.jar
+    - at.yawk.lz4-lz4-java-1.11.2.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.14.jar
     - org.apache.httpcomponents-httpcore-4.4.16.jar
@@ -496,8 +496,8 @@ The Apache Software License, Version 2.0
     - io.jsonwebtoken-jjwt-impl-0.13.0.jar
     - io.jsonwebtoken-jjwt-jackson-0.13.0.jar
   * JCTools - Java Concurrency Tools for the JVM
-    - org.jctools-jctools-core-4.0.6.jar
-    - org.jctools-jctools-core-jdk11-4.0.6.jar
+    - org.jctools-jctools-core-4.0.7.jar
+    - org.jctools-jctools-core-jdk11-4.0.7.jar
   * Vertx
     - io.vertx-vertx-auth-common-4.5.28.jar
     - io.vertx-vertx-bridge-common-4.5.28.jar
@@ -518,7 +518,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.6.9.jar
+    - org.roaringbitmap-RoaringBitmap-1.6.20.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.65.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.65.0-alpha.jar
