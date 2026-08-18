@@ -462,7 +462,7 @@ The Apache Software License, Version 2.0
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Byte Buddy
-    - net.bytebuddy-byte-buddy-1.17.7.jar
+    - net.bytebuddy-byte-buddy-1.18.12.jar
   * zt-zip
     - org.zeroturnaround-zt-zip-1.17.jar
   * Apache Avro

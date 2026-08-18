@@ -153,19 +153,19 @@ jsr305 = "3.0.2"
 # Test
 testng = "7.12.0"
 mockito = "5.23.0"
-awaitility = "4.2.0"
+awaitility = "4.3.0"
 assertj = "3.27.7"
-hamcrest = "2.2"
+hamcrest = "3.0"
 system-lambda = "1.2.1"
-objenesis = "3.3"
-byte-buddy = "1.17.7"
+objenesis = "3.6"
+byte-buddy = "1.18.12"
 testcontainers = "1.21.4"
-wiremock = "2.35.1"
-kerby = "2.1.1"
-json = "20231013"
-consolecaptor = "1.0.3"
-restassured = "5.4.0"
-skyscreamer = "1.5.0"
+wiremock = "3.13.2"
+kerby = "2.1.2"
+json = "20260814"
+consolecaptor = "1.0.4"
+restassured = "5.5.7"
+skyscreamer = "1.5.3"
 # misc
 zstd-jni = "1.5.7-3"
 lz4java = "1.11.1"
@@ -422,8 +422,11 @@ assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 system-lambda = { module = "com.github.stefanbirkner:system-lambda", version.ref = "system-lambda" }
 byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
+# byte-buddy-agent is declared so the enforced platform pins it to the same version as
+# byte-buddy; Mockito depends on both and they must not diverge
+byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
 objenesis = { module = "org.objenesis:objenesis", version.ref = "objenesis" }
-wiremock = { module = "com.github.tomakehurst:wiremock-jre8-standalone", version.ref = "wiremock" }
+wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
 consolecaptor = { module = "io.github.hakky54:consolecaptor", version.ref = "consolecaptor" }
 restassured = { module = "io.rest-assured:rest-assured", version.ref = "restassured" }
 jsonassert = { module = "org.skyscreamer:jsonassert", version.ref = "skyscreamer" }
@@ -449,7 +452,7 @@ hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "had
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop3" }
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
-docker-java-core = "com.github.docker-java:docker-java-core:3.4.1"
+docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
 json-smart = "net.minidev:json-smart:2.5.2"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
