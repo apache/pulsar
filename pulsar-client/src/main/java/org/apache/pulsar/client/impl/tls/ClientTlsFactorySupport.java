@@ -552,11 +552,30 @@ public final class ClientTlsFactorySupport {
             // PIP-478: this is the framework-bound path, so the IdP leg inherits the client's provider pins on
             // each axis unless the OAuth2 parameters pin their own. Otherwise a FIPS client would parse the IdP
             // certificate — and any IdP mTLS client key — outside the validated module while its broker
-            // connection is pinned. The JSSE value is the composed one (resolveClientJsseProvider), so the IdP
-            // inherits what CLIENT_DEFAULT actually resolved to rather than the raw field.
-            oauth2.idpTlsPolicy(resolveClientJsseProvider(conf), conf.getJcaProvider())
+            // connection is pinned. The values are read off the CLIENT_DEFAULT policy that was actually
+            // composed above, not off the configuration fields: a v5 caller supplying
+            // tlsPolicy(CLIENT_DEFAULT, ...) pins the providers on that policy and leaves the fields unset, so
+            // reading the fields would inherit nothing for exactly the caller most likely to have pinned them.
+            TlsPolicy clientDefault = policies.get(TlsPurpose.CLIENT_DEFAULT);
+            oauth2.idpTlsPolicy(clientDefault.jsseProvider(), clientDefault.jcaProvider())
                     .ifPresent(policy -> policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy));
         }
+    }
+
+    /**
+     * The {@link TlsPurpose#CLIENT_DEFAULT} policy a client built from this configuration resolves to: one the
+     * v5 builder supplied explicitly, else one composed from the {@code tls*} fields (PIP-478).
+     *
+     * <p>Public because the admin folds the OAuth2 IdP policy before its factory is built, and has to inherit
+     * the same provider pins this composition would give {@code CLIENT_DEFAULT}.
+     *
+     * @param conf the client configuration
+     * @return the effective client-default policy
+     */
+    public static TlsPolicy effectiveClientDefaultPolicy(ClientConfigurationData conf) {
+        TlsPolicy explicit = conf.getTlsPolicyMap() == null
+                ? null : conf.getTlsPolicyMap().get(TlsPurpose.CLIENT_DEFAULT);
+        return explicit != null ? explicit : clientDefaultPolicy(conf);
     }
 
     private static FileBasedTlsFactorySettings settings(ClientConfigurationData conf) {

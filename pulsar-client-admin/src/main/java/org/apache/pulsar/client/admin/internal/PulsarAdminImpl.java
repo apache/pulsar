@@ -71,6 +71,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -506,7 +507,12 @@ public class PulsarAdminImpl implements PulsarAdmin {
         if (!(auth instanceof AuthenticationOAuth2 oauth2)) {
             return;
         }
-        oauth2.idpTlsPolicy().ifPresent(policy -> {
+        // PIP-478: inherit the admin's own provider pins onto the IdP leg, on each axis the OAuth2 parameters
+        // do not pin themselves. This fold runs before ClientTlsFactorySupport.composePolicies and writes into
+        // the same policy map, so its putIfAbsent there can never replace what is inserted here — the
+        // inheritance has to happen at this site or not at all.
+        TlsPolicy clientDefault = ClientTlsFactorySupport.effectiveClientDefaultPolicy(conf);
+        oauth2.idpTlsPolicy(clientDefault.jsseProvider(), clientDefault.jcaProvider()).ifPresent(policy -> {
             Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
             if (policies == null) {
                 policies = new LinkedHashMap<>();

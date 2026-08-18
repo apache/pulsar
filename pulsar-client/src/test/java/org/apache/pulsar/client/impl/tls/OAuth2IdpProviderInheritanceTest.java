@@ -92,6 +92,28 @@ public class OAuth2IdpProviderInheritanceTest {
     }
 
     /**
+     * A v5 caller pins the providers on the {@code CLIENT_DEFAULT} policy it supplies, leaving the
+     * configuration fields unset. Reading the fields would inherit nothing for exactly the caller most likely
+     * to have pinned deliberately, so the inheritance reads the composed policy instead.
+     */
+    @Test
+    public void pinsOnAnExplicitClientDefaultPolicyAreInheritedToo() {
+        ClientConfigurationData conf = confWithOAuth2("\"trustCertsFilePath\":\"/certs/ca.pem\"");
+        conf.setTlsPolicyMap(Map.of(TlsPurpose.CLIENT_DEFAULT, TlsPolicy.builder()
+                .format(TlsPolicy.Format.PEM)
+                .jsseProvider("BCJSSE")
+                .jcaProvider("BCFIPS")
+                .build()));
+
+        TlsPolicy idp = ClientTlsFactorySupport.composePolicies(conf).get(TlsPurpose.CLIENT_OAUTH2);
+
+        assertThat(idp.jsseProvider()).isEqualTo("BCJSSE");
+        assertThat(idp.jcaProvider())
+                .as("a v5 caller pins on the policy, not the configuration fields")
+                .isEqualTo("BCFIPS");
+    }
+
+    /**
      * A client configuration whose authentication is an OAuth2 plugin configured with the given extra
      * parameters (a JSON fragment without the enclosing braces).
      */

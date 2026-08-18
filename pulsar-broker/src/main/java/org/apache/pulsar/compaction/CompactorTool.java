@@ -38,6 +38,8 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -108,6 +110,20 @@ public class CompactorTool {
                 clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
                         .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
                         .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
+            }
+            // PIP-478: the compactor's client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. Only the engine axis has a builder setter; the other two
+            // are written onto the underlying configuration, as BrokerService.configTlsSettings does.
+            if (isNotBlank(brokerConfig.getBrokerClientSslProvider())) {
+                clientBuilder.sslProvider(brokerConfig.getBrokerClientSslProvider());
+            }
+            ClientConfigurationData clientConf =
+                    ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+            if (isNotBlank(brokerConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(brokerConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(brokerConfig.getBrokerClientJcaProvider());
             }
         } else {
             internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
