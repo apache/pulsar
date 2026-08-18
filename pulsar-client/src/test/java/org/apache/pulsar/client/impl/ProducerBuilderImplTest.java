@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -117,6 +118,21 @@ public class ProducerBuilderImplTest {
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         assertNotNull(producer);
+    }
+
+    /**
+     * {@code loadConf} rebuilds the configuration by replaying every property through the public
+     * setters, and {@code setMaxPendingMessagesAcrossPartitions} rejects a value below
+     * {@code maxPendingMessages}. Pins that loading a positive limit does not trip that check on the
+     * across-partitions property that comes with it.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testLoadConfWithAPositiveMaxPendingMessages() {
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        producerBuilderImpl.loadConf(Map.of("maxPendingMessages", 5000));
+
+        assertEquals(producerBuilderImpl.getConf().getMaxPendingMessages(), 5000);
     }
 
     @Test
@@ -378,9 +394,23 @@ public class ProducerBuilderImplTest {
 
     @SuppressWarnings("deprecation")
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-            "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
+            "maxPendingMessagesAcrossPartitions needs to be >= 0")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
+    }
+
+    /**
+     * The across-partitions budget is allowed to be below {@code maxPendingMessages}: it is a budget
+     * shared by every partition, and the per-partition limit is lowered to its share where it is used.
+     * Rejecting it here made the two setters order-dependent.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testAcrossPartitionsLimitBelowMaxPendingMessagesIsAccepted() {
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        producerBuilderImpl.maxPendingMessages(1000).maxPendingMessagesAcrossPartitions(500);
+
+        assertEquals(producerBuilderImpl.getConf().getMaxPendingMessagesAcrossPartitions(), 500);
     }
 
     @SuppressWarnings("deprecation")
