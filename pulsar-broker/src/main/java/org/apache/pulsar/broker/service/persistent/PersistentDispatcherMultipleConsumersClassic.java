@@ -244,7 +244,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
-                // Exclude permits from Flow tasks that have not updated the dispatcher total yet.
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
                 int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
                 totalAvailablePermits -= availablePermits;
                 log.debug()
