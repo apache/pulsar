@@ -56,6 +56,14 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private ProducerConfigurationData conf;
     private Schema<T> schema;
     private List<ProducerInterceptor> interceptorList;
+    /**
+     * Whether the application configured the pending-message limits. Their unset value is 0, which is
+     * also a meaningful explicit value ("no message-count limit"), so the configuration alone cannot
+     * tell the two apart. See
+     * {@link PulsarClientImpl#applyNoMemoryLimitProducerDefaults(ProducerConfigurationData, boolean, boolean)}.
+     */
+    private boolean maxPendingMessagesConfigured;
+    private boolean maxPendingMessagesAcrossPartitionsConfigured;
 
     public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
@@ -78,7 +86,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> clone() {
-        return new ProducerBuilderImpl<>(client, conf.clone(), schema);
+        ProducerBuilderImpl<T> copy = new ProducerBuilderImpl<>(client, conf.clone(), schema);
+        copy.maxPendingMessagesConfigured = maxPendingMessagesConfigured;
+        copy.maxPendingMessagesAcrossPartitionsConfigured = maxPendingMessagesAcrossPartitionsConfigured;
+        return copy;
     }
 
     @Override
@@ -108,15 +119,23 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             return FutureUtil.failedFuture(pce);
         }
 
+        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf,
+                maxPendingMessagesConfigured, maxPendingMessagesAcrossPartitionsConfigured);
+
         return interceptorList == null || interceptorList.size() == 0
-                ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+                ? client.createProducerAsync(producerConf, schema, null)
+                : client.createProducerAsync(producerConf, schema, new ProducerInterceptors(interceptorList));
     }
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(
             config, conf, ProducerConfigurationData.class);
+        // A limit present in the map was configured by the application, even when its value is the
+        // same as the unset one. loadData builds a new configuration instance, so this cannot be
+        // tracked in the configuration itself.
+        maxPendingMessagesConfigured |= config.containsKey("maxPendingMessages");
+        maxPendingMessagesAcrossPartitionsConfigured |= config.containsKey("maxPendingMessagesAcrossPartitions");
         return this;
     }
 
@@ -142,6 +161,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
         conf.setMaxPendingMessages(maxPendingMessages);
+        maxPendingMessagesConfigured = true;
         return this;
     }
 
@@ -149,6 +169,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        maxPendingMessagesAcrossPartitionsConfigured = true;
         return this;
     }
 
