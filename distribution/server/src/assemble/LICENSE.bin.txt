@@ -276,7 +276,7 @@ The Apache Software License, Version 2.0
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
  * Swagger
-    - io.swagger.core.v3-swagger-annotations-jakarta-2.2.50.jar
+    - io.swagger.core.v3-swagger-annotations-jakarta-2.2.53.jar
  * slog -- io.github.merlimat.slog-slog-0.10.0.jar
  * DataSketches
     - org.apache.datasketches-datasketches-java-7.0.1.jar
@@ -354,8 +354,8 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-web-2.26.1.jar
     - org.apache.logging.log4j-log4j-layout-template-json-2.26.1.jar
  * Java Native Access JNA
-    - net.java.dev.jna-jna-jpms-5.18.1.jar
-    - net.java.dev.jna-jna-platform-jpms-5.18.1.jar
+    - net.java.dev.jna-jna-jpms-5.19.1.jar
+    - net.java.dev.jna-jna-platform-jpms-5.19.1.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.18.0.jar
     - org.apache.bookkeeper-bookkeeper-common-allocator-4.18.0.jar
@@ -431,14 +431,14 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-jetty-websocket-jetty-server-12.1.12.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.6.jar
  * RocksDB - org.rocksdb-rocksdbjni-9.9.3.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.50.0.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.23.0.jar
  * OkHttp3
      - com.squareup.okhttp3-logging-interceptor-5.3.2.jar
      - com.squareup.okhttp3-okhttp-jvm-5.3.2.jar
  * Okio
      - com.squareup.okio-okio-jvm-3.17.0.jar
- * Javassist -- org.javassist-javassist-3.25.0-GA.jar
+ * Javassist -- org.javassist-javassist-3.32.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-2.2.21.jar
  * JetBrains Annotations
@@ -460,11 +460,11 @@ The Apache Software License, Version 2.0
     - io.opencensus-opencensus-api-0.31.1.jar
     - io.opencensus-opencensus-contrib-http-util-0.31.1.jar
   * Jodah
-    - net.jodah-typetools-0.5.0.jar
+    - net.jodah-typetools-0.6.3.jar
   * Byte Buddy
     - net.bytebuddy-byte-buddy-1.18.12.jar
   * zt-zip
-    - org.zeroturnaround-zt-zip-1.17.jar
+    - org.zeroturnaround-zt-zip-1.18.2.jar
   * Apache Avro
     - org.apache.avro-avro-1.12.0.jar
     - org.apache.avro-avro-protobuf-1.12.0.jar
@@ -514,7 +514,7 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.11.0.jar
     - com.google.re2j-re2j-1.8.jar
   * IPAddress
-    - com.github.seancfoley-ipaddress-5.5.0.jar
+    - com.github.seancfoley-ipaddress-5.6.2.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
@@ -544,7 +544,7 @@ The Apache Software License, Version 2.0
   * Spotify completable-futures
     - com.spotify-completable-futures-0.3.6.jar
   * JSpecify
-    - org.jspecify-jspecify-1.0.0.jar
+    - org.jspecify-jspecify-1.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
@@ -554,7 +554,7 @@ BSD 3-clause "New" or "Revised" License
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
- * JLine3 -- org.jline-jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- org.jline-jline-4.3.1.jar -- ../licenses/LICENSE-JLine.txt
  * OW2 ASM
    - org.ow2.asm-asm-9.10.1.jar -- ../licenses/LICENSE-ASM.txt
    - org.ow2.asm-asm-commons-9.10.1.jar -- ../licenses/LICENSE-ASM.txt
@@ -564,17 +564,18 @@ BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.2.2.jar -- ../licenses/LICENSE-HdrHistogram.txt
 
 MIT License
- * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- ../licenses/LICENSE-SemVer.txt
+ * Java SemVer -- com.github.zafarkhaja-java-semver-0.10.2.jar -- ../licenses/LICENSE-SemVer.txt
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
     - org.slf4j-slf4j-api-2.0.18.jar
     - org.slf4j-jcl-over-slf4j-2.0.18.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.33.0.jar
  * oshi
-    - com.github.oshi-oshi-core-java11-6.4.0.jar
+    - com.github.oshi-oshi-core-java11-6.12.0.jar
+    - com.github.oshi-oshi-common-6.12.0.jar
  * Auth0, Inc.
-    - com.auth0-java-jwt-4.5.2.jar
-    - com.auth0-jwks-rsa-0.23.1.jar
+    - com.auth0-java-jwt-4.6.0.jar
+    - com.auth0-jwks-rsa-0.24.1.jar
 Protocol Buffers License
  * Protocol Buffers
    - com.google.protobuf-protobuf-java-4.35.1.jar -- ../licenses/LICENSE-protobuf.txt

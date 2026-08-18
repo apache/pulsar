@@ -334,7 +334,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
- * Swagger -- swagger-annotations-jakarta-2.2.50.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.53.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
     - datasketches-memory-4.1.0.jar
@@ -419,8 +419,8 @@ The Apache Software License, Version 2.0
     - jetty-websocket-jetty-client-12.1.12.jar
     - jetty-websocket-jetty-common-12.1.12.jar
  * SnakeYaml -- snakeyaml-2.6.jar
- * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
- * Javassist -- javassist-3.25.0-GA.jar
+ * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
+ * Javassist -- javassist-3.32.0-GA.jar
   * Apache Avro
     - avro-1.12.0.jar
     - avro-protobuf-1.12.0.jar
@@ -428,11 +428,11 @@ The Apache Software License, Version 2.0
  * Spotify completable-futures -- completable-futures-0.3.6.jar
  * RoaringBitmap -- RoaringBitmap-1.6.20.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
- * JSpecify -- jspecify-1.0.0.jar
+ * JSpecify -- jspecify-1.0.1.jar
  * JetBrains Annotations -- annotations-26.1.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JLine3 -- jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- jline-4.3.1.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
