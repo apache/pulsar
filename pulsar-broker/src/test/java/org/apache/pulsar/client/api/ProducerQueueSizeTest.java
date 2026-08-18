@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -41,6 +42,11 @@ public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
 
     private static ProducerConfigurationData confOf(Producer<?> producer) {
         return ((ProducerBase<?>) producer).getConfiguration();
+    }
+
+    @DataProvider(name = "partitioned")
+    public Object[][] partitioned() {
+        return new Object[][]{{Boolean.FALSE}, {Boolean.TRUE}};
     }
 
     @DataProvider(name = "matrix")
@@ -111,14 +117,20 @@ public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
     }
 
     /**
-     * Setting the pending-message limits to 0 after the builder has been created must not leave a
-     * producer with no bound at all when the client memory limit is disabled: 0 means "unset", and
-     * unset falls back to the bounded defaults.
+     * The fallback is a default, not a floor. An application that asks for no message-count limit at
+     * all still gets it, by passing 0 explicitly. This is what keeps 0 a usable value rather than an
+     * alias for "unset".
+     *
+     * <p>A single {@code maxPendingMessages(0)} has to be enough whatever the topic's shape: filling
+     * in the across-partitions budget would put a per-partition limit back on a partitioned topic.
      */
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testLateZeroMaxPendingMessagesDoesNotDisableTheBoundWhenMemoryLimitDisabled()
-            throws Exception {
+    @Test(dataProvider = "partitioned")
+    public void testExplicitZeroDisablesTheBoundWhenMemoryLimitDisabled(boolean partitioned) throws Exception {
+        String topic = newTopicName();
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topic, 10);
+        }
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(getWebServiceUrl())
@@ -127,15 +139,103 @@ public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic(newTopicName())
+                .topic(topic)
                 .maxPendingMessages(0)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isZero();
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions()).isZero();
+    }
+
+    /**
+     * Mirror of the above: disabling only the across-partitions budget must not take the per-producer
+     * default down with it. Filling in that default would otherwise be capped by a budget of 0.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExplicitZeroAcrossPartitionsKeepsThePerProducerDefault() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(newTopicName())
                 .maxPendingMessagesAcrossPartitions(0)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages())
+                .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions()).isZero();
+    }
+
+    /**
+     * {@code loadConf} is the other way an application configures a limit. A limit present in the map
+     * counts as configured, including a 0, even though {@code loadConf} rebuilds the configuration
+     * object and so cannot carry any marker on it.
+     */
+    @Test
+    public void testLoadConfZeroDisablesTheBoundWhenMemoryLimitDisabled() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(newTopicName())
+                .loadConf(Map.of("maxPendingMessages", 0))
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isZero();
+        assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions()).isZero();
+    }
+
+    /**
+     * A {@code loadConf} that does not mention the limits leaves them unconfigured, so the defaults
+     * still apply. Pins that rebuilding the configuration is not mistaken for configuring it.
+     */
+    @Test
+    public void testLoadConfWithoutTheLimitsKeepsTheDefaults() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(newTopicName())
+                .loadConf(Map.of("producerName", "loadConfWithoutLimits"))
                 .create();
 
         assertThat(confOf(producer).getMaxPendingMessages())
                 .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES);
         assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions())
                 .isEqualTo(NO_MEMORY_LIMIT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+    }
+
+    /**
+     * A cloned builder has to keep knowing which limits were configured, or the clone would silently
+     * get the defaults back.
+     */
+    @Test
+    public void testCloneKeepsAnExplicitlyDisabledBound() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getWebServiceUrl())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        ProducerBuilder<byte[]> builder = client.newProducer().maxPendingMessages(0);
+
+        @Cleanup
+        Producer<byte[]> producer = builder.clone().topic(newTopicName()).create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isZero();
     }
 
     /**

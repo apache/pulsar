@@ -214,8 +214,13 @@ public class AbstractWebSocketHandlerTest {
             super(service, request, response);
         }
 
+        @SuppressWarnings("unchecked")
+        public ProducerBuilderImpl<byte[]> getBuilder() throws PulsarClientException {
+            return (ProducerBuilderImpl<byte[]>) getProducerBuilder(newPulsarClient());
+        }
+
         public ProducerConfigurationData getConf() throws PulsarClientException {
-            return ((ProducerBuilderImpl<byte[]>) getProducerBuilder(newPulsarClient())).getConf();
+            return getBuilder().getConf();
         }
 
         public void clearQueryParams() {
@@ -283,6 +288,18 @@ public class AbstractWebSocketHandlerTest {
         conf = producerHandler.getConf();
         // ProducerHandler doesn't support CustomPartition
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
+
+        // A maxPendingMessages of 0 asks the client for an unbounded pending queue. The proxy's client
+        // runs without a memory limit by default, so honouring it would leave a remote client's
+        // producer with no backpressure at all inside the shared proxy. It is ignored instead, which
+        // leaves the limit unconfigured so that the client's own default applies.
+        producerHandler.clearQueryParams();
+        producerHandler.putQueryParam("batchingEnabled", "true");
+        producerHandler.putQueryParam("maxPendingMessages", "0");
+        assertFalse(producerHandler.getBuilder().isMaxPendingMessagesConfigured());
+
+        producerHandler.putQueryParam("maxPendingMessages", "1001");
+        assertTrue(producerHandler.getBuilder().isMaxPendingMessagesConfigured());
     }
 
     class MockedConsumerHandler extends ConsumerHandler {
