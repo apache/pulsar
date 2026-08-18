@@ -474,9 +474,9 @@ nar = "io.github.merlimat.nar:0.1.3"
 protobuf = "com.google.protobuf:0.10.0"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.8.1"
-spotless = "com.diffplug.spotless:8.4.0"
+spotless = "com.diffplug.spotless:8.10.0"
 swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
-version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.0"
-versions = "com.github.ben-manes.versions:0.53.0"
-crlf = "com.github.vlsi.crlf:3.0.1"
+version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.1"
+versions = "io.github.ben-manes.versions:0.61.0"
+crlf = "com.github.vlsi.crlf:4.0.0"
 idea-ext = "org.jetbrains.gradle.plugin.idea-ext:1.4.1"
