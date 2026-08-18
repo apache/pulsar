@@ -61,7 +61,7 @@ bouncycastle-bcutil-fips = "2.0.6"
 bouncycastle-bc-fips = "2.0.1"
 # Serialization
 avro = "1.12.0"
-gson = "2.13.2"
+gson = "2.14.0"
 snakeyaml = "2.6"
 # Vert.x
 vertx = "4.5.28"
@@ -461,7 +461,7 @@ hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
 docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
-json-smart = "net.minidev:json-smart:2.5.2"
+json-smart = "net.minidev:json-smart:2.6.0"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
 athenz-zts-java-client = { module = "com.yahoo.athenz:athenz-zts-java-client", version.ref = "athenz" }
