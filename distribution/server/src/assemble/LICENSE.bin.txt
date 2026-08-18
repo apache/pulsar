@@ -264,7 +264,7 @@ The Apache Software License, Version 2.0
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.6.2.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
  * LMAX Disruptor -- com.lmax-disruptor-4.0.0.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.63.2.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.64.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
     - com.google.code.gson-gson-2.13.2.jar
@@ -444,16 +444,16 @@ The Apache Software License, Version 2.0
  * JetBrains Annotations
      - org.jetbrains-annotations-26.1.0.jar
  * gRPC
-    - io.grpc-grpc-context-1.79.0.jar
-    - io.grpc-grpc-core-1.79.0.jar
-    - io.grpc-grpc-protobuf-1.79.0.jar
-    - io.grpc-grpc-protobuf-lite-1.79.0.jar
-    - io.grpc-grpc-stub-1.79.0.jar
-    - io.grpc-grpc-api-1.79.0.jar
-    - io.grpc-grpc-netty-shaded-1.79.0.jar
-    - io.grpc-grpc-services-1.79.0.jar
-    - io.grpc-grpc-util-1.79.0.jar
-    - io.grpc-grpc-inprocess-1.79.0.jar
+    - io.grpc-grpc-context-1.83.1.jar
+    - io.grpc-grpc-core-1.83.1.jar
+    - io.grpc-grpc-protobuf-1.83.1.jar
+    - io.grpc-grpc-protobuf-lite-1.83.1.jar
+    - io.grpc-grpc-stub-1.83.1.jar
+    - io.grpc-grpc-api-1.83.1.jar
+    - io.grpc-grpc-netty-shaded-1.83.1.jar
+    - io.grpc-grpc-services-1.83.1.jar
+    - io.grpc-grpc-util-1.83.1.jar
+    - io.grpc-grpc-inprocess-1.83.1.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.27.0.jar
   * OpenCensus
@@ -577,8 +577,8 @@ MIT License
     - com.auth0-jwks-rsa-0.23.1.jar
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-4.35.0.jar -- ../licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-4.35.0.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-4.35.1.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-4.35.1.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Servlet API
