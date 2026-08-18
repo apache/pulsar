@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
@@ -151,6 +152,26 @@ public class OpenTelemetryServiceTest {
             var overflowMetric = allMetrics.findByNameAndLabels("dummyCounter_total", "otel_metric_overflow", "true");
             return actualMetrics.size() == OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1 && overflowMetric.size() == 1;
         });
+    }
+
+    @Test
+    public void testPrometheusExporterDefaultsToAllInterfacesHost() {
+        // OpenTelemetry 1.62.0 changed the Prometheus exporter's default server host from "0.0.0.0" to "localhost".
+        // Pulsar restores the previous "0.0.0.0" default so the metrics endpoint stays reachable from outside the
+        // local host (e.g. another container or a remote Prometheus scraper). The default must remain overridable
+        // via the standard OTEL_EXPORTER_PROMETHEUS_HOST / otel.exporter.prometheus.host configuration.
+        var capturedHost = new AtomicReference<String>();
+        @Cleanup
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(null,
+                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))
+                        .andThen(builder -> builder.addPropertiesCustomizer(config -> {
+                            capturedHost.set(config.getString(OpenTelemetryService.OTEL_EXPORTER_PROMETHEUS_HOST_KEY));
+                            return Map.of();
+                        })))
+                .clusterName("openTelemetryServicePrometheusHostTestCluster")
+                .build();
+        assertThat(capturedHost.get()).isEqualTo("0.0.0.0");
     }
 
     @Test

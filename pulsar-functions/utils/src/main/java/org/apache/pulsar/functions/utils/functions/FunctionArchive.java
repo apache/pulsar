@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.utils.functions;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.functions.utils.FunctionFilePackage;
@@ -25,6 +27,8 @@ import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
 public class FunctionArchive implements AutoCloseable {
     private final Path archivePath;
+    /** SHA-256 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
+    private final String archiveChecksumHex;
     private final FunctionDefinition functionDefinition;
     private final String narExtractionDirectory;
     private final boolean enableClassloading;
@@ -33,14 +37,38 @@ public class FunctionArchive implements AutoCloseable {
 
     public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
                            boolean enableClassloading) {
+        this(archivePath, functionDefinition, narExtractionDirectory, enableClassloading, null);
+    }
+
+    /**
+     * @param precomputedArchiveChecksumHex SHA-256 hex of {@code archivePath} contents; if null and path is non-null,
+     *                                   the hash is computed once at construction time.
+     */
+    public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
+                           boolean enableClassloading, String precomputedArchiveChecksumHex) {
         this.archivePath = archivePath;
         this.functionDefinition = functionDefinition;
         this.narExtractionDirectory = narExtractionDirectory;
         this.enableClassloading = enableClassloading;
+        if (archivePath != null) {
+            try {
+                this.archiveChecksumHex = precomputedArchiveChecksumHex != null
+                        ? precomputedArchiveChecksumHex
+                        : FunctionUtils.computeArchiveChecksumHex(archivePath);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            this.archiveChecksumHex = "";
+        }
     }
 
     public Path getArchivePath() {
         return archivePath;
+    }
+
+    public String getArchiveChecksumHex() {
+        return archiveChecksumHex;
     }
 
     public synchronized ValidatableFunctionPackage getFunctionPackage() {

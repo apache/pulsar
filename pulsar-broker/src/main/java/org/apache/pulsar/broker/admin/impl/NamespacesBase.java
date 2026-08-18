@@ -20,6 +20,12 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.CompletionCallback;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -43,12 +49,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.CompletionCallback;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -57,14 +57,15 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
@@ -83,6 +84,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1307,6 +1309,36 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
+    protected CompletableFuture<AutoScalePolicyOverride> internalGetScalableTopicAutoScalePolicyAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SCALABLE_TOPIC_AUTO_SCALE,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.scalableTopicAutoScalePolicy);
+    }
+
+    protected CompletableFuture<Void> internalSetScalableTopicAutoScalePolicyAsync(
+            AutoScalePolicyOverride override) {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    if (override != null) {
+                        // The override only has to be valid in combination with the broker
+                        // defaults — resolve and let the invariant checks reject bad values
+                        // (e.g. zero split thresholds, split <= merge hysteresis inversion).
+                        try {
+                            AutoScaleConfig.resolve(pulsar().getConfig(), override, null);
+                        } catch (IllegalArgumentException e) {
+                            throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
+                        }
+                    }
+                })
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    policies.scalableTopicAutoScalePolicy = override;
+                    return policies;
+                }));
+    }
+
     protected CompletableFuture<Void> internalSetAutoSubscriptionCreationAsync(AutoSubscriptionCreationOverride
                                                                autoSubscriptionCreationOverride) {
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -1416,40 +1448,28 @@ public abstract class NamespacesBase extends AdminResource {
         if (this.isLeaderBroker()) {
             return CompletableFuture.completedFuture(null);
         }
-        Optional<LeaderBroker> currentLeaderOpt = pulsar().getLeaderElectionService().getCurrentLeader();
-        if (currentLeaderOpt.isEmpty()) {
-            String errorStr = "The current leader is empty.";
-            log.error(errorStr);
-            return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
-        }
-        LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-        String leaderBrokerId = leaderBroker.getBrokerId();
-        return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerId, false, null)
-                .thenCompose(lookupResult -> {
-                    String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
-                            : lookupResult.getLookupData().getHttpUrl();
-                    if (redirectUrl == null) {
-                        log.error("Redirected broker's service url is not configured");
-                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Redirected broker's service url is not configured."));
-                    }
-
-                    try {
-                        URL url = new URL(redirectUrl);
-                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
-                                .port(url.getPort())
-                                .replaceQueryParam("authoritative",
-                                        false).build();
-                        // Redirect
-                            log.debug().attr("leader", redirect).log("Redirecting the request call to leader -");
-                                                return FutureUtil.failedFuture((
-                                new WebApplicationException(Response.temporaryRedirect(redirect).build())));
-                    } catch (MalformedURLException exception) {
-                        log.error().attr("malformed", redirectUrl).log("The redirect url is malformed -");
-                        return FutureUtil.failedFuture(new RestException(exception));
-                    }
-                });
+        // The authoritative read: waits for an in-progress leader election to settle instead of
+        // failing the request while a re-election is still in flight.
+        return pulsar().getLeaderElectionService().readCurrentLeader().thenCompose(currentLeaderOpt -> {
+            if (currentLeaderOpt.isEmpty()) {
+                String errorStr = "The current leader is empty.";
+                log.error(errorStr);
+                return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
+            }
+            String leaderBrokerId = currentLeaderOpt.get().getBrokerId();
+            LookupOptions lookupOptions = LookupOptions.builder()
+                    .webServiceAdvertisedListenerName(getWebServiceListenerName()).build();
+            return pulsar().getNamespaceService()
+                    .createLookupResult(leaderBrokerId, false, lookupOptions)
+                    .thenCompose(lookupResult -> {
+                        URI redirectUri = lookupResult.toRedirectUri(uri.getRequestUri());
+                        log.debug()
+                                .attr("leaderBrokerId", leaderBrokerId)
+                                .attr("redirectUri", redirectUri).log("Redirecting the request call to leader broker");
+                        return FutureUtil.failedFuture(
+                                new WebApplicationException(Response.temporaryRedirect(redirectUri).build()));
+                    });
+        });
     }
 
     public CompletableFuture<Void> setNamespaceBundleAffinityAsync(String bundleRange, String destinationBroker) {
@@ -3167,8 +3187,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
+        OffloadPoliciesImpl nsLevelOffloadPolicies = (OffloadPoliciesImpl) policies.offload_policies;
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(null,
+                OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies),
+                pulsar().getConfig().getProperties());
         LedgerOffloader managedLedgerOffloader = pulsar()
-                .getManagedLedgerOffloader(namespaceName, (OffloadPoliciesImpl) policies.offload_policies);
+                .getManagedLedgerOffloader(namespaceName, offloadPolicies);
 
         String localClusterName = pulsar().getConfiguration().getClusterName();
 

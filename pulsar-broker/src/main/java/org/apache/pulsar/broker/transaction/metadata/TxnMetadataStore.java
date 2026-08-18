@@ -20,13 +20,18 @@ package org.apache.pulsar.broker.transaction.metadata;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import lombok.CustomLog;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
@@ -49,6 +54,7 @@ import org.apache.pulsar.metadata.api.Stat;
  * <p>The façade is stateless apart from holding the store reference — index population happens via
  * options on writes, so there is no explicit registration step.
  */
+@CustomLog
 public class TxnMetadataStore {
 
     /** Sequence-keys delta used by all append-only streams in this layout. */
@@ -110,19 +116,23 @@ public class TxnMetadataStore {
     // ---- Op-log append -----------------------------------------------------
 
     /**
-     * Append a {@link TxnOp} under {@code /txn-op/<txnId>-<seq>}. Adds the per-kind secondary-index
+     * Append a {@link TxnOp} under {@code /txn/op/<txnId>-<seq>}. Adds the per-kind secondary-index
      * entry — {@link TxnPaths#IDX_WRITES_BY_SEGMENT} for writes,
      * {@link TxnPaths#IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} for acks. Returns the {@link Stat} whose
      * {@code path} carries the generated sequence key.
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
-        Option.SecondaryIndex idx = switch (op.getKind()) {
+        Option.SecondaryIndex participantIdx = switch (op.getKind()) {
             case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT,
                     TxnPaths.segmentKey(op.getSegment()));
             case ACK -> new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
                     TxnPaths.ackIndexKey(op.getSegment(), op.getSubscription()));
         };
-        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), idx, APPEND_DELTAS);
+        // Also index by txnId so the TC's endTxn can enumerate this txn's ops without scanning
+        // the whole /txn/op namespace.
+        Option.SecondaryIndex byTxnIdx = new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, txnId);
+        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), participantIdx, byTxnIdx,
+                APPEND_DELTAS);
         return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opts);
     }
 
@@ -156,14 +166,47 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} write record for {@code (segment, txnId)} — used by the TB once
+     * Stream all {@code /txn/op} records for {@code txnId} via the {@link TxnPaths#IDX_OPS_BY_TXN}
+     * index. Used by the v5 TC at end-txn time to enumerate participants — distinct segments for
+     * writes, distinct {@code (segment, subscription)} pairs for acks.
+     */
+    public CompletableFuture<Void> listOpsByTxn(String txnId, ScanConsumer consumer) {
+        return store.scanByIndex(TxnPaths.TXN_OP_PREFIX, TxnPaths.IDX_OPS_BY_TXN,
+                txnId, txnId,
+                gr -> txnId.equals(TxnPaths.txnIdFromOpPath(gr.getStat().getPath())),
+                consumer);
+    }
+
+    /**
+     * Delete every {@code /txn/op} write record for {@code (segment, txnId)} — used by the TB once
      * an event tells it the txn is terminal. Path extraction follows the layout in
      * {@link TxnPaths#txnIdFromOpPath}. Best-effort: tolerates concurrent deletions via
      * {@link MetadataStore#deleteIfExists}.
      */
     public CompletableFuture<Void> deleteWriteOpsForSegmentAndTxn(String segment, String txnId) {
+        return scanAndDeleteOpsForTxn(txnId, collector -> listWritesBySegment(segment, collector));
+    }
+
+    /**
+     * Delete every {@code /txn/op} ack record for {@code (segment, subscription, txnId)} — used by
+     * the PendingAckStore once an event tells it the txn is terminal. Same path-extraction +
+     * best-effort semantics as {@link #deleteWriteOpsForSegmentAndTxn}.
+     */
+    public CompletableFuture<Void> deleteAckOpsForSegmentSubscriptionAndTxn(String segment, String subscription,
+                                                                            String txnId) {
+        return scanAndDeleteOpsForTxn(txnId,
+                collector -> listAcksBySegmentSubscription(segment, subscription, collector));
+    }
+
+    /**
+     * Shared implementation: invoke the supplied scan with a collector that captures only paths
+     * matching {@code txnId}, then delete each captured path with the txn-scoped partition key.
+     */
+    private CompletableFuture<Void> scanAndDeleteOpsForTxn(
+            String txnId,
+            java.util.function.Function<ScanConsumer, CompletableFuture<Void>> scan) {
         java.util.List<String> paths = new java.util.ArrayList<>();
-        return listWritesBySegment(segment, new ScanConsumer() {
+        ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(org.apache.pulsar.metadata.api.GetResult r) {
                 if (txnId.equals(TxnPaths.txnIdFromOpPath(r.getStat().getPath()))) {
@@ -173,12 +216,17 @@ public class TxnMetadataStore {
 
             @Override
             public void onError(Throwable throwable) {
+                // The caller observes failure via the scan's returned future; logging here so
+                // the cause is visible alongside the txnId context.
+                log.warn().attr("txnId", txnId).exception(throwable)
+                        .log("Op-record cleanup scan errored");
             }
 
             @Override
             public void onCompleted() {
             }
-        }).thenCompose(__ -> {
+        };
+        return scan.apply(collector).thenCompose(__ -> {
             Set<Option> opts = Set.of(new Option.PartitionKey(txnId));
             CompletableFuture<?>[] deletes = new CompletableFuture<?>[paths.size()];
             for (int i = 0; i < paths.size(); i++) {
@@ -273,6 +321,151 @@ public class TxnMetadataStore {
         String pk = TxnPaths.ackIndexKey(segment, subscription);
         return store.subscribeSequence(TxnPaths.subscriptionEventsParent(segment, subscription),
                 listener, Set.of(new Option.PartitionKey(pk)));
+    }
+
+    // ---- Per-segment durable visibility state -----------------------------
+
+    /**
+     * Read the segment's watermark record, or {@link Optional#empty()} if it doesn't exist (a
+     * fresh segment that has never had a transactional message).
+     */
+    public CompletableFuture<Optional<Versioned<SegmentWatermark>>> getSegmentWatermark(String segment) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.get(TxnPaths.segmentWatermarkPath(segment), opts)
+                .thenApply(opt -> opt.map(gr -> new Versioned<>(
+                        fromJson(gr.getValue(), SegmentWatermark.class), gr.getStat().getVersion())));
+    }
+
+    /**
+     * CAS-write the segment's watermark. Pass {@link Optional#empty()} for unconditional create
+     * (must not exist); pass a version from a prior {@link #getSegmentWatermark} for an update.
+     */
+    public CompletableFuture<Stat> casSegmentWatermark(String segment, SegmentWatermark watermark,
+                                                       Optional<Long> expectedVersion) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.put(TxnPaths.segmentWatermarkPath(segment), toJson(watermark),
+                expectedVersion, opts);
+    }
+
+    /**
+     * Persist a per-aborted-txn record for {@code (segment, txnId)}. Also writes the
+     * {@link TxnPaths#IDX_TXN_ABORTED_BY_POSITION} secondary-index entry keyed by the max
+     * position so the TB can range-delete on ML trim.
+     */
+    public CompletableFuture<Stat> putAbortedTxn(String segment, String txnId, long maxLedgerId,
+                                                 long maxEntryId) {
+        AbortedTxnRecord record = new AbortedTxnRecord(maxLedgerId, maxEntryId);
+        Option.SecondaryIndex idx = new Option.SecondaryIndex(TxnPaths.IDX_TXN_ABORTED_BY_POSITION,
+                TxnPaths.abortedByPositionIndexKey(segment, maxLedgerId, maxEntryId));
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)), idx);
+        return store.put(TxnPaths.segmentAbortedTxnPath(segment, txnId), toJson(record),
+                Optional.empty(), opts);
+    }
+
+    /**
+     * Stream all aborted-txn records for {@code segment} whose max position falls in
+     * {@code [fromKeyInclusive, toKeyInclusive]} (use {@code null} on either bound for
+     * unbounded). Use {@link TxnPaths#abortedByPositionSegmentLowerBound} /
+     * {@link TxnPaths#abortedByPositionSegmentUpperBound} for the segment-scoped full range.
+     */
+    public CompletableFuture<Void> scanAbortedTxns(String segment,
+                                                   String fromKeyInclusive, String toKeyInclusive,
+                                                   ScanConsumer consumer) {
+        String segKey = TxnPaths.segmentKey(segment);
+        return store.scanByIndex(TxnPaths.TXN_SEGMENT_ABORTED_PREFIX,
+                TxnPaths.IDX_TXN_ABORTED_BY_POSITION,
+                fromKeyInclusive, toKeyInclusive,
+                gr -> {
+                    // Fallback for stores without native indexes: the records are flat children
+                    // of TXN_SEGMENT_ABORTED_PREFIX named "<segKey>:<txnId>" — match by segKey.
+                    return segKey.equals(TxnPaths.segmentKeyFromAbortedPath(gr.getStat().getPath()));
+                },
+                consumer);
+    }
+
+    /**
+     * Delete a single aborted-txn record (and its index entry).
+     */
+    public CompletableFuture<Void> deleteAbortedTxn(String segment, String txnId) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.deleteIfExists(TxnPaths.segmentAbortedTxnPath(segment, txnId),
+                Optional.empty(), opts);
+    }
+
+    /**
+     * Delete the segment's watermark record — used by the TB at segment-teardown alongside
+     * deleting any remaining aborted records.
+     */
+    public CompletableFuture<Void> deleteSegmentWatermark(String segment) {
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)));
+        return store.deleteIfExists(TxnPaths.segmentWatermarkPath(segment), Optional.empty(), opts);
+    }
+
+    /**
+     * Delete all durable per-segment transaction state — every aborted-txn record and the watermark —
+     * when a segment is dropped (e.g. the scalable topic is deleted), so the {@code /txn/segment-state}
+     * records don't outlive the segment's data. Idempotent: missing records are no-ops.
+     */
+    public CompletableFuture<Void> deleteAllSegmentState(String segment) {
+        List<String> abortedKeys = Collections.synchronizedList(new ArrayList<>());
+        return scanAbortedTxns(segment,
+                TxnPaths.abortedByPositionSegmentLowerBound(segment),
+                TxnPaths.abortedByPositionSegmentUpperBound(segment),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        String txnIdKey = TxnPaths.txnIdFromAbortedPath(r.getStat().getPath());
+                        if (txnIdKey != null) {
+                            abortedKeys.add(txnIdKey);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        log.warn().attr("segment", segment).exception(throwable)
+                                .log("Segment-state cleanup scan errored");
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenCompose(__ -> {
+                    List<CompletableFuture<Void>> deletes = new ArrayList<>(abortedKeys.size());
+                    for (String txnIdKey : abortedKeys) {
+                        deletes.add(deleteAbortedTxn(segment, txnIdKey));
+                    }
+                    return FutureUtil.waitForAll(deletes);
+                }).thenCompose(__ -> deleteSegmentWatermark(segment));
+    }
+
+    // ---- TC sequence counter ----------------------------------------------
+
+    /**
+     * Atomically increment the per-tc txnId sequence counter and return the assigned value.
+     * Retries on {@link MetadataStoreException.BadVersionException} so concurrent callers
+     * (within a TC partition's broker) serialise correctly. The returned value becomes a
+     * txn's {@code leastSigBits}; monotonic per {@code tcId} ⟹ no txnId reuse.
+     */
+    public CompletableFuture<Long> nextTxnSequence(long tcId) {
+        String path = TxnPaths.tcSequencePath(tcId);
+        return store.get(path).thenCompose(opt -> {
+            long current = opt.map(gr -> fromJson(gr.getValue(), TcSequence.class).next() - 1).orElse(-1L);
+            long assigned = current + 1;
+            TcSequence updated = new TcSequence(assigned + 1);
+            Optional<Long> expectedVersion = opt.map(gr -> gr.getStat().getVersion())
+                    .map(Optional::of).orElse(Optional.of(-1L));
+            return store.put(path, toJson(updated), expectedVersion, Set.of())
+                    .thenApply(stat -> assigned)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = ex instanceof CompletionException && ex.getCause() != null
+                                ? ex.getCause() : ex;
+                        if (cause instanceof MetadataStoreException.BadVersionException) {
+                            // Concurrent write — retry.
+                            return nextTxnSequence(tcId);
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
+        });
     }
 
     // ---- JSON helpers ------------------------------------------------------

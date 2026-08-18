@@ -29,6 +29,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -41,8 +43,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -63,8 +63,8 @@ import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.service.WSSDummyMessageCryptoImpl;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
-import org.eclipse.jetty.ee8.websocket.api.WriteCallback;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.websocket.api.Callback;
 
 /**
  * Websocket end-point url handler to handle incoming message coming from client. Websocket end-point url handler to
@@ -178,7 +178,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     @Override
     public void onWebSocketText(String message) {
         log.debug(e -> e.attr("topic", producer.getTopic())
-                .attr("producer", getRemote().getRemoteAddress().toString())
+                .attr("producer", getSession().getRemoteSocketAddress())
                 .log("Received new message from producer"));
         ProducerMessage sendRequest;
         byte[] rawPayload = null;
@@ -270,17 +270,17 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         builder.sendAsync().thenAccept(msgId -> {
             log.debug(e -> e.attr("topic", producer.getTopic())
                     .attr("iD", msgId)
-                    .attr("producer", getRemote().getRemoteAddress().toString())
+                    .attr("producer", getSession().getRemoteSocketAddress())
                     .log("Success fully write the message to broker with returned message ID from producer"));
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
-            if (isConnected()) {
+            if (getSession().isOpen()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
             log.warn()
                     .attr("topic", producer.getTopic())
-                    .attr("msg", getRemote().getRemoteAddress().toString())
+                    .attr("msg", getSession().getRemoteSocketAddress())
                     .exception(exception)
                     .log("Error occurred while producer handler was sending msg from");
             numMsgsFailed.increment();
@@ -344,23 +344,17 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private void sendAckResponse(ProducerAck response) {
         try {
             String msg = objectWriter().writeValueAsString(response);
-            getSession().getRemote().sendString(msg, new WriteCallback() {
-                @Override
-                public void writeFailed(Throwable th) {
-                    log.warn()
-                            .attr("topic", producer.getTopic())
-                            .attr("ack", th.getMessage())
-                            .log("Failed to send ack");
-                }
-
-                @Override
-                public void writeSuccess() {
-                    log.debug()
-                            .attr("topic", producer.getTopic())
-                            .attr("successfully", getRemote().getRemoteAddress().toString())
-                            .log("Ack was sent successfully to");
-                }
-            });
+            getSession().sendText(msg, Callback.from(() -> {
+                log.debug()
+                        .attr("topic", producer.getTopic())
+                        .attr("successfully", getSession().getRemoteSocketAddress())
+                        .log("Ack was sent successfully to");
+            }, th -> {
+                log.warn()
+                        .attr("topic", producer.getTopic())
+                        .attr("ack", th.getMessage())
+                        .log("Failed to send ack");
+            }));
         } catch (JsonProcessingException e) {
             log.warn()
                     .attr("topic", producer.getTopic())

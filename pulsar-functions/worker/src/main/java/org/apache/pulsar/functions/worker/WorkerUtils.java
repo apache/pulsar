@@ -30,8 +30,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -42,8 +42,10 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
@@ -54,11 +56,15 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -266,6 +272,7 @@ public final class WorkerUtils {
                 adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerification);
             }
 
+            applyBrokerClientTlsFactoryToAdmin(adminBuilder, workerConfig);
             return adminBuilder.build();
         } catch (PulsarClientException e) {
             log.error().exception(e).log("Error creating pulsar admin client");
@@ -316,11 +323,61 @@ public final class WorkerUtils {
             if (enableTlsHostnameVerificationEnable != null) {
                 clientBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
             }
+            applyBrokerClientTlsFactory(clientBuilder, workerConfig);
             return clientBuilder.build();
         } catch (PulsarClientException e) {
             log.error().exception(e).log("Error creating pulsar client");
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * PIP-478: route the functions worker's own outbound (worker-to-broker) Pulsar client onto the new TLS
+     * SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}. Mirrors
+     * the broker's {@code PulsarService.maybeApplyBrokerClientTlsFactory}: the broker-client {@code tls*}
+     * material is already on the client configuration, so this only attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} (default file-based, or the named custom factory) that
+     * the transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate
+     * is off, when the client is not TLS, or when it is already on the new path.
+     */
+    private static void applyBrokerClientTlsFactory(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !isNotBlank(workerConfig.getBrokerClientTlsFactoryClassName())
+                || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(
+                conf, workerConfig.getBrokerClientTlsFactoryClassName()));
+        conf.setTlsFactoryParams(
+                TlsFactorySupport.parseFactoryConfig(workerConfig.getBrokerClientTlsFactoryConfig()));
+    }
+
+    /**
+     * PIP-478: route the functions worker's own outbound (worker-to-broker) {@code PulsarAdmin} onto the new
+     * TLS SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}.
+     * Mirrors the broker's {@code PulsarService.applyBrokerClientTlsFactoryToAdmin}: admin traffic is HTTP, so
+     * TLS is selected by an {@code https} service URL rather than a {@code useTls} flag.
+     */
+    private static void applyBrokerClientTlsFactoryToAdmin(PulsarAdminBuilder adminBuilder,
+                                                           WorkerConfig workerConfig) {
+        if (workerConfig == null || !isNotBlank(workerConfig.getBrokerClientTlsFactoryClassName())
+                || !(adminBuilder instanceof PulsarAdminBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getConf();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null) {
+            return;
+        }
+        if (conf.getServiceUrl() == null || !conf.getServiceUrl().startsWith("https")) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(
+                conf, workerConfig.getBrokerClientTlsFactoryClassName()));
+        conf.setTlsFactoryParams(
+                TlsFactorySupport.parseFactoryConfig(workerConfig.getBrokerClientTlsFactoryConfig()));
     }
 
     public static FunctionInstanceStatsImpl getFunctionInstanceStats(String fullyQualifiedInstanceName,
@@ -413,13 +470,17 @@ public final class WorkerUtils {
             int tries = 0;
             do {
                 try {
-                    return client.newProducer().topic(topic)
+                    CompletableFuture<Producer<byte[]>> producerFuture = client.newProducer().topic(topic)
                             .accessMode(ProducerAccessMode.Exclusive)
                             .enableBatching(false)
                             .blockIfQueueFull(true)
                             .compressionType(CompressionType.LZ4)
                             .producerName(producerName)
-                            .createAsync().get(10, TimeUnit.SECONDS);
+                            .createAsync();
+                    return FutureUtil.getAndCleanupOnInterrupt(producerFuture, Producer::closeAsync);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw e;
                 } catch (Exception e) {
                     log.info().attr("topic", topic).exception(e)
                             .log("Encountered exception while creating exclusive producer");

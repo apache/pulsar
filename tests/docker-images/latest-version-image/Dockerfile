@@ -24,6 +24,7 @@ ARG GOLANG_IMAGE
 FROM $GOLANG_IMAGE as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
+COPY go-examples/exceptionFunc/ /go/src/github.com/apache/pulsar/pulsar-function-go/examples/exceptionFunc/
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
@@ -75,6 +76,10 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/
+
+# Add the filesystem offloader NAR as an overlay (it is excluded from the base image, but the
+# filesystem offload integration tests require it).
+COPY target/offloaders/ /pulsar/offloaders/
 
 # Fix permissions for filesystem offloader
 RUN mkdir -p pulsar

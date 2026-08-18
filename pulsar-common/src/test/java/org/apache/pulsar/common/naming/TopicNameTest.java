@@ -517,4 +517,26 @@ public class TopicNameTest {
         assertThrows(IllegalArgumentException.class,
                 () -> TopicName.toFullTopicName("non-persistent://tenant/cluster/ns/topic"));
     }
+
+    @Test
+    public void testToScalableTopic() {
+        // topic://... is returned as-is.
+        TopicName already = TopicName.get("topic://tenant/ns/x");
+        assertEquals(already.toScalableTopic(), already);
+
+        // persistent://... is re-expressed in the topic:// domain.
+        assertEquals(TopicName.get("persistent://tenant/ns/x").toScalableTopic().toString(),
+                "topic://tenant/ns/x");
+
+        // Short forms normalise to persistent://public/default/... first, then to topic://.
+        assertEquals(TopicName.get("my-topic").toScalableTopic().toString(),
+                "topic://public/default/my-topic");
+        assertEquals(TopicName.get("tenant/ns/my-topic").toScalableTopic().toString(),
+                "topic://tenant/ns/my-topic");
+
+        // A -partition-K suffix is stripped: the partition resolves to the base topic's
+        // scalable identity, not topic://.../x-partition-K.
+        assertEquals(TopicName.get("persistent://tenant/ns/x-partition-3").toScalableTopic().toString(),
+                "topic://tenant/ns/x");
+    }
 }

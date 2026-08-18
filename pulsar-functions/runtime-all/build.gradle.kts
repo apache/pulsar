@@ -19,7 +19,9 @@
 
 plugins {
     id("pulsar.java-conventions")
-    alias(libs.plugins.shadow)
+    // No version: the Shadow plugin is already on the classpath via the build-logic conventions,
+    // so a versioned request cannot be reconciled with it.
+    id("com.gradleup.shadow")
 }
 
 dependencies {
@@ -42,13 +44,20 @@ dependencies {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveFileName.set("java-instance.jar")
     mergeServiceFiles()
+    // See pulsar.shadow-conventions: the default EXCLUDE strategy drops duplicates of
+    // transformer-owned paths before the transformers can merge them.
+    val transformedPaths = listOf("META-INF/services/**", "META-INF/*.kotlin_module")
+    filesMatching(transformedPaths) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    inputs.property("transformedPathsDuplicatesStrategy", "$transformedPaths=INCLUDE")
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
 // Consumable configuration exposing the shadow jar for cross-project dependencies.
 // Unlike pulsar.shadow-conventions (which replaces runtimeElements), this project
 // uses the Shadow plugin directly, so we create a dedicated configuration.
-val shadowJarElements by configurations.creating {
+val shadowJarElements = configurations.create("shadowJarElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {

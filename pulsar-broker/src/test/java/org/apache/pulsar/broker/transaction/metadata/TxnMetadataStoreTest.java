@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -51,12 +52,12 @@ public class TxnMetadataStoreTest {
 
     private static TxnHeader open(long createdMs, long timeoutMs) {
         return new TxnHeader(TxnState.OPEN, Duration.ofMillis(timeoutMs),
-                Instant.ofEpochMilli(createdMs), null);
+                Instant.ofEpochMilli(createdMs), null, null);
     }
 
     private static TxnHeader finalized(TxnState state, long createdMs, long timeoutMs, long finalizedMs) {
         return new TxnHeader(state, Duration.ofMillis(timeoutMs),
-                Instant.ofEpochMilli(createdMs), Instant.ofEpochMilli(finalizedMs));
+                Instant.ofEpochMilli(createdMs), Instant.ofEpochMilli(finalizedMs), null);
     }
 
     @Test
@@ -98,9 +99,9 @@ public class TxnMetadataStoreTest {
         // path components — segment names contain "://" and "/" which would otherwise break ZK.
         String segA = "segment://public/default/topic/0000-7fff-0";
         String segB = "segment://public/default/topic/8000-ffff-0";
-        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 1L);
-        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 2L);
-        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, segB, null, 2L, 1L);
+        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 1L, null);
+        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 2L, null);
+        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, segB, null, 2L, 1L, null);
         Stat s1 = txn.appendOp(txnId, w1).get();
         Stat s2 = txn.appendOp(txnId, w2).get();
         txn.appendOp(txnId, wOther).get();
@@ -118,9 +119,9 @@ public class TxnMetadataStoreTest {
 
         String txnId = "tx-a";
         String segA = "segment://public/default/topic/0000-7fff-0";
-        TxnOp a1 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L);
-        TxnOp a2 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 6L);
-        TxnOp aOther = new TxnOp(TxnOpKind.ACK, segA, "sub/y", 1L, 7L);
+        TxnOp a1 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L, false);
+        TxnOp a2 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 6L, false);
+        TxnOp aOther = new TxnOp(TxnOpKind.ACK, segA, "sub/y", 1L, 7L, false);
         txn.appendOp(txnId, a1).get();
         txn.appendOp(txnId, a2).get();
         txn.appendOp(txnId, aOther).get();
@@ -217,6 +218,40 @@ public class TxnMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() ->
                 assertThat(received).isNotEmpty().last().asString().isEqualTo(s.getPath()));
+    }
+
+    @Test
+    public void deleteAllSegmentState_removesAbortedRecordsAndWatermark() throws Exception {
+        @Cleanup MetadataStore store = newMemoryStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+
+        txn.putAbortedTxn(segment, "t1", 1L, 5L).get();
+        txn.putAbortedTxn(segment, "t2", 2L, 7L).get();
+        txn.casSegmentWatermark(segment, new SegmentWatermark(3, 0), Optional.empty()).get();
+
+        txn.deleteAllSegmentState(segment).get();
+
+        List<String> remaining = new ArrayList<>();
+        txn.scanAbortedTxns(segment,
+                TxnPaths.abortedByPositionSegmentLowerBound(segment),
+                TxnPaths.abortedByPositionSegmentUpperBound(segment),
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult r) {
+                        remaining.add(r.getStat().getPath());
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).get();
+        assertThat(remaining).isEmpty();
+        assertThat(txn.getSegmentWatermark(segment).get()).isEmpty();
     }
 
     // ---- helpers -----------------------------------------------------------

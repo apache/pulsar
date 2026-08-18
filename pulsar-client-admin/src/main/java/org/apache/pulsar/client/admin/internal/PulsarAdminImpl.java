@@ -20,13 +20,16 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.OpenTelemetry;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.net.URL;
+import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -60,10 +63,18 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
+import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
+import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -108,6 +119,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final ScalableTopics scalableTopics;
     protected final WebTarget root;
     protected final Authentication auth;
+    // PIP-478: the framework HTTP client factory bound into a services-aware auth plugin
+    // (e.g. OAuth2) so an admin-only client acquires tokens over the framework client; null when the auth
+    // plugin does not implement ClientAuthenticationServicesAware. Closed with this admin.
+    private FrameworkHttpClientFactory authHttpClientFactory;
     @Getter
     private AsyncHttpConnectorProvider asyncConnectorProvider;
 
@@ -128,14 +143,21 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 .attr("authMethodName", auth.getAuthMethodName())
                 .log("created");
 
-        this.auth.start();
-
         if (clientConfigData != null && StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
+        // Built before the authentication is bound and started, because both may already need the TLS
+        // factory it owns: an OAuth2 plugin's start() fetches IdP metadata over HTTPS through the framework
+        // HTTP client, which resolves CLIENT_OAUTH2 against this provider's factory. Resolving the service
+        // URL first is part of that — the provider reads it to decide whether a factory is needed at all.
         asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
                 clientConfigData.getAutoCertRefreshSeconds(), acceptGzipCompression);
+
+        boolean constructed = false;
+        try {
+        bindAuthenticationServices(clientConfigData);
+        this.auth.start();
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
@@ -196,6 +218,17 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
+        }
+        constructed = true;
+        } finally {
+            if (!constructed) {
+                // close() is unreachable when the constructor throws, and the provider owns live resources
+                // from the moment its factory is resolved — the TLS factory itself plus a non-daemon
+                // "pulsar-admin-tls-factory" rotation thread. Without this, every failed build() (a bad
+                // trustCertsFilePath being the common case) leaks one of each. The connectors release only
+                // their own borrowed handles, which is exactly why this has to happen here.
+                asyncConnectorProvider.close();
+            }
         }
     }
 
@@ -442,6 +475,121 @@ public class PulsarAdminImpl implements PulsarAdmin {
     /**
      * Close the Pulsar admin client to release all the resources.
      */
+    /**
+     * PIP-478: bind the framework HTTP client factory into a services-aware auth plugin (e.g.
+     * OAuth2) before {@code auth.start()}, which eagerly acquires a token via the flow's HTTP client. A
+     * {@code PulsarAdmin} used without a {@code PulsarClient} previously rode the now-removed private OAuth2
+     * {@code AsyncHttpClient}; this mirrors {@code PulsarClientImpl.bindAuthenticationServices} so admin-only
+     * OAuth2 acquires tokens over the framework client. The admin transport is HTTP-only, so the shared event
+     * loop / timer / DNS resolver are not threaded here (AsyncHttpClient provisions its own, as the removed
+     * private client did); the TLS factory supplier reads the admin's attached factory (broker admin path)
+     * when present.
+     */
+    /**
+     * Ensure the admin's TLS factory can serve {@link TlsPurpose#CLIENT_OAUTH2} when the configured OAuth2
+     * plugin carries its own IdP TLS material (PIP-478, issue #24944).
+     *
+     * <p>This mirrors what {@code PulsarClientImpl} does: the IdP policy is folded into the client's own
+     * factory rather than the plugin being left to self-provision a standalone one. Folding is the better of
+     * the two remedies because the standalone factory is built from a fresh
+     * {@code ClientConfigurationData} — losing the admin's SOCKS5 proxy scope and address, so IdP traffic
+     * stopped being proxied — and because it duplicates a {@code FileBasedTlsFactory} and its refresh
+     * scheduler per admin.
+     *
+     * <p>Called before the framework HTTP client factory is bound, so that factory has something to resolve
+     * {@code CLIENT_OAUTH2} against. A policy the caller supplied explicitly wins: the fold is
+     * {@code putIfAbsent}.
+     *
+     * @param conf the admin client configuration, mutated to carry the IdP policy
+     */
+    private void foldOAuth2IdpPolicy(ClientConfigurationData conf) {
+        if (!(auth instanceof AuthenticationOAuth2 oauth2)) {
+            return;
+        }
+        oauth2.idpTlsPolicy().ifPresent(policy -> {
+            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
+            if (policies == null) {
+                policies = new LinkedHashMap<>();
+                conf.setTlsPolicyMap(policies);
+            }
+            policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy);
+        });
+    }
+
+    /**
+     * The TLS factory the authentication plugin's framework HTTP client resolves purposes against: the one
+     * adopted onto the configuration when present, else the one this admin's {@link AsyncHttpConnector}
+     * composed. Returning {@code null} leaves the framework client on platform-default trust, which is correct
+     * only when nothing configured a trust domain for it.
+     *
+     * @param conf this admin's client configuration
+     * @return the TLS factory, or {@code null} when none was composed
+     */
+    private PulsarTlsFactory authTlsFactory(ClientConfigurationData conf) {
+        PulsarTlsFactory adopted = conf.getTlsFactory();
+        if (adopted != null) {
+            return adopted;
+        }
+        // From the provider rather than a connector: this is called during auth start() as well as per
+        // request, and at start() time no connector exists yet. The provider resolves lazily and memoizes,
+        // so asking it here composes the one factory this admin uses rather than an extra one.
+        return asyncConnectorProvider.tlsFactory();
+    }
+
+    /**
+     * Whether {@link #bindAuthenticationServices} actually bound the framework HTTP client factory into the
+     * authentication plugin.
+     *
+     * <p>Exists so a test can observe the decision at its real call site rather than by calling the
+     * predicate directly: review demonstrated that deleting the guard's invocation here left every test
+     * asserting {@code leaveOAuth2Standalone(...)} green, because none of them ran this method
+     * (VisibleForTesting).
+     *
+     * @return whether the framework HTTP client factory was bound
+     */
+    boolean boundAuthHttpClientFactoryForTest() {
+        return authHttpClientFactory != null;
+    }
+
+    /**
+     * The bound framework HTTP client factory, so a test can issue the IdP request through exactly the client
+     * the authentication plugin uses (VisibleForTesting).
+     *
+     * @return the framework HTTP client factory, or {@code null} when none was bound
+     */
+    FrameworkHttpClientFactory authHttpClientFactoryForTest() {
+        return authHttpClientFactory;
+    }
+
+    private void bindAuthenticationServices(ClientConfigurationData conf) {
+        if (conf == null || !(auth instanceof ClientAuthenticationServicesAware aware)) {
+            return;
+        }
+        foldOAuth2IdpPolicy(conf);
+        // Resolve the shared factory here, not on first use. First use is the OAuth2 plugin's start(), which
+        // runs inside the flow's own lock and blocks on material loading; resolving under that lock invites
+        // the loading path to deadlock against it. Doing it here — after the fold, so CLIENT_OAUTH2 is in the
+        // policy map, and before anything plugin-owned is locked — also surfaces a bad TLS configuration at
+        // PulsarAdmin build time rather than at the first authenticated request. No-op when nothing needs it.
+        asyncConnectorProvider.tlsFactory();
+        String clientInstanceId = "pulsar-admin-" + Integer.toHexString(System.identityHashCode(this));
+        // The TLS factory the framework HTTP client resolves its purposes against — notably the CLIENT_OAUTH2
+        // policy folded in just above. An adopted factory (the broker's admin-client attach) is already on the
+        // configuration; otherwise the one the connector composes is the admin's single factory, and reading it
+        // from there rather than composing a second one is what keeps the fold meaningful. The supplier is
+        // resolved lazily, at the first authenticated request, because the connector is created later in this
+        // constructor.
+        this.authHttpClientFactory = new FrameworkHttpClientFactory(
+                () -> null, () -> null, () -> null, () -> authTlsFactory(conf), conf, clientInstanceId);
+        OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
+                : OpenTelemetry.noop();
+        // The admin OAuth2 flow only uses the HTTP client factory; the scheduler / blocking executor of the
+        // (binary-protocol) auth services are unused on the HTTP-only admin path.
+        ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
+                authHttpClientFactory, null, null, Clock.systemDefaultZone(), openTelemetry, clientInstanceId);
+        aware.bindClientAuthenticationServices(services);
+    }
+
     @Override
     public void close() {
         try {
@@ -452,6 +600,14 @@ public class PulsarAdminImpl implements PulsarAdmin {
         client.close();
 
         asyncHttpConnector.close();
+        if (authHttpClientFactory != null) {
+            authHttpClientFactory.close();
+        }
+        // PIP-478: last, because everything above holds subscriptions on the factory this closes — the
+        // connectors' CLIENT_DEFAULT subscription and the auth HTTP clients' CLIENT_OAUTH2 one. Closing the
+        // factory first would tear it down while those subscriptions are still live, which a custom factory
+        // is entitled to treat as an error.
+        asyncConnectorProvider.close();
     }
 
     @VisibleForTesting

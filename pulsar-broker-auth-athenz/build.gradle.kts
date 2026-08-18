@@ -25,7 +25,7 @@ dependencies {
     implementation(libs.slog)
     compileOnly(project(":pulsar-broker"))
     compileOnly(libs.opentelemetry.api)
-    implementation(project(":pulsar-broker-common"))
+    api(project(":pulsar-broker-common"))
     implementation(project(":pulsar-common"))
     implementation(libs.athenz.zts.java.client)
     implementation(libs.athenz.zpe.java.client)

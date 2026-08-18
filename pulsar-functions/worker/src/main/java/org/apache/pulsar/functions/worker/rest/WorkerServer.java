@@ -19,34 +19,40 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import javax.servlet.DispatcherType;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.tls.impl.FileBasedTlsFactory;
+import org.apache.pulsar.common.tls.impl.FileBasedTlsFactorySettings;
 import org.apache.pulsar.functions.worker.PulsarWorkerOpenTelemetry;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
-import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.ee8.servlet.FilterHolder;
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
@@ -81,8 +87,10 @@ public class WorkerServer {
     private ServerConnector httpsConnector;
 
     private final FilterInitializer filterInitializer;
-    private PulsarSslFactory sslFactory;
     private ScheduledExecutorService scheduledExecutorService;
+    // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
+    private PulsarTlsFactory tlsFactory;
+    private JettyTlsFactory.ReloadableServerTls reloadableServerTls;
 
     public WorkerServer(WorkerService workerService, AuthenticationService authenticationService) {
         this.workerConfig = workerService.getWorkerConfig();
@@ -129,15 +137,15 @@ public class WorkerServer {
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(newServletContextHandler("/admin",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
         handlers.add(newServletContextHandler("/admin/v2",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
         handlers.add(newServletContextHandler("/admin/v3",
-            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer).get());
+            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer));
         // don't require auth for metrics or config routes
         handlers.add(newServletContextHandler("/",
             new ResourceConfig(Resources.getRootResources()), workerService,
-            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer).get());
+            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer));
 
         boolean showDetailedAddresses = workerConfig.getWebServiceLogDetailedAddresses() != null
                 ? workerConfig.getWebServiceLogDetailedAddresses() :
@@ -171,22 +179,12 @@ public class WorkerServer {
             log.info().attr("port", this.workerConfig.getWorkerPortTls())
                     .log("Configuring https server");
             try {
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
-                this.sslFactory = new DefaultPulsarSslFactory();
-                this.sslFactory.initialize(sslConfiguration);
-                this.sslFactory.createInternalSslContext();
                 this.scheduledExecutorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
                                 .ExtendedThreadFactory("functions-worker-web-ssl-refresh"));
-                this.scheduledExecutorService.scheduleWithFixedDelay(this::refreshSslContext,
-                        workerConfig.getTlsCertRefreshCheckDurationSec(),
-                        workerConfig.getTlsCertRefreshCheckDurationSec(),
-                        TimeUnit.SECONDS);
-                SslContextFactory.Server sslCtxFactory =
-                        JettySslContextFactory.createSslContextFactory(this.workerConfig.getTlsProvider(),
-                                this.sslFactory, this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                                this.workerConfig.getWebServiceTlsCiphers(),
-                                this.workerConfig.getWebServiceTlsProtocols());
+                // PIP-478: the functions worker web listener uses the PulsarTlsFactory SPI (the built-in
+                // file-based factory by default, or a custom tlsFactoryClassName).
+                SslContextFactory.Server sslCtxFactory = createTlsFactoryWebServer(workerConfig);
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -265,6 +263,9 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, MATCH_ALL);
+        // Allow %2F-encoded path separators; Jetty 12 ee10 rejects ambiguous URIs at the servlet layer by
+        // default (PIP-472 / Jetty 12).
+        contextHandler.getServletHandler().setDecodeAmbiguousURIs(true);
 
         filterInitializer.addFilters(contextHandler, requireAuthentication);
 
@@ -291,6 +292,15 @@ public class WorkerServer {
         if (this.scheduledExecutorService != null) {
             this.scheduledExecutorService.shutdownNow();
         }
+        // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
+        if (this.reloadableServerTls != null) {
+            this.reloadableServerTls.subscription().dispose();
+            this.reloadableServerTls = null;
+        }
+        if (this.tlsFactory != null) {
+            this.tlsFactory.close();
+            this.tlsFactory = null;
+        }
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -309,32 +319,84 @@ public class WorkerServer {
         }
     }
 
-    protected void refreshSslContext() {
+    // PIP-478: the OpenTelemetry root for the WEB-purpose TlsFactoryInitContext, so pulsar.tls.reload emits
+    // for the worker web listener; OpenTelemetry.noop() when no PulsarWorkerService OTel handle is available.
+    private OpenTelemetry workerOpenTelemetry() {
+        if (workerService instanceof PulsarWorkerService pulsarWorkerService
+                && pulsarWorkerService.getOpenTelemetry() != null) {
+            return pulsarWorkerService.getOpenTelemetry().getOpenTelemetry();
+        }
+        return OpenTelemetry.noop();
+    }
+
+    // PIP-478: build the PulsarTlsFactory for the WEB purpose and drive a vanilla Jetty
+    // SslContextFactory.Server via the SSLContext subscription (no cert refresh task).
+    private SslContextFactory.Server createTlsFactoryWebServer(WorkerConfig config) throws Exception {
+        this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
+                () -> buildDefaultWebTlsFactory(config));
+        // Once the factory is created it owns live resources (cert watchers, reload work). A failure in any
+        // subsequent step rethrows out of init()/the constructor without returning a WorkerServer, so stop()
+        // is never reachable — dispose/close the partial state here to avoid leaking it.
         try {
-            this.sslFactory.update();
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
+                    scheduledExecutorService, scheduledExecutorService, workerOpenTelemetry());
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                    scheduledExecutorService,
+                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
+                    config.getWebServiceTlsProtocols());
+            return this.reloadableServerTls.sslContextFactory();
         } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
+            if (this.reloadableServerTls != null) {
+                this.reloadableServerTls.subscription().dispose();
+                this.reloadableServerTls = null;
+            }
+            if (this.tlsFactory != null) {
+                this.tlsFactory.close();
+                this.tlsFactory = null;
+            }
+            throw e;
         }
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(WorkerConfig config) {
-        return PulsarSslConfiguration.builder()
-                .tlsKeyStoreType(config.getTlsKeyStoreType())
-                .tlsKeyStorePath(config.getTlsKeyStore())
-                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getTlsTrustStoreType())
-                .tlsTrustStorePath(config.getTlsTrustStore())
-                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
-                .tlsCiphers(config.getWebServiceTlsCiphers())
-                .tlsProtocols(config.getWebServiceTlsProtocols())
-                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
-                .tlsKeyFilePath(config.getTlsKeyFilePath())
+    private static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
+        TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
-                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
-                .serverMode(true)
-                .isHttps(true)
+                .protocols(toList(config.getWebServiceTlsProtocols()))
+                .ciphers(toList(config.getWebServiceTlsCiphers()))
+                // PIP-478: pin the JSSE (SSLContext) provider for the functions-worker web listener (Goal #5). A
+                // non-engine tlsProvider value (e.g. Conscrypt) is also routed here for v4 keystore parity,
+                // and an unset value falls back to Conscrypt when it is usable (web-listener default).
+                // mirroring the broker's two-axis split.
+                .jsseProvider(TlsFactorySupport.resolveWebJsseProvider(config.getJsseProvider(),
+                        config.getTlsProvider()));
+        if (config.isTlsEnabledWithKeyStore()) {
+            policyBuilder.format(TlsPolicy.Format.KEYSTORE)
+                    .keyStoreType(config.getTlsKeyStoreType())
+                    .trustStoreType(config.getTlsTrustStoreType())
+                    .keyStorePath(config.getTlsKeyStore())
+                    .keyStorePassword(config.getTlsKeyStorePassword())
+                    .trustStorePath(config.getTlsTrustStore())
+                    .trustStorePassword(config.getTlsTrustStorePassword());
+        } else {
+            policyBuilder.format(TlsPolicy.Format.PEM)
+                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
+                    .certificateFilePath(config.getTlsCertificateFilePath())
+                    .keyFilePath(config.getTlsKeyFilePath());
+        }
+        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
+        // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here.
+        FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
+                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
+                        config.getTlsCertRefreshCheckDurationSec()))
                 .build();
+        return new FileBasedTlsFactory(policies, settings);
+    }
+
+    private static List<String> toList(Set<String> values) {
+        return values == null ? List.of() : List.copyOf(values);
     }
 }

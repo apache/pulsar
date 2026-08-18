@@ -59,16 +59,29 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private final PulsarClientImpl v4Client;
     private final TopicName topicName;
     private final long sessionId;
+    /** When false, the broker must not auto-create the scalable topic if it's missing on lookup.
+     *  Namespace (multi-topic) consumers set this false so a deleted topic isn't resurrected by
+     *  a reconnecting per-topic watch. */
+    private final boolean createIfMissing;
     private final AtomicReference<ClientSegmentLayout> currentLayout = new AtomicReference<>();
     private final CompletableFuture<ClientSegmentLayout> initialLayoutFuture = new CompletableFuture<>();
     private final Backoff reconnectBackoff;
     private volatile LayoutChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    private volatile boolean usingProxy = false;
+    /** Canonical topic://t/n/x identity returned by the broker. Resolved on the first
+     *  update; used as the parent topic when computing segment:// URIs for real DAGs. */
+    private volatile TopicName resolvedTopicName;
 
     DagWatchClient(PulsarClientImpl v4Client, TopicName topicName) {
+        this(v4Client, topicName, true);
+    }
+
+    DagWatchClient(PulsarClientImpl v4Client, TopicName topicName, boolean createIfMissing) {
         this.v4Client = v4Client;
         this.topicName = topicName;
+        this.createIfMissing = createIfMissing;
         this.sessionId = SESSION_ID_GENERATOR.incrementAndGet();
         this.reconnectBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(100))
@@ -114,10 +127,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             }
             return;
         }
+        this.usingProxy = newCnx.isProxied();
         this.cnx = newCnx;
         newCnx.registerDagWatchSession(sessionId, this);
         newCnx.ctx().writeAndFlush(
-                        Commands.newScalableTopicLookup(sessionId, topicName.toString()))
+                        Commands.newScalableTopicLookup(sessionId, topicName.toString(), createIfMissing))
                 .addListener(writeFuture -> {
                     if (!writeFuture.isSuccess()) {
                         newCnx.removeDagWatchSession(sessionId);
@@ -138,12 +152,24 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
      * This is invoked from the Netty I/O thread.
      */
     @Override
-    public void onUpdate(ScalableTopicDAG dag) {
+    public void onUpdate(ScalableTopicDAG dag, String resolvedTopicName) {
         if (closed) {
             return;
         }
 
-        ClientSegmentLayout newLayout = ClientSegmentLayout.fromProto(dag, topicName);
+        // Cache the canonical topic://... identity returned by the broker so segment://
+        // URIs are computed against the resolved parent regardless of the input domain.
+        // The broker should always set this on success; fall back to the input name if
+        // an older broker doesn't.
+        TopicName resolvedTn;
+        if (resolvedTopicName != null) {
+            resolvedTn = TopicName.get(resolvedTopicName);
+            this.resolvedTopicName = resolvedTn;
+        } else {
+            resolvedTn = this.resolvedTopicName != null ? this.resolvedTopicName : topicName;
+        }
+
+        ClientSegmentLayout newLayout = ClientSegmentLayout.fromProto(dag, resolvedTn);
         ClientSegmentLayout oldLayout = currentLayout.getAndSet(newLayout);
 
         log.info().attr("oldEpoch", oldLayout != null ? oldLayout.epoch() : "none")
@@ -173,9 +199,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         log.error().attr("error", error).attr("message", message)
                 .log("DAG watch session error");
         if (!initialLayoutFuture.isDone()) {
+            String detail = "Scalable topic lookup failed: " + error + " - " + message;
             initialLayoutFuture.completeExceptionally(
-                    new PulsarClientException(
-                            "Scalable topic lookup failed: " + error + " - " + message));
+                    error == ServerError.TopicNotFound
+                            ? new PulsarClientException.NotFoundException(detail)
+                            : new PulsarClientException(detail));
         }
         // After the initial layout has arrived, broker-side errors on this session
         // (e.g., metadata unavailable) are transient — a reconnect typically clears
@@ -224,6 +252,11 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
                 });
     }
 
+    /** Whether the DAG-watch connection was established through a proxy. */
+    boolean isUsingProxy() {
+        return usingProxy;
+    }
+
     ClientSegmentLayout currentLayout() {
         return currentLayout.get();
     }
@@ -236,8 +269,15 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         return sessionId;
     }
 
+    /**
+     * Returns the canonical scalable-topic identity, falling back to the user's input
+     * before the first response arrives. Once the broker has returned a
+     * {@code resolved_topic_name}, this always reflects the resolved form so callers
+     * see the canonical {@code topic://...} name regardless of how they spelled the input.
+     */
     TopicName topicName() {
-        return topicName;
+        TopicName resolved = resolvedTopicName;
+        return resolved != null ? resolved : topicName;
     }
 
     @Override

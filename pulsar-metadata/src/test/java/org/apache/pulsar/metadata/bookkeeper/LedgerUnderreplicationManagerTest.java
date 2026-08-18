@@ -22,9 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.protobuf.TextFormat;
 import java.lang.reflect.Field;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -52,7 +50,7 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.meta.UnderreplicatedLedger;
 import org.apache.bookkeeper.meta.ZkLedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.DNS;
-import org.apache.bookkeeper.proto.DataFormats.UnderreplicatedLedgerFormat;
+import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationException.UnavailableException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
@@ -301,8 +299,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(l, lB.get(), "Should be the ledger I marked");
     }
 
-    @Test(dataProvider = "zkImpls", timeOut = 10000)
-    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes(String provider, Supplier<String> urlSupplier)
+    @Test(dataProvider = "distributedImpl", timeOut = 10000)
+    public void testMarkReplicatedDeletesEmptyParentNodes(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
 
@@ -500,11 +498,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m2.markLedgerUnderreplicated(ledgerA, missingReplica1);
 
         // verify duplicate missing replica
-        UnderreplicatedLedgerFormat.Builder builderA = UnderreplicatedLedgerFormat
-                .newBuilder();
+        UnderreplicatedLedgerFormat builderA = new UnderreplicatedLedgerFormat();
         byte[] data = store.get(getUrLedgerZnode(ledgerA)).join().get().getValue();
-        TextFormat.merge(new String(data, Charset.forName("UTF-8")), builderA);
-        List<String> replicaList = builderA.getReplicaList();
+        builderA.parseFromTextFormat(data);
+        List<String> replicaList = builderA.getReplicasList();
         assertEquals(replicaList.size(), 1, "Published duplicate missing replica : " + replicaList);
         assertTrue(replicaList.contains(missingReplica1), "Published duplicate missing replica : " + replicaList);
 
@@ -774,12 +771,11 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
 
         String urLedgerA = new String(store.get(znodeA).join().get().getValue());
-        UnderreplicatedLedgerFormat.Builder builderA = UnderreplicatedLedgerFormat
-                .newBuilder();
+        UnderreplicatedLedgerFormat builderA = new UnderreplicatedLedgerFormat();
         for (String replica : missingReplica) {
             builderA.addReplica(replica);
         }
-        List<String> replicaList = builderA.getReplicaList();
+        List<String> replicaList = builderA.getReplicasList();
 
         for (String replica : missingReplica) {
             assertTrue(replicaList.contains(replica),

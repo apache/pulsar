@@ -22,8 +22,12 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":pulsar-functions:pulsar-functions-proto"))
-    implementation(libs.kubernetes.client.java)
+    api(project(":pulsar-functions:pulsar-functions-proto"))
+    implementation(libs.kubernetes.client.java) {
+        exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
+    }
     implementation(libs.gson)
     implementation(libs.commons.lang3)
 }

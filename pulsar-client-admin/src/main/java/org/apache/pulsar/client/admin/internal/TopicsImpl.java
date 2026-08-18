@@ -22,6 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -40,14 +48,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
@@ -138,6 +138,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
     public static final String TXN_ABORTED = "X-Pulsar-txn-aborted";
     public static final String TXN_UNCOMMITTED = "X-Pulsar-txn-uncommitted";
+    public static final String TXN_CONSUMABLE = "X-Pulsar-txn-consumable";
     // CHECKSTYLE.ON: MemberName
 
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
@@ -1338,6 +1339,15 @@ public class TopicsImpl extends BaseResource implements Topics {
             if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
                 properties.put(TXN_UNCOMMITTED, tmp.toString());
                 if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
+            tmp = headers.getFirst(TXN_CONSUMABLE);
+            if (tmp != null) {
+                properties.put(TXN_CONSUMABLE, tmp.toString());
+                if (!Boolean.parseBoolean(tmp.toString())
+                        && transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
                     return new ArrayList<>();
                 }
             }
