@@ -92,8 +92,8 @@ re2j = "1.8"
 # Metrics / Observability
 prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
-dropwizardmetrics = "4.1.12.1"
-hdrHistogram = "2.1.9"
+dropwizardmetrics = "4.2.39"
+hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
