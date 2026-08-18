@@ -339,7 +339,7 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-codec-1.22.0.jar
+    - commons-codec-1.22.1.jar
     - commons-io-2.22.0.jar
     - commons-lang3-3.19.0.jar
     - commons-text-1.15.0.jar
