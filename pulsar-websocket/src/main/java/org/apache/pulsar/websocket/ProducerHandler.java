@@ -508,17 +508,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 }
 
                 if (queryParams.containsKey("maxPendingMessages")) {
-                    int maxPendingMessages = Integer.parseInt(queryParams.get("maxPendingMessages"));
-                    if (maxPendingMessages > 0) {
-                        builder.maxPendingMessages(maxPendingMessages);
-                    } else {
-                        // 0 asks the client for an unbounded pending queue. The proxy's client runs
-                        // without a memory limit by default (webSocketPulsarClientMemoryLimitInMB),
-                        // so that would leave this producer with no backpressure at all, buffering a
-                        // remote client's messages in the shared proxy. Keep the client's default.
-                        log.info().attr("maxPendingMessages", maxPendingMessages)
-                                .log("Ignoring the param maxPendingMessages of producer since it is not positive");
-                    }
+                    builder.maxPendingMessages(Integer.parseInt(queryParams.get("maxPendingMessages")));
                 }
 
                 if (queryParams.containsKey("batchingMaxPublishDelay")) {
