@@ -255,7 +255,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     // PIP-478: the authentication exchange for the current connection attempt. Non-null only while a
-    // connect driven through an BinaryAuthenticationDriver is in progress; a fresh exchange is created per
+    // connect driven through a BinaryAuthenticationDriver is in progress; a fresh exchange is created per
     // connect attempt and whenever the broker pushes the REFRESH sentinel.
     private AuthenticationExchange authenticationExchange;
     // PIP-478: guards for the async auth carve-out. Both are touched only on the channel's event loop
@@ -388,7 +388,7 @@ public class ClientCnx extends PulsarHandler {
         }
         // Send CONNECT command. Sync and async plugins share a single state machine (PIP-478): the initial
         // credential is resolved as a CompletableFuture — already-completed for a plain v4 plugin (computed
-        // inline, preserving today's behaviour verbatim) or pending for an BinaryAuthenticationDriver — and
+        // inline, preserving today's behaviour verbatim) or pending for a BinaryAuthenticationDriver — and
         // fed to one continuation that assigns the data provider, builds the command, transitions state and
         // writes. The continuation runs inline when the future is already done and hops to the channel's
         // event executor only when it was pending.
@@ -764,7 +764,7 @@ public class ClientCnx extends PulsarHandler {
             // verbatim inline continuation.
             resolution.whenComplete(guarded);
         } else {
-            // PIP-478: an BinaryAuthenticationDriver resolved this credential off the event loop; a hung
+            // PIP-478: a BinaryAuthenticationDriver resolved this credential off the event loop; a hung
             // driver (getAuthDataAsync / authenticateAsync never completing) would otherwise wedge the connect
             // handshake. Bound it with the client's operation-timeout budget: on expiry the resolution is
             // completed with a mapped v4 auth exception, and the guarded continuation (still hopped to

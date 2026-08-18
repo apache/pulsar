@@ -65,9 +65,11 @@ public class BrokerClientProviderPinsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        // The internal client resolves its service URL from the broker's own TLS listener, so the listener has
-        // to exist for that leg to be built at all.
+        // Both self-directed legs resolve their service URL from the broker's own TLS listeners, so the
+        // listeners have to exist for those legs to be built at all: the internal client needs the binary one,
+        // the admin client the web one.
         conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
@@ -97,6 +99,16 @@ public class BrokerClientProviderPinsTest extends MockedPulsarServiceBaseTest {
                 .getReplicationClient("peer-cluster", Optional.of(peerCluster()));
 
         assertAllThreePins(replicationClient.getConfiguration(), "the geo-replication client");
+    }
+
+    /**
+     * The broker's own admin client. It is the leg that reached none of the three: the whole
+     * {@code brokerClient*} TLS material family was mapped onto the builder and the provider axes were not.
+     */
+    @Test
+    public void theBrokersOwnAdminClientCarriesEveryPin() throws Exception {
+        assertAllThreePins(((PulsarAdminImpl) pulsar.getAdminClient()).getClientConfigData(),
+                "the broker's own admin client");
     }
 
     @Test
