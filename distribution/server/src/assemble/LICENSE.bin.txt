@@ -591,15 +591,15 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2-osgi-resource-locator-1.0.3.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-3.0.6.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-3.1.10.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-3.1.10.jar
-    - org.glassfish.jersey.core-jersey-client-3.1.10.jar
-    - org.glassfish.jersey.core-jersey-common-3.1.10.jar
-    - org.glassfish.jersey.core-jersey-server-3.1.10.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-3.1.10.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-3.1.10.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-3.1.10.jar
-    - org.glassfish.jersey.inject-jersey-hk2-3.1.10.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-3.1.12.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-3.1.12.jar
+    - org.glassfish.jersey.core-jersey-client-3.1.12.jar
+    - org.glassfish.jersey.core-jersey-common-3.1.12.jar
+    - org.glassfish.jersey.core-jersey-server-3.1.12.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-3.1.12.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-3.1.12.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-3.1.12.jar
+    - org.glassfish.jersey.inject-jersey-hk2-3.1.12.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
