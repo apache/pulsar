@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,8 @@ public class OffloadersCache implements AutoCloseable {
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
     public Offloaders getOrLoadOffloaders(String offloadersPath, String narExtractionDirectory) {
-        return loadedOffloaders.computeIfAbsent(offloadersPath,
+        String normalizedOffloadersPath = Paths.get(offloadersPath).toAbsolutePath().normalize().toString();
+        return loadedOffloaders.computeIfAbsent(normalizedOffloadersPath,
                 (directory) -> {
                     try {
                         return OffloaderUtils.searchForOffloaders(directory, narExtractionDirectory);
