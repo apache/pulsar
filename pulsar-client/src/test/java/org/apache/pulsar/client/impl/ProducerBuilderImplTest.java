@@ -22,6 +22,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -375,9 +376,23 @@ public class ProducerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-            "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
+            "maxPendingMessagesAcrossPartitions needs to be >= 0")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
+    }
+
+    /**
+     * The across-partitions budget is allowed to be below {@code maxPendingMessages}: it is a budget
+     * shared by every partition, and the per-partition limit is lowered to its share where it is used.
+     * Rejecting it here made the two setters order-dependent, so setting only this one on a builder
+     * that already carried a default for the other threw.
+     */
+    @Test
+    public void testAcrossPartitionsLimitBelowMaxPendingMessagesIsAccepted() {
+        ProducerBuilderImpl<byte[]> builder = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        builder.maxPendingMessages(1000).maxPendingMessagesAcrossPartitions(500);
+
+        assertEquals(builder.getConf().getMaxPendingMessagesAcrossPartitions(), 500);
     }
 
     @Test

@@ -252,9 +252,17 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         this.maxPendingMessages = maxPendingMessages;
     }
 
+    /**
+     * The across-partitions budget used to be rejected when it was below {@link #maxPendingMessages},
+     * which made the two setters order-dependent: whether a value is accepted depended on which of them
+     * had been called first, so setting only this one on a builder that already carries a default for
+     * the other throws. The relationship is enforced where it is used instead — {@code
+     * PartitionedProducerImpl} lowers the per-partition limit to the share of the budget when a budget
+     * is set, and the budget means nothing on a non-partitioned topic.
+     */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages,
-                "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages");
+        checkArgument(maxPendingMessagesAcrossPartitions >= 0,
+                "maxPendingMessagesAcrossPartitions needs to be >= 0");
         this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
     }
 
