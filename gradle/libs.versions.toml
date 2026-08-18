@@ -27,7 +27,7 @@ bookkeeper = "4.18.0"
 zookeeper = "3.9.5"
 netty = "4.2.17.Final"
 jetty = "12.1.12"
-jersey = "3.1.10"
+jersey = "3.1.12"
 jackson = "2.21.6"
 jackson-annotations = "2.21"
 protobuf = "4.35.0"
@@ -45,13 +45,13 @@ opentelemetry-semconv = "1.43.0"
 # Apache Commons
 commons-lang3 = "3.20.0"
 commons-io = "2.22.0"
-commons-codec = "1.22.0"
+commons-codec = "1.22.1"
 commons-compress = "1.28.0"
-commons-collections4 = "4.5.0"
+commons-collections4 = "4.6.0"
 commons-cli = "1.11.0"
 commons-text = "1.15.0"
 commons-math3 = "3.6.1"
-commons-logging = "1.3.6"
+commons-logging = "1.4.0"
 commons-beanutils = "1.11.0"
 commons-configuration2 = "2.15.1"
 # BouncyCastle
@@ -92,8 +92,8 @@ re2j = "1.8"
 # Metrics / Observability
 prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
-dropwizardmetrics = "4.1.12.1"
-hdrHistogram = "2.1.9"
+dropwizardmetrics = "4.2.39"
+hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
@@ -130,15 +130,17 @@ zt-zip = "1.17"
 # Jakarta
 jakarta-ws-rs = "3.1.0"
 jakarta-annotation = "2.1.1"
-jakarta-activation = "2.1.3"
+jakarta-activation = "2.1.4"
 # Jakarta Activation 2.x reference implementation (the com.sun.activation:jakarta.activation impl was not
 # republished past 2.0.x; Eclipse Angus is the EE10 impl of jakarta.activation-api 2.1.x)
-angus-activation = "2.0.2"
-jakarta-xml-bind = "4.0.2"
+angus-activation = "2.0.3"
+jakarta-xml-bind = "4.0.5"
 jakarta-validation = "3.0.2"
-# javax-servlet (Servlet 3.1, ee8) is retained alongside jakarta-servlet (Servlet 6.0, ee10)
-# so that the AdditionalServlet plugin SPI keeps supporting legacy javax.servlet handlers (PIP-472)
-javax-servlet = "3.1.0"
+# javax-servlet (Servlet 4.0, ee8) is retained alongside jakarta-servlet (Servlet 6.0, ee10)
+# so that the AdditionalServlet plugin SPI keeps supporting legacy javax.servlet handlers (PIP-472).
+# Each is kept at the Servlet level its Jetty 12.1 environment implements: Jetty ee8 ships
+# jetty-servlet-api 4.0.x and Jetty ee10 pins jakarta.servlet-api 6.0.0.
+javax-servlet = "4.0.1"
 jakarta-servlet = "6.0.0"
 # Oxia / etcd
 oxia = "0.9.4"
@@ -153,19 +155,19 @@ jsr305 = "3.0.2"
 # Test
 testng = "7.12.0"
 mockito = "5.23.0"
-awaitility = "4.2.0"
+awaitility = "4.3.0"
 assertj = "3.27.7"
-hamcrest = "2.2"
+hamcrest = "3.0"
 system-lambda = "1.2.1"
-objenesis = "3.3"
-byte-buddy = "1.17.7"
+objenesis = "3.6"
+byte-buddy = "1.18.12"
 testcontainers = "1.21.4"
-wiremock = "2.35.1"
-kerby = "2.1.1"
-json = "20231013"
-consolecaptor = "1.0.3"
-restassured = "5.4.0"
-skyscreamer = "1.5.0"
+wiremock = "3.13.2"
+kerby = "2.1.2"
+json = "20260814"
+consolecaptor = "1.0.4"
+restassured = "5.5.7"
+skyscreamer = "1.5.3"
 # misc
 zstd-jni = "1.5.7-3"
 lz4java = "1.11.1"
@@ -422,8 +424,11 @@ assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 system-lambda = { module = "com.github.stefanbirkner:system-lambda", version.ref = "system-lambda" }
 byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
+# byte-buddy-agent is declared so the enforced platform pins it to the same version as
+# byte-buddy; Mockito depends on both and they must not diverge
+byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
 objenesis = { module = "org.objenesis:objenesis", version.ref = "objenesis" }
-wiremock = { module = "com.github.tomakehurst:wiremock-jre8-standalone", version.ref = "wiremock" }
+wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
 consolecaptor = { module = "io.github.hakky54:consolecaptor", version.ref = "consolecaptor" }
 restassured = { module = "io.rest-assured:rest-assured", version.ref = "restassured" }
 jsonassert = { module = "org.skyscreamer:jsonassert", version.ref = "skyscreamer" }
@@ -449,7 +454,7 @@ hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "had
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop3" }
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
-docker-java-core = "com.github.docker-java:docker-java-core:3.4.1"
+docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
 json-smart = "net.minidev:json-smart:2.6.0"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
@@ -474,9 +479,9 @@ nar = "io.github.merlimat.nar:0.1.3"
 protobuf = "com.google.protobuf:0.10.0"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.8.1"
-spotless = "com.diffplug.spotless:8.4.0"
+spotless = "com.diffplug.spotless:8.10.0"
 swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
-version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.0"
-versions = "com.github.ben-manes.versions:0.53.0"
-crlf = "com.github.vlsi.crlf:3.0.1"
+version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.1"
+versions = "io.github.ben-manes.versions:0.61.0"
+crlf = "com.github.vlsi.crlf:4.0.0"
 idea-ext = "org.jetbrains.gradle.plugin.idea-ext:1.4.1"
