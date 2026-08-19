@@ -39,7 +39,7 @@ import org.testng.Assert;
  * An implement of {@link PulsarClientTool} for test, which will publish messages iff there is enough messages
  * in the batch.
  */
-public class PulsarClientToolForceBatchNum extends PulsarClientTool{
+public class PulsarClientToolForceBatchNum extends PulsarClientTool {
     private final String topic;
     private final int batchNum;
 
@@ -68,18 +68,35 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
 
     private ClientBuilder mockClientBuilder(ClientBuilder newBuilder) throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) newBuilder.build();
+        // Batch exactly batchNum messages and (practically) never flush on the timer, so that batching is
+        // deterministic. CmdProduce leaves batching alone unless it was asked to disable it.
         ProducerBuilder<byte[]> producerBuilder = client.newProducer()
             .batchingMaxBytes(Integer.MAX_VALUE)
             .batchingMaxMessages(batchNum)
             .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
             .topic(topic);
-        Producer<byte[]> producer = producerBuilder.create();
 
         PulsarClientImpl mockClient = spy(client);
         ProducerBuilder<byte[]> mockProducerBuilder = spy(producerBuilder);
-        Producer<byte[]> mockProducer = spy(producer);
         ClientBuilder mockClientBuilder = spy(newBuilder);
 
+        // Create the producer only once CmdProduce asks for it. It configures the builder it was handed
+        // first, and options such as --disable-batching have to reach the producer that is created from
+        // it: a producer holds the configuration it was created with, so a builder change made after
+        // creation no longer affects it.
+        doAnswer(invocation -> forceAsyncSend((Producer<byte[]>) invocation.callRealMethod()))
+                .when(mockProducerBuilder).create();
+        doReturn(mockProducerBuilder).when(mockClient).newProducer(any(Schema.class));
+        doReturn(mockClient).when(mockClientBuilder).build();
+        return mockClientBuilder;
+    }
+
+    /**
+     * Wraps the producer so that the synchronous {@code newMessage().send()} the CLI uses is dispatched
+     * asynchronously, letting messages accumulate into a batch instead of flushing one by one.
+     */
+    private static Producer<byte[]> forceAsyncSend(Producer<byte[]> producer) {
+        Producer<byte[]> mockProducer = spy(producer);
         doAnswer((Answer<TypedMessageBuilder>) invocation -> {
             TypedMessageBuilder typedMessageBuilder = spy((TypedMessageBuilder) invocation.callRealMethod());
             doAnswer((Answer<MessageId>) invocation1 -> {
@@ -90,10 +107,6 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
             }).when(typedMessageBuilder).send();
             return typedMessageBuilder;
         }).when(mockProducer).newMessage();
-
-        doReturn(mockProducer).when(mockProducerBuilder).create();
-        doReturn(mockProducerBuilder).when(mockClient).newProducer(any(Schema.class));
-        doReturn(mockClient).when(mockClientBuilder).build();
-        return mockClientBuilder;
+        return mockProducer;
     }
 }
