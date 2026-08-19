@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.schema.PulsarAvroClassSecurity;
 import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -60,6 +61,10 @@ public class ThreadRuntime implements Runtime {
     @Getter
     private final InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
+
+    // Retained so the Avro trust granted to them in start() can be revoked in stop().
+    private ClassLoader trustedFunctionClassLoader;
+    private ClassLoader trustedTransformFunctionClassLoader;
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
@@ -206,6 +211,16 @@ public class ThreadRuntime implements Runtime {
                 instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
                 fnCache, connectorsManager, functionsManager, FunctionDetails.ComponentType.FUNCTION);
 
+        // Avro 1.12.2 only reflects over classes that are explicitly trusted, so a function using
+        // Schema.AVRO/JSON over its own POJOs needs those POJOs trusted. The deployed code is the
+        // deployment's own, so trust exactly the classes its class loader defined. This covers every
+        // runtime: the process and Kubernetes runtimes reach this same code through JavaInstanceStarter
+        // inside the function's own JVM.
+        this.trustedFunctionClassLoader = functionClassLoader;
+        this.trustedTransformFunctionClassLoader = transformFunctionClassLoader;
+        PulsarAvroClassSecurity.trustClassLoader(functionClassLoader);
+        PulsarAvroClassSecurity.trustClassLoader(transformFunctionClassLoader);
+
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
@@ -246,6 +261,10 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public void stop() {
+        PulsarAvroClassSecurity.untrustClassLoader(trustedFunctionClassLoader);
+        PulsarAvroClassSecurity.untrustClassLoader(trustedTransformFunctionClassLoader);
+        trustedFunctionClassLoader = null;
+        trustedTransformFunctionClassLoader = null;
         if (fnThread != null) {
             // interrupt the instance thread
             fnThread.interrupt();

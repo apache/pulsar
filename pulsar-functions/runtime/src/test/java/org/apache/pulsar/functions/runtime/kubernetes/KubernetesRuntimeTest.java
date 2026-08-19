@@ -485,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 55;
-            portArg = 42;
-            metricsPortArg = 44;
+            totalArgs = 53;
+            portArg = 40;
+            metricsPortArg = 42;
         } else {
             extraDepsEnv = "";
-            portArg = 41;
-            metricsPortArg = 43;
-            totalArgs = 54;
+            portArg = 39;
+            metricsPortArg = 41;
+            totalArgs = 52;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -527,8 +527,6 @@ public class KubernetesRuntimeTest {
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
                 + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
-                + " -Dorg.apache.avro.SERIALIZABLE_PACKAGES=*"
-                + " -Dorg.apache.pulsar.shade.org.apache.avro.SERIALIZABLE_PACKAGES=*"
                 + " --add-opens java.base/java.nio=ALL-UNNAMED"
                 + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                 + " --add-opens java.base/java.util.zip=ALL-UNNAMED"

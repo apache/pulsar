@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl.schema;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -61,6 +63,13 @@ public final class PulsarAvroClassSecurity {
 
     /** Individually trusted classes, for types whose package is too broad to trust wholesale. */
     private static final Set<String> TRUSTED_CLASSES = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Class loaders whose classes are trusted wholesale. Held weakly so that registering a loader does
+     * not keep it, or the classes it defined, from being collected once whatever owns it goes away.
+     */
+    private static final Set<ClassLoader> TRUSTED_CLASS_LOADERS =
+            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
     /**
      * The predicate this class last installed as the global validator. Retaining the instance rather
@@ -153,7 +162,55 @@ public final class PulsarAvroClassSecurity {
         }
         // Nested classes report the enclosing package, so Outer$Inner is matched by its package too.
         Package classPackage = clazz.getPackage();
-        return isTrusted(clazz.getName(), classPackage == null ? null : classPackage.getName());
+        if (isTrusted(clazz.getName(), classPackage == null ? null : classPackage.getName())) {
+            return true;
+        }
+        return isLoadedByTrustedClassLoader(clazz);
+    }
+
+    /**
+     * Trusts every class defined by the given class loader, for as long as the loader is alive.
+     *
+     * <p>This is for code that Pulsar loads and runs on the deployment's behalf in a class loader it
+     * created for that purpose — a Pulsar Function or connector being the motivating case. Such code is
+     * the deployment's own, so its classes are trusted for the same reason the application's classes are
+     * when the application configures Avro itself. Scoping the trust to the loader keeps it far narrower
+     * than a wildcard: only the classes that were actually deployed become trusted, not everything on
+     * the JVM's class path.
+     *
+     * <p>Also {@link #install() installs} Pulsar's validator, since a JVM that loads code this way (for
+     * example a function instance JVM) may have no other reason to have installed it.
+     */
+    public static void trustClassLoader(ClassLoader classLoader) {
+        if (classLoader == null) {
+            return;
+        }
+        TRUSTED_CLASS_LOADERS.add(classLoader);
+        install();
+    }
+
+    /** Revokes trust granted by {@link #trustClassLoader(ClassLoader)}. */
+    public static void untrustClassLoader(ClassLoader classLoader) {
+        if (classLoader != null) {
+            TRUSTED_CLASS_LOADERS.remove(classLoader);
+        }
+    }
+
+    /**
+     * Whether the class was defined by a trusted class loader, or by a descendant of one. Walking up
+     * the parent chain only ever widens to loaders that were explicitly registered, so a class from the
+     * application or system class loader is not trusted unless that loader itself was registered.
+     */
+    private static boolean isLoadedByTrustedClassLoader(Class<?> clazz) {
+        if (TRUSTED_CLASS_LOADERS.isEmpty()) {
+            return false;
+        }
+        for (ClassLoader loader = clazz.getClassLoader(); loader != null; loader = loader.getParent()) {
+            if (TRUSTED_CLASS_LOADERS.contains(loader)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

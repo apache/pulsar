@@ -19,6 +19,11 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Random;
 import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate;
@@ -178,6 +183,89 @@ public class PulsarAvroClassSecurityTest {
 
         PulsarAvroClassSecurity.restoreGlobal(returned);
         assertThat(ClassSecurityValidator.getGlobal().isTrusted(Random.class)).isFalse();
+    }
+
+    @Test
+    public void testClassesFromATrustedClassLoaderAreTrusted() throws Exception {
+        // Stands in for the class loader Pulsar creates for a deployed function or connector.
+        URLClassLoader deployedCodeLoader = new URLClassLoader(new URL[0], getClass().getClassLoader());
+        Class<?> definedByLoader = defineTrivialClass(deployedCodeLoader, "com.example.deployed.Payload");
+        assertThat(ClassSecurityValidator.getGlobal().isTrusted(definedByLoader)).isFalse();
+
+        try {
+            PulsarAvroClassSecurity.trustClassLoader(deployedCodeLoader);
+
+            assertThat(PulsarAvroClassSecurity.isPulsarTrustedAvroClass(definedByLoader)).isTrue();
+            // The loader's parent is not trusted by association, so unrelated classes stay untrusted.
+            assertThat(PulsarAvroClassSecurity.isPulsarTrustedAvroClass(Random.class)).isFalse();
+        } finally {
+            PulsarAvroClassSecurity.untrustClassLoader(deployedCodeLoader);
+            deployedCodeLoader.close();
+        }
+
+        assertThat(PulsarAvroClassSecurity.isPulsarTrustedAvroClass(definedByLoader)).isFalse();
+    }
+
+    @Test
+    public void testClassesFromADescendantOfATrustedClassLoaderAreTrusted() throws Exception {
+        URLClassLoader deployedCodeLoader = new URLClassLoader(new URL[0], getClass().getClassLoader());
+        URLClassLoader childLoader = new URLClassLoader(new URL[0], deployedCodeLoader);
+        Class<?> definedByChild = defineTrivialClass(childLoader, "com.example.deployed.ChildPayload");
+
+        try {
+            PulsarAvroClassSecurity.trustClassLoader(deployedCodeLoader);
+
+            assertThat(PulsarAvroClassSecurity.isPulsarTrustedAvroClass(definedByChild)).isTrue();
+        } finally {
+            PulsarAvroClassSecurity.untrustClassLoader(deployedCodeLoader);
+            childLoader.close();
+            deployedCodeLoader.close();
+        }
+    }
+
+    @Test
+    public void testTrustClassLoaderInstallsTheValidator() {
+        // A function instance JVM has no PulsarService, so trustClassLoader has to install on its own.
+        URLClassLoader deployedCodeLoader = new URLClassLoader(new URL[0], getClass().getClassLoader());
+        try {
+            PulsarAvroClassSecurity.trustClassLoader(deployedCodeLoader);
+
+            assertThat(PulsarAvroClassSecurity.isInstalled()).isTrue();
+        } finally {
+            PulsarAvroClassSecurity.untrustClassLoader(deployedCodeLoader);
+        }
+    }
+
+    /** Defines a minimal class in the given loader, so it has a loader other than the test's own. */
+    private static Class<?> defineTrivialClass(URLClassLoader loader, String className) throws Exception {
+        byte[] bytecode = trivialClassBytes(className.replace('.', '/'));
+        Method defineClass = ClassLoader.class.getDeclaredMethod(
+                "defineClass", String.class, byte[].class, int.class, int.class);
+        defineClass.setAccessible(true);
+        return (Class<?>) defineClass.invoke(loader, className, bytecode, 0, bytecode.length);
+    }
+
+    /** Hand-assembled class file for `public class <name> {}` at class-file version 52 (Java 8). */
+    private static byte[] trivialClassBytes(String internalName) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(out);
+        dos.writeInt(0xCAFEBABE);
+        dos.writeShort(0);
+        dos.writeShort(52);
+        dos.writeShort(5);                      // constant pool count (entries 1..4)
+        dos.writeByte(7); dos.writeShort(3);    // #1 Class -> #3
+        dos.writeByte(7); dos.writeShort(4);    // #2 Class -> #4
+        dos.writeByte(1); dos.writeUTF(internalName);        // #3 Utf8 this class
+        dos.writeByte(1); dos.writeUTF("java/lang/Object");  // #4 Utf8 super class
+        dos.writeShort(0x0021);                 // ACC_PUBLIC | ACC_SUPER
+        dos.writeShort(1);                      // this_class
+        dos.writeShort(2);                      // super_class
+        dos.writeShort(0);                      // interfaces
+        dos.writeShort(0);                      // fields
+        dos.writeShort(0);                      // methods
+        dos.writeShort(0);                      // attributes
+        dos.flush();
+        return out.toByteArray();
     }
 
     /** Stand-in for an application class that Pulsar does not trust on its own. */
