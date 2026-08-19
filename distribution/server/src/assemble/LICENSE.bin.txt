@@ -274,7 +274,7 @@ The Apache Software License, Version 2.0
     - com.google.guava-failureaccess-1.0.3.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-3.1.jar
- * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.19.jar
  * Swagger
     - io.swagger.core.v3-swagger-annotations-jakarta-2.2.53.jar
  * slog -- io.github.merlimat.slog-slog-0.10.0.jar
@@ -390,7 +390,7 @@ The Apache Software License, Version 2.0
  * AirCompressor
     - io.airlift-aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-3.0.10.jar
+    - org.asynchttpclient-async-http-client-3.0.13.jar
  * Jetty
     - org.eclipse.jetty-jetty-alpn-client-12.1.12.jar
     - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.12.jar
