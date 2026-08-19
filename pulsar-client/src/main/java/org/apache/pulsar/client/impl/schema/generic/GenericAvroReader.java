@@ -106,7 +106,10 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                             null,
                             decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException | IndexOutOfBoundsException e) {
+        } catch (IOException | IndexOutOfBoundsException | AvroRuntimeException e) {
+            // See the byte[] overload above: the fast reader, on by default since Avro 1.12.1, reports
+            // malformed data as AvroTypeException. This is the overload consumers actually reach, via
+            // MessageImpl.decodeBySchema -> AbstractStructSchema.decode -> AbstractMultiVersionReader.
             throw new SchemaSerializationException(e);
         } finally {
             try {
