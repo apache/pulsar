@@ -124,6 +124,14 @@ if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
 
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty loads native libraries (epoll, io_uring, tcnative) via java.lang.System::loadLibrary,
+  # which is a restricted method from Java 24 onwards. Without this the JVM prints a warning to
+  # stderr on every invocation, and restricted methods will be blocked outright in a future
+  # release. bin/pulsar already sets this for the server side.
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
+fi
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
