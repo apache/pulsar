@@ -261,8 +261,24 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
-    // Avro 1.12.1+ makes Avro serialization strict
-    systemProperty("org.apache.avro.SERIALIZABLE_CLASSES", "java.math.BigDecimal,java.math.BigInteger,java.net.URI,java.net.URL,java.io.File,java.lang.Integer")
+    // Avro 1.12.2 (AVRO-4189) denies reflection over any class that is not explicitly trusted, including
+    // the record/enum types that ReflectDatumWriter and ReflectDatumReader resolve for every named
+    // schema. Production code trusts Pulsar's own Avro types via PulsarAvroClassSecurity, but the test
+    // suites also serialize hundreds of ad-hoc fixture POJOs, so trust the whole Pulsar namespace here.
+    // Avro's DEFAULT_TRUSTED_CLASSES already covers BigDecimal, BigInteger and Integer; URI, URL and
+    // File are @Stringable types that it does not cover.
+    systemProperty("org.apache.avro.SERIALIZABLE_PACKAGES", "org.apache.pulsar,com.google.protobuf")
+    // URI, URL and File are @Stringable types, and the collection types are recorded as a "java-class"
+    // property on generated array/map schemas; neither group is in Avro's DEFAULT_TRUSTED_CLASSES.
+    // Production code gets these through PulsarAvroClassSecurity, but not every test installs it.
+    systemProperty("org.apache.avro.SERIALIZABLE_CLASSES",
+        listOf(
+            "java.net.URI", "java.net.URL", "java.io.File",
+            "java.util.Collection", "java.util.List", "java.util.ArrayList",
+            "java.util.Set", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
+            "java.util.Map", "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
+            "java.util.concurrent.ConcurrentHashMap",
+        ).joinToString(","))
 }
 
 // Expose test classes for cross-module test dependencies (Maven test-jar equivalent)

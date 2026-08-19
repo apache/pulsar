@@ -377,6 +377,22 @@ public class RuntimeUtils {
             args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
             args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
+            if (k8sRuntime) {
+                // Avro 1.12.2 refuses to reflect over any class that is not explicitly trusted, which
+                // would otherwise break every function using Schema.AVRO/JSON over its own classes.
+                // A Kubernetes function has a pod to itself, so the effect of trusting every package is
+                // confined to that pod and to the classes on its own classpath. That is a narrower blast
+                // radius than in a shared JVM, not an absence of risk: a schema fetched from the registry
+                // can still name any class the pod happens to have, and the pod holds its own credentials
+                // and network access. Operators who need the allow-list enforced can override this by
+                // setting the property explicitly in the function's JVM options.
+                // The process and thread runtimes share a JVM with other workloads, so they are left for
+                // the operator to configure rather than being widened here.
+                args.add("-Dorg.apache.avro.SERIALIZABLE_PACKAGES=*");
+                // Handle the relocated copy bundled in the shaded client.
+                args.add("-Dorg.apache.pulsar.shade.org.apache.avro.SERIALIZABLE_PACKAGES=*");
+            }
+
             if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
                 // Needed for optimized Netty direct byte buffer support
                 args.add("--add-opens");

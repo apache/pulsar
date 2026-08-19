@@ -158,6 +158,7 @@ import org.apache.pulsar.client.impl.DnsResolverGroupImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.impl.schema.PulsarAvroClassSecurity;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -851,6 +852,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * Start the pulsar service instance.
      */
     public void start() throws PulsarServerException {
+        // Trust the classes the broker serializes with Avro (transaction buffer snapshots, topic policy
+        // events, metadata events) before anything can read or write them. Idempotent.
+        PulsarAvroClassSecurity.install();
+
         log.info()
                 .attr("version", (brokerVersion != null ? brokerVersion : "unknown"))
                 .attr("gitRevision", PulsarVersion.getGitSha())
