@@ -56,14 +56,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private ProducerConfigurationData conf;
     private Schema<T> schema;
     private List<ProducerInterceptor> interceptorList;
-    /**
-     * Whether the application configured the pending-message limits. Their unset value is 0, which is
-     * also a meaningful explicit value ("no message-count limit"), so the configuration alone cannot
-     * tell the two apart. See
-     * {@link PulsarClientImpl#applyNoMemoryLimitProducerDefaults(ProducerConfigurationData, boolean, boolean)}.
-     */
-    private boolean maxPendingMessagesConfigured;
-    private boolean maxPendingMessagesAcrossPartitionsConfigured;
 
     public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
@@ -86,10 +78,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> clone() {
-        ProducerBuilderImpl<T> copy = new ProducerBuilderImpl<>(client, conf.clone(), schema);
-        copy.maxPendingMessagesConfigured = maxPendingMessagesConfigured;
-        copy.maxPendingMessagesAcrossPartitionsConfigured = maxPendingMessagesAcrossPartitionsConfigured;
-        return copy;
+        return new ProducerBuilderImpl<>(client, conf.clone(), schema);
     }
 
     @Override
@@ -119,8 +108,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             return FutureUtil.failedFuture(pce);
         }
 
-        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf,
-                maxPendingMessagesConfigured, maxPendingMessagesAcrossPartitionsConfigured);
+        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf);
 
         return interceptorList == null || interceptorList.size() == 0
                 ? client.createProducerAsync(producerConf, schema, null)
@@ -129,13 +117,19 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
+        // A limit present in the map was configured by the application, even when its value is the
+        // same as the unset one. loadData builds a new configuration instance by replaying every
+        // property through its setters, so the markers have to be carried over rather than read off
+        // the result.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || config.containsKey("maxPendingMessages");
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || config.containsKey("maxPendingMessagesAcrossPartitions");
         conf = ConfigurationDataUtils.loadData(
             config, conf, ProducerConfigurationData.class);
-        // A limit present in the map was configured by the application, even when its value is the
-        // same as the unset one. loadData builds a new configuration instance, so this cannot be
-        // tracked in the configuration itself.
-        maxPendingMessagesConfigured |= config.containsKey("maxPendingMessages");
-        maxPendingMessagesAcrossPartitionsConfigured |= config.containsKey("maxPendingMessagesAcrossPartitions");
+        conf.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        conf.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
         return this;
     }
 
@@ -161,7 +155,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
         conf.setMaxPendingMessages(maxPendingMessages);
-        maxPendingMessagesConfigured = true;
         return this;
     }
 
@@ -169,7 +162,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
-        maxPendingMessagesAcrossPartitionsConfigured = true;
         return this;
     }
 

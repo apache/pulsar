@@ -404,28 +404,29 @@ public class PulsarClientImpl implements PulsarClient {
      *
      * <p>These are defaults, not a floor. A limit the application configured is always kept — including
      * an explicit {@code 0}, which is how an application asks for no message-count limit at all. Only a
-     * limit that was never configured is filled in, which is why the caller passes in what it saw
-     * rather than letting this method infer it: {@code 0} is both the unset value and a meaningful
-     * explicit one.
+     * limit that was never configured is filled in, which is why this reads the markers the
+     * configuration carries rather than inferring it from the values: {@code 0} is both the unset value
+     * and a meaningful explicit one.
      *
-     * <p>Note that on a partitioned topic a filled-in across-partitions budget is still divided between
-     * the partitions afterwards, which can lower an explicitly configured per-producer limit.
+     * <p>What is filled in here stays marked as unconfigured, so on a partitioned topic
+     * {@link PartitionedProducerImpl} divides only a budget the application actually asked for. A
+     * filled-in budget never lowers a per-producer limit that was asked for.
      *
-     * <p>Called by {@link ProducerBuilderImpl}, which is what knows whether a limit was configured.
+     * <p>Called by {@link ProducerBuilderImpl}.
      *
-     * @param conf the requested producer configuration
-     * @param maxPendingMessagesConfigured whether the application configured {@code maxPendingMessages}
-     * @param maxPendingMessagesAcrossPartitionsConfigured whether the application configured
-     *                                                     {@code maxPendingMessagesAcrossPartitions}
+     * @param conf the requested producer configuration, carrying the markers that say which limits the
+     *             application configured
      * @return the configuration to create the producer with; a resolved copy when a default applies,
      *         otherwise {@code conf} unchanged
      */
-    public ProducerConfigurationData applyNoMemoryLimitProducerDefaults(ProducerConfigurationData conf,
-            boolean maxPendingMessagesConfigured, boolean maxPendingMessagesAcrossPartitionsConfigured) {
+    public ProducerConfigurationData applyNoMemoryLimitProducerDefaults(ProducerConfigurationData conf) {
         // A limit that is already positive was configured by definition, whichever way the
-        // configuration was populated. The flags only tell an explicit 0 apart from an unset one.
-        maxPendingMessagesConfigured |= conf.getMaxPendingMessages() > 0;
-        maxPendingMessagesAcrossPartitionsConfigured |= conf.getMaxPendingMessagesAcrossPartitions() > 0;
+        // configuration was populated. The markers only tell an explicit 0 apart from an unset one.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || conf.getMaxPendingMessages() > 0;
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || conf.getMaxPendingMessagesAcrossPartitions() > 0;
         if ((maxPendingMessagesConfigured && maxPendingMessagesAcrossPartitionsConfigured)
                 || memoryLimitController.isMemoryLimited()) {
             return conf;
@@ -437,10 +438,8 @@ public class PulsarClientImpl implements PulsarClient {
         if (maxPendingMessagesAcrossPartitionsConfigured) {
             maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
         } else if (maxPendingMessages == 0) {
-            // The application configured no per-producer limit. Filling in a partitions budget would
-            // put one back, because a partitioned producer derives its per-partition limit from it, so
-            // a single maxPendingMessages(0) is enough to ask for a producer with no message-count
-            // limit whatever the topic's shape.
+            // The application asked for no per-producer limit at all, so there is no queue for a
+            // budget to bound. Leaving it unset keeps the resolved configuration honest about that.
             maxPendingMessagesAcrossPartitions = 0;
         } else {
             maxPendingMessagesAcrossPartitions =
@@ -458,6 +457,12 @@ public class PulsarClientImpl implements PulsarClient {
         ProducerConfigurationData resolved = conf.clone();
         resolved.setMaxPendingMessages(maxPendingMessages);
         resolved.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        // The setters mark whatever they are given as configured, so restore the markers: what is
+        // filled in here is a default, and a partitioned producer still has to be able to tell it apart
+        // from a limit the application asked for, so that a budget it did ask for is the one that gets
+        // divided.
+        resolved.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        resolved.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Client memory limit is disabled, applying default producer pending message limits."
                             + " maxPendingMessages: {}, maxPendingMessagesAcrossPartitions: {}",

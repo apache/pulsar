@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -66,8 +65,8 @@ public class ProducerBuilderImplTest {
 
         // The builder asks the client to fill in the pending-message defaults before creating the
         // producer; on a mock that would otherwise hand back a null configuration.
-        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class), anyBoolean(),
-                anyBoolean())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         when(client.createProducerAsync(
                 any(ProducerConfigurationData.class), any(Schema.class), eq(null)))
@@ -138,8 +137,8 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.loadConf(Collections.singletonMap("maxPendingMessages", 5000));
 
         assertEquals(producerBuilderImpl.getConf().getMaxPendingMessages(), 5000);
-        assertTrue(producerBuilderImpl.isMaxPendingMessagesConfigured());
-        assertFalse(producerBuilderImpl.isMaxPendingMessagesAcrossPartitionsConfigured());
+        assertTrue(producerBuilderImpl.getConf().isMaxPendingMessagesConfigured());
+        assertFalse(producerBuilderImpl.getConf().isMaxPendingMessagesAcrossPartitionsConfigured());
     }
 
     @Test

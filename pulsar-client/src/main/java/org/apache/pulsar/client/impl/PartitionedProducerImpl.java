@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
@@ -85,14 +83,23 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 ? new PartitionedTopicProducerStatsRecorderImpl()
                 : null;
 
+        // The across-partitions budget is a total shared by every partition, so it is divided between
+        // them here, where the partition count is finally known. Both limits are read through their
+        // "configured" markers rather than by comparing against their unset value, because that value
+        // is 0 for both and 0 is also a meaningful explicit setting.
         // MaxPendingMessagesAcrossPartitions doesn't support partial partition such as SinglePartition correctly
         int maxPendingMessages = conf.getMaxPendingMessages();
         int maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
-        if (maxPendingMessagesAcrossPartitions != DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS) {
-            int maxPendingMsgsForOnePartition = maxPendingMessagesAcrossPartitions / numPartitions;
-            maxPendingMessages = (maxPendingMessages == DEFAULT_MAX_PENDING_MESSAGES)
-                    ? maxPendingMsgsForOnePartition
-                    : Math.min(maxPendingMessages, maxPendingMsgsForOnePartition);
+        if (conf.isMaxPendingMessagesAcrossPartitionsConfigured() && maxPendingMessagesAcrossPartitions > 0) {
+            // Never divide down to 0: a budget smaller than the partition count still asks for the
+            // smallest possible queue, not for the queue bound to be removed altogether.
+            int maxPendingMsgsForOnePartition =
+                    Math.max(1, maxPendingMessagesAcrossPartitions / numPartitions);
+            // A per-producer limit the application set wins, including an explicit 0 ("no message-count
+            // limit"). Only a limit it left unset — or one filled in as a default — adopts the share.
+            maxPendingMessages = conf.isMaxPendingMessagesConfigured()
+                    ? Math.min(maxPendingMessages, maxPendingMsgsForOnePartition)
+                    : maxPendingMsgsForOnePartition;
             conf.setMaxPendingMessages(maxPendingMessages);
         }
 

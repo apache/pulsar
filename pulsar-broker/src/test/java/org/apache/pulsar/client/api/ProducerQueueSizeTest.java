@@ -379,4 +379,107 @@ public class ProducerQueueSizeTest extends ProducerConsumerBase {
         assertThat(confOf(producer).getMaxPendingMessages()).isZero();
         assertThat(confOf(producer).getMaxPendingMessagesAcrossPartitions()).isZero();
     }
+
+    /**
+     * A budget the application asked for is what gets divided between the partitions. Pins that the
+     * per-producer default filled in alongside it does not win the division and cap every partition at
+     * that default instead of at its share of the budget.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExplicitAcrossPartitionsBudgetIsDividedBetweenThePartitions() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .maxPendingMessagesAcrossPartitions(60_000)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isEqualTo(6_000);
+    }
+
+    /**
+     * The mirror image: a budget that was only filled in as a default must not be divided, because
+     * dividing it would lower a per-producer limit the application did ask for.
+     */
+    @Test
+    public void testFilledInBudgetDoesNotLowerAnExplicitPerProducerLimit() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .maxPendingMessages(60_000)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isEqualTo(60_000);
+    }
+
+    /**
+     * A budget smaller than the partition count divides to zero, which used to remove the queue bound
+     * altogether — asking for a tighter budget made the producer unbounded. Each partition keeps the
+     * smallest possible queue instead.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testBudgetSmallerThanThePartitionCountStillBoundsEachPartition() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .maxPendingMessagesAcrossPartitions(5)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isEqualTo(1);
+    }
+
+    /**
+     * An explicit {@code 0} means "no message-count limit" and stays that way on a partitioned topic,
+     * even next to an across-partitions budget. Reading the unset value instead of the marker used to
+     * overwrite it with the budget's per-partition share.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExplicitZeroIsKeptAlongsideAnAcrossPartitionsBudget() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .maxPendingMessages(0)
+                .maxPendingMessagesAcrossPartitions(60_000)
+                .create();
+
+        assertThat(confOf(producer).getMaxPendingMessages()).isZero();
+    }
 }

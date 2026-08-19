@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.instance;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -111,8 +110,8 @@ public class ContextImplTest {
                 invocation -> new ProducerBuilderImpl(client, invocation.getArgument(0)));
         // The builder asks the client to fill in the pending-message defaults before creating the
         // producer; on a mock that would otherwise hand back a null configuration.
-        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class), anyBoolean(),
-                anyBoolean())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
