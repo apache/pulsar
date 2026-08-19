@@ -333,7 +333,7 @@ The Apache Software License, Version 2.0
     - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
- * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
+ * Netty Reactive Streams -- netty-reactive-streams-2.0.19.jar
  * Swagger -- swagger-annotations-jakarta-2.2.53.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
@@ -404,7 +404,7 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - async-http-client-3.0.10.jar
+    - async-http-client-3.0.13.jar
  * Jetty
     - jetty-alpn-client-12.1.12.jar
     - jetty-client-12.1.12.jar
@@ -473,9 +473,9 @@ Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.84.jar
-    - bcprov-jdk18on-1.84.jar
-    - bcutil-jdk18on-1.84.jar
+    - bcpkix-jdk18on-1.85.jar
+    - bcprov-jdk18on-1.85.2.jar
+    - bcutil-jdk18on-1.85.jar
 
 ------------------------
 

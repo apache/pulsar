@@ -198,6 +198,9 @@ dependencies {
 // Allow overriding the JDK used for running tests via -PtestJavaVersion=17
 val testJavaVersion = providers.gradleProperty("testJavaVersion").map { it.toInt() }
 val javaToolchains = extensions.getByType<JavaToolchainService>()
+// Effective Java major version used to run tests: the -PtestJavaVersion override when set,
+// otherwise the JVM running Gradle.
+val testJavaMajorVersion = testJavaVersion.orNull ?: JavaVersion.current().majorVersion.toInt()
 
 tasks.withType<Test>().configureEach {
     testJavaVersion.orNull?.let { version ->
@@ -265,20 +268,30 @@ tasks.withType<Test>().configureEach {
     // the record/enum types that ReflectDatumWriter and ReflectDatumReader resolve for every named
     // schema. Production code trusts Pulsar's own Avro types via PulsarAvroClassSecurity, but the test
     // suites also serialize hundreds of ad-hoc fixture POJOs, so trust the whole Pulsar namespace here.
-    // Avro's DEFAULT_TRUSTED_CLASSES already covers BigDecimal, BigInteger and Integer; URI, URL and
-    // File are @Stringable types that it does not cover.
-    systemProperty("org.apache.avro.SERIALIZABLE_PACKAGES", "org.apache.pulsar,com.google.protobuf")
-    // URI, URL and File are @Stringable types, and the collection types are recorded as a "java-class"
-    // property on generated array/map schemas; neither group is in Avro's DEFAULT_TRUSTED_CLASSES.
-    // Production code gets these through PulsarAvroClassSecurity, but not every test installs it.
-    systemProperty("org.apache.avro.SERIALIZABLE_CLASSES",
-        listOf(
-            "java.net.URI", "java.net.URL", "java.io.File",
-            "java.util.Collection", "java.util.List", "java.util.ArrayList",
-            "java.util.Set", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
-            "java.util.Map", "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
-            "java.util.concurrent.ConcurrentHashMap",
-        ).joinToString(","))
+    // Both the plain and the shaded property names are set: modules that test a shaded client jar
+    // (tests/pulsar-client-all-shade-test and friends) bundle a relocated Avro that reads the
+    // org.apache.pulsar.shade.* name instead.
+    listOf("org.apache.avro", "org.apache.pulsar.shade.org.apache.avro").forEach { avroPrefix ->
+        systemProperty("$avroPrefix.SERIALIZABLE_PACKAGES", "org.apache.pulsar,com.google.protobuf")
+        // URI, URL and File are @Stringable types, and the collection types are recorded as a
+        // "java-class" property on generated array/map schemas; neither group is in Avro's
+        // DEFAULT_TRUSTED_CLASSES (which does already cover BigDecimal, BigInteger and Integer).
+        systemProperty("$avroPrefix.SERIALIZABLE_CLASSES",
+            listOf(
+                "java.net.URI", "java.net.URL", "java.io.File",
+                "java.util.Collection", "java.util.List", "java.util.ArrayList",
+                "java.util.Set", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
+                "java.util.Map", "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
+                "java.util.concurrent.ConcurrentHashMap",
+            ).joinToString(","))
+    }
+    if (testJavaMajorVersion >= 24) {
+        // Netty loads its native libraries (epoll, io_uring, tcnative) through
+        // java.lang.System::loadLibrary, which is a restricted method as of Java 24. Without this
+        // every test JVM that touches a Netty native transport prints a multi-line warning to
+        // stderr, which is noise in test output and breaks assertions on empty stderr.
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
 }
 
 // Expose test classes for cross-module test dependencies (Maven test-jar equivalent)
