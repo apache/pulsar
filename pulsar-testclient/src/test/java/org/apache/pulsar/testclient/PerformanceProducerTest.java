@@ -236,6 +236,49 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
+    /**
+     * pulsar-perf runs with the client memory limit disabled unless {@code --memory-limit} is given, so
+     * the producer's only backpressure is its pending-message queue. Leaving the options unset has to
+     * leave the client's own defaults in place; passing their unset value of 0 through would read as an
+     * explicit "no message-count limit" and leave the producer unbounded, which is what exhausts direct
+     * memory against a slow broker on a non-partitioned topic.
+     */
+    @Test(timeOut = 20000)
+    public void testPendingMessageLimitsAreLeftToTheClientWhenUnset() throws Exception {
+        PerformanceProducer producer = new PerformanceProducer();
+        producer.topics = List.of(testTopic + UUID.randomUUID());
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+
+        @Cleanup
+        PulsarClient client = PerfClientUtils.createClientBuilderFromArguments(producer).build();
+        ProducerBuilderImpl<byte[]> builder =
+                (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client, 0);
+
+        Assert.assertNull(producer.maxOutstanding);
+        Assert.assertNull(producer.maxPendingMessagesAcrossPartitions);
+        Assert.assertTrue(builder.getConf().getMaxPendingMessages() > 0);
+        Assert.assertTrue(builder.getConf().getMaxPendingMessagesAcrossPartitions() > 0);
+    }
+
+    /**
+     * An option that is given still wins over the client default, and either one can be given on its
+     * own — the across-partitions budget is allowed to be below the per-producer limit.
+     */
+    @Test(timeOut = 20000)
+    public void testGivenPendingMessageLimitsAreApplied() throws Exception {
+        PerformanceProducer producer = new PerformanceProducer();
+        producer.topics = List.of(testTopic + UUID.randomUUID());
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+        producer.maxPendingMessagesAcrossPartitions = 500;
+
+        @Cleanup
+        PulsarClient client = PerfClientUtils.createClientBuilderFromArguments(producer).build();
+        ProducerBuilderImpl<byte[]> builder =
+                (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client, 0);
+
+        Assert.assertEquals(builder.getConf().getMaxPendingMessagesAcrossPartitions(), 500);
+    }
+
     @Test
     public void testRangeConvert() {
         PerformanceProducer.RangeConvert rangeConvert = new PerformanceProducer.RangeConvert();
