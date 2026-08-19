@@ -260,8 +260,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(producer.maxOutstanding);
         Assert.assertNull(producer.maxPendingMessagesAcrossPartitions);
         // pulsar-perf must not configure either limit, so that they stay the client's to decide.
-        Assert.assertFalse(builder.isMaxPendingMessagesConfigured());
-        Assert.assertFalse(builder.isMaxPendingMessagesAcrossPartitionsConfigured());
+        Assert.assertFalse(builder.getConf().isMaxPendingMessagesConfigured());
+        Assert.assertFalse(builder.getConf().isMaxPendingMessagesAcrossPartitionsConfigured());
 
         // The client resolves its no-memory-limit defaults when the producer is created rather than on
         // the builder, so the effective configuration is where they have to show up.

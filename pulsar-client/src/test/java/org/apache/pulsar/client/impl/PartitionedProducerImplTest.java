@@ -300,14 +300,21 @@ public class PartitionedProducerImplTest {
                 clientImpl, topicName, producerConfData, 1, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 10);
 
-        // Test set MaxPendingMessagesAcrossPartitions=5
-        producerConfData.setMaxPendingMessages(ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES);
+        // Test set MaxPendingMessagesAcrossPartitions=5 with maxPendingMessages left unset. A fresh
+        // configuration is required to express "unset": setting maxPendingMessages back to 0 would mean
+        // "no message-count limit", which is a limit of its own and would win over the budget's share.
+        producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
         producerConfData.setMaxPendingMessagesAcrossPartitions(5);
         partitionedProducerImpl = new PartitionedProducerImpl(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
 
         // Test set maxPendingMessage=10 and MaxPendingMessagesAcrossPartitions=10 with 2 partitions
+        producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
         producerConfData.setMaxPendingMessages(10);
         producerConfData.setMaxPendingMessagesAcrossPartitions(10);
         partitionedProducerImpl = new PartitionedProducerImpl(
