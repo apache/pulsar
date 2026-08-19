@@ -82,7 +82,7 @@ snakeyaml = "2.6"
 # Vert.x
 vertx = "4.5.32"
 # Networking / HTTP
-asynchttpclient = "3.0.10"
+asynchttpclient = "3.0.13"
 conscrypt = "2.6.2"
 okhttp3 = "5.5.0"
 okio = "3.18.1"
@@ -136,7 +136,7 @@ java-semver = "0.10.2"
 # oshi is capped at 6.x: at 7.0.0 the oshi-core-java11 artifact became a pom-only
 # relocation stub pointing at com.github.oshi:oshi-core, which is a coordinate change
 oshi = "6.12.0"
-netty-reactive-streams = "2.0.6"
+netty-reactive-streams = "2.0.19"
 # 9.2.0+ is required for CronType.SPRING53 (Spring 5.3+ cron syntax)
 cron-utils = "9.2.1"
 failsafe = "3.3.2"
