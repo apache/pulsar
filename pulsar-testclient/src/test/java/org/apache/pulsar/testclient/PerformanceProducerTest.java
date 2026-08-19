@@ -32,9 +32,12 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -234,6 +237,58 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         thread.interrupt();
         thread.join();
         consumer.close();
+    }
+
+    /**
+     * pulsar-perf runs with the client memory limit disabled unless {@code --memory-limit} is given, so
+     * the producer's only backpressure is its pending-message queue. Leaving the options unset has to
+     * leave the client's own defaults in place; passing their unset value of 0 through would read as an
+     * explicit "no message-count limit" and leave the producer unbounded, which is what exhausts direct
+     * memory against a slow broker on a non-partitioned topic.
+     */
+    @Test(timeOut = 20000)
+    public void testPendingMessageLimitsAreLeftToTheClientWhenUnset() throws Exception {
+        PerformanceProducer producer = new PerformanceProducer();
+        producer.topics = List.of(testTopic + UUID.randomUUID());
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+
+        @Cleanup
+        PulsarClient client = PerfClientUtils.createClientBuilderFromArguments(producer).build();
+        ProducerBuilderImpl<byte[]> builder =
+                (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client, 0);
+
+        Assert.assertNull(producer.maxOutstanding);
+        Assert.assertNull(producer.maxPendingMessagesAcrossPartitions);
+        // pulsar-perf must not configure either limit, so that they stay the client's to decide.
+        Assert.assertFalse(builder.isMaxPendingMessagesConfigured());
+        Assert.assertFalse(builder.isMaxPendingMessagesAcrossPartitionsConfigured());
+
+        // The client resolves its no-memory-limit defaults when the producer is created rather than on
+        // the builder, so the effective configuration is where they have to show up.
+        @Cleanup
+        Producer<byte[]> createdProducer = builder.topic(producer.topics.get(0)).create();
+        ProducerConfigurationData conf = ((ProducerBase<byte[]>) createdProducer).getConfiguration();
+        Assert.assertTrue(conf.getMaxPendingMessages() > 0);
+        Assert.assertTrue(conf.getMaxPendingMessagesAcrossPartitions() > 0);
+    }
+
+    /**
+     * An option that is given still wins over the client default, and either one can be given on its
+     * own — the across-partitions budget is allowed to be below the per-producer limit.
+     */
+    @Test(timeOut = 20000)
+    public void testGivenPendingMessageLimitsAreApplied() throws Exception {
+        PerformanceProducer producer = new PerformanceProducer();
+        producer.topics = List.of(testTopic + UUID.randomUUID());
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+        producer.maxPendingMessagesAcrossPartitions = 500;
+
+        @Cleanup
+        PulsarClient client = PerfClientUtils.createClientBuilderFromArguments(producer).build();
+        ProducerBuilderImpl<byte[]> builder =
+                (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client, 0);
+
+        Assert.assertEquals(builder.getConf().getMaxPendingMessagesAcrossPartitions(), 500);
     }
 
     @Test

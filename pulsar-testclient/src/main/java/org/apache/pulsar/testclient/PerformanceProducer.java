@@ -22,8 +22,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Range;
@@ -64,6 +62,7 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -134,12 +133,13 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             + "larger than allowed max size")
     private boolean chunkingAllowed = false;
 
-    @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
-    public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
+    @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages. "
+            + "Left to the client default when unset")
+    public Integer maxOutstanding;
 
     @Option(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding "
-            + "messages across partitions")
-    public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+            + "messages across partitions. Left to the client default when unset")
+    public Integer maxPendingMessagesAcrossPartitions;
 
     @Option(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number "
             + "of partitions, set 0 to not try to create the topic")
@@ -447,14 +447,21 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
     }
 
     ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, int producerId) {
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
+        // pulsar-perf runs with the client memory limit disabled unless --memory-limit is given, so the
+        // client's pending-message defaults are the producer's only backpressure. They are applied to
+        // any producer whose limits are left unset, whichever newProducer() overload is used.
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES) //
                 .sendTimeout(this.sendTimeout, TimeUnit.SECONDS) //
                 .compressionType(this.compression) //
-                .maxPendingMessages(this.maxOutstanding) //
                 .accessMode(this.producerAccessMode)
                 // enable round robin message routing if it is a partitioned topic
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        if (this.maxPendingMessagesAcrossPartitions > 0) {
+        // Only pass a limit the user actually asked for. Their unset value is 0, which the client reads
+        // as "no message-count limit", so passing it through would leave the producer unbounded.
+        if (this.maxOutstanding != null) {
+            producerBuilder.maxPendingMessages(this.maxOutstanding);
+        }
+        if (this.maxPendingMessagesAcrossPartitions != null) {
             producerBuilder.maxPendingMessagesAcrossPartitions(this.maxPendingMessagesAcrossPartitions);
         }
 
