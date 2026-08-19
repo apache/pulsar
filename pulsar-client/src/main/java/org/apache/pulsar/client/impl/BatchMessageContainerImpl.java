@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.ToIntFunction;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -64,29 +63,24 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
-    // PIP-486: when set, createOpSendMsg() stamps entry_hash_min/max on the batch metadata from the
-    // min/max entry-bucket hash of the batch's messages. Null for non-scalable producers (no stamping,
-    // so the path is byte-identical to before).
-    private ToIntFunction<MessageImpl<?>> entryBucketHashFn;
+    // PIP-486: when enabled, the min/max entry-bucket hash is maintained while messages are added and
+    // createOpSendMsg() stamps it on the batch metadata.
+    private boolean entryBucketHashStampingEnabled;
+    private int minEntryBucketHash = Integer.MAX_VALUE;
+    private int maxEntryBucketHash = Integer.MIN_VALUE;
 
-    void setEntryBucketHashFn(ToIntFunction<MessageImpl<?>> entryBucketHashFn) {
-        this.entryBucketHashFn = entryBucketHashFn;
+    void setEntryBucketHashStampingEnabled(boolean entryBucketHashStampingEnabled) {
+        this.entryBucketHashStampingEnabled = entryBucketHashStampingEnabled;
     }
 
-    /** PIP-486: stamp the effective entry-bucket hash range (min/max over the batch's messages). */
-    private void stampEntryBucketRange() {
-        if (entryBucketHashFn == null || messages.isEmpty()) {
+    /** PIP-486: stamp the entry-bucket hash range maintained while messages are added to the batch. */
+    @VisibleForTesting
+    void stampEntryBucketRange() {
+        if (!entryBucketHashStampingEnabled || messages.isEmpty()) {
             return;
         }
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        for (int i = 0; i < messages.size(); i++) {
-            int h = entryBucketHashFn.applyAsInt(messages.get(i));
-            min = Math.min(min, h);
-            max = Math.max(max, h);
-        }
-        messageMetadata.setEntryHashMin(min);
-        messageMetadata.setEntryHashMax(max);
+        messageMetadata.setEntryHashMin(minEntryBucketHash);
+        messageMetadata.setEntryHashMax(maxEntryBucketHash);
     }
 
     protected final ByteBufAllocator allocator;
@@ -113,10 +107,22 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-            log.debug().attr("topic", topicName)
-                    .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
-                    .attr("numMessagesInBatch", numMessagesInBatch)
-                    .log("add message to batch");
+        if (entryBucketHashStampingEnabled) {
+            throw new IllegalStateException(
+                    "The entry-bucket hash must be provided when entry-bucket hash stamping is enabled");
+        }
+        return add(msg, callback, 0);
+    }
+
+    /**
+     * Adds a message whose entry-bucket hash has already been computed, avoiding a second hash
+     * calculation when the send operation is created.
+     */
+    boolean add(MessageImpl<?> msg, SendCallback callback, int entryBucketHash) {
+        log.debug().attr("topic", topicName)
+                .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
+                .attr("numMessagesInBatch", numMessagesInBatch)
+                .log("add message to batch");
 
         if (++numMessagesInBatch == 1) {
             try {
@@ -152,6 +158,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+        if (entryBucketHashStampingEnabled) {
+            minEntryBucketHash = Math.min(minEntryBucketHash, entryBucketHash);
+            maxEntryBucketHash = Math.max(maxEntryBucketHash, entryBucketHash);
+        }
         tryUpdateTimestamp();
 
         if (lowestSequenceId == -1L) {
@@ -252,6 +262,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         currentBatchSizeBytes = 0;
         lowestSequenceId = -1L;
         highestSequenceId = -1L;
+        minEntryBucketHash = Integer.MAX_VALUE;
+        maxEntryBucketHash = Integer.MIN_VALUE;
         batchedMessageMetadataAndPayload = null;
         currentTxnidMostBits = -1L;
         currentTxnidLeastBits = -1L;

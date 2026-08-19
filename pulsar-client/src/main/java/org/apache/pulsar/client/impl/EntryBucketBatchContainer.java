@@ -54,13 +54,14 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        int bucket = bucketOf(splits, entryBucketHash(msg));
+        int hashCode = entryBucketHash(msg);
+        int bucket = bucketOf(splits, hashCode);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(bucket, __ -> {
             BatchMessageContainerImpl c = new BatchMessageContainerImpl(producer);
-            c.setEntryBucketHashFn(this::entryBucketHash);
+            c.setEntryBucketHashStampingEnabled(true);
             return c;
         });
-        batchMessageContainer.add(msg, callback);
+        batchMessageContainer.add(msg, callback, hashCode);
         // `add` fails iff the container was empty and `msg` (the first message) failed; then the
         // container is cleared and there is nothing to count.
         if (!batchMessageContainer.isEmpty()) {
