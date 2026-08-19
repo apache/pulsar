@@ -20,13 +20,17 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -47,6 +51,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -185,6 +190,10 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         closePendingAckStoreWithRetry(store);
     }
 
+    private MLPendingAckStore createPendingAckStoreForReplay(ManagedCursor cursor) {
+        return createPendingAckStoreForReplay(cursor, new ManagedLedgerConfig());
+    }
+
     /**
      * Builds a store whose replay loop starts in the state described by the parameters, without going
      * through the provider: the replay guard compares {@code lastConfirmedEntry} (a snapshot of the
@@ -192,15 +201,21 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      * cursor's mark-delete position, while whether anything can still be read is decided separately by
      * {@link ManagedCursor#hasMoreEntries()}.
      */
-    private MLPendingAckStore createPendingAckStoreForReplay(ManagedCursor cursor) {
+    private MLPendingAckStore createPendingAckStoreForReplay(ManagedCursor cursor, ManagedLedgerConfig mlConfig) {
+        return createPendingAckStoreForReplay(cursor, mlConfig, mock(Timer.class), false);
+    }
+
+    private MLPendingAckStore createPendingAckStoreForReplay(ManagedCursor cursor, ManagedLedgerConfig mlConfig,
+                                                             Timer timer, boolean batchEnabled) {
         ManagedLedger managedLedger = mock(ManagedLedger.class);
         when(managedLedger.getName()).thenReturn("test-pending-ack-log");
+        when(managedLedger.getConfig()).thenReturn(mlConfig);
         // Deliberately ahead of the cursor's mark-delete position, so the replay loop's guard stays true.
         when(managedLedger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(5, 10));
         TxnLogBufferedWriterConfig config = new TxnLogBufferedWriterConfig();
-        config.setBatchEnabled(false);
+        config.setBatchEnabled(batchEnabled);
         return new MLPendingAckStore(managedLedger, cursor, mock(ManagedCursor.class), 1, config,
-                mock(Timer.class), DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS,
+                timer, DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS,
                 internalPinnedExecutor);
     }
 
@@ -376,6 +391,159 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
                     .exceptionHandleFuture(any(InterruptedException.class));
             // An interrupted replay is incomplete and must never be reported as successful.
             verify(pendingAckHandle, never()).completeHandleFuture();
+        } finally {
+            replayExecutor.shutdownNow();
+        }
+    }
+
+    @DataProvider(name = "replayEndingReadFailures")
+    public Object[][] replayEndingReadFailuresProvider() {
+        return new Object[][]{
+                // A deleted pending ack ledger with autoSkipNonRecoverableData disabled (the default):
+                // retrying can never succeed, so the subscription must fail fast.
+                {new ManagedLedgerException.LedgerNotExistException("Ledger does not exist")},
+                // A transient BookKeeper failure ("Bookie handle is not available", BK code -8). The
+                // configured read timeout surfaces as this same plain class. The retry belongs in
+                // PendingAckHandleImpl's backoff-paced init(), not in a hot read loop.
+                {new ManagedLedgerException("Bookie handle is not available")},
+                // Read throttling: also transient, also paced by the handle's backoff.
+                {new ManagedLedgerException.TooManyRequestsException("Too many concurrent reads")},
+        };
+    }
+
+    /**
+     * A read failure outside the historically recognised set must end the replay attempt through
+     * {@code replayFailed}, handing the original exception unwrapped to
+     * {@link PendingAckHandleImpl#exceptionHandleFuture}, which either retries with backoff (transient
+     * failures) or fails the subscription fast (non-recoverable data without auto-skip). Before the fix
+     * these exceptions did not stop the loop: the identical read was re-issued forever, monopolising
+     * the replay thread shared by every subscription hashed onto it (issue #26374).
+     */
+    @Test(dataProvider = "replayEndingReadFailures")
+    public void testReadFailureEndsReplayAttempt(ManagedLedgerException failure) throws Exception {
+        ManagedCursor cursor = createReplayCursorMock();
+        when(cursor.isClosed()).thenReturn(false);
+        when(cursor.hasMoreEntries()).thenReturn(true);
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(failure, null);
+            return null;
+        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        MLPendingAckStore pendingAckStore = createPendingAckStoreForReplay(cursor);
+
+        ExecutorService replayExecutor = Executors.newSingleThreadExecutor();
+        try {
+            PendingAckHandleImpl pendingAckHandle = mock(PendingAckHandleImpl.class);
+            when(pendingAckHandle.getInternalPinnedExecutor()).thenReturn(replayExecutor);
+
+            pendingAckStore.replayAsync(pendingAckHandle, replayExecutor);
+
+            // The original exception must arrive unwrapped: isRetryableException discriminates on the
+            // concrete class.
+            verify(pendingAckHandle, timeout(TimeUnit.SECONDS.toMillis(10))).exceptionHandleFuture(same(failure));
+            // The replay thread is shared: a task queued behind the ended replay must get to run.
+            CountDownLatch queuedBehindReplay = new CountDownLatch(1);
+            replayExecutor.execute(queuedBehindReplay::countDown);
+            Assert.assertTrue(queuedBehindReplay.await(10, TimeUnit.SECONDS),
+                    "A task queued behind the replay never ran: the replay thread was not released");
+            // A failed attempt must never also be reported successful. Sequenced after the queued task,
+            // so a wrongly scheduled replayComplete would already have run on replayExecutor.
+            verify(pendingAckHandle, never()).completeHandleFuture();
+            // One read, one failure, one outcome: the store must not retry the read itself.
+            verify(cursor, times(1)).asyncReadEntries(anyInt(), any(), any(), any());
+            // The cursor is cached and reused by the retry, so a failed attempt must rewind it: reads
+            // run ahead of processing, and entries this attempt read but never applied were released.
+            verify(cursor).rewind();
+        } finally {
+            replayExecutor.shutdownNow();
+        }
+    }
+
+    @DataProvider(name = "replayCompletingReadFailures")
+    public Object[][] replayCompletingReadFailuresProvider() {
+        return new Object[][]{
+                {new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"), true},
+                {new ManagedLedgerException.ManagedLedgerFencedException(), false},
+                {new ManagedLedgerException.CursorAlreadyClosedException("Cursor already closed"), false},
+        };
+    }
+
+    /**
+     * The three historically recognised read failures keep completing the replay: non-recoverable data
+     * is skipped when autoSkipNonRecoverableData is the operator's explicit choice, and a fenced
+     * managed ledger or an already-closed cursor means the store is being taken over or torn down,
+     * where the handle must still reach Ready to release its callers. Store-level pin of the behaviour
+     * TransactionTest#testEndTPRecoveringWhenManagerLedgerDisReadable asserts end to end; a fix that
+     * routed every read failure to replayFailed would fail this.
+     */
+    @Test(dataProvider = "replayCompletingReadFailures")
+    public void testReadFailuresThatCompleteTheReplay(ManagedLedgerException failure, boolean autoSkip)
+            throws Exception {
+        ManagedCursor cursor = createReplayCursorMock();
+        when(cursor.isClosed()).thenReturn(false);
+        when(cursor.hasMoreEntries()).thenReturn(true);
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(failure, null);
+            return null;
+        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        mlConfig.setAutoSkipNonRecoverableData(autoSkip);
+        MLPendingAckStore pendingAckStore = createPendingAckStoreForReplay(cursor, mlConfig);
+
+        ExecutorService replayExecutor = Executors.newSingleThreadExecutor();
+        try {
+            PendingAckHandleImpl pendingAckHandle = mock(PendingAckHandleImpl.class);
+            when(pendingAckHandle.getInternalPinnedExecutor()).thenReturn(replayExecutor);
+            when(pendingAckHandle.changeToReadyState()).thenReturn(true);
+            CountDownLatch replayFinished = new CountDownLatch(1);
+            doAnswer(invocation -> {
+                replayFinished.countDown();
+                return null;
+            }).when(pendingAckHandle).completeHandleFuture();
+
+            pendingAckStore.replayAsync(pendingAckHandle, replayExecutor);
+
+            Assert.assertTrue(replayFinished.await(10, TimeUnit.SECONDS),
+                    "Replay did not complete for " + failure.getClass().getSimpleName());
+            verify(pendingAckHandle, never()).exceptionHandleFuture(any());
+            // A replay that completes must leave the shared cursor's read position alone.
+            verify(cursor, never()).rewind();
+        } finally {
+            replayExecutor.shutdownNow();
+        }
+    }
+
+    /**
+     * A failed replay attempt orphans its store, because the retry builds a new one. It must therefore
+     * close its buffered writer, whose timing flush task otherwise reschedules itself forever when
+     * pending ack batching is enabled and nothing is left holding a reference that could stop it.
+     */
+    @Test
+    public void testFailedReplayAttemptClosesBufferedWriter() throws Exception {
+        ManagedCursor cursor = createReplayCursorMock();
+        when(cursor.isClosed()).thenReturn(false);
+        when(cursor.hasMoreEntries()).thenReturn(true);
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException("Bookie handle is not available"), null);
+            return null;
+        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        Timer timer = mock(Timer.class);
+        Timeout flushTimeout = mock(Timeout.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenReturn(flushTimeout);
+        MLPendingAckStore pendingAckStore =
+                createPendingAckStoreForReplay(cursor, new ManagedLedgerConfig(), timer, true);
+
+        ExecutorService replayExecutor = Executors.newSingleThreadExecutor();
+        try {
+            PendingAckHandleImpl pendingAckHandle = mock(PendingAckHandleImpl.class);
+            when(pendingAckHandle.getInternalPinnedExecutor()).thenReturn(replayExecutor);
+
+            pendingAckStore.replayAsync(pendingAckHandle, replayExecutor);
+
+            verify(pendingAckHandle, timeout(TimeUnit.SECONDS.toMillis(10))).exceptionHandleFuture(any());
+            verify(flushTimeout, timeout(TimeUnit.SECONDS.toMillis(10))).cancel();
         } finally {
             replayExecutor.shutdownNow();
         }
