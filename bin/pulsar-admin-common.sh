@@ -118,6 +118,14 @@ if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
   # Required by Netty for optimized direct byte buffer access
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty loads native libraries (epoll, io_uring, tcnative) via java.lang.System::loadLibrary,
+  # which is a restricted method from Java 24 onwards. Without this the JVM prints a warning to
+  # stderr on every invocation, and restricted methods will be blocked outright in a future
+  # release. bin/pulsar already sets this for the server side.
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
+fi
 # These two settings work together to ensure the Pulsar process exits immediately and predictably
 # if it runs out of either Java heap memory or its internal off-heap memory,
 # as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
