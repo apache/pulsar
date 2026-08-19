@@ -267,7 +267,7 @@ The Apache Software License, Version 2.0
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.64.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
-    - com.google.code.gson-gson-2.13.2.jar
+    - com.google.code.gson-gson-2.14.0.jar
     - io.gsonfire-gson-fire-1.9.0.jar
  * Guava
     - com.google.guava-guava-33.6.0-jre.jar
@@ -432,12 +432,12 @@ The Apache Software License, Version 2.0
  * SnakeYaml -- org.yaml-snakeyaml-2.6.jar
  * RocksDB - org.rocksdb-rocksdbjni-9.9.3.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.50.0.jar
- * Apache Thrift - org.apache.thrift-libthrift-0.23.0.jar
+ * Apache Thrift - org.apache.thrift-libthrift-0.24.0.jar
  * OkHttp3
-     - com.squareup.okhttp3-logging-interceptor-5.3.2.jar
-     - com.squareup.okhttp3-okhttp-jvm-5.3.2.jar
+     - com.squareup.okhttp3-logging-interceptor-5.5.0.jar
+     - com.squareup.okhttp3-okhttp-jvm-5.5.0.jar
  * Okio
-     - com.squareup.okio-okio-jvm-3.17.0.jar
+     - com.squareup.okio-okio-jvm-3.18.1.jar
  * Javassist -- org.javassist-javassist-3.32.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-2.2.21.jar
@@ -469,15 +469,15 @@ The Apache Software License, Version 2.0
     - org.apache.avro-avro-1.12.0.jar
     - org.apache.avro-avro-protobuf-1.12.0.jar
   * Apache Curator
-    - org.apache.curator-curator-client-5.7.1.jar
-    - org.apache.curator-curator-framework-5.7.1.jar
-    - org.apache.curator-curator-recipes-5.7.1.jar
+    - org.apache.curator-curator-client-5.9.0.jar
+    - org.apache.curator-curator-framework-5.9.0.jar
+    - org.apache.curator-curator-recipes-5.9.0.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-26.0.0.jar
-    - io.kubernetes-client-java-api-26.0.0.jar
-    - io.kubernetes-client-java-proto-26.0.0.jar
+    - io.kubernetes-client-java-27.0.0.jar
+    - io.kubernetes-client-java-api-27.0.0.jar
+    - io.kubernetes-client-java-proto-27.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-4.2.39.jar
     - io.dropwizard.metrics-metrics-graphite-4.2.39.jar
@@ -499,11 +499,11 @@ The Apache Software License, Version 2.0
     - org.jctools-jctools-core-4.0.7.jar
     - org.jctools-jctools-core-jdk11-4.0.7.jar
   * Vertx
-    - io.vertx-vertx-auth-common-4.5.28.jar
-    - io.vertx-vertx-bridge-common-4.5.28.jar
-    - io.vertx-vertx-core-4.5.28.jar
-    - io.vertx-vertx-web-4.5.28.jar
-    - io.vertx-vertx-web-common-4.5.28.jar
+    - io.vertx-vertx-auth-common-4.5.32.jar
+    - io.vertx-vertx-bridge-common-4.5.32.jar
+    - io.vertx-vertx-core-4.5.32.jar
+    - io.vertx-vertx-web-4.5.32.jar
+    - io.vertx-vertx-web-common-4.5.32.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.9.5.jar
   * Snappy Java
@@ -548,9 +548,9 @@ The Apache Software License, Version 2.0
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-1.43.0.jar -- ../licenses/LICENSE-google-auth-library.txt
-    - com.google.auth-google-auth-library-oauth2-http-1.43.0.jar -- ../licenses/LICENSE-google-auth-library.txt
- * Google API Common -- com.google.api-api-common-2.53.0.jar
+    - com.google.auth-google-auth-library-credentials-1.48.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-1.48.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+ * Google API Common -- com.google.api-api-common-2.64.0.jar
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
@@ -626,9 +626,9 @@ Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.84.jar
-    - org.bouncycastle-bcprov-jdk18on-1.84.jar
-    - org.bouncycastle-bcutil-jdk18on-1.84.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.85.jar
+    - org.bouncycastle-bcprov-jdk18on-1.85.2.jar
+    - org.bouncycastle-bcutil-jdk18on-1.85.jar
 
 ------------------------
 

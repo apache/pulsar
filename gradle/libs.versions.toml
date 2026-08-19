@@ -55,21 +55,37 @@ commons-logging = "1.4.0"
 commons-beanutils = "1.11.0"
 commons-configuration2 = "2.15.1"
 # BouncyCastle
-bouncycastle = "1.84"
-bouncycastle-bcpkix-fips = "2.0.11"
-bouncycastle-bcutil-fips = "2.0.6"
-bouncycastle-bc-fips = "2.0.1"
+bouncycastle = "1.85"
+# bcprov is versioned separately: BouncyCastle shipped a provider-only patch release (1.85.2)
+# that was not published for bcpkix-jdk18on or bctls-jdk18on, which remain at 1.85
+bouncycastle-bcprov = "1.85.2"
+# BouncyCastle FIPS. Test-only in this build (tests/pulsar-client-test-bcfips): the server distribution
+# excludes bc-fips and ships the non-FIPS provider, so a FIPS deployment assembles its own classpath.
+#
+# The FIPS 140-3 cryptographic boundary is the bc-fips jar *file name*, so exactly one version per line
+# is the validated module — the security policies name bc-fips-2.1.1.jar and bc-fips-2.0.0.jar:
+#   #4943  BC-FJA 2.1.1  active, "Interim Validation", sunset 2027-01-16  https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4943
+#   #4743  BC-FJA 2.0.0  active,                       sunset 2029-07-28  https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4743
+# BouncyCastle ships security fixes only in later releases of a line — labelled "Provider (patched)" on
+# its download page — and submits them for certification afterwards, so no certified jar is CVE-free:
+# 2.1.1 has 13 known CVEs and 2.0.0 has 11, two CVSS 9.3 in each (CVE-2026-8763, CVE-2026-58062).
+# The versions below are the vendor's minimum fixed versions for the 2.1.x line and have none. They are
+# no worse than the previous 2.0.1/2.0.11/2.0.6 pins on certification — those were not certified either.
+# bcpkix-fips and bcutil-fips are outside the certified boundary.
+bouncycastle-bcpkix-fips = "2.1.12"
+bouncycastle-bcutil-fips = "2.1.7"
+bouncycastle-bc-fips = "2.1.3"
 # Serialization
 avro = "1.12.0"
-gson = "2.13.2"
+gson = "2.14.0"
 snakeyaml = "2.6"
 # Vert.x
-vertx = "4.5.28"
+vertx = "4.5.32"
 # Networking / HTTP
 asynchttpclient = "3.0.13"
 conscrypt = "2.6.2"
-okhttp3 = "5.3.2"
-okio = "3.17.0"
+okhttp3 = "5.5.0"
+okio = "3.18.1"
 netty-tcnative = "2.0.81.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
@@ -110,7 +126,7 @@ javassist = "3.32.0-GA"
 rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
 # Misc
-curator = "5.7.1"
+curator = "5.9.0"
 reflections = "0.10.2"
 # OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
 swagger = "2.2.53"
@@ -177,11 +193,11 @@ skyscreamer = "1.5.3"
 # misc
 zstd-jni = "1.5.7-15"
 lz4java = "1.11.2"
-kubernetesclient = "26.0.0"
-aws-sdk = "1.12.788"
+kubernetesclient = "27.0.0"
+aws-sdk = "1.12.797"
 hadoop3 = "3.5.0"
-jclouds = "2.6.0"
-thrift = "0.23.0"
+jclouds = "2.7.0"
+thrift = "0.24.0"
 datasketches-memory = "4.1.0"
 datasketches-java = "7.0.1"
 # Shading
@@ -461,7 +477,7 @@ hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
 docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
-json-smart = "net.minidev:json-smart:2.5.2"
+json-smart = "net.minidev:json-smart:2.6.0"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
 athenz-zts-java-client = { module = "com.yahoo.athenz:athenz-zts-java-client", version.ref = "athenz" }
@@ -469,7 +485,7 @@ athenz-cert-refresher = { module = "com.yahoo.athenz:athenz-cert-refresher", ver
 athenz-auth-core = { module = "com.yahoo.athenz:athenz-auth-core", version.ref = "athenz" }
 athenz-zpe-java-client = { module = "com.yahoo.athenz:athenz-zpe-java-client", version.ref = "athenz" }
 # Misc
-bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle-bcprov" }
 bctls-jdk18on = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
 commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
 commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }

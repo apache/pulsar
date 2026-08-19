@@ -327,7 +327,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- caffeine-3.2.4.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.6.2.jar
  * Gson
-    - gson-2.13.2.jar
+    - gson-2.14.0.jar
  * Guava
     - guava-33.6.0-jre.jar
     - failureaccess-1.0.3.jar
@@ -473,9 +473,9 @@ Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.84.jar
-    - bcprov-jdk18on-1.84.jar
-    - bcutil-jdk18on-1.84.jar
+    - bcpkix-jdk18on-1.85.jar
+    - bcprov-jdk18on-1.85.2.jar
+    - bcutil-jdk18on-1.85.jar
 
 ------------------------
 
