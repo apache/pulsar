@@ -32,9 +32,12 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -256,8 +259,17 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertNull(producer.maxOutstanding);
         Assert.assertNull(producer.maxPendingMessagesAcrossPartitions);
-        Assert.assertTrue(builder.getConf().getMaxPendingMessages() > 0);
-        Assert.assertTrue(builder.getConf().getMaxPendingMessagesAcrossPartitions() > 0);
+        // pulsar-perf must not configure either limit, so that they stay the client's to decide.
+        Assert.assertFalse(builder.isMaxPendingMessagesConfigured());
+        Assert.assertFalse(builder.isMaxPendingMessagesAcrossPartitionsConfigured());
+
+        // The client resolves its no-memory-limit defaults when the producer is created rather than on
+        // the builder, so the effective configuration is where they have to show up.
+        @Cleanup
+        Producer<byte[]> createdProducer = builder.topic(producer.topics.get(0)).create();
+        ProducerConfigurationData conf = ((ProducerBase<byte[]>) createdProducer).getConfiguration();
+        Assert.assertTrue(conf.getMaxPendingMessages() > 0);
+        Assert.assertTrue(conf.getMaxPendingMessagesAcrossPartitions() > 0);
     }
 
     /**

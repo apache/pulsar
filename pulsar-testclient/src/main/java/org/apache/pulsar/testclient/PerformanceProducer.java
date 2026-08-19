@@ -447,9 +447,9 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
     }
 
     ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, int producerId) {
-        // Schema.BYTES rather than the no-argument newProducer(): the latter skips the pending-message
-        // defaults the client applies when its memory limit is disabled, which is how pulsar-perf runs
-        // unless --memory-limit is given.
+        // pulsar-perf runs with the client memory limit disabled unless --memory-limit is given, so the
+        // client's pending-message defaults are the producer's only backpressure. They are applied to
+        // any producer whose limits are left unset, whichever newProducer() overload is used.
         ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES) //
                 .sendTimeout(this.sendTimeout, TimeUnit.SECONDS) //
                 .compressionType(this.compression) //
