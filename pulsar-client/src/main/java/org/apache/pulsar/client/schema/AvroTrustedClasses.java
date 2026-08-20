@@ -117,14 +117,14 @@ public final class AvroTrustedClasses {
     private static final Set<WalkKey> WALKED = ConcurrentHashMap.newKeySet();
 
     /**
-     * Identifies one traversal. The class alone is not enough: the same class derives a different schema
-     * depending on whether JSR-310 conversions are enabled, and a registered conversion replaces a named
-     * type with a logical primitive, so one setting yields strictly fewer names than the other. Keying on
-     * the class alone could cache the smaller set and under-trust the larger one, which fails closed at
-     * serialization time. Holds the class NAME rather than the Class, so it pins neither the class nor
-     * its loader.
+     * Identifies one traversal, by the schema that was walked rather than by the class alone. The same
+     * class can derive different schemas — JSR-310 conversions replace a named type with a logical
+     * primitive, and two class loaders can define different versions of the same class name — and each
+     * of those names a different set of types. Keying on the class alone could cache the smaller set and
+     * then refuse a type the larger one needs, which fails closed at serialization time. Holds names and
+     * schema text only, so it pins neither a class nor a loader.
      */
-    private record WalkKey(String className, boolean jsr310ConversionEnabled) {
+    private record WalkKey(String className, String schemaJson) {
     }
 
     /**
@@ -253,12 +253,18 @@ public final class AvroTrustedClasses {
             return;
         }
         TRUSTED_CLASSES.add(pojo.getName());
-        if (schemaInfo != null && schemaInfo.getSchema() != null && schemaInfo.getSchema().length > 0
-                && WALKED.add(new WalkKey(pojo.getName(), SchemaUtil.getJsr310ConversionEnabled(schemaInfo)))) {
+        if (schemaInfo == null || schemaInfo.getSchema() == null || schemaInfo.getSchema().length == 0) {
+            install();
+            return;
+        }
+        String schemaJson = new String(schemaInfo.getSchema(), UTF_8);
+        if (WALKED.add(new WalkKey(pojo.getName(), schemaJson))) {
             try {
                 Set<String> names = new HashSet<>();
-                collectTypeNames(SchemaUtil.parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)),
-                        Collections.newSetFromMap(new IdentityHashMap<>()), names);
+                // Resolve names against the loader that defined the POJO: that is where the types it
+                // references live, and it is the loader Avro itself uses for them.
+                collectTypeNames(SchemaUtil.parseAvroSchema(schemaJson),
+                        Collections.newSetFromMap(new IdentityHashMap<>()), names, pojo.getClassLoader());
                 TRUSTED_CLASSES.addAll(names);
             } catch (RuntimeException e) {
                 // A schema Pulsar just derived should always parse; if it somehow does not, the class
@@ -491,11 +497,13 @@ public final class AvroTrustedClasses {
             return Collections.emptySet();
         }
         Set<String> names = new HashSet<>();
-        collectTypeNames(schema, Collections.newSetFromMap(new IdentityHashMap<>()), names);
+        collectTypeNames(schema, Collections.newSetFromMap(new IdentityHashMap<>()), names,
+                clazz.getClassLoader());
         return names;
     }
 
-    private static void collectTypeNames(Schema schema, Set<Schema> visited, Set<String> names) {
+    private static void collectTypeNames(Schema schema, Set<Schema> visited, Set<String> names,
+                                         ClassLoader loader) {
         if (schema == null || !visited.add(schema)) {
             return;
         }
@@ -506,24 +514,24 @@ public final class AvroTrustedClasses {
 
         switch (schema.getType()) {
             case RECORD:
-                addNamedType(schema, names);
+                addNamedType(schema, names, loader);
                 for (Schema.Field field : schema.getFields()) {
-                    collectTypeNames(field.schema(), visited, names);
+                    collectTypeNames(field.schema(), visited, names, loader);
                 }
                 break;
             case ENUM:
             case FIXED:
-                addNamedType(schema, names);
+                addNamedType(schema, names, loader);
                 break;
             case ARRAY:
-                collectTypeNames(schema.getElementType(), visited, names);
+                collectTypeNames(schema.getElementType(), visited, names, loader);
                 break;
             case MAP:
-                collectTypeNames(schema.getValueType(), visited, names);
+                collectTypeNames(schema.getValueType(), visited, names, loader);
                 break;
             case UNION:
                 for (Schema member : schema.getTypes()) {
-                    collectTypeNames(member, visited, names);
+                    collectTypeNames(member, visited, names, loader);
                 }
                 break;
             default:
@@ -537,17 +545,20 @@ public final class AvroTrustedClasses {
      * separators, and the validator matches on {@code Class.getName()}, so the {@code $} form is the
      * one that has to be trusted.
      */
-    private static void addNamedType(Schema schema, Set<String> names) {
+    private static void addNamedType(Schema schema, Set<String> names, ClassLoader loader) {
         String fullName = schema.getFullName();
         if (fullName == null) {
             return;
         }
-        String resolved = resolveBinaryName(fullName);
+        String resolved = resolveBinaryName(fullName, loader);
         names.add(resolved != null ? resolved : fullName);
     }
 
-    private static String resolveBinaryName(String fullName) {
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    private static String resolveBinaryName(String fullName, ClassLoader preferredLoader) {
+        ClassLoader loader = preferredLoader;
+        if (loader == null) {
+            loader = Thread.currentThread().getContextClassLoader();
+        }
         if (loader == null) {
             loader = AvroTrustedClasses.class.getClassLoader();
         }

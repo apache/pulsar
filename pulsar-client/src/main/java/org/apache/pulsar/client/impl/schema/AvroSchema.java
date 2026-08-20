@@ -28,6 +28,7 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -110,6 +111,14 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
      * whoever registered it must not be able to widen the allow-list.
      */
     private static <T> void trustApplicationPojo(SchemaDefinition<T> schemaDefinition, SchemaInfo schemaInfo) {
+        if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
+            // SchemaUtil.createAvroSchema gives jsonDef precedence, so the schema was parsed from that
+            // rather than derived from the POJO. Only the stock builder forbids setting both, and
+            // SchemaDefinition is a public interface, so check the same condition here rather than
+            // assuming: expanding trust from a schema Pulsar did not derive would let whoever supplied
+            // it choose the class names.
+            return;
+        }
         AvroTrustedClasses.trustApplicationSchema(schemaDefinition.getPojo(), schemaInfo);
     }
 

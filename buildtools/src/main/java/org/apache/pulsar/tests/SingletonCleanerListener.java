@@ -140,12 +140,16 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
         }
     }
 
-    // Avro's trusted-class validator is a JVM-global singleton, so a test class that installs its own
-    // (directly, or via AvroTrustedClasses) would otherwise leak that trust into
-    // every later test class in the same fork. Restore the value captured before any test ran.
+    // Avro's trusted-class validator is a JVM-global singleton, so a test class that installs one of its
+    // own would otherwise leak it into every later test class in the same fork. Restore the value
+    // captured before any test ran.
     //
-    // Pulsar's own validator is deliberately left in place: a broker shared across test classes stays
-    // running and still needs to read and write its Avro-serialized system topics.
+    // Pulsar's own validator is deliberately left alone, and so are the classes declared through
+    // AvroTrustedClasses: a broker shared across test classes stays running and still needs to read and
+    // write its Avro-serialized system topics, and clearing the declarations would break it mid-run.
+    // The cost is that a class one test declared stays trusted for later ones, so a test that should
+    // have declared something can pass on another's declaration. Tests that need to prove a class is
+    // NOT trusted pin the validator themselves - see AvroTrustedClassesTest.
     private static void restoreAvroClassSecurityValidator() {
         if (CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD == null || INITIAL_CLASSSECURITYVALIDATOR == null
                 || isAvroTrustedClassesInstalled()) {
