@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import javax.net.ssl.SSLContext;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
@@ -258,6 +260,45 @@ public class PulsarClientBuilderV5Test {
         builder.serviceUrl("pulsar+ssl://localhost:6651").tlsFactory(new NoOpTlsFactory());
 
         assertTrue(builder.getConfForTesting().isUseTls(), "pulsar+ssl:// still selects TLS");
+    }
+
+    /**
+     * PIP-478: two clients built from one v5 builder must not share a TLS factory.
+     *
+     * <p>{@code PulsarClientImpl} stores the factory it composes back onto the {@code
+     * ClientConfigurationData} it was given, so while {@code build()} handed over the builder's own
+     * instance a second build adopted and re-initialized the first client's live factory, and closing
+     * either client closed TLS for the other — the survivor still reporting itself open while every
+     * connect and reconnect failed with "closed". This is the builder where it matters most: {@code
+     * tlsFactory(...)} and {@code tlsPolicy(...)} exist only here, so it is the only path that reaches
+     * the adopted-factory arm deliberately, and the one that turns on the fail-fast probe whose failure
+     * handler closes the factory. Nothing in {@link PulsarClientBuilder} makes {@code build()}
+     * single-use.
+     */
+    @Test
+    public void twoClientsFromOneBuilderDoNotShareATlsFactory() throws Exception {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.serviceUrl("pulsar+ssl://localhost:6651")
+                .tlsPolicy(TlsPolicy.builder().allowInsecureConnection(true).build());
+
+        PulsarClient first = builder.build();
+        PulsarClient second = builder.build();
+        try {
+            PulsarTlsFactory firstFactory =
+                    ((PulsarClientV5) first).v4Client().getConfiguration().getTlsFactory();
+            PulsarTlsFactory secondFactory =
+                    ((PulsarClientV5) second).v4Client().getConfiguration().getTlsFactory();
+            assertNotNull(firstFactory);
+            assertNotSame(secondFactory, firstFactory, "each client must compose its own factory");
+
+            first.close();
+
+            assertTrue(secondFactory.createInstance(TlsPurpose.CLIENT_DEFAULT, SSLContext.class)
+                            .get().isPresent(),
+                    "closing the first client must leave the second client's TLS working");
+        } finally {
+            second.close();
+        }
     }
 
     /** A factory that is never initialized or asked for an instance — the builder wiring is what is tested. */
@@ -535,10 +576,12 @@ public class PulsarClientBuilderV5Test {
                 .tlsPolicy(TlsPurpose.CLIENT_OAUTH2, TlsPolicy.builder()
                         .trustCertsFilePath("/tls/idp-ca.pem").build());
 
-        // build() hands this same config to PulsarClientImpl, so the composed factory lands back on it.
-        ClientConfigurationData conf = builder.getConfForTesting();
+        // build() hands PulsarClientImpl a copy of the config, so the composed factory lands on the
+        // client's own instance rather than back on the builder's (see
+        // twoClientsFromOneBuilderDoNotShareATlsFactory for why it must not be shared). Assert there.
         try (PulsarClient client = builder.build()) {
             assertNotNull(client);
+            ClientConfigurationData conf = ((PulsarClientV5) client).v4Client().getConfiguration();
             assertFalse(conf.isUseTls(), "an IdP-only policy must leave the broker transport plaintext");
             assertNotNull(conf.getTlsFactory(),
                     "an explicitly configured CLIENT_OAUTH2 policy must compose the client TLS factory, so the "

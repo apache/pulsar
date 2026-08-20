@@ -72,7 +72,15 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     public PulsarClient build() throws PulsarClientException {
         try {
             applyAuthentication();
-            var v4Client = new PulsarClientImpl(conf);
+            // PIP-478: hand the client its own configuration object, as ClientBuilderImpl.build() does.
+            // PulsarClientImpl stores the TLS factory it composes back onto this object
+            // (setupClientTlsFactory), so sharing the builder's instance would make a second build() adopt
+            // and re-initialize the first client's live factory, and closing either client would then close
+            // TLS for the other. This path matters more than the v4 one: tlsFactory(...) and tlsPolicy(...)
+            // exist only here, so it is the only builder that can reach the adopted-factory arm
+            // deliberately, and it is what turns on the fail-fast probe whose failure handler closes the
+            // factory. applyAuthentication() has already run, so the copy carries what it resolved.
+            var v4Client = new PulsarClientImpl(conf.clone());
             return new PulsarClientV5(v4Client, description, transactionTimeout);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
             throw new PulsarClientException(e.getMessage(), e);
