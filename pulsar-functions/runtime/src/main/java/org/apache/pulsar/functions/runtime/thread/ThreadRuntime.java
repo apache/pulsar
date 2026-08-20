@@ -39,7 +39,6 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.proto.MetricsData;
-import org.apache.pulsar.functions.runtime.FunctionAvroTrustedClasses;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -62,9 +61,6 @@ public class ThreadRuntime implements Runtime {
     private final InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
 
-    // Retained so the Avro trust granted to them in start() can be revoked in stop().
-    private ClassLoader trustedFunctionClassLoader;
-    private ClassLoader trustedTransformFunctionClassLoader;
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
@@ -211,15 +207,6 @@ public class ThreadRuntime implements Runtime {
                 instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
                 fnCache, connectorsManager, functionsManager, FunctionDetails.ComponentType.FUNCTION);
 
-        // Avro 1.12.2 only reflects over classes that are explicitly trusted, so a function using
-        // Schema.AVRO/JSON over its own POJOs needs those POJOs trusted. The deployed code is the
-        // deployment's own, so trust exactly the classes its class loader defined. This covers every
-        // runtime: the process and Kubernetes runtimes reach this same code through JavaInstanceStarter
-        // inside the function's own JVM.
-        this.trustedFunctionClassLoader = functionClassLoader;
-        this.trustedTransformFunctionClassLoader = transformFunctionClassLoader;
-        FunctionAvroTrustedClasses.trustFunctionClassLoader(functionClassLoader);
-        FunctionAvroTrustedClasses.trustFunctionClassLoader(transformFunctionClassLoader);
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -261,10 +248,6 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public void stop() {
-        FunctionAvroTrustedClasses.untrustFunctionClassLoader(trustedFunctionClassLoader);
-        FunctionAvroTrustedClasses.untrustFunctionClassLoader(trustedTransformFunctionClassLoader);
-        trustedFunctionClassLoader = null;
-        trustedTransformFunctionClassLoader = null;
         if (fnThread != null) {
             // interrupt the instance thread
             fnThread.interrupt();

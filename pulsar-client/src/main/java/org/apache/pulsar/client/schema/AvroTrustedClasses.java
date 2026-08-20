@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,38 +34,39 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate;
+import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Declares which classes Avro is allowed to reflect over.
  *
  * <p>Avro 1.12.2 refuses to resolve any class that is not explicitly trusted, and that check runs on
  * every reflective class resolution — including the ones {@code Schema.AVRO(...)} performs on each
- * produce and consume. Pulsar trusts the types it serializes itself, and Pulsar Functions and
- * connectors are covered automatically because their class loader is trusted, but Pulsar cannot know
- * an application's own POJOs. Declare them here:
+ * produce and consume.
+ *
+ * <p><b>Most applications need nothing from this class.</b> Passing a class to {@code Schema.AVRO(...)}
+ * is itself the application naming it, so Pulsar trusts that class and every type the schema derived
+ * from it references — nested records and enums, including ones in other packages, and the declared
+ * collection and {@code @Stringable} types its fields carry. Pulsar Functions and connectors are covered
+ * the same way, since they build their schemas through the same call.
+ *
+ * <p>What is deliberately <em>not</em> covered is a class named only by a schema that arrived over the
+ * wire. A schema fetched from the registry names classes chosen by whoever registered it, and resolving
+ * those is what the allow-list exists to constrain. The cases that reach Avro reflection that way are
+ * narrow — chiefly {@code Schema.AUTO_CONSUME()} against a topic whose schema is a bare enum — and an
+ * application that hits one declares the class itself:
  *
  * <pre>{@code
- * public static void main(String[] args) throws Exception {
- *     // Once, before the first producer or consumer. Covers Order itself, the records and enums it
- *     // references — including ones in other packages — and the collection and @Stringable types its
- *     // fields declare.
- *     AvroTrustedClasses.trust(Order.class);
- *
- *     PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
- *     try (Producer<Order> producer = client.newProducer(Schema.AVRO(Order.class))
- *             .topic("orders").create()) {
- *         producer.send(newOrder());
- *     }
- * }
+ * // Once, before the first producer or consumer.
+ * AvroTrustedClasses.trust(Colour.class);
  * }</pre>
  *
- * <p>Prefer {@link #trust(Class[])} over {@link #trustPackages(String...)}. Trusting a package is
- * rarely enough on its own: Avro also resolves the <em>declared</em> collection type of a field, so a
- * POJO with a {@code List} field needs {@code java.util.List} as well, and a field typed
- * {@code java.net.URI} needs that too. {@link #trust(Class[])} works this out from the schema Avro
- * generates, so one call covers the whole object graph.
+ * <p>{@link #trust(Class[])} follows what the class references, the same way auto-registration does.
+ * Prefer it to {@link #trustPackages(String...)}: a package rarely covers a POJO on its own, because
+ * Avro also resolves the <em>declared</em> collection type of a field, so a POJO with a {@code List}
+ * field needs {@code java.util.List} as well.
  *
  * <p>This class behaves identically in the shaded and unshaded clients. Avro's own API does not:
  * shading relocates {@code org.apache.avro.util.ClassSecurityValidator}, so an application depending
@@ -108,6 +110,24 @@ public final class AvroTrustedClasses {
     private static final Set<Predicate<Class<?>>> TRUSTED_PREDICATES = ConcurrentHashMap.newKeySet();
 
     /**
+     * Application classes whose derived schema has already been walked, so a class used for many
+     * producers or consumers is traversed once rather than on every schema construction. Holds names
+     * rather than Class objects, so it pins neither a class nor its loader.
+     */
+    private static final Set<WalkKey> WALKED = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Identifies one traversal. The class alone is not enough: the same class derives a different schema
+     * depending on whether JSR-310 conversions are enabled, and a registered conversion replaces a named
+     * type with a logical primitive, so one setting yields strictly fewer names than the other. Keying on
+     * the class alone could cache the smaller set and under-trust the larger one, which fails closed at
+     * serialization time. Holds the class NAME rather than the Class, so it pins neither the class nor
+     * its loader.
+     */
+    private record WalkKey(String className, boolean jsr310ConversionEnabled) {
+    }
+
+    /**
      * This class's contribution to the global validator, as a single stable instance. It reads the
      * sets above on every call, so declaring more trust takes effect immediately without composing
      * into the global validator again — composition happens only in {@link #install()}. Holding one
@@ -135,12 +155,19 @@ public final class AvroTrustedClasses {
      * process-wide and accumulates, so a test that asserts something is <em>not</em> trusted has to
      * start from a known state. Does not touch Avro's global validator.
      */
+    /** How many application classes have had their derived schema walked. Only for tests. */
+    @VisibleForTesting
+    static int walkedCountForTesting() {
+        return WALKED.size();
+    }
+
     @VisibleForTesting
     static synchronized void resetForTesting() {
         TRUSTED_PACKAGES.clear();
         TRUSTED_CLASSES.clear();
         TRUSTED_CLASS_LOADERS.clear();
         TRUSTED_PREDICATES.clear();
+        WALKED.clear();
         installedPredicate = null;
         seedDefaults();
     }
@@ -168,6 +195,48 @@ public final class AvroTrustedClasses {
             TRUSTED_CLASSES.add(clazz.getName());
             TRUSTED_CLASSES.addAll(typesReachableFrom(clazz));
         }
+        install();
+    }
+
+    /**
+     * Trusts a class the application supplied to a Pulsar schema, together with every type the schema
+     * Pulsar derived from it references. Called by Pulsar when it builds an Avro schema from an
+     * application class, so applications normally do not have to declare anything themselves.
+     *
+     * <p>The trust boundary this relies on is that {@code pojo} came from application code. It must
+     * therefore never be called with a class named by a schema that arrived over the wire — a schema
+     * fetched from the registry names classes chosen by whoever registered it, and resolving those is
+     * exactly what the allow-list exists to constrain.
+     *
+     * <p>Takes the derived {@link SchemaInfo} rather than re-deriving from the class, so the types
+     * trusted are exactly the ones the schema in use actually names. Deriving a second time with a
+     * differently configured {@code ReflectData} would not produce the same set.
+     *
+     * @param pojo the application class, or null to do nothing
+     * @param schemaInfo the schema Pulsar derived from it
+     */
+    @InterfaceAudience.Private
+    public static void trustApplicationSchema(Class<?> pojo, SchemaInfo schemaInfo) {
+        if (pojo == null) {
+            return;
+        }
+        TRUSTED_CLASSES.add(pojo.getName());
+        if (schemaInfo != null && schemaInfo.getSchema() != null && schemaInfo.getSchema().length > 0
+                && WALKED.add(new WalkKey(pojo.getName(), SchemaUtil.getJsr310ConversionEnabled(schemaInfo)))) {
+            try {
+                Set<String> names = new HashSet<>();
+                collectTypeNames(SchemaUtil.parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)),
+                        Collections.newSetFromMap(new IdentityHashMap<>()), names);
+                TRUSTED_CLASSES.addAll(names);
+            } catch (RuntimeException e) {
+                // A schema Pulsar just derived should always parse; if it somehow does not, the class
+                // itself is still trusted and an explicit trust(...) call remains available.
+                log.debug().attr("class", pojo.getName()).exception(e)
+                        .log("Could not expand trust from the derived schema");
+            }
+        }
+        // Deliberately outside the cache: install() is what re-composes Pulsar's predicate if something
+        // else has replaced the global validator since, and it is a reference comparison once installed.
         install();
     }
 

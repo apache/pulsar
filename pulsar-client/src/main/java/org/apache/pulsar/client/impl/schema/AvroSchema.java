@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.MultiVersionAvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.schema.AvroTrustedClasses;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
@@ -82,8 +83,10 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         if (schemaDefinition.getSchemaReaderOpt().isPresent() && schemaDefinition.getSchemaWriterOpt().isPresent()) {
+            SchemaInfo schemaInfo = parseSchemaInfo(schemaDefinition, SchemaType.AVRO);
+            trustApplicationPojo(schemaDefinition, schemaInfo);
             return new AvroSchema<>(schemaDefinition.getSchemaReaderOpt().get(),
-                    schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+                    schemaDefinition.getSchemaWriterOpt().get(), schemaInfo);
         }
         ClassLoader pojoClassLoader = null;
         if (schemaDefinition.getClassLoader() != null) {
@@ -92,7 +95,22 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
         }
 
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
+        SchemaInfo schemaInfo = parseSchemaInfo(schemaDefinition, SchemaType.AVRO);
+        trustApplicationPojo(schemaDefinition, schemaInfo);
+        return new AvroSchema<>(schemaInfo, pojoClassLoader);
+    }
+
+    /**
+     * Lets Avro reflect over the class the application supplied, and over the types the schema derived
+     * from it references, so that using {@code Schema.AVRO(MyPojo.class)} needs no further declaration.
+     *
+     * <p>Guarded on the POJO being present, which is what keeps this on the right side of the trust
+     * boundary. A definition built with {@code withJsonDef(...)} carries no POJO — that is how
+     * {@link AutoConsumeSchema} passes a schema fetched from the registry — and a schema chosen by
+     * whoever registered it must not be able to widen the allow-list.
+     */
+    private static <T> void trustApplicationPojo(SchemaDefinition<T> schemaDefinition, SchemaInfo schemaInfo) {
+        AvroTrustedClasses.trustApplicationSchema(schemaDefinition.getPojo(), schemaInfo);
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {

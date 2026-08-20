@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -184,17 +183,15 @@ public class PulsarInternalAvroTypesTrustTest {
     }
 
     @Test
-    public void testApplicationClassesRemainUntrusted() {
-        // Pulsar widens the trusted set only for its own types; application POJOs stay the
-        // application's responsibility, which is what the upgrade notes tell users.
-        Schema<UntrustedPojo> schema = Schema.AVRO(UntrustedPojo.class);
-
-        assertThatThrownBy(() -> schema.encode(new UntrustedPojo()))
-                .hasRootCauseInstanceOf(SecurityException.class);
+    public void testBrokerTrustDoesNotLeakToUnrelatedApplicationClasses() {
+        // The broker declaring its own types must not widen the set for anything else. A class the
+        // application has handed to Schema.AVRO is trusted, but only because of that call - see
+        // AvroTrustedClassesTest - so check a class that was never used with a schema.
+        assertThat(ClassSecurityValidator.getGlobal().isTrusted(UnusedPojo.class)).isFalse();
     }
 
-    /** Stands in for a user-supplied POJO that Pulsar does not trust on its behalf. */
-    public static class UntrustedPojo {
+    /** Never passed to a schema, so nothing should have trusted it. */
+    public static class UnusedPojo {
         private String field = "value";
 
         public String getField() {

@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.client.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.net.URI;
 import java.util.List;
 import java.util.Random;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.client.schema.fixtures.Order;
 import org.apache.pulsar.client.schema.fixtures.OrderState;
 import org.apache.pulsar.client.schema.fixtures.other.Address;
@@ -59,11 +62,45 @@ public class AvroTrustedClassesTest {
     }
 
     @Test
-    public void testAvroSchemaFailsWithoutDeclaringTrust() {
+    public void testSchemaAvroOverAnApplicationClassNeedsNoDeclaration() {
+        // Constructing the schema is itself the application naming the class, so Pulsar trusts it and
+        // everything the derived schema references. Order pulls in an enum, a record in a *different*
+        // package, a List field and a URI field — none of which the user should have to enumerate.
         Schema<Order> schema = Schema.AVRO(Order.class);
+        Order order = Order.sample();
 
-        assertThatThrownBy(() -> schema.encode(Order.sample()))
-                .hasRootCauseInstanceOf(SecurityException.class);
+        assertThat(schema.decode(schema.encode(order))).usingRecursiveComparison().isEqualTo(order);
+        assertThat(isTrusted(Address.class)).isTrue();
+        assertThat(isTrusted(OrderState.class)).isTrue();
+        assertThat(isTrusted(List.class)).isTrue();
+        assertThat(isTrusted(URI.class)).isTrue();
+    }
+
+    @Test
+    public void testAutoRegistrationDoesNotTrustSchemasArrivingFromTheRegistry() {
+        // The trust boundary: a definition built from wire bytes carries no POJO, which is how
+        // AutoConsumeSchema passes a registry-fetched schema. Whoever registered that schema chose the
+        // class names in it, so they must not widen the allow-list.
+        String wireSchema = new String(Schema.AVRO(Order.class).getSchemaInfo().getSchema(), UTF_8);
+        AvroTrustedClasses.resetForTesting();
+
+        Schema.AVRO(SchemaDefinition.builder().withJsonDef(wireSchema).build());
+
+        assertThat(isTrusted(Order.class)).isFalse();
+        assertThat(isTrusted(Address.class)).isFalse();
+    }
+
+    @Test
+    public void testAnApplicationClassIsWalkedOnlyOnce() {
+        Schema.AVRO(Order.class);
+        int afterFirst = AvroTrustedClasses.walkedCountForTesting();
+
+        Schema.AVRO(Order.class);
+        Schema.AVRO(Order.class);
+
+        assertThat(AvroTrustedClasses.walkedCountForTesting()).isEqualTo(afterFirst);
+        // ...and the trust is still in place after the cached calls.
+        assertThat(isTrusted(Address.class)).isTrue();
     }
 
     @Test
@@ -156,8 +193,30 @@ public class AvroTrustedClassesTest {
         assertThat(isTrusted(Random.class)).isTrue();
     }
 
+    @Test
+    public void testTrustRegistersANestedEnumUnderItsBinaryName() throws Exception {
+        // The AUTO_CONSUME-over-a-JSON-enum path resolves the class named in the writer's schema, which
+        // Avro spells with dots ("...Test.Colour") and then resolves by retrying with '$'. The validator
+        // matches on Class.getName(), so the '$' form is what has to be registered. Reproduces the
+        // resolution AutoConsumeSchema.extractFromAvroSchema performs.
+        org.apache.avro.Schema enumSchema = SchemaUtil.parseAvroSchema(
+                new String(Schema.JSON(Colour.class).getSchemaInfo().getSchema(), UTF_8));
+        assertThat(enumSchema.getType()).isEqualTo(org.apache.avro.Schema.Type.ENUM);
+        assertThat(enumSchema.getFullName()).contains(".Colour");
+
+        AvroTrustedClasses.trust(Colour.class);
+
+        assertThat(ReflectData.get().getClass(enumSchema)).isSameAs(Colour.class);
+    }
+
     private static boolean isTrusted(Class<?> clazz) {
         return ClassSecurityValidator.getGlobal().isTrusted(clazz);
+    }
+
+    /** Nested so that its binary name uses '$' while Avro spells the schema name with dots. */
+    public enum Colour {
+        RED,
+        GREEN
     }
 
     /** A user interface: Avro derives an empty record for it. */
