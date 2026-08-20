@@ -42,14 +42,15 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -61,6 +62,7 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
 @CustomLog
@@ -79,8 +81,13 @@ public class DirectProxyHandler {
     private final String clientAuthMethod;
     public static final String TLS_HANDLER = "tls";
 
+    // PIP-478: hard cap on broker challenge rounds within a single binary authentication exchange, mirroring
+    // ClientCnx.MAX_AUTH_CHALLENGE_ROUNDS (both in turn mirror HttpAuthenticationDriver.MAX_CHALLENGE_ROUNDS).
+    // A broker that answers every CommandAuthResponse with another challenge would otherwise loop against the
+    // proxy forever, and each round now also schedules credential work onto a blocking pool.
+    static final int MAX_AUTH_CHALLENGE_ROUNDS = 10;
+
     private final Authentication authentication;
-    private AuthenticationDataProvider authenticationDataProvider;
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
     final boolean tlsEnabledWithBroker;
@@ -259,6 +266,18 @@ public class DirectProxyHandler {
         private final ProxyConfiguration config;
         private final int protocolVersion;
         private final FeatureFlags featureFlags;
+        // PIP-478: the v5 exchange this backend connection authenticates through. Replaced on a broker-pushed
+        // REFRESH, which starts a fresh exchange. Only ever touched on this channel's event loop.
+        private AuthenticationExchange authExchange;
+        // PIP-478: round state. AuthenticationExchange is single-round and non-thread-safe, and serializing
+        // its rounds is the caller's obligation; this class is its second caller after ClientCnx. While the
+        // frame decoder is still running (state Init) two challenge frames arriving in one read reach
+        // handleAuthChallenge in the same event-loop turn, before either resolution has completed, and would
+        // otherwise drive the same exchange concurrently. Both fields are touched only on this channel's
+        // event loop (channelActive, handleAuthChallenge, and the continuations dispatched there), so they
+        // need no synchronization.
+        private boolean authRoundInProgress;
+        private int authChallengeRounds;
 
         public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName,
                                    FeatureFlags featureFlags) {
@@ -275,16 +294,76 @@ public class DirectProxyHandler {
             if (config.isHaProxyProtocolEnabled()) {
                 writeHAProxyMessage();
             }
-
-            // Send the Connect command to broker
-            authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            ByteBuf command = Commands.newConnect(
-                    authentication.getAuthMethodName(), authData, protocolVersion,
-                    proxyConnection.clientVersion, null /* target broker */,
-                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion(), featureFlags);
-            writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
+
+            // Send the Connect command to broker. PIP-478: the credential is resolved through a v5 exchange
+            // rather than by calling the v4 plugin here. This method runs on the Netty event loop, and the v4
+            // call it used to make is arbitrary plugin code — an OAuth2 token endpoint round trip, an Athenz
+            // ZTS fetch, a GSSAPI exchange with the KDC — which stalled every connection multiplexed onto
+            // that loop for its duration. The exchange's calls always off-load.
+            //
+            // The auth method name is read from the v4 plugin here and in handleAuthChallenge below, where
+            // ClientCnx instead takes it from the exchange that produced the credential. Both are correct for
+            // the proxy — it owns one started plugin, and the bridge's authMethodName() delegates straight to
+            // it — and reading it from the plugin does not depend on a round having completed. Deliberate.
+            authExchange = service.getProxyClientAuthenticationDriver().newAuthenticationExchange(remoteHostName);
+            sendWhenResolved(authExchange.getAuthDataAsync(),
+                    authData -> Commands.newConnect(
+                            authentication.getAuthMethodName(), authData, protocolVersion,
+                            proxyConnection.clientVersion, null /* target broker */,
+                            originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion(),
+                            featureFlags),
+                    "connect");
+        }
+
+        /**
+         * Send a command built from an asynchronously-resolved credential (PIP-478).
+         *
+         * <p>The continuation is dispatched onto this channel's event loop, so the command is built and
+         * written there whether the credential was already in memory or needed I/O — command ordering on the
+         * channel is therefore unchanged from the synchronous version. A failure closes the backend channel:
+         * the proxy has no credential to send, and leaving the connection open would wait out the broker's
+         * timeout instead of letting the client retry. That covers a failure to build the command too, not
+         * just a failure to resolve the credential.
+         *
+         * <p>This is where an authentication round begins: the round is marked in progress so that a
+         * challenge arriving before it completes is dropped rather than re-entering the exchange
+         * concurrently.
+         *
+         * @param resolution     the credential being resolved
+         * @param commandBuilder builds the command to send from the resolved credential
+         * @param what           what is being authenticated, for logging
+         */
+        private void sendWhenResolved(CompletableFuture<AuthData> resolution,
+                                      Function<AuthData, ByteBuf> commandBuilder, String what) {
+            authRoundInProgress = true;
+            // The future returned by whenCompleteAsync is intentionally discarded: the continuation handles
+            // every outcome itself, and the only way that future fails is ctx.executor() rejecting during
+            // event-loop shutdown — at which point the channel is already going away.
+            resolution.whenCompleteAsync((authData, throwable) -> {
+                authRoundInProgress = false;
+                if (throwable != null) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                    log.error().attr("channel", ctx.channel()).attr("stage", what).exception(cause)
+                            .log("Failed to resolve the proxy's broker-client credential");
+                    ctx.close();
+                    return;
+                }
+                if (!ctx.channel().isActive()) {
+                    // The backend connection went away while the credential was resolving. Logged so that
+                    // "backend connected but never sent CommandConnect" is diagnosable rather than silent.
+                    log.debug().attr("channel", ctx.channel()).attr("stage", what)
+                            .log("Backend channel closed while the proxy's broker-client credential resolved");
+                    return;
+                }
+                try {
+                    writeAndFlush(commandBuilder.apply(authData));
+                } catch (Throwable t) {
+                    log.error().attr("channel", ctx.channel()).attr("stage", what).exception(t)
+                            .log("Failed to send the proxy's broker-client authentication command");
+                    ctx.close();
+                }
+            }, ctx.executor());
         }
 
         @Override
@@ -345,37 +424,68 @@ public class DirectProxyHandler {
             checkArgument(authChallenge.hasChallenge());
             checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
 
-            if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
-                try {
-                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                } catch (PulsarClientException e) {
-                    log.error().attr("channel", ctx.channel())
-                            .exception(e)
-                            .log("Error refreshing authentication data provider");
-                    return;
+            // PIP-478 binary routing rule 2: the broker's REFRESH sentinel restarts authentication with a
+            // fresh exchange whose getAuthDataAsync() re-produces the current credential, rather than being
+            // routed into the conversation it just terminated. Any other challenge is a round of the current
+            // exchange, whose state slot carries conversation state across rounds. This mirrors ClientCnx.
+            // The REFRESH branch is conformance with that rule rather than a path the broker can reach here:
+            // this handler stops decoding once state == HandshakeCompleted, and the broker arms its refresh
+            // task with an initial delay of authenticationRefreshCheckSeconds after connect completes, so by
+            // the time a REFRESH is pushed it is proxied straight through to the client, which answers it.
+            // The proxy's own credential refresh lives in ProxyConnection, not here.
+            boolean refresh =
+                    Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
+            // PIP-478 (serialize-or-drop): a broker never pipelines challenges — it waits for each
+            // CommandAuthResponse — so a challenge arriving while a round is still in flight is anomalous,
+            // and servicing it would re-enter the same single-round, non-thread-safe exchange concurrently.
+            // Dropping it makes rounds strictly serialized, which is why this class needs none of the
+            // generation guarding ClientCnx carries: nothing here can supersede an in-flight round. ClientCnx
+            // does need it, because it lets a REFRESH supersede one; the proxy can drop a REFRESH instead,
+            // both because it cannot reach this handler and because the broker's refresh check is a
+            // scheduleAtFixedRate task that would re-send it on the next tick.
+            if (authRoundInProgress) {
+                log.debug().attr("channel", ctx.channel())
+                        .log("Dropping a broker auth challenge received while an auth round is in progress");
+                return;
+            }
+            // Bound the exchange. A REFRESH opens a fresh exchange, so it resets the counter; any other
+            // challenge counts towards the cap.
+            if (refresh) {
+                authChallengeRounds = 0;
+            } else if (++authChallengeRounds > MAX_AUTH_CHALLENGE_ROUNDS) {
+                log.error().attr("channel", ctx.channel()).attr("maxChallengeRounds", MAX_AUTH_CHALLENGE_ROUNDS)
+                        .log("Binary authentication exceeded the maximum challenge rounds; closing the "
+                                + "broker connection");
+                ctx.close();
+                return;
+            }
+            CompletableFuture<AuthData> resolution;
+            try {
+                if (refresh) {
+                    authExchange =
+                            service.getProxyClientAuthenticationDriver().newAuthenticationExchange(remoteHostName);
+                    resolution = authExchange.getAuthDataAsync();
+                } else {
+                    resolution = authExchange
+                            .authenticateAsync(AuthData.of(authChallenge.getChallenge().getAuthData()));
                 }
+            } catch (Throwable t) {
+                // One try/catch so a plugin that throws synchronously fails the connection rather than
+                // propagating up the event loop.
+                resolution = CompletableFuture.failedFuture(t);
             }
 
             // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
-            try {
-                AuthData authData = authenticationDataProvider
-                    .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
-
+            sendWhenResolved(resolution, authData -> {
                 checkState(!authData.isComplete());
-
-                ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
-                    authData,
-                    this.protocolVersion,
-                    PulsarVersion.getVersion());
-
                 log.debug().attr("channel", ctx.channel())
                         .attr("authMethod", authentication.getAuthMethodName())
                         .log("Mutual auth");
-
-                writeAndFlush(request);
-            } catch (Exception e) {
-                log.error().exception(e).log("Error mutual verify");
-            }
+                return Commands.newAuthResponse(authentication.getAuthMethodName(),
+                        authData,
+                        this.protocolVersion,
+                        PulsarVersion.getVersion());
+            }, "challenge");
         }
 
         @Override
