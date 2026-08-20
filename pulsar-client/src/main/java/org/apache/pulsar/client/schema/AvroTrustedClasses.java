@@ -128,15 +128,24 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * This class's contribution to the global validator, as a single stable instance. It reads the
-     * sets above on every call, so declaring more trust takes effect immediately without composing
-     * into the global validator again — composition happens only in {@link #install()}. Holding one
-     * instance also means a reinstall cannot accumulate several copies of this predicate in the chain.
+     * Whether the Avro on the class path has a trusted-class validator to install into at all. It was
+     * introduced in Avro 1.12.2; an application using {@code pulsar-client-original} can pin an older
+     * Avro, and on those versions there is nothing to enforce and so nothing to declare. Everything
+     * this class does then becomes a no-op rather than a {@link NoClassDefFoundError} raised out of
+     * {@code Schema.AVRO(...)}.
      */
-    private static final ClassSecurityPredicate TRUSTED_PREDICATE = AvroTrustedClasses::isTrustedClass;
+    private static final boolean VALIDATOR_AVAILABLE = isValidatorAvailable();
 
-    /** The predicate this class last installed, so {@link #install()} can tell if it is still active. */
-    private static ClassSecurityPredicate installedPredicate;
+    private static boolean isValidatorAvailable() {
+        try {
+            Class.forName("org.apache.avro.util.ClassSecurityValidator", false,
+                    AvroTrustedClasses.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException | LinkageError e) {
+            log.debug().log("Avro has no ClassSecurityValidator; trusted-class declarations are a no-op");
+            return false;
+        }
+    }
 
     static {
         seedDefaults();
@@ -168,7 +177,9 @@ public final class AvroTrustedClasses {
         TRUSTED_CLASS_LOADERS.clear();
         TRUSTED_PREDICATES.clear();
         WALKED.clear();
-        installedPredicate = null;
+        if (VALIDATOR_AVAILABLE) {
+            Validator.forgetInstalledForTesting();
+        }
         seedDefaults();
     }
 
@@ -320,27 +331,64 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * Installs this class's trust into Avro's global validator, composing with the validator that is
-     * currently installed. Idempotent: after the first call the normal path is a single reference
-     * comparison, and declaring more trust never composes again.
+     * Installs this class's trust into Avro's global validator, when there is one to install into.
+     * Idempotent: after the first call the normal path is a single reference comparison, and declaring
+     * more trust never composes again.
      */
-    private static synchronized void install() {
-        ClassSecurityPredicate current = ClassSecurityValidator.getGlobal();
-        if (current == installedPredicate) {
-            return;
+    private static void install() {
+        if (VALIDATOR_AVAILABLE) {
+            Validator.install();
         }
-        ClassSecurityPredicate composed = ClassSecurityValidator.composite(current, TRUSTED_PREDICATE);
-        ClassSecurityValidator.setGlobal(composed);
-        installedPredicate = composed;
-        log.debug().log("Installed Pulsar's Avro trusted-class validator");
     }
 
     /**
-     * Whether the global validator is still the one this class installed. Test infrastructure uses
-     * this to reset a validator a test installed without also undoing Pulsar's own.
+     * Whether the global validator is still the one this class installed. Test infrastructure uses this
+     * to reset a validator a test installed without also undoing Pulsar's own. Always false when the
+     * Avro on the class path has no validator.
      */
-    public static synchronized boolean isInstalled() {
-        return installedPredicate != null && ClassSecurityValidator.getGlobal() == installedPredicate;
+    public static boolean isInstalled() {
+        return VALIDATOR_AVAILABLE && Validator.isInstalled();
+    }
+
+    /**
+     * Holds every reference to Avro's validator types, so they are resolved only when this nested class
+     * is first used. Keeping them out of {@link AvroTrustedClasses} itself is what lets that class load,
+     * and its methods run harmlessly, against an Avro that predates the validator.
+     */
+    private static final class Validator {
+
+        /**
+         * Pulsar's contribution to the global validator, as a single stable instance. It reads the
+         * trusted sets on every call, so declaring more trust takes effect immediately without composing
+         * into the global validator again — composition happens only in {@link #install()}. Holding one
+         * instance also means a reinstall cannot accumulate several copies of it in the chain.
+         */
+        private static final ClassSecurityPredicate TRUSTED_PREDICATE = AvroTrustedClasses::isTrustedClass;
+
+        /** The predicate last installed, so {@link #install()} can tell whether it is still active. */
+        private static ClassSecurityPredicate installedPredicate;
+
+        private Validator() {
+        }
+
+        static synchronized void install() {
+            ClassSecurityPredicate current = ClassSecurityValidator.getGlobal();
+            if (current == installedPredicate) {
+                return;
+            }
+            ClassSecurityPredicate composed = ClassSecurityValidator.composite(current, TRUSTED_PREDICATE);
+            ClassSecurityValidator.setGlobal(composed);
+            installedPredicate = composed;
+            log.debug().log("Installed Pulsar's Avro trusted-class validator");
+        }
+
+        static synchronized boolean isInstalled() {
+            return installedPredicate != null && ClassSecurityValidator.getGlobal() == installedPredicate;
+        }
+
+        static synchronized void forgetInstalledForTesting() {
+            installedPredicate = null;
+        }
     }
 
     /** Whether the class is covered by anything declared through this class. */
