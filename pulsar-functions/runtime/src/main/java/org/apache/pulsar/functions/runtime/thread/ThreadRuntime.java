@@ -60,7 +60,6 @@ public class ThreadRuntime implements Runtime {
     @Getter
     private final InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
-
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
@@ -206,7 +205,6 @@ public class ThreadRuntime implements Runtime {
         ClassLoader transformFunctionClassLoader = transformFunctionFile == null ? null : getFunctionClassLoader(
                 instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
                 fnCache, connectorsManager, functionsManager, FunctionDetails.ComponentType.FUNCTION);
-
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
