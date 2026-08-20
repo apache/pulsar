@@ -33,7 +33,6 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.PulsarAvroClassSecurity;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
@@ -56,7 +55,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Verifies that {@link PulsarAvroClassSecurity} on its own is enough to serialize every type Pulsar
+ * Verifies that {@link BrokerAvroTrustedClasses} on its own is enough to serialize every type Pulsar
  * writes to its system topics.
  *
  * <p>The Gradle test JVM trusts the whole org.apache.pulsar namespace through
@@ -75,7 +74,7 @@ public class PulsarInternalAvroTypesTrustTest {
         previousValidator = ClassSecurityValidator.getGlobal();
         // DEFAULT_TRUSTED_CLASSES excludes the system-properties predicate, unlike DEFAULT.
         ClassSecurityValidator.setGlobal(ClassSecurityValidator.DEFAULT_TRUSTED_CLASSES);
-        PulsarAvroClassSecurity.install();
+        BrokerAvroTrustedClasses.trustBrokerTypes();
     }
 
     @AfterMethod(alwaysRun = true)

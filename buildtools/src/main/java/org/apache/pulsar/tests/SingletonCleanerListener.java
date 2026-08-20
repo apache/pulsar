@@ -35,7 +35,7 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
     private static final Method JSONSCHEMA_CLEARCACHES_METHOD;
     private static final Method CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD;
     private static final Object INITIAL_CLASSSECURITYVALIDATOR;
-    private static final Method PULSARAVROCLASSSECURITY_ISINSTALLED_METHOD;
+    private static final Method AVROTRUSTEDCLASSES_ISINSTALLED_METHOD;
 
     static {
         Class<?> objectMapperFactoryClazz =
@@ -99,14 +99,14 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
         Method isInstalledMethod = null;
         try {
             isInstalledMethod =
-                    ClassUtils.getClass("org.apache.pulsar.client.impl.schema.PulsarAvroClassSecurity")
+                    ClassUtils.getClass("org.apache.pulsar.client.schema.AvroTrustedClasses")
                             .getMethod("isInstalled");
         } catch (ClassNotFoundException e) {
-            log.debug().exception(e).log("PulsarAvroClassSecurity not present");
+            log.debug().exception(e).log("AvroTrustedClasses not present");
         } catch (NoSuchMethodException e) {
-            log.warn().exception(e).log("Cannot find PulsarAvroClassSecurity.isInstalled()");
+            log.warn().exception(e).log("Cannot find AvroTrustedClasses.isInstalled()");
         }
-        PULSARAVROCLASSSECURITY_ISINSTALLED_METHOD = isInstalledMethod;
+        AVROTRUSTEDCLASSES_ISINSTALLED_METHOD = isInstalledMethod;
     }
 
     @Override
@@ -141,14 +141,14 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
     }
 
     // Avro's trusted-class validator is a JVM-global singleton, so a test class that installs its own
-    // (for example via PulsarAvroClassSecurity.trustAdditionally) would otherwise leak that trust into
+    // (directly, or via AvroTrustedClasses) would otherwise leak that trust into
     // every later test class in the same fork. Restore the value captured before any test ran.
     //
     // Pulsar's own validator is deliberately left in place: a broker shared across test classes stays
     // running and still needs to read and write its Avro-serialized system topics.
     private static void restoreAvroClassSecurityValidator() {
         if (CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD == null || INITIAL_CLASSSECURITYVALIDATOR == null
-                || isPulsarAvroClassSecurityInstalled()) {
+                || isAvroTrustedClassesInstalled()) {
             return;
         }
         try {
@@ -158,12 +158,12 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
         }
     }
 
-    private static boolean isPulsarAvroClassSecurityInstalled() {
-        if (PULSARAVROCLASSSECURITY_ISINSTALLED_METHOD == null) {
+    private static boolean isAvroTrustedClassesInstalled() {
+        if (AVROTRUSTEDCLASSES_ISINSTALLED_METHOD == null) {
             return false;
         }
         try {
-            return (Boolean) PULSARAVROCLASSSECURITY_ISINSTALLED_METHOD.invoke(null);
+            return (Boolean) AVROTRUSTEDCLASSES_ISINSTALLED_METHOD.invoke(null);
         } catch (IllegalAccessException | InvocationTargetException e) {
             log.warn().exception(e).log("Cannot check whether Pulsar's Avro validator is installed");
             return false;

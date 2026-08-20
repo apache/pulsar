@@ -266,7 +266,7 @@ tasks.withType<Test>().configureEach {
     )
     // Avro 1.12.2 (AVRO-4189) denies reflection over any class that is not explicitly trusted, including
     // the record/enum types that ReflectDatumWriter and ReflectDatumReader resolve for every named
-    // schema. Production code trusts Pulsar's own Avro types via PulsarAvroClassSecurity, but the test
+    // schema. Production code trusts Pulsar's own Avro types via AvroTrustedClasses, but the test
     // suites also serialize hundreds of ad-hoc fixture POJOs, so trust the whole Pulsar namespace here.
     // Both the plain and the shaded property names are set: modules that test a shaded client jar
     // (tests/pulsar-client-all-shade-test and friends) bundle a relocated Avro that reads the

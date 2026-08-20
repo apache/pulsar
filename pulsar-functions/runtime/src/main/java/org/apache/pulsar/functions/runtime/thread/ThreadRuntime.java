@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.schema.PulsarAvroClassSecurity;
 import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -40,6 +39,7 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.proto.MetricsData;
+import org.apache.pulsar.functions.runtime.FunctionAvroTrustedClasses;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -218,8 +218,8 @@ public class ThreadRuntime implements Runtime {
         // inside the function's own JVM.
         this.trustedFunctionClassLoader = functionClassLoader;
         this.trustedTransformFunctionClassLoader = transformFunctionClassLoader;
-        PulsarAvroClassSecurity.trustClassLoader(functionClassLoader);
-        PulsarAvroClassSecurity.trustClassLoader(transformFunctionClassLoader);
+        FunctionAvroTrustedClasses.trustFunctionClassLoader(functionClassLoader);
+        FunctionAvroTrustedClasses.trustFunctionClassLoader(transformFunctionClassLoader);
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -261,8 +261,8 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public void stop() {
-        PulsarAvroClassSecurity.untrustClassLoader(trustedFunctionClassLoader);
-        PulsarAvroClassSecurity.untrustClassLoader(trustedTransformFunctionClassLoader);
+        FunctionAvroTrustedClasses.untrustFunctionClassLoader(trustedFunctionClassLoader);
+        FunctionAvroTrustedClasses.untrustFunctionClassLoader(trustedTransformFunctionClassLoader);
         trustedFunctionClassLoader = null;
         trustedTransformFunctionClassLoader = null;
         if (fnThread != null) {
