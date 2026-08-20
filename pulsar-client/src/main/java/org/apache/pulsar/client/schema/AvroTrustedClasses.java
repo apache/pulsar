@@ -155,6 +155,10 @@ public final class AvroTrustedClasses {
      *
      * <p>Prefer this to the name-based methods. Call it once per POJO you use with
      * {@code Schema.AVRO(...)}, before creating the producer or consumer.
+     *
+     * <p>If a class has no schema Avro can derive — a bare {@code java.util.List}, say, which has no
+     * element type to describe — only the class itself is trusted; there is nothing to expand. Use
+     * {@link #trustExactly(Class[])} when that is what you meant.
      */
     public static void trust(Class<?>... classes) {
         for (Class<?> clazz : classes) {
@@ -181,7 +185,29 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * Trusts individually named classes. Nested classes must be named with the binary form, using
+     * Trusts exactly the given classes, without following what they reference. Use this when you want
+     * to say precisely which classes are trusted; {@link #trust(Class[])} is usually the more practical
+     * choice, since it also covers the types Avro reaches from them.
+     *
+     * <p>Works for interfaces too, which is the one case where {@link #trust(Class[])} has nothing to
+     * expand: an interface either has no schema of its own (Avro generates an empty record) or none at
+     * all (a bare {@code java.util.List} cannot be described without an element type). Note that
+     * trusting an interface does not trust its implementations — Avro names the concrete class in the
+     * schema, so those have to be trusted in their own right, which {@link #trust(Class[])} does
+     * automatically for a class whose fields declare them with {@code @Union}.
+     */
+    public static void trustExactly(Class<?>... classes) {
+        for (Class<?> clazz : classes) {
+            if (clazz != null) {
+                TRUSTED_CLASSES.add(clazz.getName());
+            }
+        }
+        install();
+    }
+
+    /**
+     * Trusts individually named classes, without following what they reference. Use this for classes
+     * you cannot reference at compile time. Nested classes must be named with the binary form, using
      * {@code $} rather than a dot: {@code com.example.Outer$Inner}.
      */
     public static void trustClasses(String... classNames) {

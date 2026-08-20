@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.net.URI;
 import java.util.List;
 import java.util.Random;
+import org.apache.avro.reflect.Union;
 import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate;
 import org.apache.pulsar.client.api.Schema;
@@ -110,6 +111,45 @@ public class AvroTrustedClassesTest {
     }
 
     @Test
+    public void testTrustExactlyDoesNotFollowReferencedTypes() {
+        AvroTrustedClasses.trustExactly(Order.class);
+
+        assertThat(isTrusted(Order.class)).isTrue();
+        // Unlike trust(Class), nothing the class references comes along.
+        assertThat(isTrusted(Address.class)).isFalse();
+        assertThat(isTrusted(OrderState.class)).isFalse();
+        assertThat(isTrusted(List.class)).isFalse();
+    }
+
+    @Test
+    public void testTrustWorksForInterfaces() {
+        // Avro derives an empty record for a user interface, so there is nothing to expand, but the
+        // interface itself still has to be trusted: a field declaring it is named after it in the schema.
+        AvroTrustedClasses.trust(Shape.class);
+
+        assertThat(isTrusted(Shape.class)).isTrue();
+    }
+
+    @Test
+    public void testTrustWorksForInterfacesWithNoDerivableSchema() {
+        // ReflectData cannot describe a bare java.util.List — "Can't find element type of Collection" —
+        // so the schema walk fails. Trusting the class itself must still take effect.
+        AvroTrustedClasses.trust(List.class);
+
+        assertThat(isTrusted(List.class)).isTrue();
+    }
+
+    @Test
+    public void testTrustExpandsThroughAUnionOfImplementations() {
+        // Where an interface field enumerates its implementations, Avro inlines them as records in the
+        // schema, so trusting the holder reaches them. Trusting the interface alone would not.
+        AvroTrustedClasses.trust(ShapeHolder.class);
+
+        assertThat(isTrusted(Circle.class)).isTrue();
+        assertThat(isTrusted(Square.class)).isTrue();
+    }
+
+    @Test
     public void testTrustPredicate() {
         AvroTrustedClasses.trust(clazz -> clazz.getName().equals(Random.class.getName()));
 
@@ -118,5 +158,35 @@ public class AvroTrustedClassesTest {
 
     private static boolean isTrusted(Class<?> clazz) {
         return ClassSecurityValidator.getGlobal().isTrusted(clazz);
+    }
+
+    /** A user interface: Avro derives an empty record for it. */
+    public interface Shape {
+    }
+
+    public static class Circle implements Shape {
+        private int radius = 1;
+
+        public int getRadius() {
+            return radius;
+        }
+    }
+
+    public static class Square implements Shape {
+        private int side = 2;
+
+        public int getSide() {
+            return side;
+        }
+    }
+
+    /** Declares the interface's implementations, which is how Avro reflect models polymorphism. */
+    public static class ShapeHolder {
+        @Union({Circle.class, Square.class})
+        private Shape shape = new Circle();
+
+        public Shape getShape() {
+            return shape;
+        }
     }
 }
