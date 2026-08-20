@@ -1499,13 +1499,15 @@ public class PulsarClientImpl implements PulsarClient {
                     log.warn().exception(t).log("Failed to close TLS factory");
                     throwable = t;
                 } finally {
-                    // Clear the slot for a factory this client composed. ClientBuilderImpl.build() hands the
-                    // builder's own ClientConfigurationData over without cloning it, so the factory stored
-                    // during construction outlives this client in the caller's builder. Left in place, a
-                    // second build() from the same builder mistakes it for a v5-adopted factory,
-                    // re-initializes an already-closed instance and fails the build — reusing a builder is
-                    // ordinary v4 usage that worked before PIP-478. An ADOPTED factory is deliberately left
-                    // alone: the application supplied that instance and still holds it.
+                    // Clear the slot for a factory this client composed. Both builders now hand over a copy
+                    // of their ClientConfigurationData, so a builder cannot be left holding a closed
+                    // factory; what still reaches here with a caller-owned instance are the paths that
+                    // construct a client from a ClientConfigurationData directly — PulsarService's internal
+                    // client and the proxy's lookup client among them. For those the configuration outlives
+                    // the client, and a factory left in the slot would be mistaken for a v5-adopted one on
+                    // the next construction, re-initialized while closed, and fail that build. An ADOPTED
+                    // factory is deliberately left alone: the application supplied that instance and still
+                    // holds it.
                     if (clientComposedTlsFactory) {
                         conf.setTlsFactory(null);
                     }
