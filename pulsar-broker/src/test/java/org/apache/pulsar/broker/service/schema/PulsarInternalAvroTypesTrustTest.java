@@ -54,14 +54,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Verifies that {@link BrokerAvroTrustedClasses} on its own is enough to serialize every type Pulsar
- * writes to its system topics.
+ * Verifies that the broker can serialize every type it writes to its system topics with nothing declared
+ * in advance — building the schema from the class is what trusts it, exactly as for an application POJO.
  *
  * <p>The Gradle test JVM trusts the whole org.apache.pulsar namespace through
  * org.apache.avro.SERIALIZABLE_PACKAGES (see pulsar.java-conventions.gradle.kts), which would hide a
- * missing entry in the allow-list. These tests therefore drop the global validator down to Avro's
- * hardcoded {@code DEFAULT_TRUSTED_CLASSES} — the baseline of a production JVM that sets no Avro system
- * properties — and then install Pulsar's own trust on top of it.
+ * gap. These tests therefore drop the global validator down to Avro's hardcoded
+ * {@code DEFAULT_TRUSTED_CLASSES} — the baseline of a production JVM that sets no Avro system
+ * properties — so that anything not covered fails here.
  */
 @Test(groups = "broker")
 public class PulsarInternalAvroTypesTrustTest {
@@ -73,7 +73,6 @@ public class PulsarInternalAvroTypesTrustTest {
         previousValidator = ClassSecurityValidator.getGlobal();
         // DEFAULT_TRUSTED_CLASSES excludes the system-properties predicate, unlike DEFAULT.
         ClassSecurityValidator.setGlobal(ClassSecurityValidator.DEFAULT_TRUSTED_CLASSES);
-        BrokerAvroTrustedClasses.trustBrokerTypes();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -183,10 +182,10 @@ public class PulsarInternalAvroTypesTrustTest {
     }
 
     @Test
-    public void testBrokerTrustDoesNotLeakToUnrelatedApplicationClasses() {
-        // The broker declaring its own types must not widen the set for anything else. A class the
-        // application has handed to Schema.AVRO is trusted, but only because of that call - see
-        // AvroTrustedClassesTest - so check a class that was never used with a schema.
+    public void testTrustDoesNotLeakToUnrelatedApplicationClasses() {
+        // Serializing the broker's own types must not widen the set for anything else. A class handed to
+        // Schema.AVRO is trusted, but only because of that call - see AvroTrustedClassesTest - so check
+        // a class that was never used with a schema.
         assertThat(ClassSecurityValidator.getGlobal().isTrusted(UnusedPojo.class)).isFalse();
     }
 

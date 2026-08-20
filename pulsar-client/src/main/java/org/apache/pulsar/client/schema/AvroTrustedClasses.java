@@ -157,6 +157,25 @@ public final class AvroTrustedClasses {
         // application, so it belongs to the client's own baseline rather than to a caller. In the
         // shaded client this literal is relocated alongside the classes it names, so it still matches.
         TRUSTED_PACKAGES.add("com.google.protobuf");
+        // Collection types that ReflectData records as a "java-class" property on the array or map
+        // schema it generates for a field, and then resolves reflectively. Trusting a class expands
+        // through the derived schema and picks these up on its own, but declaring a package or a bare
+        // class name does not, which made "trust my model package" quietly insufficient for any POJO
+        // with a List field. They are plain containers with nothing exploitable in construction, and
+        // Avro's own build trusts the same set, so there is no value in making callers rediscover them.
+        TRUSTED_CLASSES.addAll(Arrays.asList(
+                "java.util.Collection",
+                "java.util.List",
+                "java.util.ArrayList",
+                "java.util.Set",
+                "java.util.HashSet",
+                "java.util.LinkedHashSet",
+                "java.util.TreeSet",
+                "java.util.Map",
+                "java.util.HashMap",
+                "java.util.LinkedHashMap",
+                "java.util.TreeMap",
+                "java.util.concurrent.ConcurrentHashMap"));
     }
 
     /**

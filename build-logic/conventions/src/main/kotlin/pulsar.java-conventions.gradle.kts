@@ -273,17 +273,10 @@ tasks.withType<Test>().configureEach {
     // org.apache.pulsar.shade.* name instead.
     listOf("org.apache.avro", "org.apache.pulsar.shade.org.apache.avro").forEach { avroPrefix ->
         systemProperty("$avroPrefix.SERIALIZABLE_PACKAGES", "org.apache.pulsar,com.google.protobuf")
-        // URI, URL and File are @Stringable types, and the collection types are recorded as a
-        // "java-class" property on generated array/map schemas; neither group is in Avro's
-        // DEFAULT_TRUSTED_CLASSES (which does already cover BigDecimal, BigInteger and Integer).
-        systemProperty("$avroPrefix.SERIALIZABLE_CLASSES",
-            listOf(
-                "java.net.URI", "java.net.URL", "java.io.File",
-                "java.util.Collection", "java.util.List", "java.util.ArrayList",
-                "java.util.Set", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
-                "java.util.Map", "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
-                "java.util.concurrent.ConcurrentHashMap",
-            ).joinToString(","))
+        // URI, URL and File are @Stringable types that Avro's DEFAULT_TRUSTED_CLASSES does not cover
+        // (it does already cover BigDecimal, BigInteger and Integer). The collection types are seeded by
+        // AvroTrustedClasses instead, so they are not repeated here.
+        systemProperty("$avroPrefix.SERIALIZABLE_CLASSES", "java.net.URI,java.net.URL,java.io.File")
     }
     if (testJavaMajorVersion >= 24) {
         // Netty loads its native libraries (epoll, io_uring, tcnative) through

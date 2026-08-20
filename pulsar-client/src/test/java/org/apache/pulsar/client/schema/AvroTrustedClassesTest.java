@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Union;
@@ -129,13 +130,17 @@ public class AvroTrustedClassesTest {
     }
 
     @Test
-    public void testTrustPackagesAloneDoesNotCoverDeclaredCollectionTypes() {
-        // Documents why trust(Class) is the primary entry point: the POJO's own package says nothing
-        // about java.util.List, which Avro records as a property on the generated array schema.
+    public void testCollectionTypesAreTrustedOutOfTheBox() {
+        // Avro records a field's declared collection type as a "java-class" property and resolves it
+        // reflectively, so declaring a package alone used to be quietly insufficient for any POJO with a
+        // List field. These are seeded, so that sharp edge is gone.
         AvroTrustedClasses.trustPackages(Order.class.getPackage().getName());
 
         assertThat(isTrusted(Order.class)).isTrue();
-        assertThat(isTrusted(List.class)).isFalse();
+        assertThat(isTrusted(List.class)).isTrue();
+        assertThat(isTrusted(Map.class)).isTrue();
+        // Still only the container types, not java.util wholesale.
+        assertThat(isTrusted(Random.class)).isFalse();
     }
 
     @Test
@@ -152,10 +157,10 @@ public class AvroTrustedClassesTest {
         AvroTrustedClasses.trustExactly(Order.class);
 
         assertThat(isTrusted(Order.class)).isTrue();
-        // Unlike trust(Class), nothing the class references comes along.
+        // Unlike trust(Class), nothing the class references comes along. (List is seeded, so it is not
+        // a useful witness here.)
         assertThat(isTrusted(Address.class)).isFalse();
         assertThat(isTrusted(OrderState.class)).isFalse();
-        assertThat(isTrusted(List.class)).isFalse();
     }
 
     @Test

@@ -114,7 +114,6 @@ import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
-import org.apache.pulsar.broker.service.schema.BrokerAvroTrustedClasses;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -852,10 +851,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * Start the pulsar service instance.
      */
     public void start() throws PulsarServerException {
-        // Trust the classes the broker serializes with Avro (transaction buffer snapshots, topic policy
-        // events, metadata events) before anything can read or write them. Idempotent.
-        BrokerAvroTrustedClasses.trustBrokerTypes();
-
         log.info()
                 .attr("version", (brokerVersion != null ? brokerVersion : "unknown"))
                 .attr("gitRevision", PulsarVersion.getGitSha())
