@@ -34,6 +34,7 @@ import org.apache.avro.protobuf.ProtobufData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.client.schema.AvroTrustedClasses;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -108,6 +109,12 @@ public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
             throw new IllegalArgumentException(Message.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
+
+        // The application named this class, so let Avro reflect over it and over the protobuf runtime
+        // types avro-protobuf resolves alongside it. This has to happen before the schema is derived,
+        // not after: deriving it is itself a reflective resolution. ProtobufSchema also builds its own
+        // SchemaInfo rather than going through AvroSchema.of, so it declares the class itself.
+        AvroTrustedClasses.trustApplicationSchema(pojo, null);
 
             SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
