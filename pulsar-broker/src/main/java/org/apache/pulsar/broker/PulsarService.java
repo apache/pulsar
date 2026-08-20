@@ -2008,12 +2008,21 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (tlsEnabled) {
             conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
             conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
-            // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-            // (jsseProvider) onto the internal client config so the broker's own outbound client honors them —
-            // both are documented as "used by the internal client" but were otherwise dropped here (never
-            // copied into ClientConfigurationData), silently defaulting the engine/provider.
-            conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
-            conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal client config so the
+            // broker's own outbound client honors them — all three are documented as "used by the internal
+            // client" but were otherwise dropped here (never copied into ClientConfigurationData), silently
+            // defaulting the engine/provider. The client conf field is the only route: the policy this client
+            // builds comes from ClientTlsFactorySupport.clientDefaultPolicy, which reads it.
+            if (isNotBlank(this.getConfiguration().getBrokerClientSslProvider())) {
+                conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJsseProvider())) {
+                conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJcaProvider())) {
+                conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
+            }
             conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
             conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
             if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
@@ -2104,6 +2113,24 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection())
                     .enableTlsHostnameVerification(conf.isTlsHostnameVerificationEnabled());
+            // PIP-478: the broker's own admin client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. It reached none of them: the whole brokerClient* TLS material
+            // family is mapped above, but the provider axes were not, and the ClientConfigurationData is their
+            // only route (the admin transport composes its policy through
+            // ClientTlsFactorySupport.clientDefaultPolicy). Pinning BCJSSE/BCFIPS in broker.conf therefore left
+            // this leg building its SSLContext on the JVM default and parsing key material on the search order.
+            // Set only when configured, so the brokerClient_* loadConf escape hatch above is not clobbered.
+            if (isNotBlank(conf.getBrokerClientSslProvider())) {
+                builder.sslProvider(conf.getBrokerClientSslProvider());
+            }
+            if (builder instanceof PulsarAdminBuilderImpl adminBuilder) {
+                if (isNotBlank(conf.getBrokerClientJsseProvider())) {
+                    adminBuilder.getConf().setJsseProvider(conf.getBrokerClientJsseProvider());
+                }
+                if (isNotBlank(conf.getBrokerClientJcaProvider())) {
+                    adminBuilder.getConf().setJcaProvider(conf.getBrokerClientJcaProvider());
+                }
+            }
         }
 
         // most of the admin request requires to make zk-call so, keep the max read-timeout based on
@@ -2312,6 +2339,28 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
         workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        // PIP-478: an embedded worker inherits the broker's TLS provider pins — the outbound (broker-client)
+        // axes for its own worker-to-broker connections, and the web-listener axes for its web server — unless
+        // its own configuration file sets them. Without this a FIPS deployment that pins BCJSSE in broker.conf
+        // gets an embedded worker silently running on the default provider.
+        if (isBlank(workerConfig.getBrokerClientSslProvider())) {
+            workerConfig.setBrokerClientSslProvider(brokerConfig.getBrokerClientSslProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJsseProvider())) {
+            workerConfig.setBrokerClientJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+        }
+        if (isBlank(workerConfig.getTlsProvider())) {
+            workerConfig.setTlsProvider(brokerConfig.getWebServiceTlsProvider());
+        }
+        if (isBlank(workerConfig.getJsseProvider())) {
+            workerConfig.setJsseProvider(brokerConfig.getJsseProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJcaProvider())) {
+            workerConfig.setBrokerClientJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+        }
+        if (isBlank(workerConfig.getJcaProvider())) {
+            workerConfig.setJcaProvider(brokerConfig.getJcaProvider());
+        }
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());

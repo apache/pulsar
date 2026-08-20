@@ -24,12 +24,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.testng.annotations.Test;
 
 /**

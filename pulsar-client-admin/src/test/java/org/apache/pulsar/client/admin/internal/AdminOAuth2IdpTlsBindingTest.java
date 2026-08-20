@@ -79,6 +79,47 @@ public class AdminOAuth2IdpTlsBindingTest {
         }
     }
 
+    /**
+     * PIP-478: the IdP leg inherits the admin's own provider pins. The admin folds this policy itself, before
+     * {@code ClientTlsFactorySupport.composePolicies} runs and into the same map, so that later
+     * {@code putIfAbsent} can never supply the inheritance — it has to happen at the admin's fold site or not
+     * at all. Without it a FIPS admin parses the IdP certificate outside the module it pinned.
+     *
+     * <p>Resolvable provider names are used rather than BCJSSE/BCFIPS placeholders: a pinned name is
+     * resolved when the factory is built, and an unresolvable one fails the admin build by design.
+     */
+    @Test
+    public void theIdpLegInheritsTheAdminsProviderPins() throws Exception {
+        PulsarAdminBuilder builder = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"));
+        ((PulsarAdminBuilderImpl) builder).getConf().setJsseProvider("SunJSSE");
+        ((PulsarAdminBuilderImpl) builder).getConf().setJcaProvider("SUN");
+
+        try (PulsarAdminImpl admin = (PulsarAdminImpl) builder.build()) {
+            TlsPolicy idp = admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2);
+            assertThat(idp.jsseProvider()).isEqualTo("SunJSSE");
+            assertThat(idp.jcaProvider()).isEqualTo("SUN");
+        }
+    }
+
+    @Test
+    public void anExplicitOauth2ParameterStillWinsOverTheAdminsPin() throws Exception {
+        PulsarAdminBuilder builder = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(oauth2(ISSUER
+                        + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\",\"jcaProvider\":\"SunRsaSign\"}"));
+        ((PulsarAdminBuilderImpl) builder).getConf().setJsseProvider("SunJSSE");
+        ((PulsarAdminBuilderImpl) builder).getConf().setJcaProvider("SUN");
+
+        try (PulsarAdminImpl admin = (PulsarAdminImpl) builder.build()) {
+            TlsPolicy idp = admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2);
+            assertThat(idp.jcaProvider()).as("the explicit parameter wins on its own axis")
+                    .isEqualTo("SunRsaSign");
+            assertThat(idp.jsseProvider()).as("the other axis still inherits").isEqualTo("SunJSSE");
+        }
+    }
+
     @Test
     public void noIdpMaterialAddsNoPolicy() throws Exception {
         try (PulsarAdminImpl admin = adminWith(oauth2(ISSUER + "}"))) {

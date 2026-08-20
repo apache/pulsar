@@ -47,8 +47,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -77,6 +77,7 @@ import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
@@ -154,6 +155,7 @@ public class PulsarClientImpl implements PulsarClient {
     // connections keep their contexts alive via their own refcount), so they are not closed eagerly.
     private final Object tlsFactoryRebuildLock = new Object();
     private volatile boolean clientTlsFactoryRebuildable;
+    private volatile boolean clientComposedTlsFactory;
     private final List<PulsarTlsFactory> supersededTlsFactories = new CopyOnWriteArrayList<>();
 
     // PIP-478: a stable id for the owning client (logging correlation), plus a small bounded,
@@ -427,7 +429,7 @@ public class PulsarClientImpl implements PulsarClient {
      * already-started variant because the v4 instance stays in {@code conf} and this client both started it
      * above and closes it in {@link #shutdown()} — the adapter must not run that lifecycle a second time.
      */
-    private void resolveV5Authentication() {
+    private void resolveV5Authentication() throws PulsarClientException {
         // The v5 slot holds only what was explicitly configured through the v5 builder. A body derived from
         // the v4 slot is deliberately NOT written back: build() hands this client the builder's own
         // configuration object, so a derived body stored here would outlive the build and be reused by the
@@ -435,10 +437,45 @@ public class PulsarClientImpl implements PulsarClient {
         // again, would drive the previous credential while conf.getAuthentication() showed the new one.
         // Deriving on every resolution keeps the answer a function of the current configuration.
         org.apache.pulsar.client.api.v5.auth.Authentication v5 = conf.getV5Authentication();
+        boolean configuredDirectly = v5 != null;
         if (v5 == null) {
             v5 = V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication());
         }
-        conf.setV5AuthenticationDriver(new V5BinaryAuthenticationDriver(v5, authServices));
+        V5BinaryAuthenticationDriver driver = new V5BinaryAuthenticationDriver(v5, authServices);
+        if (configuredDirectly) {
+            // A plugin configured through the v5 builder is initialized here, on the application thread, so a
+            // misconfiguration fails the build (PIP-478). The plugins the client derives from the v4 slot
+            // stay lazy: initializing a bridged plugin runs v4 code, which the v4 client does not do at
+            // build time either.
+            requireUsableForBinaryTransport(v5, driver);
+        }
+        conf.setV5AuthenticationDriver(driver);
+    }
+
+    /**
+     * Fail the client build when the configured authentication cannot authenticate a binary connection.
+     *
+     * <p>The binary transport requires {@code BinaryAuthDataProvider} (PIP-478 binary routing rule 1). Without
+     * this check the plugin builds fine and every connection attempt fails the same way for the client's
+     * lifetime, with the reason buried in a connection failure rather than stated where the mistake was made.
+     * Capabilities are only meaningful once the plugin has initialized, so the check follows initialization
+     * rather than preceding it.
+     */
+    private void requireUsableForBinaryTransport(org.apache.pulsar.client.api.v5.auth.Authentication v5,
+            V5BinaryAuthenticationDriver driver) throws PulsarClientException {
+        try {
+            driver.initializedAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+        if (v5.capability(BinaryAuthDataProvider.class).isEmpty()) {
+            throw new PulsarClientException.UnsupportedAuthenticationException(
+                    "authentication plugin " + v5.getClass().getName() + " does not expose "
+                            + "BinaryAuthDataProvider; the Pulsar binary transport requires it (PIP-478)");
+        }
     }
 
     /**
@@ -459,6 +496,10 @@ public class PulsarClientImpl implements PulsarClient {
         // when no factory is composed now, so a later updateAuthentication that introduces OAuth2 IdP TLS
         // material (a failover swap from a non-OAuth2 cluster) can still build one.
         this.clientTlsFactoryRebuildable = conf.getTlsFactory() == null && conf.getTlsPolicyMap() == null;
+        // Whether the factory in the slot is one this client composed, as opposed to one the application
+        // adopted through the v5 builder. Only a composed factory may be cleared from the configuration on
+        // shutdown — see the note there.
+        this.clientComposedTlsFactory = conf.getTlsFactory() == null;
         if (!needsClientTlsFactory()) {
             return;
         }
@@ -491,7 +532,12 @@ public class PulsarClientImpl implements PulsarClient {
      * @return whether the client TLS factory must be composed
      */
     private boolean needsClientTlsFactory() {
-        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial();
+        // An adopted factory counts too. Resolution is what initializes it and puts it under this client's
+        // ownership, so skipping it would leave a factory the client still closes on shutdown but never
+        // initialized — and would serve an uninitialized factory to anything that asked. The admin path
+        // applies the same rule (AsyncHttpConnector.needsTlsFactory), and pip-478.md states it for both.
+        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial()
+                || conf.getTlsFactory() != null;
     }
 
     /**
@@ -579,9 +625,15 @@ public class PulsarClientImpl implements PulsarClient {
      */
     private synchronized Executor blockingAuthExecutor() {
         if (blockingAuthExecutor == null) {
-            blockingAuthExecutor = new ThreadPoolExecutor(0, AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<>(),
+            // Queue rather than reject. Every caller is a connection attempt or an authenticated request, so
+            // a saturated pool must slow them down, not fail them: a SynchronousQueue with the default abort
+            // policy turns a reconnect storm against a slow identity provider into failed connections. Core
+            // threads are allowed to time out, so an unused pool still costs nothing.
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
+                    AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new ExecutorProvider.ExtendedThreadFactory("pulsar-client-auth-blocking", true));
+            executor.allowCoreThreadTimeOut(true);
+            blockingAuthExecutor = executor;
         }
         return blockingAuthExecutor;
     }
@@ -1517,6 +1569,19 @@ public class PulsarClientImpl implements PulsarClient {
                 } catch (Throwable t) {
                     log.warn().exception(t).log("Failed to close TLS factory");
                     throwable = t;
+                } finally {
+                    // Clear the slot for a factory this client composed. Both builders now hand over a copy
+                    // of their ClientConfigurationData, so a builder cannot be left holding a closed
+                    // factory; what still reaches here with a caller-owned instance are the paths that
+                    // construct a client from a ClientConfigurationData directly — PulsarService's internal
+                    // client and the proxy's lookup client among them. For those the configuration outlives
+                    // the client, and a factory left in the slot would be mistaken for a v5-adopted one on
+                    // the next construction, re-initialized while closed, and fail that build. An ADOPTED
+                    // factory is deliberately left alone: the application supplied that instance and still
+                    // holds it.
+                    if (clientComposedTlsFactory) {
+                        conf.setTlsFactory(null);
+                    }
                 }
             }
             // PIP-478: close any TLS factories superseded by an AutoClusterFailover rebuild; they were kept

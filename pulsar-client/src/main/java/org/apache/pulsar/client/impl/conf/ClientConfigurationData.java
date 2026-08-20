@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -39,12 +41,13 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.Socks5ProxyScope;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -267,7 +270,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     // from which ClientCnx opens one exchange per connection attempt. Resolved by PulsarClientImpl; null
     // until then (and for a configuration that never builds a client).
     @JsonIgnore
-    private transient AsyncAuthenticationDriver v5AuthenticationDriver;
+    private transient BinaryAuthenticationDriver v5AuthenticationDriver;
 
     @Schema(
             name = "concurrentLookupRequest",
@@ -371,11 +374,21 @@ public class ClientConfigurationData implements Serializable, Cloneable {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "client's TLS SSLContext. A distinct axis from sslProvider (the JDK-vs-OpenSSL engine "
                     + "switch): when set, the default factory builds the JDK Netty engine with this provider as "
-                    + "the SSLContext provider, overriding the engine choice. Resolved via the ServiceLoader "
-                    + "mechanism (with a fallback to an already-registered provider) and failing loudly when "
-                    + "unresolvable."
+                    + "the SSLContext provider, overriding the engine choice. Resolved by preferring a provider "
+                    + "already registered in the JVM (Security.getProvider), falling back to the ServiceLoader "
+                    + "mechanism, and failing loudly when unresolvable."
     )
     private String jsseProvider = null;
+
+    @Schema(
+            name = "jcaProvider",
+            description = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order, i.e. the behaviour of releases before PIP-478."
+    )
+    private String jcaProvider = null;
 
     @Schema(
             name = "tlsKeyStoreType",
@@ -554,6 +567,28 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         } else {
             return operationTimeoutMs;
         }
+    }
+
+    /**
+     * Refuse to serialize a configuration whose authentication would not survive the round trip.
+     *
+     * <p>A v5 authentication plugin is not {@link Serializable} and this slot is {@code transient}, so
+     * serializing would drop it silently and the deserialized configuration would authenticate as nobody —
+     * an authentication downgrade discovered as a broker rejection, far from its cause. The string form
+     * ({@code authPluginClassName} + {@code authParams}) does survive, and is what a remote or forked
+     * context should be configured with, so a configuration carrying one is allowed through.
+     *
+     * @param out the object output stream
+     * @throws IOException if the configuration cannot be written
+     */
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+        if (v5Authentication != null && StringUtils.isBlank(authPluginClassName)) {
+            throw new NotSerializableException("A v5 authentication plugin ("
+                    + v5Authentication.getClass().getName() + ") cannot be serialized with the client "
+                    + "configuration. Configure authentication with authPluginClassName + authParams instead "
+                    + "of a pre-built plugin instance when the configuration has to cross a boundary.");
+        }
+        out.defaultWriteObject();
     }
 
     public ClientConfigurationData clone() {

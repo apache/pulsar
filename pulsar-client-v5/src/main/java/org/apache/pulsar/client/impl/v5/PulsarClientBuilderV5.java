@@ -72,7 +72,15 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     public PulsarClient build() throws PulsarClientException {
         try {
             applyAuthentication();
-            var v4Client = new PulsarClientImpl(conf);
+            // PIP-478: hand the client its own configuration object, as ClientBuilderImpl.build() does.
+            // PulsarClientImpl stores the TLS factory it composes back onto this object
+            // (setupClientTlsFactory), so sharing the builder's instance would make a second build() adopt
+            // and re-initialize the first client's live factory, and closing either client would then close
+            // TLS for the other. This path matters more than the v4 one: tlsFactory(...) and tlsPolicy(...)
+            // exist only here, so it is the only builder that can reach the adopted-factory arm
+            // deliberately, and it is what turns on the fail-fast probe whose failure handler closes the
+            // factory. applyAuthentication() has already run, so the copy carries what it resolved.
+            var v4Client = new PulsarClientImpl(conf.clone());
             return new PulsarClientV5(v4Client, description, transactionTimeout);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
             throw new PulsarClientException(e.getMessage(), e);
@@ -116,15 +124,16 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * choosing how the plugin is driven. Runs at {@link #build()} on the application thread — off the Netty
      * event loop — where probing a bridged plugin for its material is safe.
      *
-     * <p>A bridged v4 plugin (from {@code AuthenticationFactory.token/tls/create}) that performs <b>no
-     * credential I/O</b> — the built-in TLS-material plugins (their material is folded into the client TLS
-     * configuration; the binary handshake carries an empty payload) and disabled auth — is driven raw on the
-     * v4 client. A credential-fetching v4 plugin, and every genuinely v5-native plugin, is exposed through
-     * {@link V5ToV4AuthenticationAdapter} so its (possibly blocking) {@code getAuthData} off-loads to the
-     * blocking executor instead of running on the Netty event loop (PIP-478: v4 credential calls are
-     * ALWAYS off-loaded). The adapter implements {@code ClientAuthenticationServicesAware}, so the client
-     * late-binds real executors / HTTP client factory / client instance id into it before {@code start()}
-     * (PIP-478).
+     * <p>A bridged v4 plugin (from {@code AuthenticationFactory.token/tls/create}) is unwrapped back to the
+     * raw v4 instance and stored in the v4 slot, which stays the single owner of its lifecycle — the client
+     * starts it, closes it, and reads its TLS material and OAuth2 IdP trust from there. Any TLS material it
+     * carries is folded into the client's policy map first, on this thread. A genuinely v5-native plugin goes
+     * to the v5 slot instead.
+     *
+     * <p>Off-loading is not decided here. Since the inversion the client drives one resolved v5
+     * {@code Authentication} for every binary connection, and the driver it builds is what keeps credential
+     * work off the event loop: a bridged v4 plugin reaches it through {@code LegacyV4AuthenticationAdapter},
+     * whose credential calls always run on the blocking executor.
      */
     private void applyAuthentication() {
         if (v5Authentication == null) {
@@ -146,11 +155,12 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     }
 
     /**
-     * Resolve the configured authentication and return the v4 {@code Authentication} the client would drive.
-     * Package-private for tests that assert the unwrap-vs-offload decision without standing up a broker
+     * Resolve the configured authentication and return the v4 {@code Authentication} slot's contents.
+     * Package-private for tests that assert the unwrap decision without standing up a broker
      * (VisibleForTesting; Guava's annotation is not on this module's classpath).
      *
-     * @return the resolved v4 authentication (a raw v4 engine, or a wrapping {@code V5ToV4AuthenticationAdapter})
+     * @return the raw v4 plugin when a bridged v4 plugin was configured, else {@code null} — a genuinely
+     *         v5-native plugin occupies the v5 slot and leaves this one empty
      */
     org.apache.pulsar.client.api.Authentication resolveAuthenticationForTest() {
         applyAuthentication();
@@ -158,15 +168,17 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     }
 
     /**
-     * For a bridged v4 plugin: fold its TLS material into {@link TlsPurpose#CLIENT_DEFAULT} (when a
-     * {@code tlsPolicy} is configured) and decide whether it can be driven raw on the v4 client.
+     * For a bridged v4 plugin: fold its TLS material into {@link TlsPurpose#CLIENT_DEFAULT} when a
+     * {@code tlsPolicy} is configured.
+     *
+     * <p>This used to also decide whether the plugin could be driven <em>raw</em> on the v4 client, returning
+     * that decision to the caller. Since the inversion there is no such choice — the client resolves one v5
+     * body from the v4 slot and drives it through {@code LegacyV4AuthenticationAdapter}, whose credential
+     * calls always off-load — so the decision, and the return value carrying it, are gone.
      *
      * @param v4 the bridged v4 plugin recovered from the wrapping adapter
-     * @return {@code true} when the raw v4 engine is correct — it performs no credential I/O (a built-in
-     *         TLS-material plugin or disabled auth); {@code false} when it fetches a command/HTTP credential
-     *         and must stay wrapped so the call off-loads
      */
-    private boolean resolveBridgedV4(org.apache.pulsar.client.api.Authentication v4) {
+    private void resolveBridgedV4(org.apache.pulsar.client.api.Authentication v4) {
         boolean foldTls = conf.getTlsPolicyMap() != null;
         if (v4 instanceof AuthenticationTls tls) {
             if (foldTls && tls.getCertFilePath() != null && tls.getKeyFilePath() != null) {
@@ -175,7 +187,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
                         .keyFilePath(tls.getKeyFilePath())
                         .build());
             }
-            return true;
+            return;
         }
         if (v4 instanceof AuthenticationKeyStoreTls keyStoreTls) {
             if (foldTls && keyStoreTls.getKeyStoreParams() != null) {
@@ -186,65 +198,45 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
                         .keyStoreType(ks.getKeyStoreType())
                         .build());
             }
-            return true;
+            return;
         }
         if (v4 instanceof AuthenticationDisabled) {
-            return true;
+            return;
         }
-        return resolveGenericV4(v4, foldTls);
+        resolveGenericV4(v4, foldTls);
     }
 
     /**
-     * Probe a generic (non-built-in) bridged v4 plugin once at build time (application thread, off the event
-     * loop): fold any file-based TLS material into {@link TlsPurpose#CLIENT_DEFAULT} when a {@code tlsPolicy}
-     * is configured, and report whether it can run raw. A plugin that exposes only in-memory cert/key
-     * material is logged rather than silently dropped (it cannot be represented in the file-path
-     * {@link TlsPolicy}).
+     * Fold a generic (non-built-in) bridged v4 plugin's file-based TLS material into
+     * {@link TlsPurpose#CLIENT_DEFAULT}. Probed once at build time, on the application thread and off the
+     * event loop. A plugin that exposes only in-memory cert/key material is logged rather than silently
+     * dropped (it cannot be represented in the file-path {@link TlsPolicy}).
+     *
+     * <p>Nothing is probed when no {@code tlsPolicy} is configured: there is nowhere to fold material into,
+     * the legacy v4 TLS path reads the plugin's material directly from {@code getAuthData()} anyway, and
+     * skipping the call avoids an eager credential fetch at build time.
      *
      * @param v4      the bridged v4 authentication plugin (not a built-in TLS class)
      * @param foldTls whether a {@code tlsPolicy} is configured, so TLS material should be folded
-     * @return {@code true} when the plugin must be driven raw on the v4 client — it performs no credential
-     *         I/O, or it carries TLS material that can only reach the transport through the legacy path;
-     *         {@code false} when it should stay wrapped for credential off-load
      */
     @SuppressWarnings("deprecation")
-    private boolean resolveGenericV4(org.apache.pulsar.client.api.Authentication v4, boolean foldTls) {
+    private void resolveGenericV4(org.apache.pulsar.client.api.Authentication v4, boolean foldTls) {
+        if (!foldTls) {
+            return;
+        }
         final AuthenticationDataProvider data;
         try {
             data = v4.getAuthData();
         } catch (Exception e) {
             // A plugin that cannot produce auth data at build time (e.g. a not-yet-reachable credential
-            // endpoint) contributes no TLS material here; keep it wrapped so any later credential I/O
-            // off-loads instead of running on the event loop.
+            // endpoint) contributes no TLS material here. Its credential is unaffected: the client resolves
+            // it later, through the adapter, which off-loads.
             LOG.debug("Could not probe v4 authentication plugin {} at build time", v4.getClass().getName(), e);
-            return false;
+            return;
         }
-        if (data == null) {
-            return false;
+        if (data != null && data.hasDataForTls()) {
+            foldGenericV4TlsMaterial(data, v4.getClass().getName());
         }
-        boolean hasCredentialIo = data.hasDataFromCommand() || data.hasDataForHttp();
-        if (data.hasDataForTls()) {
-            if (foldTls) {
-                // tlsPolicy is configured: fold the plugin's file material into the client TLS factory path,
-                // so the transport reads TLS from the factory and the plugin may still be wrapped for
-                // credential off-load.
-                foldGenericV4TlsMaterial(data, v4.getClass().getName());
-                return !hasCredentialIo;
-            }
-            // No tlsPolicy: the legacy v4 TLS path reads the plugin's material directly from getAuthData(),
-            // so it MUST run raw or its client certificate would be dropped (the wrapping adapter's
-            // synthesized v4 provider carries only the binary credential, not TLS material). A plugin that
-            // also fetches a credential therefore forgoes off-load here — the two cannot both hold on the
-            // legacy path; configuring tlsPolicy(...) restores off-load by moving TLS to the factory path.
-            if (hasCredentialIo) {
-                LOG.warn("Bridged v4 authentication plugin {} provides both TLS material and a fetched "
-                        + "credential but no tlsPolicy(...) is configured; it runs inline (no credential "
-                        + "off-load) so its client certificate is still presented on the legacy TLS path. "
-                        + "Configure tlsPolicy(...) to off-load the credential.", v4.getClass().getName());
-            }
-            return true;
-        }
-        return !hasCredentialIo;
     }
 
     @Override
@@ -297,7 +289,12 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         // is a legitimate combination — it was enabling TLS toward the broker and failing the connection.
         // The policy map itself is what triggers TLS-factory creation, so a non-transport purpose still gets
         // its factory without touching the transport.
-        if (purpose.role() == TlsPurpose.Role.CLIENT && !TlsPurpose.CLIENT_OAUTH2.equals(purpose)) {
+        //
+        // CLIENT_DEFAULT alone, not every client-role purpose: pip-478.md calls this "one narrow addition",
+        // being the only v5 expression of the legacy client.conf useTls=true with a plain pulsar:// URL.
+        // BROKER_CLIENT and plugin-minted purposes (TlsPurpose.client("...")) are client-role too, and
+        // enabling the transport for them is the same defect this guard was added to fix.
+        if (TlsPurpose.CLIENT_DEFAULT.equals(purpose)) {
             conf.setUseTls(true);
         }
         Map<TlsPurpose, TlsPolicy> map = conf.getTlsPolicyMap();
@@ -314,7 +311,11 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         if (factory == null) {
             throw new IllegalArgumentException("tlsFactory must not be null");
         }
-        conf.setUseTls(true);
+        // Same rule as tlsPolicy above, and pip-478.md states it for this method by name: a factory supplies
+        // material for every purpose WITHOUT enabling transport TLS. Forcing useTls here made an adopted
+        // factory on a plaintext pulsar:// URL — the CLIENT_OAUTH2-only case the SPI exists to serve —
+        // attempt a TLS handshake against the plaintext broker port. The adopted factory is still composed
+        // and initialized: PulsarClientImpl.needsClientTlsFactory() has its own arm for conf.getTlsFactory().
         conf.setTlsFactory(factory);
         return this;
     }
@@ -413,7 +414,10 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
                     // Preserve the pinned JSSE (SSLContext) provider across the fold. A FIPS deployment
                     // pins it via tlsPolicy(...); dropping it here would let the transport fall back to
                     // the default JDK engine, silently defeating the pin.
-                    .jsseProvider(base.jsseProvider());
+                    .jsseProvider(base.jsseProvider())
+                    // Same reasoning for the material axis: a FIPS deployment pins BCFIPS alongside BCJSSE,
+                    // and dropping half the pair is as bad as dropping both.
+                    .jcaProvider(base.jcaProvider());
         }
         return b;
     }

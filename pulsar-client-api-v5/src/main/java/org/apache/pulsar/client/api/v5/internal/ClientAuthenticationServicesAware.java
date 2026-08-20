@@ -26,12 +26,12 @@ package org.apache.pulsar.client.api.v5.internal;
  * {@code conf.getAuthentication()}, <em>before</em> {@code Authentication.start()} — so the bound
  * services (real scheduler, bounded blocking executor, HTTP client factory, client instance id) are
  * visible to the plugin's {@code initializeAsync(...)} and to every capability call thereafter. A driver
- * that is never bound (a plain v4 plugin, or one used outside a client) simply keeps its unbound
- * behaviour: credential work runs inline on the caller thread rather than being off-loaded.
+ * that is never bound (a plain v4 plugin, or one used outside a client) still does not run credential work
+ * on the caller thread: it falls back to a shared blocking pool, because the caller thread on the paths
+ * that skip binding — the proxy's broker connections above all — is a Netty event loop.
  *
- * <p>Both the built-in v4 auth shims (which drive a v5-native body) and the v5&hairsp;&rarr;&hairsp;v4
- * bridge ({@code V5ToV4AuthenticationAdapter}, exposing a genuinely v5-native plugin) implement this so
- * that the same late-binding path serves the v4-client and v5-client cases uniformly.
+ * <p>The built-in v4 auth shims implement this, so that a plugin driving a v5-native body sees the same
+ * late-binding path whether it was reached from a v4 client, a v5 client or a {@code PulsarAdmin}.
  *
  * <p>The {@code .internal.} subpackage signals "stable internal" — application code should not implement
  * this interface; it is observed and driven by the framework.
