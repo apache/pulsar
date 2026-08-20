@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
@@ -52,6 +53,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
@@ -214,7 +216,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
         if (sub != null) {
-            sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
+            acknowledgeSubscriptionUpdate(update.getSubscriptionName(), sub, pos);
         } else {
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
             log.info()
@@ -224,11 +226,33 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     .log("Creating subscription at: after receiving update from replicated subscription");
             topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
                             true /* replicateSubscriptionState */, Collections.emptyMap())
-                    .thenAccept(subscriptionCreated -> {
-                        subscriptionCreated.acknowledgeMessageAsync(Collections.singletonList(pos),
-                                AckType.Cumulative, Collections.emptyMap());
+                    .thenAccept(subscriptionCreated ->
+                            acknowledgeSubscriptionUpdate(update.getSubscriptionName(), subscriptionCreated, pos))
+                    .exceptionally(e -> {
+                        if (e != null) {
+                            log.warn()
+                                    .attr("subscriptionName", update.getSubscriptionName())
+                                    .attr("pos", pos)
+                                    .exception(FutureUtil.unwrapCompletionException(e))
+                                    .log("Failed to create replicated subscription");
+                        }
+                        return null;
                     });
         }
+    }
+
+    private CompletableFuture<Void> acknowledgeSubscriptionUpdate(String subscriptionName, Subscription sub,
+                                                                  Position pos) {
+        return sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap())
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        log.warn()
+                                .attr("subscriptionName", subscriptionName)
+                                .attr("pos", pos)
+                                .exception(FutureUtil.unwrapCompletionException(e))
+                                .log("Failed to update replicated subscription");
+                    }
+                });
     }
 
     private void startNewSnapshot() {
