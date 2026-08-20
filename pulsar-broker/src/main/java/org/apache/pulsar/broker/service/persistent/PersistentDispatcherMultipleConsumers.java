@@ -258,9 +258,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits");
                 if (notifyAddedToReplay.booleanValue()) {
@@ -306,6 +309,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
         if (!consumerSet.contains(consumer)) {
             log.debug()
                     .attr("consumer", consumer)

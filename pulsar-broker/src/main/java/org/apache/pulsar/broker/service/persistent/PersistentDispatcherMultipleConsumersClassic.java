@@ -244,9 +244,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("availablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits by in PersistentDispatcherMultipleConsumers. "
                                 + "New dispatcher permit count is");
@@ -286,6 +289,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
         if (!consumerSet.contains(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
