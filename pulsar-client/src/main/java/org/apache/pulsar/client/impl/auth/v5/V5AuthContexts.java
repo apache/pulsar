@@ -82,6 +82,21 @@ public final class V5AuthContexts {
     }
 
     /**
+     * Resolve the executor that potentially-blocking authentication work must run on: the one the owning
+     * component lent, or the shared fallback pool when it lent none. Never the caller thread.
+     *
+     * <p>Exposed for a caller that has to run more than one step on the same executor — the deprecated v4
+     * HTTP composition runs the credential resolution and the {@code newRequestHeader} continuation there —
+     * and so needs the resolved instance rather than only {@link #supplyBlocking}'s internal choice.
+     *
+     * @param blockingExecutor the bound blocking executor, or {@code null} if none was bound
+     * @return the executor to run the blocking work on; never {@code null}
+     */
+    public static Executor blockingExecutorOrShared(Executor blockingExecutor) {
+        return blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
+    }
+
+    /**
      * @param brokerHost the broker host
      * @return a new binary-protocol call context with a fresh state slot
      */
@@ -109,7 +124,7 @@ public final class V5AuthContexts {
      * @return a future of the result; never throws synchronously
      */
     public static <T> CompletableFuture<T> supplyBlocking(Executor blockingExecutor, Supplier<T> task) {
-        Executor executor = blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
+        Executor executor = blockingExecutorOrShared(blockingExecutor);
         try {
             return CompletableFuture.supplyAsync(task, executor);
         } catch (Throwable t) {
@@ -242,12 +257,19 @@ public final class V5AuthContexts {
 
         @Override
         public ScheduledExecutorService scheduler() {
-            return services.scheduler();
+            // Same fallback as the unbound context, and for the same reason: a component may bind services
+            // while leaving an accessor it has no use for null — the admin binds no scheduler, because
+            // nothing on its own path schedules periodic authentication work. Without this, binding
+            // *partial* services would be worse for a plugin than binding none at all, since the unbound
+            // context guarantees non-null. The SPI's "never null" contract now holds on every path.
+            ScheduledExecutorService scheduler = services.scheduler();
+            return scheduler == null ? SharedScheduler.INSTANCE : scheduler;
         }
 
         @Override
         public Executor blockingExecutor() {
-            return services.blockingExecutor();
+            Executor executor = services.blockingExecutor();
+            return executor == null ? sharedBlockingExecutor() : executor;
         }
 
         @Override
