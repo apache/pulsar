@@ -264,16 +264,12 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
-    // Avro 1.12.2 (AVRO-4189) denies reflection over any class that is not explicitly trusted, including
-    // the record/enum types that ReflectDatumWriter and ReflectDatumReader resolve for every named
-    // schema. Production code trusts Pulsar's own Avro types via AvroTrustedClasses, but the test
-    // suites also serialize hundreds of ad-hoc fixture POJOs, so trust the whole Pulsar namespace here.
-    // Both the plain and the shaded property names are set: modules that test a shaded client jar
-    // (tests/pulsar-client-all-shade-test and friends) bundle a relocated Avro that reads the
-    // org.apache.pulsar.shade.* name instead.
-    listOf("org.apache.avro", "org.apache.pulsar.shade.org.apache.avro").forEach { avroPrefix ->
-        systemProperty("$avroPrefix.SERIALIZABLE_PACKAGES", "org.apache.pulsar,com.google.protobuf")
-    }
+    // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
+    // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
+    // application hands over a class: building a schema from a class trusts it and everything the
+    // derived schema references. Granting the whole Pulsar namespace here would give every test a
+    // safety net that production does not have, so a path that fails to declare something would pass
+    // in CI and fail for users.
     if (testJavaMajorVersion >= 24) {
         // Netty loads its native libraries (epoll, io_uring, tcnative) through
         // java.lang.System::loadLibrary, which is a restricted method as of Java 24. Without this

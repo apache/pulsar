@@ -39,10 +39,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * The Gradle test JVM trusts the whole org.apache.pulsar namespace through
- * org.apache.avro.SERIALIZABLE_PACKAGES, which would mask everything these tests are about, so each
- * test drops the global validator to Avro's hardcoded DEFAULT_TRUSTED_CLASSES first — the baseline of
- * a production JVM with no Avro system properties set.
+ * Each test pins the global validator to Avro's hardcoded DEFAULT_TRUSTED_CLASSES first, so what is
+ * trusted is only ever what the test itself declares. The build sets no Avro SERIALIZABLE_* properties,
+ * so this matches how a production JVM starts out.
  */
 public class AvroTrustedClassesTest {
 

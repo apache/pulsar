@@ -57,11 +57,9 @@ import org.testng.annotations.Test;
  * Verifies that the broker can serialize every type it writes to its system topics with nothing declared
  * in advance — building the schema from the class is what trusts it, exactly as for an application POJO.
  *
- * <p>The Gradle test JVM trusts the whole org.apache.pulsar namespace through
- * org.apache.avro.SERIALIZABLE_PACKAGES (see pulsar.java-conventions.gradle.kts), which would hide a
- * gap. These tests therefore drop the global validator down to Avro's hardcoded
- * {@code DEFAULT_TRUSTED_CLASSES} — the baseline of a production JVM that sets no Avro system
- * properties — so that anything not covered fails here.
+ * <p>Each test pins the global validator to Avro's hardcoded {@code DEFAULT_TRUSTED_CLASSES}, so that
+ * anything not covered by building the schema fails here rather than being carried by trust some other
+ * test happened to declare first.
  */
 @Test(groups = "broker")
 public class PulsarInternalAvroTypesTrustTest {
