@@ -3606,7 +3606,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // broker quietly tearing down a segment the controller still considers live.
             return;
         }
-        if (!isDeleteWhileInactive()) {
+        boolean deleteEnabled = isDeleteWhileInactive();
+        boolean closeEnabled = !deleteEnabled && isCloseWhileInactive();
+        if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;
         }
@@ -3618,10 +3620,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else if (System.nanoTime() - lastActive < SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
-        } else if (shouldTopicBeRetained()) {
+        } else if (deleteEnabled && shouldTopicBeRetained()) {
             // Topic activity is still within the retention period
             return;
         } else {
+            if (closeEnabled) {
+                close(true, false)
+                        .thenRun(() -> log.info("Topic closed successfully due to inactivity"))
+                        .exceptionally(e -> {
+                            if (e.getCause() instanceof TopicBusyException) {
+                                log.debug()
+                                        .exceptionMessage(e.getCause())
+                                        .log("Did not close busy topic");
+                            } else {
+                                log.warn().exception(e).log("Inactive topic close failed");
+                            }
+                            return null;
+                        });
+                return;
+            }
+
             delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false)
                     .thenCompose((res) -> tryToDeletePartitionedMetadata())
