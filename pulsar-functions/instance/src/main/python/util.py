@@ -28,6 +28,7 @@ import importlib
 import configparser
 
 from threading import Timer
+import pulsar
 from pulsar.functions import serde
 
 import log
@@ -81,6 +82,63 @@ def getFullyQualifiedInstanceId(tenant, namespace, name, instance_id):
 
 def get_properties(fullyQualifiedName, instanceId):
     return {"application": "pulsar-function", "id": str(fullyQualifiedName), "instance_id": str(instanceId)}
+
+# Keep these defaults aligned with ProducerBuilderFactory in the Java runtime.
+DEFAULT_BATCHING_ENABLED = True
+DEFAULT_BATCHING_MAX_PUBLISH_DELAY_MS = 10
+
+def batching_type_from_batch_builder(batch_builder):
+  if batch_builder == "KEY_BASED":
+    return pulsar.BatchingType.KeyBased
+  return pulsar.BatchingType.Default
+
+def producer_config_from_spec(producer_spec):
+  """Translate ProducerSpec batching and pending-queue fields to Python client arguments."""
+  config = {
+    "batching_enabled": DEFAULT_BATCHING_ENABLED,
+    "batching_max_publish_delay_ms": DEFAULT_BATCHING_MAX_PUBLISH_DELAY_MS,
+  }
+
+  if producer_spec is None:
+    return config
+
+  # ProducerSpec.batchBuilder predates BatchingSpec. Apply it first so the nested field can
+  # override it, matching ProducerBuilderFactory in the Java runtime.
+  if producer_spec.batchBuilder:
+    config["batching_type"] = batching_type_from_batch_builder(producer_spec.batchBuilder)
+
+  if producer_spec.maxPendingMessages > 0:
+    config["max_pending_messages"] = producer_spec.maxPendingMessages
+  if producer_spec.maxPendingMessagesAcrossPartitions > 0:
+    config["max_pending_messages_across_partitions"] = producer_spec.maxPendingMessagesAcrossPartitions
+
+  if not producer_spec.HasField("batchingSpec"):
+    return config
+
+  batching_spec = producer_spec.batchingSpec
+  # An empty nested proto is treated as an absent configuration by BatchingUtils.convertFromSpec.
+  # Public Function configs carry the 10ms default when enabled=false, so that case remains
+  # distinguishable from an empty message.
+  if not batching_spec.ListFields():
+    return config
+
+  config["batching_enabled"] = batching_spec.enabled
+  if batching_spec.batchingMaxPublishDelayMs > 0:
+    config["batching_max_publish_delay_ms"] = batching_spec.batchingMaxPublishDelayMs
+  if batching_spec.batchingMaxMessages > 0:
+    config["batching_max_messages"] = batching_spec.batchingMaxMessages
+  if batching_spec.batchingMaxBytes > 0:
+    config["batching_max_allowed_size_in_bytes"] = batching_spec.batchingMaxBytes
+  if batching_spec.batchBuilder:
+    config["batching_type"] = batching_type_from_batch_builder(batching_spec.batchBuilder)
+
+  # The Python client has no equivalent for roundRobinRouterBatchingPartitionSwitchFrequency.
+  return config
+
+def producer_config_from_function_details(function_details):
+  if function_details is None or not function_details.sink.HasField("producerSpec"):
+    return producer_config_from_spec(None)
+  return producer_config_from_spec(function_details.sink.producerSpec)
 
 def read_config(config_file):
     """
