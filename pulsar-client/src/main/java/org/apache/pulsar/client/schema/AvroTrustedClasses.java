@@ -242,6 +242,8 @@ public final class AvroTrustedClasses {
      * trusted are exactly the ones the schema in use actually names. Deriving a second time with a
      * differently configured {@code ReflectData} would not produce the same set.
      *
+     * <p>Use {@link #trustExactly(Class[])} instead where there is no derived schema to expand from.
+     *
      * @param pojo the application class, or null to do nothing
      * @param schemaInfo the schema Pulsar derived from it
      */

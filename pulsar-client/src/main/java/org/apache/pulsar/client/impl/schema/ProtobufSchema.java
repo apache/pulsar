@@ -112,9 +112,10 @@ public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
 
         // The application named this class, so let Avro reflect over it and over the protobuf runtime
         // types avro-protobuf resolves alongside it. This has to happen before the schema is derived,
-        // not after: deriving it is itself a reflective resolution. ProtobufSchema also builds its own
-        // SchemaInfo rather than going through AvroSchema.of, so it declares the class itself.
-        AvroTrustedClasses.trustApplicationSchema(pojo, null);
+        // not after: deriving it is itself a reflective resolution, which is also why there is no
+        // derived schema to expand from here. Encoding and decoding go through protobuf's own reader
+        // and writer, so the message's nested types are never resolved by Avro.
+        AvroTrustedClasses.trustExactly(pojo);
 
             SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
