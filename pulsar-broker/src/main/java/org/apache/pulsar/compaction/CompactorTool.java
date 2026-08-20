@@ -125,6 +125,17 @@ public class CompactorTool {
             if (isNotBlank(brokerConfig.getBrokerClientJcaProvider())) {
                 clientConf.setJcaProvider(brokerConfig.getBrokerClientJcaProvider());
             }
+            // PIP-478: and the broker-client TLS factory selection, mirroring BrokerService.configTlsSettings.
+            // 4.x propagated the PIP-337 equivalent here (sslFactoryPlugin / sslFactoryPluginParams); without
+            // its successor an operator who sources broker-client TLS material from an HSM/KMS factory gets a
+            // working broker and a compactor that silently falls back to the built-in file-based factory with
+            // whatever brokerClient* paths happen to be set — no client certificate, and the system trust
+            // store. The pair resolves atomically (the config follows the class name), and both are written
+            // only when configured, so an unset key cannot clobber a brokerClient_ passthrough value.
+            if (isNotBlank(brokerConfig.getBrokerClientTlsFactoryClassName())) {
+                clientBuilder.tlsFactoryClassName(brokerConfig.getBrokerClientTlsFactoryClassName())
+                        .tlsFactoryConfig(brokerConfig.getBrokerClientTlsFactoryConfig());
+            }
         } else {
             internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());

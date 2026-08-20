@@ -70,6 +70,45 @@ public class CompactorToolProviderPinsTest {
         assertThat(clientConf.getJcaProvider()).isNull();
     }
 
+    /**
+     * The provider pins are only half of the matched set: 4.x propagated the PIP-337 factory selection here
+     * ({@code sslFactoryPlugin} / {@code sslFactoryPluginParams}) and the successor keys were missed, so a
+     * deployment sourcing broker-client TLS material from an HSM/KMS factory got a working broker and a
+     * compactor silently back on the built-in file-based factory. {@code default} is used rather than a
+     * custom class because it is the one value that both exercises the wiring and resolves to a factory this
+     * test can actually build.
+     */
+    @Test
+    public void theCompactorClientCarriesTheBrokerClientTlsFactorySelection() throws Exception {
+        ServiceConfiguration conf = tlsBrokerConfig();
+        conf.setBrokerClientTlsFactoryClassName("default");
+        conf.setBrokerClientTlsFactoryConfig("{\"slot\":\"1\"}");
+
+        @Cleanup
+        PulsarClient client = CompactorTool.createClient(conf);
+        ClientConfigurationData clientConf = ((PulsarClientImpl) client).getConfiguration();
+
+        assertThat(clientConf.getTlsFactoryClassName())
+                .as("without this the compactor ignores brokerClientTlsFactoryClassName entirely")
+                .isEqualTo("default");
+        assertThat(clientConf.getTlsFactoryConfig())
+                .as("the config follows the class name as an atomic pair")
+                .isEqualTo("{\"slot\":\"1\"}");
+    }
+
+    /** An unset first-class key must not clobber a value supplied through the {@code brokerClient_} passthrough. */
+    @Test
+    public void anUnsetFactoryKeyLeavesTheBrokerClientPassthroughAlone() throws Exception {
+        ServiceConfiguration conf = tlsBrokerConfig();
+        conf.getProperties().setProperty("brokerClient_tlsFactoryClassName", "default");
+
+        @Cleanup
+        PulsarClient client = CompactorTool.createClient(conf);
+        ClientConfigurationData clientConf = ((PulsarClientImpl) client).getConfiguration();
+
+        assertThat(clientConf.getTlsFactoryClassName()).isEqualTo("default");
+    }
+
     private static ServiceConfiguration tlsBrokerConfig() {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setClusterName("test");
