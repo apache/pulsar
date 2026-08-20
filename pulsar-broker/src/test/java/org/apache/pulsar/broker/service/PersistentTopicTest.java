@@ -262,6 +262,41 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testInitializeFailsWhenTopicPolicyLoadingFails() {
+        RuntimeException failure =
+                new RuntimeException("Failed to load topic policies");
+
+        TopicPoliciesService topicPoliciesService =
+                mock(TopicPoliciesService.class);
+
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(topicPoliciesService)
+                .registerListenerAsync(any(), any());
+
+        doReturn(FutureUtil.failedFuture(failure))
+                .when(topicPoliciesService)
+                .getTopicPoliciesAsync(any(), any());
+
+        doReturn(topicPoliciesService)
+                .when(pulsarTestContext.getPulsarService())
+                .getTopicPoliciesService();
+
+        PersistentTopic topic =
+                new PersistentTopic(
+                        successTopicName,
+                        ledgerMock,
+                        brokerService);
+
+        ExecutionException exception =
+                Assert.expectThrows(
+                        ExecutionException.class,
+                        () -> topic.initialize()
+                                .get(5, TimeUnit.SECONDS));
+
+        assertSame(exception.getCause(), failure);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void testCreateTopic() {
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
