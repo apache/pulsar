@@ -224,13 +224,6 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
     }
 
-    protected void validateCreateTopic(TopicName topicName) {
-        if (isTransactionInternalName(topicName)) {
-            log.warn().attr("topic", topicName).log("Forbidden to create transaction internal topic");
-            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
-        }
-    }
-
     public void validateAdminOperationOnTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
         validateTopicOwnership(topicName, authoritative);
