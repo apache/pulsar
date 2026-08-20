@@ -178,17 +178,17 @@ public final class AvroTrustedClasses {
                 "java.util.concurrent.ConcurrentHashMap"));
     }
 
-    /**
-     * Drops everything declared so far and returns to the built-in defaults. Only for tests: trust is
-     * process-wide and accumulates, so a test that asserts something is <em>not</em> trusted has to
-     * start from a known state. Does not touch Avro's global validator.
-     */
-    /** How many application classes have had their derived schema walked. Only for tests. */
+    /** How many derived schemas have been walked. Only for tests. */
     @VisibleForTesting
     static int walkedCountForTesting() {
         return WALKED.size();
     }
 
+    /**
+     * Drops everything declared so far and returns to the built-in defaults. Only for tests: trust is
+     * process-wide and accumulates, so a test that asserts something is <em>not</em> trusted has to
+     * start from a known state. Does not touch Avro's global validator.
+     */
     @VisibleForTesting
     static synchronized void resetForTesting() {
         TRUSTED_PACKAGES.clear();
@@ -304,11 +304,16 @@ public final class AvroTrustedClasses {
      * automatically for a class whose fields declare them with {@code @Union}.
      */
     public static void trustExactly(Class<?>... classes) {
-        for (Class<?> clazz : classes) {
-            if (clazz != null) {
-                TRUSTED_CLASSES.add(clazz.getName());
+        if (classes != null) {
+            for (Class<?> clazz : classes) {
+                if (clazz != null) {
+                    TRUSTED_CLASSES.add(clazz.getName());
+                }
             }
         }
+        // Installs even when nothing was named, so that the built-in defaults - the protobuf runtime
+        // types and the collection types Avro records as java-class properties - take effect in a JVM
+        // whose schemas are all built from a schema document rather than from a class.
         install();
     }
 
@@ -323,10 +328,14 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * Trusts every class defined by the given class loader, or by a descendant of it. Intended for
-     * code loaded and run on the deployment's behalf in a class loader created for that purpose —
-     * Pulsar Functions and connectors do this for the code they run, and an application that loads
-     * plugin or tenant code can do the same.
+     * Trusts every class defined by the given class loader, or by a descendant of it. Intended for an
+     * application that loads plugin or tenant code into a class loader of its own and wants the classes
+     * it defines trusted wholesale.
+     *
+     * <p>Pulsar itself does not use this: Functions and connectors build their schemas through
+     * {@code Schema.AVRO(...)} like any other application, so their classes are declared by name when
+     * the schema is built. Prefer that where you can — trusting a loader also trusts every third-party
+     * class packaged alongside the code you meant to trust.
      */
     public static void trustClassLoader(ClassLoader classLoader) {
         if (classLoader == null) {
@@ -387,8 +396,12 @@ public final class AvroTrustedClasses {
         /**
          * Pulsar's contribution to the global validator, as a single stable instance. It reads the
          * trusted sets on every call, so declaring more trust takes effect immediately without composing
-         * into the global validator again — composition happens only in {@link #install()}. Holding one
-         * instance also means a reinstall cannot accumulate several copies of it in the chain.
+         * into the global validator again — composition happens only in {@link #install()}.
+         *
+         * <p>Holding one instance keeps repeated installs cheap, but it does not make duplicates
+         * impossible: if something composes its own predicate on top of ours, the identity check no
+         * longer matches and the next install composes a second reference to this instance. That is
+         * harmless — {@code composite} is a short-circuiting OR — just not free.
          */
         private static final ClassSecurityPredicate TRUSTED_PREDICATE = AvroTrustedClasses::isTrustedClass;
 

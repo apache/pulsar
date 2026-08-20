@@ -181,9 +181,13 @@ public class PulsarInternalAvroTypesTrustTest {
 
     @Test
     public void testTrustDoesNotLeakToUnrelatedApplicationClasses() {
-        // Serializing the broker's own types must not widen the set for anything else. A class handed to
-        // Schema.AVRO is trusted, but only because of that call - see AvroTrustedClassesTest - so check
-        // a class that was never used with a schema.
+        // Serializing the broker's own types must not widen the set for anything else. Build a schema
+        // first so Pulsar's predicate is actually installed on top of the pinned baseline - otherwise
+        // the assertion below would be answered by the baseline alone and could never fail, whatever
+        // auto-registration did.
+        Schema.AVRO(MetadataEvent.class);
+        assertThat(ClassSecurityValidator.getGlobal().isTrusted(MetadataEvent.class)).isTrue();
+
         assertThat(ClassSecurityValidator.getGlobal().isTrusted(UnusedPojo.class)).isFalse();
     }
 

@@ -116,7 +116,9 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             // rather than derived from the POJO. Only the stock builder forbids setting both, and
             // SchemaDefinition is a public interface, so check the same condition here rather than
             // assuming: expanding trust from a schema Pulsar did not derive would let whoever supplied
-            // it choose the class names.
+            // that document choose the class names. The class the application named is still its own,
+            // so trust that much; anything further in such a schema is for the application to declare.
+            AvroTrustedClasses.trustExactly(schemaDefinition.getPojo());
             return;
         }
         AvroTrustedClasses.trustApplicationSchema(schemaDefinition.getPojo(), schemaInfo);
