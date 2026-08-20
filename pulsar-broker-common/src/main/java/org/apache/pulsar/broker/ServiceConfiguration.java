@@ -4280,9 +4280,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "broker's server-side (listener/web) TLS SSLContext. A distinct axis from tlsProvider (the "
                     + "JDK-vs-OpenSSL engine switch): when set, the default factory builds the JDK engine with "
-                    + "this provider as the SSLContext provider, overriding the engine choice. Resolved via the "
-                    + "ServiceLoader mechanism (with a fallback to an already-registered provider), failing "
-                    + "loudly when unresolvable.")
+                    + "this provider as the SSLContext provider, overriding the engine choice. Resolved by "
+                    + "preferring a provider already registered in the JVM (Security.getProvider), falling back "
+                    + "to the ServiceLoader mechanism, and failing loudly when unresolvable.")
     private String jsseProvider = null;
 
     @FieldContext(
@@ -4459,8 +4459,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "broker's own outbound (broker-to-broker / replication) client TLS SSLContext. When set, "
                     + "the default factory builds the JDK engine with this provider as the SSLContext provider, "
-                    + "overriding the engine choice. Resolved via the ServiceLoader mechanism (with a fallback "
-                    + "to an already-registered provider), failing loudly when unresolvable.")
+                    + "overriding the engine choice. Resolved by preferring a provider already registered in the "
+                    + "JVM (Security.getProvider), falling back to the ServiceLoader mechanism, and failing "
+                    + "loudly when unresolvable.")
     private String brokerClientJsseProvider = null;
 
     @FieldContext(

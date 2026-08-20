@@ -374,9 +374,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "client's TLS SSLContext. A distinct axis from sslProvider (the JDK-vs-OpenSSL engine "
                     + "switch): when set, the default factory builds the JDK Netty engine with this provider as "
-                    + "the SSLContext provider, overriding the engine choice. Resolved via the ServiceLoader "
-                    + "mechanism (with a fallback to an already-registered provider) and failing loudly when "
-                    + "unresolvable."
+                    + "the SSLContext provider, overriding the engine choice. Resolved by preferring a provider "
+                    + "already registered in the JVM (Security.getProvider), falling back to the ServiceLoader "
+                    + "mechanism, and failing loudly when unresolvable."
     )
     private String jsseProvider = null;
 

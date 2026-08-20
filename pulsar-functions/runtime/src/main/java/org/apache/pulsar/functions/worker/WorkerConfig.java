@@ -589,9 +589,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "functions worker web-server TLS SSLContext. When set, the default factory builds the JDK "
-                    + "engine with this provider as the SSLContext provider. Resolved via the ServiceLoader "
-                    + "mechanism (with a fallback to an already-registered provider), failing loudly when "
-                    + "unresolvable."
+                    + "engine with this provider as the SSLContext provider. Resolved by preferring a provider "
+                    + "already registered in the JVM (Security.getProvider), falling back to the ServiceLoader "
+                    + "mechanism, and failing loudly when unresolvable."
     )
     private String jsseProvider = null;
 

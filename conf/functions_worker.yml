@@ -385,12 +385,12 @@ tlsRequireTrustedClientCertOnConnect: false
 # the default falls back instead of failing where it cannot load; pinning it explicitly there does fail.
 tlsProvider:
 
-# PIP-478: name of a JSSE (SSLContext) java.security.Provider used to build the function worker's
-# web-service TLS SSLContext, e.g. BCJSSE for FIPS (with the BC-FIPS crypto provider registered
-# separately). A distinct axis from tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the
-# default factory builds the JDK engine with this provider as the SSLContext provider, overriding the
-# engine choice. Resolved via the ServiceLoader mechanism with a fallback to an already-registered
-# provider, failing loudly when unresolvable.
+# PIP-478: name of a JSSE (SSLContext) java.security.Provider used to build the function worker's web-service
+# TLS SSLContext, e.g. BCJSSE for FIPS (with the BC-FIPS crypto provider registered separately). A distinct
+# axis from tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the default factory builds the JDK
+# engine with this provider as the SSLContext provider, overriding the engine choice. Resolved by preferring a
+# provider already registered in the JVM (Security.getProvider), falling back to the ServiceLoader mechanism,
+# failing loudly when unresolvable.
 # jsseProvider:
 
 # PIP-478: name of a JCA (material) java.security.Provider supplying the KeyStore, CertificateFactory
