@@ -231,6 +231,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
+        // Drop this consumer's chunk uuid mappings, otherwise its pending chunks stay unassignable forever.
+        assignor.removeConsumer(consumer);
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
             log.info()
@@ -271,6 +273,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
         redeliveryMessages.clear();
         redeliveryTracker.clear();
+        assignor.clear();
         if (closeFuture != null) {
             log.info("All consumers removed. Subscription is disconnected");
             closeFuture.complete(null);
