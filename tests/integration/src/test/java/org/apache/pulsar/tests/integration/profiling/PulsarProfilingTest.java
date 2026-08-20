@@ -48,7 +48,7 @@ import org.testng.annotations.Test;
  * # compile integration test dependencies
  * ./gradlew assemble
  * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
- * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
+ * ./gradlew :tests:java-test-image:dockerBuild -Pdocker.install.asyncprofiler=true -Pdocker.wolfi
  * # set environment variables
  * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
  * export NETTY_LEAK_DETECTION=off
@@ -65,7 +65,8 @@ import org.testng.annotations.Test;
  * kernel.perf_event_max_stack=1024
  * kernel.perf_event_mlock_kb=2048
  * # run the test
- * ./gradlew :tests:integration:integrationTest -PintegrationTestSuiteFile=pulsar-profiling.xml -PtestRetryCount=0
+ * ./gradlew :tests:integration:integrationTest \
+ *   --tests org.apache.pulsar.tests.integration.profiling.PulsarProfilingTest -PtestRetryCount=0
  * By default, the .jfr files will go into tests/integration/build
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
@@ -226,7 +227,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
         pulsarCluster.forEachContainer(
-                // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
+                // This is effective only when -Pdocker.wolfi has been passed when building java-test-image
                 // setting mmap_threshold explicitly will avoid it's dynamic increase
                 // https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html
                 c -> c.withEnv("GLIBC_TUNABLES",

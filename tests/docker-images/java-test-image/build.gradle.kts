@@ -21,6 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerInstallAsyncProfiler = providers.gradleProperty("docker.install.asyncprofiler").getOrElse("false")
 
 // Ensure the parent project is configured before resolving cross-project task references.
 // Required for --configure-on-demand: the Kotlin DSL needs parent ClassLoaderScopes to be locked.
@@ -93,6 +94,7 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
         "docker", "build",
         "-t", imageName,
         "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
+        "--build-arg", "INSTALL_ASYNC_PROFILER=${dockerInstallAsyncProfiler}",
     )
 
     if (dockerPlatforms.isNotEmpty()) {
