@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBufAllocator;
@@ -32,6 +33,7 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -179,6 +181,65 @@ public class BatchMessageContainerImplTest {
 
         addMessagesAndCreateOpSendMsg(batchMessageContainer, 10);
         assertEquals(batchMessageContainer.getMaxMessagesNum(), 200);
+    }
+
+    @Test
+    public void testEntryBucketHashRangeIsMaintainedAndReset() {
+        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
+        batchMessageContainer.setEntryBucketHashStampingEnabled(true);
+
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        try {
+            messages.add(createMessage(1));
+            messages.add(createMessage(2));
+            messages.add(createMessage(3));
+            batchMessageContainer.add(messages.get(0), null, 0x3000);
+            batchMessageContainer.add(messages.get(1), null, 0x1000);
+            batchMessageContainer.add(messages.get(2), null, 0x2000);
+
+            batchMessageContainer.stampEntryBucketRange();
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x1000);
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMax(), 0x3000);
+
+            batchMessageContainer.discard(null);
+            MessageImpl<?> message = createMessage(4);
+            messages.add(message);
+            batchMessageContainer.add(message, null, 0x2000);
+            batchMessageContainer.stampEntryBucketRange();
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x2000);
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMax(), 0x2000);
+        } finally {
+            batchMessageContainer.discard(null);
+            messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
+    @Test
+    public void testEntryBucketHashStampingCanBeDisabled() {
+        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
+        batchMessageContainer.setEntryBucketHashStampingEnabled(false);
+
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        try {
+            messages.add(createMessage(1));
+            batchMessageContainer.add(messages.get(0), null, 0x1000);
+            batchMessageContainer.stampEntryBucketRange();
+
+            assertFalse(batchMessageContainer.messageMetadata.hasEntryHashMin());
+            assertFalse(batchMessageContainer.messageMetadata.hasEntryHashMax());
+        } finally {
+            batchMessageContainer.discard(null);
+            messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
+    private MessageImpl<?> createMessage(long sequenceId) {
+        MessageMetadata messageMetadata = new MessageMetadata();
+        messageMetadata.setSequenceId(sequenceId);
+        messageMetadata.setProducerName("producer");
+        messageMetadata.setPublishTime(System.currentTimeMillis());
+        ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
+        return MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
     }
 
     private void addMessagesAndCreateOpSendMsg(BatchMessageContainerImpl batchMessageContainer, int num)
