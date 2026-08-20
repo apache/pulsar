@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
@@ -158,6 +162,26 @@ public class PulsarInternalAvroTypesTrustTest {
 
         assertThat(schema.decode(schema.encode(indexes)))
                 .usingRecursiveComparison().isEqualTo(indexes);
+    }
+
+    @Test
+    public void testJsonSchemaOverBrokerInternalTypesRoundTrips() {
+        // Schema.JSON also derives an Avro schema from the POJO, but reads and writes it with Jackson
+        // rather than ReflectDatumReader/Writer, so it does not resolve classes reflectively and does not
+        // need its types in the allow-list. These are the broker's own JSON-schema types, used by the
+        // extensible load balancer; pin the behaviour so a future change to the JSON read/write path
+        // cannot start requiring trust without a test noticing.
+        Schema<ServiceUnitStateData> unitStateSchema = Schema.JSON(ServiceUnitStateData.class);
+        ServiceUnitStateData unitState = new ServiceUnitStateData(
+                ServiceUnitState.Owned, "dst-broker", "src-broker", 1L);
+        assertThat(unitStateSchema.decode(unitStateSchema.encode(unitState)))
+                .usingRecursiveComparison().isEqualTo(unitState);
+
+        Schema<BrokerLoadData> brokerLoadSchema = Schema.JSON(BrokerLoadData.class);
+        assertThat(brokerLoadSchema.decode(brokerLoadSchema.encode(new BrokerLoadData()))).isNotNull();
+
+        Schema<TopBundlesLoadData> topBundlesSchema = Schema.JSON(TopBundlesLoadData.class);
+        assertThat(topBundlesSchema.decode(topBundlesSchema.encode(new TopBundlesLoadData()))).isNotNull();
     }
 
     @Test
