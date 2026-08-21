@@ -33,9 +33,6 @@ import org.testng.ITestClass;
 public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter {
     private static final Method OBJECTMAPPERFACTORY_CLEARCACHES_METHOD;
     private static final Method JSONSCHEMA_CLEARCACHES_METHOD;
-    private static final Method CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD;
-    private static final Object INITIAL_CLASSSECURITYVALIDATOR;
-    private static final Method AVROTRUSTEDCLASSES_ISINSTALLED_METHOD;
 
     static {
         Class<?> objectMapperFactoryClazz =
@@ -77,43 +74,12 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
             log.warn().exception(e).log("Cannot find method for clearing singleton JSONSchema caches");
         }
         JSONSCHEMA_CLEARCACHES_METHOD = jsonSchemaCleanCachesMethod;
-
-        Method setGlobalMethod = null;
-        Object initialValidator = null;
-        try {
-            Class<?> validatorClazz = ClassUtils.getClass("org.apache.avro.util.ClassSecurityValidator");
-            Class<?> predicateClazz =
-                    ClassUtils.getClass("org.apache.avro.util.ClassSecurityValidator$ClassSecurityPredicate");
-            // Captured before any test can install its own validator, so this is the pristine value.
-            initialValidator = validatorClazz.getMethod("getGlobal").invoke(null);
-            setGlobalMethod = validatorClazz.getMethod("setGlobal", predicateClazz);
-        } catch (ClassNotFoundException e) {
-            // Avro is not on the test classpath of every module; nothing to restore in that case.
-            log.debug().exception(e).log("Avro ClassSecurityValidator not present, skipping validator reset");
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            log.warn().exception(e).log("Cannot access Avro's global class security validator");
-        }
-        CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD = setGlobalMethod;
-        INITIAL_CLASSSECURITYVALIDATOR = initialValidator;
-
-        Method isInstalledMethod = null;
-        try {
-            isInstalledMethod =
-                    ClassUtils.getClass("org.apache.pulsar.client.schema.AvroTrustedClasses")
-                            .getMethod("isInstalled");
-        } catch (ClassNotFoundException e) {
-            log.debug().exception(e).log("AvroTrustedClasses not present");
-        } catch (NoSuchMethodException e) {
-            log.warn().exception(e).log("Cannot find AvroTrustedClasses.isInstalled()");
-        }
-        AVROTRUSTEDCLASSES_ISINSTALLED_METHOD = isInstalledMethod;
     }
 
     @Override
     protected void onBetweenTestClasses(List<ITestClass> testClasses) {
         objectMapperFactoryClearCaches();
         jsonSchemaClearCaches();
-        restoreAvroClassSecurityValidator();
     }
 
     // Call ObjectMapperFactory.clearCaches() using reflection to clear up classes held in
@@ -137,40 +103,6 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
             } catch (IllegalAccessException | InvocationTargetException e) {
                 log.warn().exception(e).log("Cannot clean singleton JSONSchema caches");
             }
-        }
-    }
-
-    // Avro's trusted-class validator is a JVM-global singleton, so a test class that installs one of its
-    // own would otherwise leak it into every later test class in the same fork. Restore the value
-    // captured before any test ran.
-    //
-    // Pulsar's own validator is deliberately left alone, and so are the classes declared through
-    // AvroTrustedClasses: a broker shared across test classes stays running and still needs to read and
-    // write its Avro-serialized system topics, and clearing the declarations would break it mid-run.
-    // The cost is that a class one test declared stays trusted for later ones, so a test that should
-    // have declared something can pass on another's declaration. Tests that need to prove a class is
-    // NOT trusted pin the validator themselves - see AvroTrustedClassesTest.
-    private static void restoreAvroClassSecurityValidator() {
-        if (CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD == null || INITIAL_CLASSSECURITYVALIDATOR == null
-                || isAvroTrustedClassesInstalled()) {
-            return;
-        }
-        try {
-            CLASSSECURITYVALIDATOR_SETGLOBAL_METHOD.invoke(null, INITIAL_CLASSSECURITYVALIDATOR);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            log.warn().exception(e).log("Cannot restore Avro's global class security validator");
-        }
-    }
-
-    private static boolean isAvroTrustedClassesInstalled() {
-        if (AVROTRUSTEDCLASSES_ISINSTALLED_METHOD == null) {
-            return false;
-        }
-        try {
-            return (Boolean) AVROTRUSTEDCLASSES_ISINSTALLED_METHOD.invoke(null);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            log.warn().exception(e).log("Cannot check whether Pulsar's Avro validator is installed");
-            return false;
         }
     }
 }

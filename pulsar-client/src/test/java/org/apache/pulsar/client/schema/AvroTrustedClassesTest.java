@@ -46,18 +46,21 @@ import org.testng.annotations.Test;
 public class AvroTrustedClassesTest {
 
     private ClassSecurityPredicate previousValidator;
+    private AvroTrustedClasses.Snapshot previousDeclarations;
 
     @BeforeMethod
     public void useProductionBaselineValidator() {
         previousValidator = ClassSecurityValidator.getGlobal();
+        // Declared trust is process-wide and accumulates, so start each test from the defaults - but
+        // keep what was declared before, since a broker sharing this JVM still needs its own types.
+        previousDeclarations = AvroTrustedClasses.snapshot();
         ClassSecurityValidator.setGlobal(ClassSecurityValidator.DEFAULT_TRUSTED_CLASSES);
-        // Declared trust is process-wide and accumulates, so start each test from the defaults.
-        AvroTrustedClasses.resetForTesting();
+        AvroTrustedClasses.resetToDefaults();
     }
 
     @AfterMethod(alwaysRun = true)
     public void restoreValidator() {
-        AvroTrustedClasses.resetForTesting();
+        AvroTrustedClasses.restore(previousDeclarations);
         ClassSecurityValidator.setGlobal(previousValidator);
     }
 
@@ -82,7 +85,7 @@ public class AvroTrustedClassesTest {
         // AutoConsumeSchema passes a registry-fetched schema. Whoever registered that schema chose the
         // class names in it, so they must not widen the allow-list.
         String wireSchema = new String(Schema.AVRO(Order.class).getSchemaInfo().getSchema(), UTF_8);
-        AvroTrustedClasses.resetForTesting();
+        AvroTrustedClasses.resetToDefaults();
 
         Schema.AVRO(SchemaDefinition.builder().withJsonDef(wireSchema).build());
 
@@ -195,6 +198,42 @@ public class AvroTrustedClassesTest {
         AvroTrustedClasses.trust(clazz -> clazz.getName().equals(Random.class.getName()));
 
         assertThat(isTrusted(Random.class)).isTrue();
+    }
+
+    @Test
+    public void testResetToDefaultsDropsDeclarationsButKeepsTheValidatorInstalled() {
+        AvroTrustedClasses.trust(Order.class);
+        assertThat(isTrusted(Order.class)).isTrue();
+        assertThat(AvroTrustedClasses.isInstalled()).isTrue();
+
+        AvroTrustedClasses.resetToDefaults();
+
+        assertThat(isTrusted(Order.class)).isFalse();
+        assertThat(isTrusted(Address.class)).isFalse();
+        // The built-in baseline comes back rather than leaving nothing declared at all.
+        assertThat(isTrusted(List.class)).isTrue();
+        // Still composed into the global validator, so later declarations take effect without a
+        // second install. This is what separates it from the test-only reset.
+        assertThat(AvroTrustedClasses.isInstalled()).isTrue();
+
+        AvroTrustedClasses.trust(Order.class);
+        assertThat(isTrusted(Order.class)).isTrue();
+    }
+
+    @Test
+    public void testResetToDefaultsClearsTheWalkCache() {
+        // Auto-registration caches the schemas it has walked, so the reset has to drop that too -
+        // otherwise the cache would suppress the re-walk and the class would stay untrusted.
+        Schema.AVRO(Order.class);
+        assertThat(AvroTrustedClasses.walkedCountForTesting()).isEqualTo(1);
+        assertThat(isTrusted(Order.class)).isTrue();
+
+        AvroTrustedClasses.resetToDefaults();
+        assertThat(AvroTrustedClasses.walkedCountForTesting()).isZero();
+        assertThat(isTrusted(Order.class)).isFalse();
+
+        Schema.AVRO(Order.class);
+        assertThat(isTrusted(Order.class)).isTrue();
     }
 
     @Test

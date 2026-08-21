@@ -21,9 +21,11 @@ package org.apache.pulsar.client.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,9 +56,12 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  *
  * <p>What is deliberately <em>not</em> covered is a class named only by a schema that arrived over the
  * wire. A schema fetched from the registry names classes chosen by whoever registered it, and resolving
- * those is what the allow-list exists to constrain. The cases that reach Avro reflection that way are
- * narrow — chiefly {@code Schema.AUTO_CONSUME()} against a topic whose schema is a bare enum — and an
- * application that hits one declares the class itself:
+ * those is what the allow-list exists to constrain. {@code Schema.AUTO_CONSUME()} stays clear of this
+ * for the usual case: a record schema is decoded generically into a {@code GenericRecord} and no class
+ * is resolved at all. Only a topic whose schema is <em>not</em> a record at the top level reaches Avro
+ * reflection, and then every named type the schema mentions — record, enum or fixed — is resolved,
+ * including through a container: an array or map of records resolves the record class as soon as there
+ * is an element to read. An application that consumes such a topic declares the class itself:
  *
  * <pre>{@code
  * // Once, before the first producer or consumer.
@@ -67,6 +72,21 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * Prefer it to {@link #trustPackages(String...)}: a package rarely covers a POJO on its own, because
  * Avro also resolves the <em>declared</em> collection type of a field, so a POJO with a {@code List}
  * field needs {@code java.util.List} as well.
+ *
+ * <p>Declarations are process-wide and accumulate. Code that needs to make a temporary change — a test
+ * asserting that some class is <em>not</em> trusted, most often — takes a {@link #snapshot()} first and
+ * hands it back to {@link #restore(Snapshot)} afterwards, which puts back exactly what was declared
+ * before rather than discarding declarations that belong to something else:
+ *
+ * <pre>{@code
+ * Snapshot before = AvroTrustedClasses.snapshot();
+ * try {
+ *     AvroTrustedClasses.resetToDefaults();
+ *     // ... assert what is and is not trusted ...
+ * } finally {
+ *     AvroTrustedClasses.restore(before);
+ * }
+ * }</pre>
  *
  * <p>This class behaves identically in the shaded and unshaded clients. Avro's own API does not:
  * shading relocates {@code org.apache.avro.util.ClassSecurityValidator}, so an application depending
@@ -93,39 +113,11 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 @CustomLog
 public final class AvroTrustedClasses {
 
-    /** Trusted package prefixes; sub-packages are included. */
-    private static final Set<String> TRUSTED_PACKAGES = ConcurrentHashMap.newKeySet();
-
-    /** Individually trusted binary class names. */
-    private static final Set<String> TRUSTED_CLASSES = ConcurrentHashMap.newKeySet();
-
     /**
-     * Class loaders whose classes are trusted wholesale. Held weakly so that declaring trust does not
-     * keep a loader, or the classes it defined, from being collected.
+     * Everything declared through this class, as one replaceable unit. Swapping the reference is how
+     * {@link #restore(Snapshot)} puts back a previous set of declarations atomically.
      */
-    private static final Set<ClassLoader> TRUSTED_CLASS_LOADERS =
-            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
-    /** Additional rules, for policies the name- and loader-based methods cannot express. */
-    private static final Set<Predicate<Class<?>>> TRUSTED_PREDICATES = ConcurrentHashMap.newKeySet();
-
-    /**
-     * Application classes whose derived schema has already been walked, so a class used for many
-     * producers or consumers is traversed once rather than on every schema construction. Holds names
-     * rather than Class objects, so it pins neither a class nor its loader.
-     */
-    private static final Set<WalkKey> WALKED = ConcurrentHashMap.newKeySet();
-
-    /**
-     * Identifies one traversal, by the schema that was walked rather than by the class alone. The same
-     * class can derive different schemas — JSR-310 conversions replace a named type with a logical
-     * primitive, and two class loaders can define different versions of the same class name — and each
-     * of those names a different set of types. Keying on the class alone could cache the smaller set and
-     * then refuse a type the larger one needs, which fails closed at serialization time. Holds names and
-     * schema text only, so it pins neither a class nor a loader.
-     */
-    private record WalkKey(String className, String schemaJson) {
-    }
+    private static volatile Snapshot current = Snapshot.withDefaults();
 
     /**
      * Whether the Avro on the class path has a trusted-class validator to install into at all. It was
@@ -147,62 +139,266 @@ public final class AvroTrustedClasses {
         }
     }
 
-    static {
-        seedDefaults();
+    private AvroTrustedClasses() {
     }
 
-    private static void seedDefaults() {
-        // Protobuf runtime types that avro-protobuf resolves when building a schema for a generated
-        // message, such as the com.google.protobuf.Any wrapper. Needed by Schema.PROTOBUF for any
-        // application, so it belongs to the client's own baseline rather than to a caller. In the
-        // shaded client this literal is relocated alongside the classes it names, so it still matches.
-        TRUSTED_PACKAGES.add("com.google.protobuf");
-        // Collection types that ReflectData records as a "java-class" property on the array or map
-        // schema it generates for a field, and then resolves reflectively. Trusting a class expands
-        // through the derived schema and picks these up on its own, but declaring a package or a bare
-        // class name does not, which made "trust my model package" quietly insufficient for any POJO
-        // with a List field. They are plain containers with nothing exploitable in construction, and
-        // Avro's own build trusts the same set, so there is no value in making callers rediscover them.
-        TRUSTED_CLASSES.addAll(Arrays.asList(
-                "java.util.Collection",
-                "java.util.List",
-                "java.util.ArrayList",
-                "java.util.Set",
-                "java.util.HashSet",
-                "java.util.LinkedHashSet",
-                "java.util.TreeSet",
-                "java.util.Map",
-                "java.util.HashMap",
-                "java.util.LinkedHashMap",
-                "java.util.TreeMap",
-                "java.util.concurrent.ConcurrentHashMap"));
+    /**
+     * The set of declarations held by {@link AvroTrustedClasses} at one point in time.
+     *
+     * <p>Opaque: obtain one from {@link AvroTrustedClasses#snapshot()} and hand it back to
+     * {@link AvroTrustedClasses#restore(Snapshot)}. Taking a snapshot copies the declarations, so it is
+     * unaffected by anything declared afterwards and can be restored more than once.
+     */
+    public static final class Snapshot {
+
+        /** Trusted package prefixes; sub-packages are included. */
+        private final Set<String> trustedPackages = ConcurrentHashMap.newKeySet();
+
+        /** Individually trusted binary class names. */
+        private final Set<String> trustedClasses = ConcurrentHashMap.newKeySet();
+
+        /**
+         * Class loaders whose classes are trusted wholesale. Held weakly so that declaring trust does
+         * not keep a loader, or the classes it defined, from being collected.
+         */
+        private final Set<ClassLoader> trustedClassLoaders =
+                Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+        /** Additional rules, for policies the name- and loader-based methods cannot express. */
+        private final Set<Predicate<Class<?>>> trustedPredicates = ConcurrentHashMap.newKeySet();
+
+        /**
+         * Application classes whose derived schema has already been walked, so a class used for many
+         * producers or consumers is traversed once rather than on every schema construction. Holds
+         * names rather than Class objects, so it pins neither a class nor its loader.
+         */
+        private final Set<WalkKey> walked = ConcurrentHashMap.newKeySet();
+
+        /**
+         * Identifies one traversal, by the schema that was walked rather than by the class alone. The
+         * same class can derive different schemas — JSR-310 conversions replace a named type with a
+         * logical primitive, and two class loaders can define different versions of the same class name
+         * — and each of those names a different set of types. Keying on the class alone could cache the
+         * smaller set and then refuse a type the larger one needs, which fails closed at serialization
+         * time. Holds names and schema text only, so it pins neither a class nor a loader.
+         */
+        private record WalkKey(String className, String schemaJson) {
+        }
+
+        private Snapshot() {
+        }
+
+        /** The built-in baseline: what a JVM starts out with before anything is declared. */
+        private static Snapshot withDefaults() {
+            Snapshot snapshot = new Snapshot();
+            // Protobuf runtime types that avro-protobuf resolves when building a schema for a generated
+            // message, such as the com.google.protobuf.Any wrapper. Needed by Schema.PROTOBUF for any
+            // application, so it belongs to the client's own baseline rather than to a caller. In the
+            // shaded client this literal is relocated alongside the classes it names, so it still
+            // matches.
+            snapshot.trustedPackages.add("com.google.protobuf");
+            // Collection types that ReflectData records as a "java-class" property on the array or map
+            // schema it generates for a field, and then resolves reflectively. Trusting a class expands
+            // through the derived schema and picks these up on its own, but declaring a package or a
+            // bare class name does not, which made "trust my model package" quietly insufficient for
+            // any POJO with a List field. They are plain containers with nothing exploitable in
+            // construction, and Avro's own build trusts the same set, so there is no value in making
+            // callers rediscover them.
+            snapshot.trustedClasses.addAll(Arrays.asList(
+                    "java.util.Collection",
+                    "java.util.List",
+                    "java.util.ArrayList",
+                    "java.util.Set",
+                    "java.util.HashSet",
+                    "java.util.LinkedHashSet",
+                    "java.util.TreeSet",
+                    "java.util.Map",
+                    "java.util.HashMap",
+                    "java.util.LinkedHashMap",
+                    "java.util.TreeMap",
+                    "java.util.concurrent.ConcurrentHashMap"));
+            return snapshot;
+        }
+
+        /**
+         * An independent copy. Both {@code snapshot()} and {@code restore()} copy, so a snapshot never
+         * shares mutable state with the declarations that are live.
+         */
+        private Snapshot copy() {
+            Snapshot copy = new Snapshot();
+            copy.trustedPackages.addAll(trustedPackages);
+            copy.trustedClasses.addAll(trustedClasses);
+            // Copies the references, not the loaders: the copy holds them weakly as well.
+            synchronized (trustedClassLoaders) {
+                copy.trustedClassLoaders.addAll(trustedClassLoaders);
+            }
+            copy.trustedPredicates.addAll(trustedPredicates);
+            copy.walked.addAll(walked);
+            return copy;
+        }
+
+        private void addClassName(String className) {
+            if (className != null && !className.isEmpty()) {
+                trustedClasses.add(className);
+            }
+        }
+
+        private void addClassNames(Collection<String> classNames) {
+            for (String className : classNames) {
+                addClassName(className);
+            }
+        }
+
+        private void addPackageNames(Collection<String> packageNames) {
+            for (String packageName : packageNames) {
+                if (packageName != null && !packageName.isEmpty()) {
+                    trustedPackages.add(packageName);
+                }
+            }
+        }
+
+        private void addClassLoader(ClassLoader classLoader) {
+            trustedClassLoaders.add(classLoader);
+        }
+
+        private void removeClassLoader(ClassLoader classLoader) {
+            trustedClassLoaders.remove(classLoader);
+        }
+
+        private void addPredicate(Predicate<Class<?>> predicate) {
+            trustedPredicates.add(predicate);
+        }
+
+        /** Records a traversal, returning false when this schema has already been walked. */
+        private boolean markWalked(String className, String schemaJson) {
+            return walked.add(new WalkKey(className, schemaJson));
+        }
+
+        private int walkedCount() {
+            return walked.size();
+        }
+
+        /** Whether the class is covered by anything declared here. */
+        private boolean isTrusted(Class<?> clazz) {
+            if (clazz == null) {
+                return false;
+            }
+            // Nested classes report the enclosing package, so Outer$Inner is matched by its package too.
+            Package classPackage = clazz.getPackage();
+            if (isTrustedName(clazz.getName(), classPackage == null ? null : classPackage.getName())) {
+                return true;
+            }
+            if (isLoadedByTrustedClassLoader(clazz)) {
+                return true;
+            }
+            for (Predicate<Class<?>> predicate : trustedPredicates) {
+                if (predicate.test(clazz)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean isTrustedName(String className, String packageName) {
+            if (trustedClasses.contains(className)) {
+                return true;
+            }
+            if (packageName == null) {
+                return false;
+            }
+            for (String trusted : trustedPackages) {
+                // Require a package separator at the boundary so that trusting "com.example.model" does
+                // not also trust a package named "com.example.modelExtra".
+                if (packageName.equals(trusted) || packageName.startsWith(trusted + ".")) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Whether the class was defined by a trusted class loader, or by a descendant of one. Walking up
+         * the parent chain only ever reaches loaders that were explicitly declared, so a class from the
+         * application or system class loader is not trusted unless that loader itself was declared.
+         */
+        private boolean isLoadedByTrustedClassLoader(Class<?> clazz) {
+            if (trustedClassLoaders.isEmpty()) {
+                return false;
+            }
+            for (ClassLoader loader = clazz.getClassLoader(); loader != null; loader = loader.getParent()) {
+                if (trustedClassLoaders.contains(loader)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Copies everything declared so far, for handing back to {@link #restore(Snapshot)} later. The copy
+     * is unaffected by anything declared afterwards.
+     */
+    public static Snapshot snapshot() {
+        return current.copy();
+    }
+
+    /**
+     * Replaces the declarations with those of a snapshot, discarding anything declared since it was
+     * taken and restoring anything that has been dropped. The snapshot is copied rather than adopted,
+     * so it stays valid and can be restored again.
+     *
+     * <p>Pair this with {@link #snapshot()} around a temporary change. It is what a test should use
+     * instead of {@link #resetToDefaults()} alone, since other components — a broker running in the
+     * same JVM, for instance — have declarations of their own that must survive the test.
+     *
+     * <p>Restoring only affects declarations made through this class. Avro's global validator is left
+     * as it is; code that swapped that out is responsible for putting it back.
+     */
+    public static void restore(Snapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        current = snapshot.copy();
+        install();
+    }
+
+    /**
+     * Drops every declaration made through this class and returns to the built-in defaults — the
+     * protobuf runtime package and the collection types Avro records as {@code java-class} properties.
+     * Trust that did not come from this class is untouched, including Avro's own
+     * {@code SERIALIZABLE_CLASSES} and {@code SERIALIZABLE_PACKAGES} properties and any validator
+     * installed directly through Avro.
+     *
+     * <p>Chiefly for tests, and best paired with {@link #snapshot()} and {@link #restore(Snapshot)} so
+     * that declarations belonging to other components come back afterwards. Declared trust is
+     * process-wide and accumulates, and building a schema declares its class on its own, so a test
+     * asserting that something is <em>not</em> trusted only means anything if it starts from a known
+     * state — otherwise an unrelated earlier test can leave the class trusted and the assertion passes
+     * vacuously.
+     *
+     * <p>Take care outside tests. Declarations are shared by the whole JVM, so this drops what other
+     * components declared as well, and schemas built earlier do not re-declare anything. Avro caches
+     * the classes it has already resolved, so the effect usually shows up later, as a refusal of some
+     * type that had not been resolved yet, rather than immediately.
+     */
+    public static void resetToDefaults() {
+        current = Snapshot.withDefaults();
+        install();
     }
 
     /** How many derived schemas have been walked. Only for tests. */
     @VisibleForTesting
     static int walkedCountForTesting() {
-        return WALKED.size();
+        return current.walkedCount();
     }
 
     /**
-     * Drops everything declared so far and returns to the built-in defaults. Only for tests: trust is
-     * process-wide and accumulates, so a test that asserts something is <em>not</em> trusted has to
-     * start from a known state. Does not touch Avro's global validator.
+     * Name-based form of the trust check, so the matching rules can be tested without needing a
+     * loadable class in every package under test.
+     *
+     * @param packageName the class's package, or null for the default package, which is never trusted
      */
     @VisibleForTesting
-    static synchronized void resetForTesting() {
-        TRUSTED_PACKAGES.clear();
-        TRUSTED_CLASSES.clear();
-        TRUSTED_CLASS_LOADERS.clear();
-        TRUSTED_PREDICATES.clear();
-        WALKED.clear();
-        if (VALIDATOR_AVAILABLE) {
-            Validator.forgetInstalledForTesting();
-        }
-        seedDefaults();
-    }
-
-    private AvroTrustedClasses() {
+    static boolean isTrustedName(String className, String packageName) {
+        return current.isTrustedName(className, packageName);
     }
 
     /**
@@ -218,12 +414,13 @@ public final class AvroTrustedClasses {
      * {@link #trustExactly(Class[])} when that is what you meant.
      */
     public static void trust(Class<?>... classes) {
+        Snapshot snapshot = current;
         for (Class<?> clazz : classes) {
             if (clazz == null) {
                 continue;
             }
-            TRUSTED_CLASSES.add(clazz.getName());
-            TRUSTED_CLASSES.addAll(typesReachableFrom(clazz));
+            snapshot.addClassName(clazz.getName());
+            snapshot.addClassNames(typesReachableFrom(clazz));
         }
         install();
     }
@@ -252,20 +449,21 @@ public final class AvroTrustedClasses {
         if (pojo == null) {
             return;
         }
-        TRUSTED_CLASSES.add(pojo.getName());
+        Snapshot snapshot = current;
+        snapshot.addClassName(pojo.getName());
         if (schemaInfo == null || schemaInfo.getSchema() == null || schemaInfo.getSchema().length == 0) {
             install();
             return;
         }
         String schemaJson = new String(schemaInfo.getSchema(), UTF_8);
-        if (WALKED.add(new WalkKey(pojo.getName(), schemaJson))) {
+        if (snapshot.markWalked(pojo.getName(), schemaJson)) {
             try {
                 Set<String> names = new HashSet<>();
                 // Resolve names against the loader that defined the POJO: that is where the types it
                 // references live, and it is the loader Avro itself uses for them.
                 collectTypeNames(SchemaUtil.parseAvroSchema(schemaJson),
                         Collections.newSetFromMap(new IdentityHashMap<>()), names, pojo.getClassLoader());
-                TRUSTED_CLASSES.addAll(names);
+                snapshot.addClassNames(names);
             } catch (RuntimeException e) {
                 // A schema Pulsar just derived should always parse; if it somehow does not, the class
                 // itself is still trusted and an explicit trust(...) call remains available.
@@ -287,7 +485,7 @@ public final class AvroTrustedClasses {
      * {@link #trust(Class[])} about declared collection types.
      */
     public static void trustPackages(String... packageNames) {
-        TRUSTED_PACKAGES.addAll(Arrays.asList(packageNames));
+        current.addPackageNames(Arrays.asList(packageNames));
         install();
     }
 
@@ -305,9 +503,10 @@ public final class AvroTrustedClasses {
      */
     public static void trustExactly(Class<?>... classes) {
         if (classes != null) {
+            Snapshot snapshot = current;
             for (Class<?> clazz : classes) {
                 if (clazz != null) {
-                    TRUSTED_CLASSES.add(clazz.getName());
+                    snapshot.addClassName(clazz.getName());
                 }
             }
         }
@@ -323,7 +522,7 @@ public final class AvroTrustedClasses {
      * {@code $} rather than a dot: {@code com.example.Outer$Inner}.
      */
     public static void trustClasses(String... classNames) {
-        TRUSTED_CLASSES.addAll(Arrays.asList(classNames));
+        current.addClassNames(Arrays.asList(classNames));
         install();
     }
 
@@ -341,7 +540,7 @@ public final class AvroTrustedClasses {
         if (classLoader == null) {
             return;
         }
-        TRUSTED_CLASS_LOADERS.add(classLoader);
+        current.addClassLoader(classLoader);
         install();
     }
 
@@ -351,7 +550,7 @@ public final class AvroTrustedClasses {
      */
     public static void untrustClassLoader(ClassLoader classLoader) {
         if (classLoader != null) {
-            TRUSTED_CLASS_LOADERS.remove(classLoader);
+            current.removeClassLoader(classLoader);
         }
     }
 
@@ -361,7 +560,7 @@ public final class AvroTrustedClasses {
      */
     public static void trust(Predicate<Class<?>> predicate) {
         if (predicate != null) {
-            TRUSTED_PREDICATES.add(predicate);
+            current.addPredicate(predicate);
             install();
         }
     }
@@ -378,12 +577,16 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * Whether the global validator is still the one this class installed. Test infrastructure uses this
-     * to reset a validator a test installed without also undoing Pulsar's own. Always false when the
-     * Avro on the class path has no validator.
+     * Whether the global validator is still the one this class installed. Always false when the Avro on
+     * the class path has no validator.
      */
     public static boolean isInstalled() {
         return VALIDATOR_AVAILABLE && Validator.isInstalled();
+    }
+
+    /** Whether the class is covered by anything declared through this class. */
+    private static boolean isTrustedClass(Class<?> clazz) {
+        return current.isTrusted(clazz);
     }
 
     /**
@@ -394,9 +597,10 @@ public final class AvroTrustedClasses {
     private static final class Validator {
 
         /**
-         * Pulsar's contribution to the global validator, as a single stable instance. It reads the
-         * trusted sets on every call, so declaring more trust takes effect immediately without composing
-         * into the global validator again — composition happens only in {@link #install()}.
+         * Pulsar's contribution to the global validator, as a single stable instance. It reads whatever
+         * declarations are current on every call, so declaring more trust — or restoring a snapshot —
+         * takes effect immediately without composing into the global validator again; composition
+         * happens only in {@link #install()}.
          *
          * <p>Holding one instance keeps repeated installs cheap, but it does not make duplicates
          * impossible: if something composes its own predicate on top of ours, the identity check no
@@ -425,72 +629,6 @@ public final class AvroTrustedClasses {
         static synchronized boolean isInstalled() {
             return installedPredicate != null && ClassSecurityValidator.getGlobal() == installedPredicate;
         }
-
-        static synchronized void forgetInstalledForTesting() {
-            installedPredicate = null;
-        }
-    }
-
-    /** Whether the class is covered by anything declared through this class. */
-    private static boolean isTrustedClass(Class<?> clazz) {
-        if (clazz == null) {
-            return false;
-        }
-        // Nested classes report the enclosing package, so Outer$Inner is matched by its package too.
-        Package classPackage = clazz.getPackage();
-        if (isTrustedName(clazz.getName(), classPackage == null ? null : classPackage.getName())) {
-            return true;
-        }
-        if (isLoadedByTrustedClassLoader(clazz)) {
-            return true;
-        }
-        for (Predicate<Class<?>> predicate : TRUSTED_PREDICATES) {
-            if (predicate.test(clazz)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Name-based form of the check, so the matching rules can be tested without needing a loadable
-     * class in every package under test.
-     *
-     * @param packageName the class's package, or null for the default package, which is never trusted
-     */
-    @VisibleForTesting
-    static boolean isTrustedName(String className, String packageName) {
-        if (TRUSTED_CLASSES.contains(className)) {
-            return true;
-        }
-        if (packageName == null) {
-            return false;
-        }
-        for (String trusted : TRUSTED_PACKAGES) {
-            // Require a package separator at the boundary so that trusting "com.example.model" does
-            // not also trust a package named "com.example.modelExtra".
-            if (packageName.equals(trusted) || packageName.startsWith(trusted + ".")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Whether the class was defined by a trusted class loader, or by a descendant of one. Walking up
-     * the parent chain only ever reaches loaders that were explicitly declared, so a class from the
-     * application or system class loader is not trusted unless that loader itself was declared.
-     */
-    private static boolean isLoadedByTrustedClassLoader(Class<?> clazz) {
-        if (TRUSTED_CLASS_LOADERS.isEmpty()) {
-            return false;
-        }
-        for (ClassLoader loader = clazz.getClassLoader(); loader != null; loader = loader.getParent()) {
-            if (TRUSTED_CLASS_LOADERS.contains(loader)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
