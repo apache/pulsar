@@ -141,6 +141,7 @@ import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
+import org.apache.pulsar.broker.stats.OpenTelemetryAdaptiveThrottleStats;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -307,6 +308,11 @@ public class BrokerService implements Closeable {
     protected final PublishRateLimiter brokerPublishRateLimiter;
     private final DispatchRateLimiterFactory dispatchRateLimiterFactory;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
+
+    /** Non-null only when {@code adaptivePublisherThrottlingEnabled=true}. */
+    private AdaptivePublishThrottleController adaptivePublishThrottleController;
+    /** OTel metrics companion; non-null when controller is running. */
+    private OpenTelemetryAdaptiveThrottleStats adaptiveThrottleOtelStats;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -707,6 +713,22 @@ public class BrokerService implements Closeable {
         this.startDeduplicationSnapshotMonitor();
         this.startSegmentLoadReporter();
         this.startClearInvalidateTopicNameCacheTask();
+        this.startAdaptivePublishThrottleController();
+    }
+
+    protected void startAdaptivePublishThrottleController() {
+        if (!pulsar.getConfiguration().isAdaptivePublisherThrottlingEnabled()) {
+            log.info("Adaptive publish throttle controller is disabled");
+            return;
+        }
+        adaptivePublishThrottleController = new AdaptivePublishThrottleController(this);
+        adaptivePublishThrottleController.start();
+        adaptiveThrottleOtelStats = new OpenTelemetryAdaptiveThrottleStats(
+                pulsar,
+                adaptivePublishThrottleController,
+                pulsar.getConfiguration().isAdaptivePublisherThrottlingPerTopicMetricsEnabled());
+        log.info("Adaptive publish throttle controller started (observeOnly={})",
+                pulsar.getConfiguration().isAdaptivePublisherThrottlingObserveOnly());
     }
 
     /**
@@ -979,6 +1001,14 @@ public class BrokerService implements Closeable {
                     log.warn().attr("cluster", cluster).exception(e).log("Error shutting down repl admin for cluster");
                 }
             });
+
+            // close adaptive throttle controller
+            if (adaptivePublishThrottleController != null) {
+                adaptivePublishThrottleController.close();
+            }
+            if (adaptiveThrottleOtelStats != null) {
+                adaptiveThrottleOtelStats.close();
+            }
 
             //close entry filters
             if (entryFilterProvider != null) {
