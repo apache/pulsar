@@ -74,11 +74,11 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  *
  * <p>Declarations are process-wide and accumulate. Code that needs to make a temporary change — a test
  * asserting that some class is <em>not</em> trusted, most often — takes a {@link #snapshot()} first and
- * hands it back to {@link #restore(Snapshot)} afterwards, which puts back exactly what was declared
+ * hands it back to {@link #restore(State)} afterwards, which puts back exactly what was declared
  * before rather than discarding declarations that belong to something else:
  *
  * <pre>{@code
- * Snapshot before = AvroTrustedClasses.snapshot();
+ * State before = AvroTrustedClasses.snapshot();
  * try {
  *     AvroTrustedClasses.resetToDefaults();
  *     // ... assert what is and is not trusted ...
@@ -112,10 +112,10 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public final class AvroTrustedClasses {
 
     /**
-     * Everything declared through this class, as one replaceable unit. Swapping the reference is how
-     * {@link #restore(Snapshot)} puts back a previous set of declarations atomically.
+     * The declarations in force. Swapping this reference is how {@link #restore(State)} puts back a
+     * previous set of declarations atomically.
      */
-    private static volatile Snapshot current = Snapshot.withDefaults();
+    private static volatile State current = State.withDefaults();
 
     /**
      * Whether the Avro on the class path has a trusted-class validator to install into at all. It was
@@ -141,13 +141,15 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * The set of declarations held by {@link AvroTrustedClasses} at one point in time.
+     * Everything declared through {@link AvroTrustedClasses}: the trusted names and predicates, and the
+     * record of which schemas have already been walked. One instance is live at a time and answers
+     * Avro's trust check; {@link AvroTrustedClasses#snapshot()} hands out a detached copy of it.
      *
-     * <p>Opaque: obtain one from {@link AvroTrustedClasses#snapshot()} and hand it back to
-     * {@link AvroTrustedClasses#restore(Snapshot)}. Taking a snapshot copies the declarations, so it is
-     * unaffected by anything declared afterwards and can be restored more than once.
+     * <p>Opaque to callers, who only hold a copy and give it back to
+     * {@link AvroTrustedClasses#restore(State)}. Because that copy is detached, it is unaffected by
+     * anything declared afterwards and can be restored more than once.
      */
-    public static final class Snapshot {
+    public static final class State {
 
         /** Trusted package prefixes; sub-packages are included. */
         private final Set<String> trustedPackages = ConcurrentHashMap.newKeySet();
@@ -176,18 +178,18 @@ public final class AvroTrustedClasses {
         private record WalkKey(String className, String schemaJson) {
         }
 
-        private Snapshot() {
+        private State() {
         }
 
         /** The built-in baseline: what a JVM starts out with before anything is declared. */
-        private static Snapshot withDefaults() {
-            Snapshot snapshot = new Snapshot();
+        private static State withDefaults() {
+            State state = new State();
             // Protobuf runtime types that avro-protobuf resolves when building a schema for a generated
             // message, such as the com.google.protobuf.Any wrapper. Needed by Schema.PROTOBUF for any
             // application, so it belongs to the client's own baseline rather than to a caller. In the
             // shaded client this literal is relocated alongside the classes it names, so it still
             // matches.
-            snapshot.trustedPackages.add("com.google.protobuf");
+            state.trustedPackages.add("com.google.protobuf");
             // Collection types that ReflectData records as a "java-class" property on the array or map
             // schema it generates for a field, and then resolves reflectively. Trusting a class expands
             // through the derived schema and picks these up on its own, but declaring a package or a
@@ -195,7 +197,7 @@ public final class AvroTrustedClasses {
             // any POJO with a List field. They are plain containers with nothing exploitable in
             // construction, and Avro's own build trusts the same set, so there is no value in making
             // callers rediscover them.
-            snapshot.trustedClasses.addAll(Arrays.asList(
+            state.trustedClasses.addAll(Arrays.asList(
                     "java.util.Collection",
                     "java.util.List",
                     "java.util.ArrayList",
@@ -208,15 +210,15 @@ public final class AvroTrustedClasses {
                     "java.util.LinkedHashMap",
                     "java.util.TreeMap",
                     "java.util.concurrent.ConcurrentHashMap"));
-            return snapshot;
+            return state;
         }
 
         /**
-         * An independent copy. Both {@code snapshot()} and {@code restore()} copy, so a snapshot never
-         * shares mutable state with the declarations that are live.
+         * An independent copy. Both {@code snapshot()} and {@code restore()} copy, so a copy handed to
+         * a caller never shares mutable state with the live instance.
          */
-        private Snapshot copy() {
-            Snapshot copy = new Snapshot();
+        private State copy() {
+            State copy = new State();
             copy.trustedPackages.addAll(trustedPackages);
             copy.trustedClasses.addAll(trustedClasses);
             copy.trustedPredicates.addAll(trustedPredicates);
@@ -294,10 +296,10 @@ public final class AvroTrustedClasses {
     }
 
     /**
-     * Copies everything declared so far, for handing back to {@link #restore(Snapshot)} later. The copy
+     * Copies everything declared so far, for handing back to {@link #restore(State)} later. The copy
      * is unaffected by anything declared afterwards.
      */
-    public static Snapshot snapshot() {
+    public static State snapshot() {
         return current.copy();
     }
 
@@ -313,7 +315,7 @@ public final class AvroTrustedClasses {
      * <p>Restoring only affects declarations made through this class. Avro's global validator is left
      * as it is; code that swapped that out is responsible for putting it back.
      */
-    public static void restore(Snapshot snapshot) {
+    public static void restore(State snapshot) {
         Objects.requireNonNull(snapshot, "snapshot");
         current = snapshot.copy();
         install();
@@ -326,7 +328,7 @@ public final class AvroTrustedClasses {
      * {@code SERIALIZABLE_CLASSES} and {@code SERIALIZABLE_PACKAGES} properties and any validator
      * installed directly through Avro.
      *
-     * <p>Chiefly for tests, and best paired with {@link #snapshot()} and {@link #restore(Snapshot)} so
+     * <p>Chiefly for tests, and best paired with {@link #snapshot()} and {@link #restore(State)} so
      * that declarations belonging to other components come back afterwards. Declared trust is
      * process-wide and accumulates, and building a schema declares its class on its own, so a test
      * asserting that something is <em>not</em> trusted only means anything if it starts from a known
@@ -339,7 +341,7 @@ public final class AvroTrustedClasses {
      * type that had not been resolved yet, rather than immediately.
      */
     public static void resetToDefaults() {
-        current = Snapshot.withDefaults();
+        current = State.withDefaults();
         install();
     }
 
@@ -373,13 +375,13 @@ public final class AvroTrustedClasses {
      * {@link #trustExactly(Class[])} when that is what you meant.
      */
     public static void trust(Class<?>... classes) {
-        Snapshot snapshot = current;
+        State state = current;
         for (Class<?> clazz : classes) {
             if (clazz == null) {
                 continue;
             }
-            snapshot.addClassName(clazz.getName());
-            snapshot.addClassNames(typesReachableFrom(clazz));
+            state.addClassName(clazz.getName());
+            state.addClassNames(typesReachableFrom(clazz));
         }
         install();
     }
@@ -408,21 +410,21 @@ public final class AvroTrustedClasses {
         if (pojo == null) {
             return;
         }
-        Snapshot snapshot = current;
-        snapshot.addClassName(pojo.getName());
+        State state = current;
+        state.addClassName(pojo.getName());
         if (schemaInfo == null || schemaInfo.getSchema() == null || schemaInfo.getSchema().length == 0) {
             install();
             return;
         }
         String schemaJson = new String(schemaInfo.getSchema(), UTF_8);
-        if (snapshot.markWalked(pojo.getName(), schemaJson)) {
+        if (state.markWalked(pojo.getName(), schemaJson)) {
             try {
                 Set<String> names = new HashSet<>();
                 // Resolve names against the loader that defined the POJO: that is where the types it
                 // references live, and it is the loader Avro itself uses for them.
                 collectTypeNames(SchemaUtil.parseAvroSchema(schemaJson),
                         Collections.newSetFromMap(new IdentityHashMap<>()), names, pojo.getClassLoader());
-                snapshot.addClassNames(names);
+                state.addClassNames(names);
             } catch (RuntimeException e) {
                 // A schema Pulsar just derived should always parse; if it somehow does not, the class
                 // itself is still trusted and an explicit trust(...) call remains available.
@@ -462,10 +464,10 @@ public final class AvroTrustedClasses {
      */
     public static void trustExactly(Class<?>... classes) {
         if (classes != null) {
-            Snapshot snapshot = current;
+            State state = current;
             for (Class<?> clazz : classes) {
                 if (clazz != null) {
-                    snapshot.addClassName(clazz.getName());
+                    state.addClassName(clazz.getName());
                 }
             }
         }

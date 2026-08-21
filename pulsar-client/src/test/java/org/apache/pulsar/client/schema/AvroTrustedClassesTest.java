@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 public class AvroTrustedClassesTest {
 
     private ClassSecurityPredicate previousValidator;
-    private AvroTrustedClasses.Snapshot previousDeclarations;
+    private AvroTrustedClasses.State previousDeclarations;
 
     @BeforeMethod
     public void useProductionBaselineValidator() {
