@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import lombok.CustomLog;
@@ -102,8 +101,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * serialization path.
  *
  * <p>Declaring trust after a rejection still works for subsequent operations; the one that already
- * failed has failed. Note that Avro caches a class once it has resolved it, so
- * {@link #untrustClassLoader(ClassLoader)} stops further resolutions rather than undoing past ones.
+ * failed has failed.
  *
  * <p>Only classes reached through Avro schemas are affected. {@code Schema.JSON(...)} reads and
  * writes through Jackson and needs nothing declared here.
@@ -157,14 +155,7 @@ public final class AvroTrustedClasses {
         /** Individually trusted binary class names. */
         private final Set<String> trustedClasses = ConcurrentHashMap.newKeySet();
 
-        /**
-         * Class loaders whose classes are trusted wholesale. Held weakly so that declaring trust does
-         * not keep a loader, or the classes it defined, from being collected.
-         */
-        private final Set<ClassLoader> trustedClassLoaders =
-                Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
-        /** Additional rules, for policies the name- and loader-based methods cannot express. */
+        /** Additional rules, for policies the name-based methods cannot express. */
         private final Set<Predicate<Class<?>>> trustedPredicates = ConcurrentHashMap.newKeySet();
 
         /**
@@ -228,10 +219,6 @@ public final class AvroTrustedClasses {
             Snapshot copy = new Snapshot();
             copy.trustedPackages.addAll(trustedPackages);
             copy.trustedClasses.addAll(trustedClasses);
-            // Copies the references, not the loaders: the copy holds them weakly as well.
-            synchronized (trustedClassLoaders) {
-                copy.trustedClassLoaders.addAll(trustedClassLoaders);
-            }
             copy.trustedPredicates.addAll(trustedPredicates);
             copy.walked.addAll(walked);
             return copy;
@@ -257,14 +244,6 @@ public final class AvroTrustedClasses {
             }
         }
 
-        private void addClassLoader(ClassLoader classLoader) {
-            trustedClassLoaders.add(classLoader);
-        }
-
-        private void removeClassLoader(ClassLoader classLoader) {
-            trustedClassLoaders.remove(classLoader);
-        }
-
         private void addPredicate(Predicate<Class<?>> predicate) {
             trustedPredicates.add(predicate);
         }
@@ -288,9 +267,6 @@ public final class AvroTrustedClasses {
             if (isTrustedName(clazz.getName(), classPackage == null ? null : classPackage.getName())) {
                 return true;
             }
-            if (isLoadedByTrustedClassLoader(clazz)) {
-                return true;
-            }
             for (Predicate<Class<?>> predicate : trustedPredicates) {
                 if (predicate.test(clazz)) {
                     return true;
@@ -310,23 +286,6 @@ public final class AvroTrustedClasses {
                 // Require a package separator at the boundary so that trusting "com.example.model" does
                 // not also trust a package named "com.example.modelExtra".
                 if (packageName.equals(trusted) || packageName.startsWith(trusted + ".")) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Whether the class was defined by a trusted class loader, or by a descendant of one. Walking up
-         * the parent chain only ever reaches loaders that were explicitly declared, so a class from the
-         * application or system class loader is not trusted unless that loader itself was declared.
-         */
-        private boolean isLoadedByTrustedClassLoader(Class<?> clazz) {
-            if (trustedClassLoaders.isEmpty()) {
-                return false;
-            }
-            for (ClassLoader loader = clazz.getClassLoader(); loader != null; loader = loader.getParent()) {
-                if (trustedClassLoaders.contains(loader)) {
                     return true;
                 }
             }
@@ -524,34 +483,6 @@ public final class AvroTrustedClasses {
     public static void trustClasses(String... classNames) {
         current.addClassNames(Arrays.asList(classNames));
         install();
-    }
-
-    /**
-     * Trusts every class defined by the given class loader, or by a descendant of it. Intended for an
-     * application that loads plugin or tenant code into a class loader of its own and wants the classes
-     * it defines trusted wholesale.
-     *
-     * <p>Pulsar itself does not use this: Functions and connectors build their schemas through
-     * {@code Schema.AVRO(...)} like any other application, so their classes are declared by name when
-     * the schema is built. Prefer that where you can — trusting a loader also trusts every third-party
-     * class packaged alongside the code you meant to trust.
-     */
-    public static void trustClassLoader(ClassLoader classLoader) {
-        if (classLoader == null) {
-            return;
-        }
-        current.addClassLoader(classLoader);
-        install();
-    }
-
-    /**
-     * Stops trusting a class loader declared with {@link #trustClassLoader(ClassLoader)}. Classes Avro
-     * has already resolved stay resolvable — Avro caches them — so this governs future resolutions.
-     */
-    public static void untrustClassLoader(ClassLoader classLoader) {
-        if (classLoader != null) {
-            current.removeClassLoader(classLoader);
-        }
     }
 
     /**

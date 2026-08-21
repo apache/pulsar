@@ -146,15 +146,6 @@ public class AvroTrustedClassesTest {
     }
 
     @Test
-    public void testTrustClassLoaderIsReachableFromTheFacade() {
-        assertThat(isTrusted(Order.class)).isFalse();
-
-        AvroTrustedClasses.trustClassLoader(Order.class.getClassLoader());
-
-        assertThat(isTrusted(Order.class)).isTrue();
-    }
-
-    @Test
     public void testTrustExactlyDoesNotFollowReferencedTypes() {
         AvroTrustedClasses.trustExactly(Order.class);
 
