@@ -47,7 +47,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf,
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf.clone(),
                 clientBuilderClassLoader, acceptGzipCompression, sharedResources);
     }
 
