@@ -74,6 +74,11 @@ public class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
     }
 
     @Override
+    public void recordOffloadDataLatency(String topic, long latency, TimeUnit unit) {
+
+    }
+
+    @Override
     public void close() throws Exception {
 
     }
