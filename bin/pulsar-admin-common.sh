@@ -175,3 +175,6 @@ OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
 OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are routed to pulsar.log instead of stdout
+OPTS="$OPTS -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
