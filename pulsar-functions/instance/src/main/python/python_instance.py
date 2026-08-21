@@ -150,6 +150,8 @@ class PythonInstance(object):
     elif self.instance_config.function_details.retainKeyOrdering:
       mode = pulsar._pulsar.ConsumerType.KeyShared
 
+    nack_args = self.get_negative_ack_args()
+
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
@@ -181,7 +183,8 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
         initial_position=position,
-        properties=properties
+        properties=properties,
+        **nack_args
       )
 
     for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
@@ -207,6 +210,7 @@ class PythonInstance(object):
         "properties": properties,
         "crypto_key_reader": crypto_key_reader
       }
+      consumer_args.update(nack_args)
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
 
@@ -584,6 +588,26 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+  def get_negative_ack_args(self):
+    """Build the negative-ack redelivery delay argument for Client.subscribe().
+
+    Returns a dict to splat into the subscribe() call: either empty, or carrying
+    negative_ack_redelivery_delay_ms.
+
+    SourceSpec.negativeAckRedeliveryDelayMs is a proto3 scalar with no presence, so an unset field
+    reads as 0. Only a positive value is forwarded, leaving the client default (60s) in place
+    otherwise - the same guard the Java runtime applies in JavaInstanceRunnable.
+
+    The argument is omitted rather than passed as None because subscribe() validates it with
+    _check_type(int, ...) rather than _check_type_or_none, so None would fail for every function
+    that does not configure it.
+    """
+    delay_ms = self.instance_config.function_details.source.negativeAckRedeliveryDelayMs
+    if delay_ms <= 0:
+      return {}
+
+    return {"negative_ack_redelivery_delay_ms": delay_ms}
+
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
     if crypto_spec is not None:
