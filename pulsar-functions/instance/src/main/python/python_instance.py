@@ -154,6 +154,8 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
 
+    dead_letter_policy = self.get_dead_letter_policy(mode)
+
     subscription_name = self.instance_config.function_details.source.subscriptionName
 
     if not (subscription_name and subscription_name.strip()):
@@ -181,7 +183,8 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
         initial_position=position,
-        properties=properties
+        properties=properties,
+        dead_letter_policy=dead_letter_policy
       )
 
     for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
@@ -205,7 +208,8 @@ class PythonInstance(object):
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
         "initial_position": position,
         "properties": properties,
-        "crypto_key_reader": crypto_key_reader
+        "crypto_key_reader": crypto_key_reader,
+        "dead_letter_policy": dead_letter_policy
       }
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
@@ -584,6 +588,44 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+  def get_dead_letter_policy(self, consumer_type):
+    """Build the consumer dead letter policy from FunctionDetails.retryDetails.
+
+    Mirrors the Java runtime (JavaInstanceRunnable + PulsarSource): the policy is only considered
+    when retryDetails is present, and an empty deadLetterTopic is left to the client, which defaults
+    it to "<topic>-<subscription>-DLQ".
+
+    Returns None when no policy should be attached.
+    """
+    if not self.instance_config.function_details.HasField("retryDetails"):
+      return None
+
+    retry_details = self.instance_config.function_details.retryDetails
+    max_message_retries = retry_details.maxMessageRetries
+
+    # The Java runtime accepts maxMessageRetries >= 0, but the Python client rejects a
+    # maxRedeliverCount below 1, so zero cannot be expressed here. Warn rather than fail the
+    # instance, and rather than dropping it silently - silent drops are the bug this fixes.
+    if max_message_retries < 1:
+      if max_message_retries == 0 and retry_details.deadLetterTopic:
+        Log.warning(
+          "maxMessageRetries is 0, which the Python client cannot express (it requires a "
+          "redelivery count of at least 1); no dead letter policy will be applied and messages "
+          "will not be routed to %s" % retry_details.deadLetterTopic)
+      return None
+
+    # A dead letter policy only takes effect on Shared and KeyShared subscriptions.
+    if consumer_type not in (pulsar._pulsar.ConsumerType.Shared, pulsar._pulsar.ConsumerType.KeyShared):
+      Log.warning(
+        "a dead letter policy is configured but the subscription type is not Shared or "
+        "KeyShared, so it will have no effect; retainOrdering and EFFECTIVELY_ONCE both select "
+        "a Failover subscription")
+      return None
+
+    return pulsar.ConsumerDeadLetterPolicy(
+      max_redeliver_count=max_message_retries,
+      dead_letter_topic=retry_details.deadLetterTopic or None)
+
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
     if crypto_spec is not None:
