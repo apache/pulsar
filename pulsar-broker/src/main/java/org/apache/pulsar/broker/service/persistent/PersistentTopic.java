@@ -660,7 +660,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -4799,7 +4799,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -5025,13 +5025,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return Optional.ofNullable(shadowSourceTopic);
     }
 
-    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
+    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload, PublishContext publishContext) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
             if (maxDeliveryDelayInMs > 0) {
-                headersAndPayload.markReaderIndex();
-                MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.resetReaderIndex();
+                MessageMetadata msgMetadata = publishContext.getMessageMetadata(headersAndPayload);
                 return msgMetadata.hasDeliverAtTime()
                         && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
             }
