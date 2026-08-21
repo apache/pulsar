@@ -2480,9 +2480,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
-            doc = "Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads"
+            doc = "Use separated IO threads for BookKeeper client. Default is true, which will use dedicated "
+                    + "BookKeeper IO threads"
     )
-    private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
+    private boolean bookkeeperClientSeparatedIoThreadsEnabled = true;
 
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
