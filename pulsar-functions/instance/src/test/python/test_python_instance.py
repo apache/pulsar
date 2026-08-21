@@ -32,6 +32,7 @@ sys.modules['bookkeeper.proto.stream_pb2'] = Mock()
 
 from contextimpl import ContextImpl
 from python_instance import PythonInstance, InstanceConfig
+import pulsar
 from pulsar import Message
 
 import Function_pb2
@@ -149,3 +150,76 @@ class TestPropertiesForwarding(unittest.TestCase):
     self.assertNotIn("custom-key", kwargs['properties'])
     self.assertIn("__pfn_input_topic__", kwargs['properties'])
 
+
+class TestDeadLetterPolicy(unittest.TestCase):
+  """Covers FunctionDetails.retryDetails -> ConsumerDeadLetterPolicy.
+
+  The Java runtime applies these in JavaInstanceRunnable (guarded on hasRetryDetails) and
+  PulsarSource (maxMessageRetries >= 0, deadLetterTopic only when non-empty). The Python runtime
+  previously ignored retryDetails entirely.
+  """
+
+  def _instance(self, max_message_retries=None, dead_letter_topic=None):
+    function_details = Function_pb2.FunctionDetails()
+    function_details.sink.topic = "test_sink_topic"
+    if max_message_retries is not None:
+      function_details.retryDetails.maxMessageRetries = max_message_retries
+    if dead_letter_topic is not None:
+      function_details.retryDetails.deadLetterTopic = dead_letter_topic
+
+    return PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
+                          'user_code', Mock(), Mock(), 'test_cluster', 'test_url', None)
+
+  def test_no_retry_details_means_no_policy(self):
+    instance = self._instance()
+    self.assertIsNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+
+  def test_policy_built_from_retry_details(self):
+    instance = self._instance(max_message_retries=3,
+                              dead_letter_topic="persistent://public/default/my-dlq")
+    policy = instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared)
+
+    self.assertIsNotNone(policy)
+    self.assertEqual(3, policy.max_redeliver_count)
+    self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
+
+  def test_empty_dead_letter_topic_defers_to_client_default(self):
+    # The Java runtime only sets the topic when non-empty, leaving the client to derive
+    # "<topic>-<subscription>-DLQ". Passing "" through would override that with an invalid name.
+    instance = self._instance(max_message_retries=2)
+    policy = instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared)
+
+    self.assertIsNotNone(policy)
+    self.assertEqual(2, policy.max_redeliver_count)
+
+  def test_zero_retries_attaches_no_policy(self):
+    # Java accepts maxMessageRetries >= 0, but ConsumerDeadLetterPolicy rejects a redelivery count
+    # below 1, so zero cannot be expressed here. It must not raise and take the instance down.
+    instance = self._instance(max_message_retries=0,
+                              dead_letter_topic="persistent://public/default/my-dlq")
+    self.assertIsNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+
+  def test_negative_retries_attaches_no_policy(self):
+    instance = self._instance(max_message_retries=-1)
+    self.assertIsNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+
+  def test_key_shared_subscription_gets_policy(self):
+    instance = self._instance(max_message_retries=3)
+    self.assertIsNotNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.KeyShared))
+
+  def test_failover_subscription_gets_no_policy(self):
+    # A dead letter policy has no effect on Failover, which retainOrdering and EFFECTIVELY_ONCE
+    # both select. Returning None keeps that explicit rather than silently ineffective.
+    instance = self._instance(max_message_retries=3,
+                              dead_letter_topic="persistent://public/default/my-dlq")
+    self.assertIsNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Failover))
+
+  def test_exclusive_subscription_gets_no_policy(self):
+    instance = self._instance(max_message_retries=3)
+    self.assertIsNone(
+      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Exclusive))
