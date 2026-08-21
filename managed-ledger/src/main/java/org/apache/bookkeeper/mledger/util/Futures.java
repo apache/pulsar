@@ -75,7 +75,7 @@ public class Futures {
                                                             Class<? extends Exception> needRetryExceptionClass,
                                                             int maxRetryTimes) {
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
-        op.get().whenComplete((res, ex) -> {
+        FutureUtil.supplySafely(op).whenComplete((res, ex) -> {
             if (ex == null) {
                 resultFuture.complete(res);
             } else {
