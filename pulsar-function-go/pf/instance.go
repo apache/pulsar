@@ -303,11 +303,35 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 	return producer, err
 }
 
-func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+// resolveSubscriptionType picks the consumer subscription type for the function.
+//
+// The ordering flags are applied after the explicit SubscriptionType, matching the Java and Python
+// runtimes: retainOrdering requires a single consumer per partition, so it selects Failover, and
+// retainKeyOrdering selects KeyShared. Ordering wins when both are set, which is the precedence
+// python_instance.py applies.
+//
+// EFFECTIVELY_ONCE needs no arm here: instanceConf.go refuses it before an instance is built.
+func resolveSubscriptionType(configured pb.SubscriptionType, retainOrdering,
+	retainKeyOrdering bool) pulsar.SubscriptionType {
 	subscriptionType := pulsar.Shared
-	if int32(gi.context.instanceConf.funcDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
+	if int32(configured) == pb.SubscriptionType_value["FAILOVER"] {
 		subscriptionType = pulsar.Failover
 	}
+
+	if retainOrdering {
+		subscriptionType = pulsar.Failover
+	} else if retainKeyOrdering {
+		subscriptionType = pulsar.KeyShared
+	}
+
+	return subscriptionType
+}
+
+func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+	subscriptionType := resolveSubscriptionType(
+		gi.context.instanceConf.funcDetails.Source.SubscriptionType,
+		gi.context.instanceConf.funcDetails.RetainOrdering,
+		gi.context.instanceConf.funcDetails.RetainKeyOrdering)
 
 	funcDetails := gi.context.instanceConf.funcDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
