@@ -366,6 +366,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         finalMl.mbean.recordAddEntryError();
 
         finalMl.getExecutor().execute(() -> {
+            if (finalMl.failAddIfTerminated(this)) {
+                return;
+            }
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
             // If we received a "MetadataVersionException" or a "LedgerFencedException", we should tell the ML that
