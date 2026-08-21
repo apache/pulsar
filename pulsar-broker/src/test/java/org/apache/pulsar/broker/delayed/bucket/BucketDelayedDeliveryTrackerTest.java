@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -35,6 +36,7 @@ import io.netty.util.TimerTask;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,9 +47,12 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -62,6 +67,7 @@ import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -623,6 +629,82 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class GatedSegmentLoadStorage extends MockBucketSnapshotStorage {
+        volatile CompletableFuture<Void> segmentLoadGate;
+
+        @Override
+        public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId,
+                                                                                long firstSegmentEntryId,
+                                                                                long lastSegmentEntryId) {
+            CompletableFuture<List<SnapshotSegment>> future =
+                    super.getBucketSnapshotSegment(bucketId, firstSegmentEntryId, lastSegmentEntryId);
+            CompletableFuture<Void> gate = segmentLoadGate;
+            if (gate == null) {
+                return future;
+            }
+            return gate.thenCompose(__ -> future);
+        }
+    }
+
+    private static class GatedDeleteStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> deleteGate = new CompletableFuture<>();
+        final AtomicLong deleteCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (deleteCalls.incrementAndGet() <= 2) {
+                return deleteGate;
+            }
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    private static class FailingMergeDeleteStorage extends MockBucketSnapshotStorage {
+        final AtomicBoolean firstMergeDeleteStarted = new AtomicBoolean();
+        private final AtomicLong failedBucketId = new AtomicLong(-1);
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (firstMergeDeleteStarted.compareAndSet(false, true)) {
+                failedBucketId.set(bucketId);
+            }
+            if (bucketId == failedBucketId.get()) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Merge delete failed"));
+            }
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    /**
+     * Blocks every attempt (initial + retries) of the first bucket snapshot creation until
+     * {@link #gate} completes.
+     */
+    private static class BlockingFirstCreateStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> gate = new CompletableFuture<>();
+        final Set<String> blockedBucketKeys = ConcurrentHashMap.newKeySet();
+        private final AtomicLong createCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            if (createCalls.incrementAndGet() == 1) {
+                blockedBucketKeys.add(bucketKey);
+            }
+            if (blockedBucketKeys.contains(bucketKey)) {
+                return gate.handle((__, ex) -> {
+                    if (ex != null) {
+                        throw new CompletionException(ex);
+                    }
+                    throw new CompletionException(
+                            new BucketSnapshotPersistenceException("Unexpected create success"));
+                });
+            }
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
+                    bucketKey, topicName, cursorName);
+        }
+    }
+
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
         ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
@@ -780,6 +862,165 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test
+    public void testTrimSkipsFailedSnapshotCreation() throws Exception {
+        long firstLedgerId = 31L;
+        BlockingFirstCreateStorage storage = new BlockingFirstCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            // Sealing the sixth bucket exceeds maxNumBuckets and triggers the trim while the first
+            // bucket's snapshot creation is still in flight (blocked by the gate).
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+
+            synchronized (ts.tracker) {
+                assertEquals(storage.blockedBucketKeys.size(), 1,
+                        "The first bucket snapshot creation should have been blocked");
+                assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().keySet().stream()
+                                .anyMatch(range -> range.lowerEndpoint() == 1L && range.upperEndpoint() == 5L),
+                        "The first bucket should still be present while its snapshot creation is pending");
+            }
+
+            // Fail the first bucket's snapshot creation while the trim chain is waiting on it.
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().isEmpty(),
+                            "All orphaned buckets should be removed despite the failed snapshot creation");
+                }
+            });
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testClearWaitsForInFlightSegmentLoad() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        GatedSegmentLoadStorage storage = new GatedSegmentLoadStorage();
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_clear_load_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testClearLoad / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 1000, testClock, true, storage,
+                4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+        try {
+            // Two indexes per segment: reaching the first segment boundary triggers a load of the
+            // next snapshot segment.
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 100);
+            }
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+            storage.segmentLoadGate = new CompletableFuture<>();
+            testClockTime.set(600);
+            tracker.getScheduledMessages(10);
+
+            CompletableFuture<Void> clearFuture = tracker.clear();
+            assertFalse("clear() should wait for the in-flight segment load", clearFuture.isDone());
+
+            storage.segmentLoadGate.complete(null);
+
+            assertThat(clearFuture).succeedsWithin(Duration.ofSeconds(3));
+
+            assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+            assertEquals(tracker.getLastMutableBucket().size(), 0);
+            assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
+        } finally {
+            tracker.close();
+            storage.clean();
+        }
+    }
+
+    @Test
+    public void testClearWaitsForTerminalSegmentLoadDelete() throws Exception {
+        GatedDeleteStorage storage = new GatedDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 50, storage);
+        try {
+            for (int i = 1; i <= 6; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, i * 100));
+            }
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+            ts.clockTime.set(600);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                ts.tracker.getScheduledMessages(10);
+                assertEquals(storage.deleteCalls.get(), 1,
+                        "The terminal segment load should start the snapshot delete");
+            });
+
+            CompletableFuture<Void> clearFuture = ts.tracker.clear();
+            assertFalse("clear() must wait for the terminal delete chained to segment load",
+                    clearFuture.isDone());
+
+            storage.deleteGate.complete(null);
+            assertThat(clearFuture).succeedsWithin(Duration.ofSeconds(3));
+            assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testClearWaitsForMergeSourceBucketDelete() throws Exception {
+        GatedDeleteStorage storage = new GatedDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1, storage);
+        try {
+            for (int i = 1; i <= 11; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, i * 10));
+            }
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                    () -> assertEquals(storage.deleteCalls.get(), 2,
+                            "Merge should start deleting both source buckets"));
+
+            CompletableFuture<Void> clearFuture = ts.tracker.clear();
+            assertFalse("clear() must wait for merge's in-flight source-bucket deletes",
+                    clearFuture.isDone());
+
+            storage.deleteGate.complete(null);
+            assertThat(clearFuture).succeedsWithin(Duration.ofSeconds(3));
+            assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().size() <= 1);
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testClearCompletesWhenMergeSourceBucketDeleteFails() throws Exception {
+        FailingMergeDeleteStorage storage = new FailingMergeDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1, storage);
+        try {
+            for (int i = 1; i <= 11; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, i * 10));
+            }
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertTrue(storage.firstMergeDeleteStarted.get(),
+                            "The first merge source-bucket delete should have started"));
+
+            assertThat(ts.tracker.clear()).succeedsWithin(Duration.ofSeconds(3));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
     public void testSelectMergedBucketsSupportsTwoBuckets() throws Exception {
         TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1);
         try {
@@ -915,6 +1156,57 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
 
         ts.close();
+    }
+
+    @Test
+    public void testStaleSnapshotDeleteDoesNotRemoveRecreatedBucketCursorProperty() throws Exception {
+        BlockingDeleteStorage storage = new BlockingDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 50, storage);
+        try {
+            ManagedCursor cursor = ts.tracker.getCtx().cursor();
+
+            ImmutableBucket bucket = new ImmutableBucket(ts.tracker.getCtx(), 1L, 5L);
+            String bucketKey = bucket.bucketKey();
+            cursor.putCursorProperty(bucketKey, "0").get(5, TimeUnit.SECONDS);
+
+            CompletableFuture<Void> deleteFuture =
+                    bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats());
+            assertFalse(deleteFuture.isDone());
+
+            // Simulate a reset/replay that re-creates a bucket with the same range under the same key.
+            cursor.putCursorProperty(bucketKey, "999").get(5, TimeUnit.SECONDS);
+
+            storage.firstDeleteFuture.complete(null);
+            deleteFuture.get(5, TimeUnit.SECONDS);
+
+            assertEquals(cursor.getCursorProperties().get(bucketKey), "999",
+                    "Stale cleanup must not remove the re-created bucket's cursor property");
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testDeleteSkipsWhenCursorPropertyMissing() throws Exception {
+        RecordingDeleteStorage storage = new RecordingDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 50, storage);
+        try {
+            ImmutableBucket missingPropertyBucket = new ImmutableBucket(ts.tracker.getCtx(), 1L, 5L);
+            missingPropertyBucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats())
+                    .get(5, TimeUnit.SECONDS);
+
+            // A malformed property is still surfaced as a failure.
+            ImmutableBucket malformedPropertyBucket = new ImmutableBucket(ts.tracker.getCtx(), 6L, 10L);
+            ts.tracker.getCtx().cursor()
+                    .putCursorProperty(malformedPropertyBucket.bucketKey(), "not-a-number")
+                    .get(5, TimeUnit.SECONDS);
+            assertThat(malformedPropertyBucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats()))
+                    .failsWithin(Duration.ofSeconds(5));
+
+            assertEquals(storage.deleteCalls.get(), 0, "No snapshot delete should reach storage");
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
