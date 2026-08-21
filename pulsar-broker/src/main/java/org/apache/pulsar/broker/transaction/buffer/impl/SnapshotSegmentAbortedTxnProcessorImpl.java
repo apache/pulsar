@@ -49,7 +49,6 @@ import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.Refe
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
@@ -71,10 +70,11 @@ import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
-public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
+public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbortedTxnProcessor {
 
     private static final Logger LOG = Logger.get(SnapshotSegmentAbortedTxnProcessorImpl.class);
     private final Logger log;
+    private final PersistentTopic topic;
 
     /**
      * Stored the unsealed aborted transaction IDs Whose size is always less than the snapshotSegmentCapacity.
@@ -120,8 +120,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
      */
     private final LinkedMap<Position, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
 
-    private final PersistentTopic topic;
-
     private volatile long lastSnapshotTimestamps;
 
     private volatile long lastTakedSnapshotSegmentTimestamp;
@@ -140,10 +138,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
      * <p>    Clear all snapshot segment. </p>
      */
     private final PersistentWorker persistentWorker;
+    private CompletableFuture<Void> recoveryIndexUpdateFuture = CompletableFuture.completedFuture(null);
 
     private static final String SNAPSHOT_PREFIX = "multiple-";
 
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
+        super(topic.getBrokerService().getPulsar().getTransactionSnapshotRecoverExecutorProvider()
+                .chooseThread(TopicName.get(topic.getName()).getNamespace()));
         this.topic = topic;
         this.log = LOG.with().attr("topic", topic.getName()).build();
         this.persistentWorker = new PersistentWorker(topic);
@@ -231,48 +232,48 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public CompletableFuture<Position> recoverFromSnapshot() {
+    protected Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
         final var pulsar = topic.getBrokerService().getPulsar();
-        final var future = new CompletableFuture<Position>();
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = pulsar.getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
-        scheduledExecutor.execute(() -> {
-            try {
-                final var indexes = pulsar.getTransactionBufferSnapshotServiceFactory()
-                        .getTxnBufferSnapshotIndexService().getTableView(scheduledExecutor)
-                        .readLatest(topic.getName());
-                if (indexes == null) {
-                    // Try recovering from the old format snapshot
-                    future.complete(recoverOldSnapshot());
-                    return;
-                }
-                final var snapshot = indexes.getSnapshot();
-                final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),
-                        snapshot.getMaxReadPositionEntryId());
-                this.unsealedTxnIds = convertTypeToTxnID(snapshot.getAborts());
-                // Read snapshot segment to recover aborts
-                final var snapshotSegmentTopicName = TopicName.get(TopicDomain.persistent.toString(),
-                        TopicName.get(topic.getName()).getNamespaceObject(),
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-                readSegmentEntries(snapshotSegmentTopicName, indexes);
-                if (!this.indexes.isEmpty()) {
-                    // If there is no segment index, the persistent worker will write segment begin from 0.
-                    persistentWorker.sequenceID.set(this.indexes.get(this.indexes.lastKey()).sequenceID + 1);
-                }
-                unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
-                future.complete(startReadCursorPosition);
-            } catch (Throwable throwable) {
-                future.completeExceptionally(throwable);
-            }
-        });
-        return future;
+        final var indexes = pulsar.getTransactionBufferSnapshotServiceFactory()
+                .getTxnBufferSnapshotIndexService().getTableView(executor)
+                .readLatest(topic.getName());
+        if (isClosed()) {
+            return null;
+        }
+        if (indexes == null) {
+            // Try recovering from the old format snapshot
+            return recoverOldSnapshot(executor);
+        }
+        final var snapshot = indexes.getSnapshot();
+        final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),
+                snapshot.getMaxReadPositionEntryId());
+        this.unsealedTxnIds = convertTypeToTxnID(snapshot.getAborts());
+        // Read snapshot segment to recover aborts
+        final var snapshotSegmentTopicName = TopicName.get(TopicDomain.persistent.toString(),
+                TopicName.get(topic.getName()).getNamespaceObject(),
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+        readSegmentEntries(snapshotSegmentTopicName, indexes);
+        if (isClosed()) {
+            return null;
+        }
+        if (!this.indexes.isEmpty()) {
+            // If there is no segment index, the persistent worker will write segment begin from 0.
+            persistentWorker.sequenceID.set(this.indexes.get(this.indexes.lastKey()).sequenceID + 1);
+        }
+        unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+        return startReadCursorPosition;
     }
 
     private void readSegmentEntries(TopicName topicName, TransactionBufferSnapshotIndexes indexes) throws Exception {
+        if (isClosed()) {
+            return;
+        }
         final var managedLedger = openReadOnlyManagedLedger(topicName);
         boolean hasInvalidIndex = false;
         for (var index : indexes.getIndexList()) {
+            if (isClosed()) {
+                return;
+            }
             final var position = PositionFactory.create(index.getSegmentLedgerID(), index.getSegmentEntryID());
             final var abortedPosition = PositionFactory.create(index.abortedMarkLedgerID, index.abortedMarkEntryID);
             try {
@@ -299,7 +300,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
         if (hasInvalidIndex) {
             // Update the snapshot segment index if there exist invalid indexes.
-            persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+            recoveryIndexUpdateFuture = persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
                     () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot()));
         }
     }
@@ -350,22 +351,24 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     // This method will be deprecated and removed in version 4.x.0
-    private Position recoverOldSnapshot() throws Exception {
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = topic.getBrokerService().getPulsar()
-                .getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
+    private Position recoverOldSnapshot(ScheduledExecutorService executor) throws Exception {
+        if (isClosed()) {
+            return null;
+        }
         final var pulsar = topic.getBrokerService().getPulsar();
         final var topicName = TopicName.get(topic.getName());
         final var topics = wait(pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(
                 NamespaceName.get(topicName.getNamespace())), "list persistent topics");
+        if (isClosed()) {
+            return null;
+        }
         if (!topics.contains(TopicDomain.persistent + "://" + topicName.getNamespace() + "/"
                 + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT)) {
             return null;
         }
         final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
-                .getTableView(scheduledExecutor).readLatest(topic.getName());
-        if (snapshot == null) {
+                .getTableView(executor).readLatest(topic.getName());
+        if (isClosed() || snapshot == null) {
             return null;
         }
         handleOldSnapshot(snapshot);
@@ -413,8 +416,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
-        return persistentWorker.closeAsync();
+    protected CompletableFuture<Void> closeResources() {
+        return recoveryIndexUpdateFuture.handle((__, throwable) -> null)
+                .thenCompose(__ -> persistentWorker.closeAsync());
     }
 
     private void handleSnapshotSegmentEntry(Entry entry) {
