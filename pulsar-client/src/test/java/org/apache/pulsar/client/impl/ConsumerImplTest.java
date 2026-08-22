@@ -27,7 +27,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,16 +37,15 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.channel.EventLoop;
-import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.EventExecutor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.SplittableRandom;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -72,7 +70,6 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandMessage;
-import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -146,204 +143,175 @@ public class ConsumerImplTest {
     }
 
     @Test
-    public void testInvalidExplicitMessagePermitsCloseSourceConnection() {
+    public void testGetMessagePermitsUsesCommandValueWhenPresent() {
+        CommandMessage command = new CommandMessage().setMessagePermits(3);
+        command.addAckSet(0b10101L);
+
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(command, 10), 3);
+    }
+
+    @Test
+    public void testGetMessagePermitsFallsBackToAckSetForOldBroker() {
+        CommandMessage command = new CommandMessage();
+        command.addAckSet(0b101101L);
+
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(command, 10), 4);
+    }
+
+    @Test
+    public void testGetMessagePermitsFallsBackToBatchSizeForOldBroker() {
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(new CommandMessage(), 10), 10);
+    }
+
+    @Test
+    public void testGetMessagePermitsValidatesNativeCommand() {
+        Assert.assertEquals(ConsumerImpl.getMessagePermits(new CommandMessage().setMessagePermits(1), 1), 1);
+        Assert.assertThrows(RuntimeException.class,
+                () -> ConsumerImpl.getMessagePermits(new CommandMessage().setMessagePermits(0), 1));
+        Assert.assertThrows(RuntimeException.class,
+                () -> ConsumerImpl.getMessagePermits(new CommandMessage().setMessagePermits(-1), 1));
+        Assert.assertThrows(RuntimeException.class,
+                () -> ConsumerImpl.getMessagePermits(new CommandMessage(), 0));
+        Assert.assertThrows(RuntimeException.class,
+                () -> {
+                    CommandMessage command = new CommandMessage();
+                    command.addAckSet(0);
+                    ConsumerImpl.getMessagePermits(command, 1);
+                });
+        Assert.assertThrows(RuntimeException.class,
+                () -> {
+                    CommandMessage command = new CommandMessage();
+                    command.addAckSet(0b10);
+                    ConsumerImpl.getMessagePermits(command, 1);
+                });
+        Assert.assertThrows(RuntimeException.class,
+                () -> {
+                    CommandMessage command = new CommandMessage().setMessagePermits(2);
+                    command.addAckSet(0b1);
+                    ConsumerImpl.getMessagePermits(command, 2);
+                });
+    }
+
+    @Test
+    public void testChecksumFailureReturnsCommandPermits() {
+        final int messagePermits = 10;
         CommandMessage command = new CommandMessage()
                 .setConsumerId(consumer.consumerId)
-                .setMessagePermits(0);
+                .setMessagePermits(messagePermits);
         command.setMessageId().setLedgerId(1).setEntryId(2);
-        ClientCnx messageCnx = mock(ClientCnx.class);
-        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
-        when(messageCnx.ctx()).thenReturn(context);
-        ByteBuf emptyPayload = Unpooled.buffer(0);
-        int permitsBefore = consumer.getAvailablePermits();
-
-        try {
-            consumer.messageReceived(command, emptyPayload, messageCnx);
-            verify(context).close();
-            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore);
-        } finally {
-            emptyPayload.release();
-        }
-    }
-
-    @Test
-    public void testTruncatedFrameAndMetadataFailureReturnExplicitMessagePermits() {
-        ClientCnx messageCnx = setCurrentConnection();
-        ChannelHandlerContext context = messageCnx.ctx();
-        int permitsBefore = consumer.getAvailablePermits();
-        ByteBuf[] malformedFrames = {
-                Unpooled.wrappedBuffer(new byte[] {1}),
-                Unpooled.wrappedBuffer(new byte[] {0, 0, 0, 10})
-        };
-
-        try {
-            for (ByteBuf malformedFrame : malformedFrames) {
-                consumer.messageReceived(newCommandMessage(5), malformedFrame, messageCnx);
-            }
-
-            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore + 10);
-            releaseValidationCommands(context, 2);
-        } finally {
-            Arrays.stream(malformedFrames).forEach(ByteBuf::release);
-        }
-    }
-
-    @Test
-    public void testDecompressionFailureReturnsExplicitMessagePermits() {
-        ClientCnx messageCnx = setCurrentConnection();
-        ChannelHandlerContext context = messageCnx.ctx();
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(5)
-                .setCompression(CompressionType.ZLIB)
-                .setUncompressedSize(100);
-        ByteBuf invalidCompressedPayload = Unpooled.wrappedBuffer(new byte[] {1});
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(messagePermits);
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {1});
         ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, metadata, invalidCompressedPayload);
-        invalidCompressedPayload.release();
+                Commands.ChecksumType.Crc32c, metadata, payload);
+        payload.release();
+        metadataAndPayload.setByte(metadataAndPayload.writerIndex() - 1,
+                metadataAndPayload.getByte(metadataAndPayload.writerIndex() - 1) ^ 1);
+
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        ChannelPromise promise = mock(ChannelPromise.class);
+        when(cnx.ctx()).thenReturn(context);
+        when(context.voidPromise()).thenReturn(promise);
+        consumer.setClientCnx(cnx);
         int permitsBefore = consumer.getAvailablePermits();
-
         try {
-            consumer.messageReceived(newCommandMessage(5), metadataAndPayload, messageCnx);
-
-            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore + 5);
-            releaseValidationCommands(context, 1);
+            consumer.messageReceived(command, metadataAndPayload, cnx);
+            Assert.assertEquals(consumer.getAvailablePermits(), permitsBefore + messagePermits);
         } finally {
             metadataAndPayload.release();
         }
     }
 
     @Test
-    public void testPermitAccumulatorOverflowClosesSourceConnection() {
-        ClientCnx messageCnx = setCurrentConnection();
-        ChannelHandlerContext context = messageCnx.ctx();
-        consumer.paused = true;
-        ByteBuf firstMalformedMetadata = Unpooled.wrappedBuffer(new byte[] {1});
-        ByteBuf secondMalformedMetadata = Unpooled.wrappedBuffer(new byte[] {1});
+    public void testPermitReturnIsBoundToConsumerIncarnationOnSameConnection() {
+        ClientCnx cnx = mock(ClientCnx.class);
+        consumer.setClientCnx(cnx);
+        ConsumerImpl.ConsumerPermitState oldState = consumer.getPermitState();
+        consumer.increaseAvailablePermits(cnx, 1);
+        Assert.assertEquals(oldState.availablePermits.get(), 1);
 
-        try {
-            consumer.messageReceived(newCommandMessage(Integer.MAX_VALUE), firstMalformedMetadata, messageCnx);
-            Assert.assertEquals(consumer.getAvailablePermits(), Integer.MAX_VALUE);
+        consumer.deactivatePermitState(oldState);
+        consumer.setClientCnx(cnx);
+        ConsumerImpl.ConsumerPermitState replacementState = consumer.getPermitState();
+        Assert.assertNotSame(replacementState, oldState);
+        Assert.assertSame(replacementState.cnx, oldState.cnx);
 
-            consumer.messageReceived(newCommandMessage(1), secondMalformedMetadata, messageCnx);
-
-            Assert.assertEquals(consumer.getAvailablePermits(), Integer.MAX_VALUE);
-            verify(context).close();
-            releaseValidationCommands(context, 2);
-        } finally {
-            firstMalformedMetadata.release();
-            secondMalformedMetadata.release();
-        }
-    }
-
-    @Test
-    public void testSameClientCnxReuseCreatesNewPermitIncarnation() {
-        consumer.setCurrentReceiverQueueSize(2);
-        ClientCnx messageCnx = setCurrentConnection();
-        ChannelHandlerContext context = messageCnx.ctx();
-        ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
-        MessageImpl<?> oldMessage = mock(MessageImpl.class);
-        when(oldMessage.getPermitState()).thenReturn(oldPermitState);
-
-        // Recreate the broker consumer while reusing the same pooled physical ClientCnx.
-        consumer.setClientCnx(messageCnx);
-        Assert.assertNotSame(consumer.getPermitState(), oldPermitState);
-        consumer.consumerIsReconnectedToBroker(messageCnx, 0);
+        MessageImpl<byte[]> oldMessage = new MessageImpl<>(topic, new MessageIdImpl(1, 1, -1),
+                new MessageMetadata(), Unpooled.EMPTY_BUFFER, cnx, Schema.BYTES);
+        oldMessage.setFlowPermitOwnership(oldState, 1);
         consumer.increaseAvailablePermits(oldMessage);
+        Assert.assertEquals(replacementState.availablePermits.get(), 0);
 
-        Assert.assertEquals(consumer.getAvailablePermits(), 0);
-        verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
-    }
-
-    @Test(invocationTimeOut = 5000)
-    public void testPermitReturnRaceWithSameClientCnxReconnectDoesNotContaminateNewAccumulator() {
-        consumer.paused = true;
-        ClientCnx messageCnx = setCurrentConnection();
-        ExecutorService raceExecutor = Executors.newFixedThreadPool(2);
-        try {
-            for (int i = 0; i < 100; i++) {
-                ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
-                MessageImpl<?> oldMessage = mock(MessageImpl.class);
-                when(oldMessage.getPermitState()).thenReturn(oldPermitState);
-                CountDownLatch start = new CountDownLatch(1);
-
-                CompletableFuture<Void> returnPermit = CompletableFuture.runAsync(() -> {
-                    await(start);
-                    consumer.increaseAvailablePermits(oldMessage);
-                }, raceExecutor);
-                CompletableFuture<Void> reconnect = CompletableFuture.runAsync(() -> {
-                    await(start);
-                    consumer.setClientCnx(messageCnx);
-                    consumer.consumerIsReconnectedToBroker(messageCnx, 0);
-                }, raceExecutor);
-
-                start.countDown();
-                CompletableFuture.allOf(returnPermit, reconnect).join();
-                Assert.assertEquals(consumer.getAvailablePermits(), 0);
-            }
-        } finally {
-            raceExecutor.shutdownNow();
-        }
-    }
-
-    @Test(invocationTimeOut = 5000)
-    public void testConcurrentPermitReturnsStayInCurrentIncarnationAccumulator() {
-        consumer.paused = true;
-        setCurrentConnection();
-        ConsumerImpl.ConsumerPermitState currentPermitState = consumer.getPermitState();
-        int threadCount = 8;
-        int returnsPerThread = 1000;
-        ExecutorService returnExecutor = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch start = new CountDownLatch(1);
-        try {
-            List<CompletableFuture<Void>> returns = new ArrayList<>(threadCount);
-            for (int i = 0; i < threadCount; i++) {
-                returns.add(CompletableFuture.runAsync(() -> {
-                    await(start);
-                    for (int permit = 0; permit < returnsPerThread; permit++) {
-                        consumer.increaseAvailablePermits(currentPermitState);
-                    }
-                }, returnExecutor));
-            }
-            start.countDown();
-            CompletableFuture.allOf(returns.toArray(CompletableFuture[]::new)).join();
-
-            Assert.assertEquals(consumer.getAvailablePermits(), threadCount * returnsPerThread);
-        } finally {
-            returnExecutor.shutdownNow();
-        }
+        MessageImpl<byte[]> currentMessage = new MessageImpl<>(topic, new MessageIdImpl(1, 2, -1),
+                new MessageMetadata(), Unpooled.EMPTY_BUFFER, cnx, Schema.BYTES);
+        currentMessage.setFlowPermitOwnership(replacementState, 1);
+        consumer.increaseAvailablePermits(currentMessage);
+        consumer.increaseAvailablePermits(currentMessage);
+        Assert.assertEquals(replacementState.availablePermits.get(), 1,
+                "A terminal message path must return its permit at most once");
     }
 
     @Test
-    public void testQueuedFlowFromOldIncarnationIsDroppedAfterSameClientCnxReuse() {
-        consumer.setCurrentReceiverQueueSize(2);
-        ClientCnx messageCnx = setCurrentConnection();
-        ChannelHandlerContext context = messageCnx.ctx();
-        EventLoop eventLoop = context.channel().eventLoop();
-        List<Runnable> queuedTasks = new ArrayList<>();
-        doAnswer(invocation -> {
-            queuedTasks.add(invocation.getArgument(0));
-            return null;
-        }).when(eventLoop).execute(any(Runnable.class));
+    public void testMalformedExplicitPermitsCloseSourceIncarnationWithoutCredit() {
+        ClientCnx cnx = mock(ClientCnx.class);
+        Channel channel = mock(Channel.class);
+        when(cnx.channel()).thenReturn(channel);
+        consumer.setClientCnx(cnx);
+        CommandMessage command = new CommandMessage().setMessagePermits(0);
+        command.setMessageId().setLedgerId(1).setEntryId(2);
 
-        ConsumerImpl.ConsumerPermitState oldPermitState = consumer.getPermitState();
-        consumer.increaseAvailablePermits(oldPermitState);
-        Assert.assertEquals(queuedTasks.size(), 1);
+        consumer.messageReceived(command, Unpooled.EMPTY_BUFFER, cnx);
 
-        // Recreate the broker consumer before the old Flow task reaches the shared physical connection.
-        consumer.setClientCnx(messageCnx);
-        queuedTasks.get(0).run();
-
+        verify(channel).close();
+        Assert.assertNull(consumer.getPermitState());
         Assert.assertEquals(consumer.getAvailablePermits(), 0);
-        verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
+    }
+
+    @Test
+    public void testPermitAccumulatorOverflowClosesSourceIncarnation() {
+        ClientCnx cnx = mock(ClientCnx.class);
+        Channel channel = mock(Channel.class);
+        when(cnx.channel()).thenReturn(channel);
+        consumer.setClientCnx(cnx);
+        ConsumerImpl.ConsumerPermitState state = consumer.getPermitState();
+        state.availablePermits.set(Integer.MAX_VALUE);
+        MessageImpl<byte[]> message = new MessageImpl<>(topic, new MessageIdImpl(1, 1, -1),
+                new MessageMetadata(), Unpooled.EMPTY_BUFFER, cnx, Schema.BYTES);
+        message.setFlowPermitOwnership(state, 1);
+
+        consumer.increaseAvailablePermits(message);
+
+        verify(channel).close();
+        Assert.assertNull(consumer.getPermitState());
+    }
+
+    @Test
+    public void testPooledMessageCanBeRetainedByDeadLetterAndMessageLifecycles() {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {1});
+        MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, 1, -1),
+                new MessageMetadata(), payload, Optional.empty(), mock(ClientCnx.class), Schema.BYTES,
+                0, true, DEFAULT_CONSUMER_EPOCH);
+        try {
+            Assert.assertEquals(payload.refCnt(), 2);
+            message.retain();
+            message.release();
+            Assert.assertEquals(payload.refCnt(), 2,
+                    "Releasing one owner must not recycle a message retained by dead-letter handling");
+            message.release();
+            Assert.assertEquals(payload.refCnt(), 1);
+        } finally {
+            payload.release();
+        }
     }
 
     @Test
     public void testStaleEpochBatchOnCurrentIncarnationReturnsPermitAndClosesPrefetchGauges() throws Exception {
         consumer.setCurrentReceiverQueueSize(2);
-        ClientCnx messageCnx = setCurrentConnection();
+        ClientCnx messageCnx = setCurrentConnectionWithFlowEnabled();
         ChannelHandlerContext context = messageCnx.ctx();
         List<Integer> flowPermits = new ArrayList<>();
         doAnswer(invocation -> {
@@ -385,7 +353,7 @@ public class ConsumerImplTest {
     @Test
     public void testRandomizedBatchDecodeWritesExactlyTheReturnedPermitsToFlow() throws Exception {
         consumer.setCurrentReceiverQueueSize(2);
-        ClientCnx messageCnx = setCurrentConnection();
+        ClientCnx messageCnx = setCurrentConnectionWithFlowEnabled();
         ChannelHandlerContext context = messageCnx.ctx();
         List<Integer> flowPermits = new ArrayList<>();
         doAnswer(invocation -> {
@@ -451,6 +419,25 @@ public class ConsumerImplTest {
         }
     }
 
+    private ClientCnx setCurrentConnectionWithFlowEnabled() {
+        ClientCnx messageCnx = mock(ClientCnx.class);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        when(context.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(context.channel()).thenReturn(channel);
+        when(context.executor()).thenReturn(eventExecutor);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(eventExecutor).execute(any(Runnable.class));
+        when(messageCnx.ctx()).thenReturn(context);
+        when(messageCnx.channel()).thenReturn(channel);
+        consumer.setClientCnx(messageCnx);
+        consumer.getPermitState().flowEnabled = true;
+        return messageCnx;
+    }
+
     private static int parseFlowPermits(ByteBuf frame) {
         try {
             frame.skipBytes(Integer.BYTES);
@@ -462,48 +449,6 @@ public class ConsumerImplTest {
         } finally {
             frame.release();
         }
-    }
-
-    private static void await(CountDownLatch latch) {
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new CompletionException(e);
-        }
-    }
-
-    private ClientCnx setCurrentConnection() {
-        ClientCnx messageCnx = mock(ClientCnx.class);
-        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        EventLoop eventLoop = mock(EventLoop.class);
-        when(context.voidPromise()).thenReturn(mock(ChannelPromise.class));
-        when(context.channel()).thenReturn(channel);
-        when(channel.eventLoop()).thenReturn(eventLoop);
-        doAnswer(invocation -> {
-            invocation.<Runnable>getArgument(0).run();
-            return null;
-        }).when(eventLoop).execute(any(Runnable.class));
-        when(messageCnx.ctx()).thenReturn(context);
-        consumer.setClientCnx(messageCnx);
-        consumer.consumerIsReconnectedToBroker(messageCnx, 0);
-        return messageCnx;
-    }
-
-    private CommandMessage newCommandMessage(int messagePermits) {
-        CommandMessage command = new CommandMessage()
-                .setConsumerId(consumer.consumerId)
-                .setMessagePermits(messagePermits);
-        command.setMessageId().setLedgerId(1).setEntryId(2);
-        return command;
-    }
-
-    private static void releaseValidationCommands(ChannelHandlerContext context, int expectedCommands) {
-        ArgumentCaptor<Object> commandCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(context, times(expectedCommands)).writeAndFlush(
-                commandCaptor.capture(), any(ChannelPromise.class));
-        commandCaptor.getAllValues().forEach(ReferenceCountUtil::release);
     }
 
     @Test(invocationTimeOut = 500)
@@ -657,6 +602,7 @@ public class ConsumerImplTest {
 
     @Test
     public void testMaxReceiverQueueSize() {
+        consumer.setClientCnx(mock(ClientCnx.class));
         int size = consumer.getCurrentReceiverQueueSize();
         int permits = consumer.getAvailablePermits();
         consumer.setCurrentReceiverQueueSize(size + 100);
@@ -766,16 +712,23 @@ public class ConsumerImplTest {
         List<Long> ackSet = Arrays.stream(brokerAckSet.toLongArray()).boxed().collect(Collectors.toList());
 
         MessageIdImpl messageId = new MessageIdImpl(1L, 2L, -1);
+        ClientCnx messageCnx = mock(ClientCnx.class);
+        ConsumerImpl.ConsumerPermitState permitState = new ConsumerImpl.ConsumerPermitState(messageCnx);
         MessagePayloadContextImpl context = MessagePayloadContextImpl.get(
-                null, messageMetadata, messageId, consumer, 0, ackSet, DEFAULT_CONSUMER_EPOCH);
+                null, messageMetadata, messageId, consumer, 0, ackSet, DEFAULT_CONSUMER_EPOCH, permitState);
         MessagePayload payload0 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{0}));
         MessagePayload payload1 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{1}));
+        Message<byte[]> message1 = null;
         try {
             // Index 0 is already acked per the broker, so it must not be redelivered to the app.
             Assert.assertNull(context.getMessageAt(0, batchSize, payload0, false, Schema.BYTES));
 
-            Message<byte[]> message1 = context.getMessageAt(1, batchSize, payload1, false, Schema.BYTES);
+            message1 = context.getMessageAt(1, batchSize, payload1, false, Schema.BYTES);
             Assert.assertNotNull(message1);
+            Assert.assertSame(((MessageImpl<?>) message1).getCnx(), messageCnx,
+                    "The message must retain the connection that delivered its command");
+            Assert.assertSame(((MessageImpl<?>) message1).getPermitState(), permitState);
+            Assert.assertEquals(((MessageImpl<?>) message1).getFlowPermitCost(), 1);
 
             BitSet ackSetInMessageId = ((MessageIdAdv) message1.getMessageId()).getAckSet();
             Assert.assertFalse(ackSetInMessageId.get(0),
@@ -784,6 +737,9 @@ public class ConsumerImplTest {
             Assert.assertTrue(ackSetInMessageId.get(1), "index 1 is still outstanding");
             Assert.assertTrue(ackSetInMessageId.get(2), "index 2 is still outstanding");
         } finally {
+            if (message1 != null) {
+                message1.release();
+            }
             payload0.release();
             payload1.release();
             context.recycle();

@@ -537,6 +537,21 @@ public class Commands {
 
     public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
             int redeliveryCount, long[] ackSet, long consumerEpoch) {
+        return newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet, consumerEpoch,
+                null);
+    }
+
+    public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, long[] ackSet, long consumerEpoch, int messagePermits) {
+        if (messagePermits <= 0) {
+            throw new IllegalArgumentException("Message permits must be positive");
+        }
+        return newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet, consumerEpoch,
+                Integer.valueOf(messagePermits));
+    }
+
+    private static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, long[] ackSet, long consumerEpoch, Integer messagePermits) {
         BaseCommand cmd = localCmd(Type.MESSAGE);
         CommandMessage msg = cmd.setMessage()
                 .setConsumerId(consumerId);
@@ -552,23 +567,15 @@ public class Commands {
         if (redeliveryCount > 0) {
             msg.setRedeliveryCount(redeliveryCount);
         }
+        if (messagePermits != null) {
+            msg.setMessagePermits(messagePermits);
+        }
         if (ackSet != null) {
             for (int i = 0; i < ackSet.length; i++) {
                 msg.addAckSet(ackSet[i]);
             }
         }
         return cmd;
-    }
-
-    public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
-            int redeliveryCount, long[] ackSet, long consumerEpoch, int messagePermits) {
-        if (messagePermits <= 0) {
-            throw new IllegalArgumentException("messagePermits must be positive");
-        }
-        BaseCommand command = newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet,
-                consumerEpoch);
-        command.getMessage().setMessagePermits(messagePermits);
-        return command;
     }
 
     public static ByteBufPair newMessage(long consumerId, long ledgerId, long entryId, int partition,

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.concurrent.TimeUnit;
@@ -37,8 +38,9 @@ import org.testng.annotations.Test;
 public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
 
     @Test
-    public void testBatchRemainderIsNotReturnedToReplacementConnection() throws Exception {
+    public void testDoesNotReturnBatchPermitsToDifferentConnection() throws Exception {
         final int batchSize = 2;
+        final String topic = newTopicName();
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("foobar")
                 .setSequenceId(1)
@@ -51,10 +53,12 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
         }
 
         try (ConsumerImpl<byte[]> consumer =
-                     (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(newTopicName())
+                     (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                              .subscriptionName("old-connection-subscription")
                              .receiverQueueSize(20)
                              .subscribe()) {
+            consumer.pause();
+            consumer.getPermitState().availablePermits.set(20);
             int permitsBefore = consumer.getAvailablePermits();
             consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, null, compactedBatch,
                     new MessageIdData().setLedgerId(1234).setEntryId(567), mock(ClientCnx.class),
@@ -67,32 +71,40 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
     }
 
     @Test
-    public void testStaleEpochDiscardDoesNotReturnPermitToReplacementConnection() throws Exception {
+    public void testReturnOnlyRemainingPermitsAfterPartialBatchDeserialization() throws Exception {
+        final int batchSize = 5;
+        final int parsedMessages = 2;
+        final String topic = newTopicName();
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("foobar")
                 .setSequenceId(1)
                 .setPublishTime(1)
-                .setNumMessagesInBatch(1);
-        ByteBuf batch = Unpooled.buffer(100);
-        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {1});
-        Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
-        payload.release();
+                .setNumMessagesInBatch(batchSize);
+        ByteBuf truncatedBatch = Unpooled.buffer(1000);
+        for (int i = 0; i < parsedMessages; i++) {
+            ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {(byte) i});
+            Commands.serializeSingleMessageInBatchWithPayload(
+                    new SingleMessageMetadata(), payload, truncatedBatch);
+            payload.release();
+        }
 
         try (ConsumerImpl<byte[]> consumer =
-                     (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(newTopicName())
-                             .subscriptionName("stale-epoch-subscription")
+                     (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                             .subscriptionName("partial-batch-subscription")
                              .receiverQueueSize(20)
                              .subscribe()) {
-            ConsumerBase.CONSUMER_EPOCH.set(consumer, 2);
-            int permitsBefore = consumer.getAvailablePermits();
-            consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, null, batch,
-                    new MessageIdData().setLedgerId(1234).setEntryId(567), mock(ClientCnx.class), 1, false, 1);
-            consumer.internalPinnedExecutor.submit(() -> assertEquals(consumer.numMessagesInQueue(), 0))
-                    .get(5, TimeUnit.SECONDS);
+            consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, null, truncatedBatch,
+                    new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx(),
+                    DEFAULT_CONSUMER_EPOCH, false, batchSize);
 
-            assertEquals(consumer.getAvailablePermits(), permitsBefore);
+            for (int i = 0; i < parsedMessages; i++) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertNotNull(message);
+                message.release();
+            }
+            assertEquals(consumer.getAvailablePermits(), batchSize);
         } finally {
-            batch.release();
+            truncatedBatch.release();
         }
     }
 
@@ -125,12 +137,11 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
 
         try (ConsumerImpl<byte[]> consumer =
              (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName("my-subscriber-name").subscribe()) {
-            int permitsBefore = consumer.getAvailablePermits();
+                .subscriptionName("my-subscriber-name").receiverQueueSize(20).subscribe()) {
             // shove it in the sideways
             consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
                     batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567),
-                    consumer.cnx(), DEFAULT_CONSUMER_EPOCH, false, metadata.getNumMessagesInBatch());
+                    consumer.cnx(), DEFAULT_CONSUMER_EPOCH, false);
             Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl) m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl) m.getMessageId()).getEntryId(), 567);
@@ -138,8 +149,9 @@ public class CompactedOutBatchMessageTest extends SharedPulsarBaseTest {
             assertEquals(m.getKey(), "key3");
 
             assertEquals(consumer.numMessagesInQueue(), 0);
-            assertEquals(consumer.getAvailablePermits(), permitsBefore + metadata.getNumMessagesInBatch());
-            m.release();
+            assertEquals(consumer.getAvailablePermits(), metadata.getNumMessagesInBatch());
+        } finally {
+            batchBuffer.release();
         }
     }
 }

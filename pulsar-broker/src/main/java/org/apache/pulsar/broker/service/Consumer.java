@@ -320,40 +320,29 @@ public class Consumer {
         return readCompacted;
     }
 
-    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
+    public SendMessageResult sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker) {
-        return sendMessagesInternal(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH).getWriteFuture();
-    }
-
-    public SendMessagesResult sendMessagesWithResult(final List<? extends Entry> entries,
-                                                     EntryBatchSizes batchSizes,
-                                                     EntryBatchIndexesAcks batchIndexesAcks,
-                                                     int totalMessages,
-                                                     long totalBytes,
-                                                     long totalChunkedMessages,
-                                                     RedeliveryTracker redeliveryTracker) {
-        return sendMessagesInternal(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+        return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
                 totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
     }
 
-    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
+    public SendMessageResult sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker, long epoch) {
-        return sendMessagesInternal(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                totalChunkedMessages, redeliveryTracker, epoch).getWriteFuture();
+        return sendMessages(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                totalChunkedMessages, redeliveryTracker, epoch);
     }
 
     /**
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
      *
-     * @return a future completed after the entries have been written
+     * @return the finalized per-entry permit accounting and the asynchronous write result
      */
-    public Future<Void> sendMessages(final List<? extends Entry> entries,
+    public SendMessageResult sendMessages(final List<? extends Entry> entries,
                                      final List<Integer> stickyKeyHashes,
                                      EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
@@ -362,20 +351,9 @@ public class Consumer {
                                      long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker,
                                      long epoch) {
-        return sendMessagesInternal(entries, stickyKeyHashes, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                totalChunkedMessages, redeliveryTracker, epoch).getWriteFuture();
-    }
-
-    private SendMessagesResult sendMessagesInternal(final List<? extends Entry> entries,
-                                                    final List<Integer> stickyKeyHashes,
-                                                    EntryBatchSizes batchSizes,
-                                                    EntryBatchIndexesAcks batchIndexesAcks,
-                                                    int totalMessages,
-                                                    long totalBytes,
-                                                    long totalChunkedMessages,
-                                                    RedeliveryTracker redeliveryTracker,
-                                                    long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
+
+        SendMessageResult sendMessageResult = new SendMessageResult(entries.size());
 
         if (entries.isEmpty() || totalMessages == 0) {
             log.debug("List of messages is empty, triggering write future immediately");
@@ -385,76 +363,78 @@ public class Consumer {
             }
             final Promise<Void> writePromise = cnx.newPromise();
             writePromise.setSuccess(null);
-            return new SendMessagesResult(0).setWriteFuture(writePromise);
+            sendMessageResult.setSendFuture(writePromise);
+            return sendMessageResult;
         }
-        SendMessagesResult sendResult = new SendMessagesResult(entries.size());
         int totalEntries = 0;
 
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            if (entry == null) {
-                continue;
-            }
-            int batchSize = batchSizes.getBatchSize(i);
-            int messagePermits = batchIndexesAcks == null
-                    ? batchSize : batchIndexesAcks.getUnackedIndexCount(i, batchSize);
-            if (messagePermits == 0) {
-                entries.set(i, null);
-                entry.release();
-                continue;
-            }
-            // Note
-            // Must ensure that the message is written to the pendingAcks before sent is first,
-            // because this consumer is possible to disconnect at this time.
-            if (pendingAcks != null) {
-                int stickyKeyHash;
-                if (stickyKeyHashes == null) {
-                    if (entry instanceof EntryAndMetadata entryAndMetadata) {
-                        stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
-                    } else {
-                        stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
-                    }
-                } else {
-                    stickyKeyHash = stickyKeyHashes.get(i);
-                }
-                boolean sendingAllowed = pendingAcks.addPendingAckIfAllowed(
-                        entry.getLedgerId(), entry.getEntryId(), messagePermits, stickyKeyHash);
-                if (!sendingAllowed) {
-                    // sending isn't allowed when pending acks doesn't accept adding the entry
-                    // this happens when Key_Shared draining hashes contains the stickyKeyHash
-                    // because of race conditions, it might be resolved at the time of sending
+            if (entry != null) {
+                int batchSize = batchSizes.getBatchSize(i);
+                int messagePermits = batchIndexesAcks == null
+                        ? batchSize : batchIndexesAcks.getUnackedIndexCount(i, batchSize);
+                if (messagePermits == 0) {
                     entries.set(i, null);
                     entry.release();
-                    log.debug()
-                            .attr("ledgerId", entry.getLedgerId())
-                            .attr("entryId", entry.getEntryId())
-                            .attr("batchSize", batchSize)
-                            .log("Skipping sending of entry since adding to pending acks failed");
                     continue;
                 }
-                log.debug()
-                        .attr("ledgerId", entry.getLedgerId())
-                        .attr("entryId", entry.getEntryId())
-                        .attr("batchSize", batchSize)
-                        .log("Added entry to pendingAcks");
+                // Note
+                // Must ensure that the message is written to the pendingAcks before sent is first,
+                // because this consumer is possible to disconnect at this time.
+                if (pendingAcks != null) {
+                    int stickyKeyHash;
+                    if (stickyKeyHashes == null) {
+                        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                            stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
+                        } else {
+                            stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
+                        }
+                    } else {
+                        stickyKeyHash = stickyKeyHashes.get(i);
+                    }
+                    boolean sendingAllowed;
+                    sendingAllowed =
+                            pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(),
+                                    messagePermits, stickyKeyHash);
+                    if (!sendingAllowed) {
+                        // sending isn't allowed when pending acks doesn't accept adding the entry
+                        // this happens when Key_Shared draining hashes contains the stickyKeyHash
+                        // because of race conditions, it might be resolved at the time of sending
+                        entries.set(i, null);
+                        entry.release();
+                        log.debug()
+                                .attr("ledgerId", entry.getLedgerId())
+                                .attr("entryId", entry.getEntryId())
+                                .attr("batchSize", batchSize)
+                                .log("Skipping sending of entry since adding to pending acks failed");
+                    } else {
+                        log.debug()
+                                .attr("ledgerId", entry.getLedgerId())
+                                .attr("entryId", entry.getEntryId())
+                                .attr("batchSize", batchSize)
+                                .log("Added entry to pendingAcks");
+                        totalEntries++;
+                        sendMessageResult.recordMessagePermits(i, messagePermits);
+                    }
+                } else {
+                    totalEntries++;
+                    sendMessageResult.recordMessagePermits(i, messagePermits);
+                }
             }
-            sendResult.setMessagePermits(i, messagePermits);
-            totalEntries++;
         }
 
         // calculate avg message per entry
-        if (totalEntries > 0) {
-            if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-                // set init value.
-                avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-            } else {
-                avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                        + (1 - avgPercent) * totalMessages / totalEntries);
-            }
+        int sentMessagePermits = sendMessageResult.getTotalMessagePermits();
+        if (totalEntries > 0 && avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
+            // set init value.
+            avgMessagesPerEntry.set(1.0 * sentMessagePermits / totalEntries);
+        } else if (totalEntries > 0) {
+            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
+                    + (1 - avgPercent) * sentMessagePermits / totalEntries);
         }
 
-        int sentMessagePermits = sendResult.getTotalMessagePermits();
-        // Reduce permits by the logical messages represented by commands that survived final admission.
+        // Reduce permits by the message count represented by the commands that will actually be sent.
         MESSAGE_PERMITS_UPDATER.addAndGet(this, -sentMessagePermits);
         log.debug()
                 .attr("sentMessagePermits", sentMessagePermits)
@@ -464,7 +444,8 @@ public class Consumer {
         incrementUnackedMessages(sentMessagePermits);
         Future<Void> writeAndFlushPromise =
                 cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                        entries, batchSizes, batchIndexesAcks, sendResult, redeliveryTracker, epoch);
+                        entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch, sendMessageResult);
+        sendMessageResult.setSendFuture(writeAndFlushPromise);
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {
@@ -478,11 +459,10 @@ public class Consumer {
             } else {
                 log.debug()
                         .exceptionMessage(status.cause())
-                        .log("Sent messages to client failed by IO exception, disconnecting the consumer");
-                disconnect();
+                        .log("Sent messages to client failed by IO exception, closing the connection");
             }
         });
-        return sendResult.setWriteFuture(writeAndFlushPromise);
+        return sendMessageResult;
     }
 
     private void incrementUnackedMessages(int unackedMessages) {

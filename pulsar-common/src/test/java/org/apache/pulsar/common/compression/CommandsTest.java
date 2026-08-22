@@ -41,20 +41,22 @@ import org.testng.annotations.Test;
 public class CommandsTest {
 
     @Test
-    public void testMessageCommandCarriesPermitDebit() {
-        BaseCommand batched = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 10);
-        assertTrue(batched.getMessage().hasMessagePermits());
-        assertEquals(batched.getMessage().getMessagePermits(), 10);
+    public void testMessageCommandCarriesPermitCount() {
+        BaseCommand command = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 10);
 
-        BaseCommand single = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 1);
-        assertTrue(single.getMessage().hasMessagePermits());
-        assertEquals(single.getMessage().getMessagePermits(), 1);
+        assertTrue(command.getMessage().hasMessagePermits());
+        assertEquals(command.getMessage().getMessagePermits(), 10);
 
-        BaseCommand legacy = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1);
-        Assert.assertFalse(legacy.getMessage().hasMessagePermits());
+        BaseCommand singleMessageCommand = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 1);
+        assertTrue(singleMessageCommand.getMessage().hasMessagePermits());
+        assertEquals(singleMessageCommand.getMessage().getMessagePermits(), 1);
 
-        Assert.expectThrows(IllegalArgumentException.class,
+        Assert.assertThrows(IllegalArgumentException.class,
                 () -> Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 0));
+
+        BaseCommand legacyCommand = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1);
+        Assert.assertFalse(legacyCommand.getMessage().hasMessagePermits());
+        assertEquals(legacyCommand.getMessage().getMessagePermits(), 0);
     }
 
     @Test

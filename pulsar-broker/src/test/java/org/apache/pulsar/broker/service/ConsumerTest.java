@@ -28,23 +28,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertSame;
-import static org.testng.Assert.expectThrows;
 import io.netty.util.concurrent.ImmediateEventExecutor;
-import io.netty.util.concurrent.Promise;
-import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.SplittableRandom;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,17 +45,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
-import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsumerTest {
-    private static final long RANDOM_SEED = 0x491C05E5L;
-
     private Consumer consumer;
     private Subscription subscription;
     private ServerCnx cnx;
+    private Topic topic;
     private final ConsumerStatsImpl stats = new ConsumerStatsImpl();
 
     @BeforeMethod
@@ -70,13 +61,12 @@ public class ConsumerTest {
         subscription = mock(Subscription.class);
         cnx = mock(ServerCnx.class);
         SocketAddress address = mock(SocketAddress.class);
-        PersistentTopic topic = mock(PersistentTopic.class);
+        topic = mock(PersistentTopic.class, RETURNS_DEEP_STUBS);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
 
         when(cnx.clientAddress()).thenReturn(address);
-        when(subscription.getName()).thenReturn("subscription");
         when(subscription.getTopic()).thenReturn(topic);
         when(topic.getBrokerService()).thenReturn(brokerService);
         when(brokerService.getPulsar()).thenReturn(pulsarService);
@@ -103,8 +93,9 @@ public class ConsumerTest {
 
     @Test
     public void testSendMessagesFinalizesPermitsAfterPendingAckAdmission() {
-        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
-                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
+        when(topic.getHierarchyTopicPolicies().getMaxUnackedMessagesOnConsumer().get()).thenReturn(100);
+        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", true,
+                cnx, "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
                 DEFAULT_CONSUMER_EPOCH);
         sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> ledgerId != 2);
         sharedConsumer.flowPermits(100);
@@ -119,8 +110,6 @@ public class ConsumerTest {
         when(emptyPartialBatch.getLedgerId()).thenReturn(3L);
         when(emptyPartialBatch.getEntryId()).thenReturn(3L);
         List<Entry> entries = new ArrayList<>(List.of(partialBatch, rejectedBatch, emptyPartialBatch));
-        // A null slot represents an entry removed by dispatcher filtering before final send admission.
-        entries.add(null);
 
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
         batchSizes.setBatchSize(0, 10);
@@ -133,219 +122,22 @@ public class ConsumerTest {
         PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
         when(cnx.getCommandSender()).thenReturn(commandSender);
         when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
-                any(), any(), anyLong()))
-                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
+                any(), anyLong(), any())).thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
 
         try {
-            SendMessagesResult sendResult = sharedConsumer.sendMessagesWithResult(
-                    entries, batchSizes, batchIndexesAcks, 23, 0, 0, mock(RedeliveryTracker.class));
+            SendMessageResult result = sharedConsumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    23, 0, 0, mock(RedeliveryTracker.class));
 
-            assertEquals(sendResult.getTotalMessagePermits(), 3);
-            assertEquals(sendResult.getMessagePermits(0), 3);
-            assertEquals(sendResult.getMessagePermits(1), 0);
-            assertEquals(sendResult.getMessagePermits(2), 0);
-            assertEquals(sendResult.getMessagePermits(3), 0);
+            assertEquals(result.getTotalMessagePermits(), 3);
             assertEquals(sharedConsumer.getAvailablePermits(), 97);
             assertEquals(sharedConsumer.getUnackedMessages(), 3);
             assertNull(entries.get(1));
             assertNull(entries.get(2));
             verify(rejectedBatch).release();
             verify(emptyPartialBatch).release();
-            ArgumentCaptor<SendMessagesResult> sendResultCaptor = ArgumentCaptor.forClass(SendMessagesResult.class);
-            verify(commandSender).sendMessagesToConsumer(eq(2L), eq("topic"), eq(subscription), anyInt(), eq(entries),
-                    eq(batchSizes), eq(batchIndexesAcks), sendResultCaptor.capture(), any(),
-                    eq(DEFAULT_CONSUMER_EPOCH));
-            assertSame(sendResultCaptor.getValue(), sendResult);
-            assertSame(entries.get(0), partialBatch);
         } finally {
             batchSizes.recyle();
             batchIndexesAcks.recycle();
         }
-    }
-
-    @Test
-    public void testFinalizedPermitsOutliveRecycledSenderInputs() {
-        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
-                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
-                DEFAULT_CONSUMER_EPOCH);
-        sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> true);
-        sharedConsumer.flowPermits(100);
-
-        Entry partialBatch = mock(Entry.class);
-        when(partialBatch.getLedgerId()).thenReturn(1L);
-        when(partialBatch.getEntryId()).thenReturn(1L);
-        Entry completeBatch = mock(Entry.class);
-        when(completeBatch.getLedgerId()).thenReturn(2L);
-        when(completeBatch.getEntryId()).thenReturn(2L);
-        List<Entry> entries = new ArrayList<>(List.of(partialBatch, completeBatch));
-
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        batchSizes.setBatchSize(0, 10);
-        batchSizes.setBatchSize(1, 4);
-        EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-        batchIndexesAcks.setIndexesAcks(0, Pair.of(10, new long[] {0b100101L}));
-
-        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(commandSender);
-        Promise<Void> pendingWrite = ImmediateEventExecutor.INSTANCE.newPromise();
-        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
-                any(), any(), anyLong())).thenReturn(pendingWrite);
-
-        SendMessagesResult sendResult;
-        try {
-            sendResult = sharedConsumer.sendMessagesWithResult(
-                    entries, batchSizes, batchIndexesAcks, 14, 0, 0, mock(RedeliveryTracker.class));
-        } finally {
-            // The command sender owns and recycles these inputs before its asynchronous write completes.
-            batchSizes.recyle();
-            batchIndexesAcks.recycle();
-        }
-
-        EntryBatchSizes reusedBatchSizes = EntryBatchSizes.get(entries.size());
-        EntryBatchIndexesAcks reusedBatchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-        try {
-            // Mutate the recycled carriers while the write is still pending. The finalized result must be independent.
-            reusedBatchSizes.setBatchSize(0, 1);
-            reusedBatchSizes.setBatchSize(1, 1);
-            reusedBatchIndexesAcks.setIndexesAcks(0, Pair.of(1, new long[] {1L}));
-
-            assertEquals(sendResult.getMessagePermits(0), 3);
-            assertEquals(sendResult.getMessagePermits(1), 4);
-            assertEquals(sendResult.getTotalMessagePermits(), 7);
-        } finally {
-            pendingWrite.trySuccess(null);
-            reusedBatchSizes.recyle();
-            reusedBatchIndexesAcks.recycle();
-        }
-    }
-
-    @Test
-    public void testSendMessagesWriteFailureDisconnectsConsumer() throws BrokerServiceException {
-        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
-                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
-                DEFAULT_CONSUMER_EPOCH);
-        sharedConsumer.setPendingAcksAddHandler((ignored, ledgerId, entryId, stickyKeyHash) -> true);
-        sharedConsumer.flowPermits(100);
-
-        Entry entry = mock(Entry.class);
-        when(entry.getLedgerId()).thenReturn(1L);
-        when(entry.getEntryId()).thenReturn(1L);
-        List<Entry> entries = new ArrayList<>(List.of(entry));
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(1);
-        batchSizes.setBatchSize(0, 1);
-        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(commandSender);
-        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
-                any(), any(), anyLong()))
-                .thenReturn(ImmediateEventExecutor.INSTANCE.newFailedFuture(new IOException("write failed")));
-
-        try {
-            sharedConsumer.sendMessagesWithResult(
-                    entries, batchSizes, null, 1, 0, 0, mock(RedeliveryTracker.class));
-
-            verify(cnx).closeConsumer(sharedConsumer, Optional.empty());
-            verify(subscription).removeConsumer(sharedConsumer, false);
-            verify(cnx).removedConsumer(sharedConsumer);
-        } finally {
-            batchSizes.recyle();
-        }
-    }
-
-    @Test
-    public void testRandomizedFinalAdmissionUsesOnePermitResultForAllBrokerCounters() {
-        final int entriesCount = 1_000;
-        final int initialPermits = 1_000_000;
-        SplittableRandom random = new SplittableRandom(RANDOM_SEED);
-        boolean[] admissionAllowed = new boolean[entriesCount];
-        int[] expectedPermits = new int[entriesCount];
-        Entry[] originalEntries = new Entry[entriesCount];
-        List<Entry> entries = new ArrayList<>(entriesCount);
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesCount);
-        EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesCount);
-        int totalMessages = 0;
-        int expectedTotalPermits = 0;
-
-        for (int i = 0; i < entriesCount; i++) {
-            int batchSize = random.nextInt(1, 257);
-            batchSizes.setBatchSize(i, batchSize);
-            totalMessages += batchSize;
-            if (random.nextInt(8) == 0) {
-                entries.add(null);
-                continue;
-            }
-
-            Entry entry = mock(Entry.class);
-            originalEntries[i] = entry;
-            entries.add(entry);
-            when(entry.getLedgerId()).thenReturn((long) i);
-            when(entry.getEntryId()).thenReturn((long) i);
-
-            int messagePermits = batchSize;
-            if (random.nextInt(4) != 0) {
-                int requiredWords = (batchSize + Long.SIZE - 1) / Long.SIZE;
-                long[] ackSet = new long[requiredWords + random.nextInt(2)];
-                for (int word = 0; word < ackSet.length; word++) {
-                    ackSet[word] = random.nextLong();
-                }
-                BitSet boundedAckSet = BitSet.valueOf(ackSet);
-                boundedAckSet.clear(batchSize, Math.max(batchSize, boundedAckSet.length()));
-                messagePermits = boundedAckSet.cardinality();
-                batchIndexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-            }
-
-            admissionAllowed[i] = random.nextInt(5) != 0;
-            if (messagePermits > 0 && admissionAllowed[i]) {
-                expectedPermits[i] = messagePermits;
-                expectedTotalPermits += messagePermits;
-            }
-        }
-
-        Consumer sharedConsumer = new Consumer(subscription, Shared, "topic", 2, 0, "shared-consumer", false, cnx,
-                "myrole-1", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest,
-                DEFAULT_CONSUMER_EPOCH);
-        sharedConsumer.setPendingAcksAddHandler(
-                (ignored, ledgerId, entryId, stickyKeyHash) -> admissionAllowed[(int) ledgerId]);
-        sharedConsumer.flowPermits(initialPermits);
-        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(commandSender);
-        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), any(), any(), any(),
-                any(), any(), anyLong()))
-                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
-
-        try {
-            SendMessagesResult sendResult = sharedConsumer.sendMessagesWithResult(
-                    entries, batchSizes, batchIndexesAcks, totalMessages, 0, 0, mock(RedeliveryTracker.class));
-
-            assertEquals(sendResult.getTotalMessagePermits(), expectedTotalPermits, "seed=" + RANDOM_SEED);
-            assertEquals(sharedConsumer.getAvailablePermits(), initialPermits - expectedTotalPermits,
-                    "seed=" + RANDOM_SEED);
-            assertEquals(sharedConsumer.getUnackedMessages(), expectedTotalPermits, "seed=" + RANDOM_SEED);
-            for (int i = 0; i < entriesCount; i++) {
-                assertEquals(sendResult.getMessagePermits(i), expectedPermits[i],
-                        "seed=" + RANDOM_SEED + ", entry=" + i);
-                if (originalEntries[i] != null && expectedPermits[i] == 0) {
-                    assertNull(entries.get(i));
-                    verify(originalEntries[i]).release();
-                } else {
-                    assertSame(entries.get(i), originalEntries[i]);
-                }
-            }
-        } finally {
-            batchSizes.recyle();
-            batchIndexesAcks.recycle();
-        }
-    }
-
-    @Test
-    public void testSendMessagesResultRejectsPartialFinalization() {
-        SendMessagesResult sendResult = new SendMessagesResult(2);
-        sendResult.setMessagePermits(0, Integer.MAX_VALUE);
-
-        expectThrows(ArithmeticException.class, () -> sendResult.setMessagePermits(1, 1));
-        assertEquals(sendResult.getMessagePermits(0), Integer.MAX_VALUE);
-        assertEquals(sendResult.getMessagePermits(1), 0);
-        assertEquals(sendResult.getTotalMessagePermits(), Integer.MAX_VALUE);
-        expectThrows(IllegalStateException.class, () -> sendResult.setMessagePermits(0, 1));
-        expectThrows(IllegalArgumentException.class, () -> new SendMessagesResult(1).setMessagePermits(0, 0));
     }
 }

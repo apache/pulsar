@@ -274,21 +274,28 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .log("Receive message from sub consumer");
             // Stop to process the remaining message after the consumer is closed.
             if (getState() == State.Closed) {
+                messages.forEach(message -> {
+                    MessageImpl<T> messageImpl = (MessageImpl<T>) message;
+                    consumer.increaseAvailablePermits(messageImpl);
+                    message.release();
+                });
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
                 final boolean skipDueToSeek = duringSeek;
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
-                ConsumerImpl.ConsumerPermitState permitState = msgImpl.getPermitState();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
                 if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
                 } else if (!isValidEpoch) {
-                    consumer.increaseAvailablePermits(permitState);
+                    consumer.increaseAvailablePermits(msgImpl);
+                    msg.release();
                 } else if (skipDueToSeek) {
                     log.info().attr("messageId", msg.getMessageId())
                             .log("Skip processing message received during seek");
+                    consumer.increaseAvailablePermits(msgImpl);
+                    msg.release();
                 }
             });
 
@@ -349,6 +356,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected synchronized void messageProcessed(Message<?> msg) {
         unAckedMessageTracker.add(msg.getMessageId(), msg.getRedeliveryCount());
         decreaseIncomingMessageSize(msg);
+    }
+
+    @Override
+    protected void messageDiscarded(Message<T> message) {
+        returnPermitForParentListener(message);
+        message.release();
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
@@ -730,7 +743,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     consumer.redeliverUnacknowledgedMessages();
                     consumer.unAckedChunkedMessageIdSequenceMap.clear();
                 });
-                clearIncomingMessages();
+                clearIncomingMessagesForRedelivery();
                 unAckedMessageTracker.clear();
                 resumeReceivingFromPausedConsumersIfNeeded();
             } finally {
@@ -952,12 +965,36 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             while (message != null) {
                 decreaseIncomingMessageSize(message);
                 MessageId messageId = message.getMessageId();
+                boolean shouldStop = false;
                 if (!messageIds.contains(messageId)) {
                     messageIds.add(messageId);
+                    shouldStop = true;
+                }
+                returnPermitForParentListener(message);
+                message.release();
+                if (shouldStop) {
                     break;
                 }
-                message.release();
                 message = incomingMessages.poll();
+            }
+        }
+    }
+
+    private void clearIncomingMessagesForRedelivery() {
+        List<Message<T>> messages = new ArrayList<>(incomingMessages.size());
+        incomingMessages.drainTo(messages);
+        messages.forEach(message -> {
+            returnPermitForParentListener(message);
+            message.release();
+        });
+        resetIncomingMessageSize();
+    }
+
+    private void returnPermitForParentListener(Message<T> message) {
+        if (message instanceof TopicMessageImpl<?> topicMessage) {
+            Message<?> innerMessage = topicMessage.getMessage();
+            if (innerMessage instanceof MessageImpl<?> messageImpl) {
+                topicMessage.receivedByconsumer.increaseAvailablePermits(messageImpl);
             }
         }
     }

@@ -68,7 +68,7 @@ import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
-import org.apache.pulsar.broker.service.SendMessagesResult;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.SharedConsumerAssignor;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
@@ -870,8 +870,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
 
-            SendMessagesResult sendResult = c.sendMessagesWithResult(
-                    entriesForThisConsumer, batchSizes, batchIndexesAcks,
+            SendMessageResult sendResult = c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
@@ -978,11 +977,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
-            SendMessagesResult sendResult = consumer.sendMessagesWithResult(
-                    entryAndMetadataList, batchSizes, batchIndexesAcks,
+            SendMessageResult sendResult = consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
-            sendResult.getWriteFuture().addListener(future -> {
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
+            );
+            sendResult.getSendFuture().addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
                     readMoreEntriesAsync();
                 }

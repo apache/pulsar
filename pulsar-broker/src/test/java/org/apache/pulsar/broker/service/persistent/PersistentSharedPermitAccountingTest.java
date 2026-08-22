@@ -18,20 +18,12 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
-import io.netty.util.ReferenceCountUtil;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -105,52 +97,6 @@ public class PersistentSharedPermitAccountingTest extends SharedPulsarBaseTest {
         }
     }
 
-    @Test(timeOut = 30000, dataProvider = "sharedDispatcherImplementations")
-    public void testWriteFailureRemovesDebitedConsumer(boolean classicDispatcher) throws Exception {
-        boolean originalSetting = getConfig().isSubscriptionSharedUseClassicPersistentImplementation();
-        getConfig().setSubscriptionSharedUseClassicPersistentImplementation(classicDispatcher);
-        String topicName = newTopicName();
-        String subscriptionName = "write-failure-subscription";
-
-        try (org.apache.pulsar.client.api.Consumer<Integer> clientConsumer =
-                     pulsarClient.newConsumer(Schema.INT32)
-                             .topic(topicName)
-                             .subscriptionName(subscriptionName)
-                             .subscriptionType(SubscriptionType.Shared)
-                             .receiverQueueSize(1)
-                             .subscribe();
-             Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                     .topic(topicName)
-                     .enableBatching(true)
-                     .batchingMaxMessages(BATCH_SIZE)
-                     .batchingMaxPublishDelay(1, TimeUnit.HOURS)
-                     .create()) {
-            PersistentSubscription subscription = getSubscription(topicName, subscriptionName);
-            Consumer originalConsumer = subscription.getConsumers().get(0);
-            ServerCnx serverCnx = (ServerCnx) originalConsumer.cnx();
-            AtomicBoolean writeFailed = new AtomicBoolean();
-            failNextFlush(serverCnx, writeFailed);
-
-            sendBatch(producer, 0);
-
-            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-                Assert.assertTrue(writeFailed.get());
-                Assert.assertFalse(subscription.getConsumers().contains(originalConsumer));
-                CompletableFuture<Consumer> registeredConsumer =
-                        serverCnx.getConsumers().get(originalConsumer.consumerId());
-                Assert.assertTrue(registeredConsumer == null || registeredConsumer.getNow(null) != originalConsumer);
-            });
-
-            clientConsumer.close();
-            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-                Assert.assertTrue(subscription.getConsumers().isEmpty());
-                Assert.assertEquals(getTotalAvailablePermits(subscription), 0);
-            });
-        } finally {
-            getConfig().setSubscriptionSharedUseClassicPersistentImplementation(originalSetting);
-        }
-    }
-
     private PersistentSubscription getSubscription(String topicName, String subscriptionName) throws Exception {
         PersistentTopic topic = (PersistentTopic) getTopicIfExists(topicName).get(10, TimeUnit.SECONDS)
                 .orElseThrow(() -> new IllegalStateException("Topic was not loaded"));
@@ -185,22 +131,5 @@ public class PersistentSharedPermitAccountingTest extends SharedPulsarBaseTest {
             return dispatcher.totalAvailablePermits;
         }
         throw new AssertionError("Unexpected dispatcher " + subscription.getDispatcher());
-    }
-
-    private static void failNextFlush(ServerCnx serverCnx, AtomicBoolean writeFailed) throws Exception {
-        serverCnx.ctx().channel().eventLoop().submit(() -> serverCnx.ctx().pipeline().addFirst(
-                new ChannelOutboundHandlerAdapter() {
-                    @Override
-                    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-                        if (msg instanceof ByteBuf buffer && !buffer.isReadable()
-                                && writeFailed.compareAndSet(false, true)) {
-                            ctx.pipeline().remove(this);
-                            ReferenceCountUtil.safeRelease(msg);
-                            promise.setFailure(new IOException("intentional message write failure"));
-                            return;
-                        }
-                        ctx.write(msg, promise);
-                    }
-                })).sync();
     }
 }

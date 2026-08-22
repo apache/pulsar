@@ -104,14 +104,14 @@ public class PulsarCommandSenderImplTest {
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
         batchSizes.setBatchSize(0, 10);
         batchSizes.setBatchSize(2, 4);
-        SendMessagesResult sendResult = new SendMessagesResult(entries.size());
-        sendResult.setMessagePermits(0, 3);
-        sendResult.setMessagePermits(2, 4);
+        SendMessageResult sendResult = new SendMessageResult(entries.size());
+        sendResult.recordMessagePermits(0, 3);
+        sendResult.recordMessagePermits(2, 4);
 
         try {
             PulsarCommandSenderImpl sender = new PulsarCommandSenderImpl(null, cnx, null);
             sender.sendMessagesToConsumer(7, "topic", mock(Subscription.class), -1, entries, batchSizes, null,
-                    sendResult, mock(RedeliveryTracker.class), 11);
+                    mock(RedeliveryTracker.class), 11, sendResult);
 
             assertEquals(serializedPermits, List.of(3, 4));
             verify(first).release();
