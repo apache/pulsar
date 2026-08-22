@@ -5538,7 +5538,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Production read paths currently return ordered batches from a single ledger, so this cross-ledger batch
         // is not expected in normal operation. If one is ever passed in, the conservative fallback must inspect
         // every entry, remove and release the acknowledged entry, and retain the unacknowledged entries.
-        Position firstPosition = PositionFactory.create(1, 10);
+        Position firstPosition = PositionFactory.create(1, 0);
         Position deletedPosition = PositionFactory.create(2, 0);
         Position lastPosition = PositionFactory.create(2, 1);
         cursor.lock.writeLock().lock();
