@@ -947,7 +947,7 @@ public class BacklogQuotaManagerTest {
     @SuppressWarnings("deprecation")
 
     @Test
-    public void backlogsStatsNotPrecise() throws PulsarAdminException, PulsarClientException, InterruptedException {
+    public void backlogsStatsNotPrecise() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
         config.setExposeSubscriptionBacklogAgeInPrometheus(true);
         config.setManagedLedgerMaxEntriesPerLedger(6);
@@ -1018,6 +1018,7 @@ public class BacklogQuotaManagerTest {
             long unloadTime = System.currentTimeMillis();
 
             waitForQuotaCheckToRunTwice();
+            refreshSubscriptionBacklogAge(topic1);
 
             topicStats = getTopicStats(topic1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
@@ -1040,6 +1041,7 @@ public class BacklogQuotaManagerTest {
             waitForMarkDeletePositionToChange(topic1, subName1, c1MarkDeletePositionBefore);
             waitForMarkDeletePositionToChange(topic1, subName2, c2MarkDeletePositionBefore);
             waitForQuotaCheckToRunTwice();
+            refreshSubscriptionBacklogAge(topic1);
 
             topicStats = getTopicStats(topic1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
