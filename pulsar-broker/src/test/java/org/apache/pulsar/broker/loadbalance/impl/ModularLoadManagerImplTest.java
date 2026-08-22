@@ -31,6 +31,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
@@ -153,8 +154,9 @@ public class ModularLoadManagerImplTest {
         private static final AtomicReference<RecordingLoadSheddingStrategy> INSTANCE = new AtomicReference<>();
 
         private volatile Multimap<String, String> bundlesToUnload = ImmutableMultimap.of();
+        private volatile boolean failPlanning;
         private final AtomicReference<String> bundlePassedToSelector = new AtomicReference<>();
-        private final AtomicReference<Set<String>> completedBundles = new AtomicReference<>(Set.of());
+        private final AtomicInteger completedAttempts = new AtomicInteger();
 
         public RecordingLoadSheddingStrategy() {
             INSTANCE.set(this);
@@ -176,12 +178,20 @@ public class ModularLoadManagerImplTest {
             return bundlePassedToSelector.get();
         }
 
-        Set<String> getCompletedBundles() {
-            return completedBundles.get();
+        void failNextPlanning() {
+            failPlanning = true;
+        }
+
+        int getCompletedAttempts() {
+            return completedAttempts.get();
         }
 
         @Override
         public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
+            if (failPlanning) {
+                failPlanning = false;
+                throw new IllegalStateException("Expected planning failure");
+            }
             return bundlesToUnload;
         }
 
@@ -203,8 +213,8 @@ public class ModularLoadManagerImplTest {
         public void onActiveBrokersChange(Set<String> activeBrokers) {}
 
         @Override
-        public void onUnloadAttemptCompleted(Set<String> bundles) {
-            completedBundles.set(Set.copyOf(bundles));
+        public void onUnloadAttemptCompleted() {
+            completedAttempts.incrementAndGet();
         }
     }
 
@@ -693,11 +703,15 @@ public class ModularLoadManagerImplTest {
         loadManager.doLoadShedding();
 
         assertEquals(strategy.getBundlePassedToSelector(), bundle.toString());
-        assertEquals(strategy.getCompletedBundles(), Set.of(bundle.toString()));
+        assertEquals(strategy.getCompletedAttempts(), 1);
+
+        strategy.failNextPlanning();
+        expectThrows(IllegalStateException.class, loadManager::doLoadShedding);
+        assertEquals(strategy.getCompletedAttempts(), 2);
     }
 
     @Test
-    public void testOverloadedBrokerIsExcludedFromRetry() throws Exception {
+    public void testOverloadRetryBypassesBundleAwareSelectionWithoutRemovingCandidates() throws Exception {
         // Force every populated broker report through the overload retry branch without mutating live load data.
         pulsar1.getConfiguration().setLoadBalancerBrokerOverloadedThresholdPercentage(-1);
         LoadData loadData = primaryLoadManager.getLoadData();
@@ -705,30 +719,38 @@ public class ModularLoadManagerImplTest {
             assertTrue(primaryLoadManager.getAvailableBrokers().size() > 1);
             assertTrue(loadData.getBrokerData().keySet().containsAll(primaryLoadManager.getAvailableBrokers()));
         });
-        AtomicInteger selectionCount = new AtomicInteger();
+        AtomicInteger bundleAwareSelectionCount = new AtomicInteger();
+        AtomicInteger fallbackSelectionCount = new AtomicInteger();
         AtomicReference<String> firstSelectedBroker = new AtomicReference<>();
         AtomicReference<Set<String>> retryCandidates = new AtomicReference<>();
-        ModularLoadManagerStrategy strategy = (candidates, bundleToAssign, data, conf) -> {
-            int invocation = selectionCount.incrementAndGet();
-            if (invocation == 1) {
+        ModularLoadManagerStrategy strategy = new ModularLoadManagerStrategy() {
+            @Override
+            public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData data,
+                                                 ServiceConfiguration conf) {
+                fallbackSelectionCount.incrementAndGet();
+                retryCandidates.set(Set.copyOf(candidates));
+                return candidates.contains(firstSelectedBroker.get())
+                        ? Optional.of(firstSelectedBroker.get()) : Optional.empty();
+            }
+
+            @Override
+            public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
+                                                           BundleData bundleToAssign, LoadData data,
+                                                           ServiceConfiguration conf) {
+                bundleAwareSelectionCount.incrementAndGet();
                 String broker = candidates.iterator().next();
                 firstSelectedBroker.set(broker);
                 return Optional.of(broker);
             }
-            if (invocation == 2) {
-                retryCandidates.set(Set.copyOf(candidates));
-                return candidates.stream().findFirst();
-            }
-            throw new AssertionError("Unexpected broker selection invocation " + invocation);
         };
         primaryLoadManager.setPlacementStrategy(strategy);
 
         Optional<String> selectedBroker = primaryLoadManager.selectBroker(makeBundle("test", "overload-retry"));
 
-        assertEquals(selectionCount.get(), 2);
-        assertTrue(selectedBroker.isPresent());
-        assertFalse(retryCandidates.get().contains(firstSelectedBroker.get()));
-        assertNotEquals(selectedBroker.get(), firstSelectedBroker.get());
+        assertEquals(bundleAwareSelectionCount.get(), 1);
+        assertEquals(fallbackSelectionCount.get(), 1);
+        assertTrue(retryCandidates.get().contains(firstSelectedBroker.get()));
+        assertEquals(selectedBroker, Optional.of(firstSelectedBroker.get()));
     }
 
     @Test

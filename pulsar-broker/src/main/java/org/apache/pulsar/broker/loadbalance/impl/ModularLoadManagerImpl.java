@@ -649,10 +649,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
-        final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
-        final Set<String> plannedBundles = new HashSet<>(bundlesToUnload.values());
-
         try {
+            final Multimap<String, String> bundlesToUnload =
+                    loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
             bundlesToUnload.asMap().forEach((broker, bundles) -> {
                 AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
                 bundles.forEach(bundle -> {
@@ -705,7 +704,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 }
             });
         } finally {
-            loadSheddingStrategy.onUnloadAttemptCompleted(plannedBundles);
+            loadSheddingStrategy.onUnloadAttemptCompleted();
         }
 
         updateBundleUnloadingMetrics();
@@ -985,9 +984,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
-                brokerCandidateCache.remove(broker.get());
                 Optional<String> brokerTmp =
-                        placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
+                        placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
                     broker = brokerTmp;
                 }

@@ -214,8 +214,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     }
 
     @Override
-    public void onUnloadAttemptCompleted(Set<String> bundles) {
-        pendingBundleToBroker.keySet().removeAll(bundles);
+    public void onUnloadAttemptCompleted() {
+        pendingBundleToBroker.clear();
     }
 
     @VisibleForTesting
@@ -303,14 +303,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                                                    LoadData loadData, ServiceConfiguration conf) {
         return bundle == null
                 ? selectBroker(candidates, bundleToAssign, loadData, conf)
-                : selectBrokerWithBundleName(candidates, bundle, bundleToAssign);
+                : selectBrokerWithBundleName(candidates, bundle, bundleToAssign, loadData, conf);
     }
 
     private Optional<String> selectBrokerWithBundleName(Set<String> candidates, String bundle,
-                                                         BundleData bundleToAssign) {
-        if (candidates.isEmpty()) {
-            return Optional.empty();
-        }
+                                                         BundleData bundleToAssign, LoadData loadData,
+                                                         ServiceConfiguration conf) {
         final var pendingBroker = pendingBundleToBroker.get(bundle);
         if (pendingBroker == null || !candidates.contains(pendingBroker)) {
             // cluster initializing or the pending broker is shutdown or filtered out
@@ -320,7 +318,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                 log.debug().attr("broker", pendingBroker).attr("candidates", candidates)
                         .log("expected broker is shutdown");
             }
-            return Optional.of(getExpectedBroker(candidates, bundleToAssign));
+            return selectBroker(candidates, bundleToAssign, loadData, conf);
         } else {
             return Optional.of(pendingBroker);
         }

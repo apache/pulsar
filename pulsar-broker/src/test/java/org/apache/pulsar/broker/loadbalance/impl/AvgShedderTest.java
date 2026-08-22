@@ -144,7 +144,7 @@ public class AvgShedderTest {
 
         Set<String> plannedBundles = Set.copyOf(bundlesToUnload.values());
         plannedBundles.forEach(bundle -> assertTrue(avgShedder.hasPendingDestination(bundle)));
-        avgShedder.onUnloadAttemptCompleted(plannedBundles);
+        avgShedder.onUnloadAttemptCompleted();
         plannedBundles.forEach(bundle -> assertFalse(avgShedder.hasPendingDestination(bundle)));
     }
 

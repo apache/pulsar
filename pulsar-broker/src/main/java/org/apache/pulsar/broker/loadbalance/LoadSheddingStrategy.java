@@ -46,12 +46,9 @@ public interface LoadSheddingStrategy {
     default void onActiveBrokersChange(Set<String> activeBrokers) {}
 
     /**
-     * Triggered after the load manager has finished processing bundles selected for unloading.
+     * Triggered after a load-shedding attempt finishes.
      *
-     * <p>This is called whether or not individual unloads were issued successfully.
-     *
-     * @param bundles
-     *            The stable names of the bundles that were processed.
+     * <p>This is called whether planning or individual unloads complete successfully.
      */
-    default void onUnloadAttemptCompleted(Set<String> bundles) {}
+    default void onUnloadAttemptCompleted() {}
 }

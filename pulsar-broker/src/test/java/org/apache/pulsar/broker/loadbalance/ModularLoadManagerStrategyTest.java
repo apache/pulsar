@@ -63,6 +63,31 @@ public class ModularLoadManagerStrategyTest {
         assertTrue(candidates.contains(selectedBroker.get()));
     }
 
+    @SuppressWarnings("deprecation")
+    public void testAvgShedderWithoutPendingDestinationDelegatesToSubclassSelector() {
+        AtomicInteger invocationCount = new AtomicInteger();
+        Set<String> candidates = Set.of("1");
+        BundleData bundleData = new BundleData();
+        LoadData loadData = new LoadData();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        AvgShedder strategy = new AvgShedder() {
+            @Override
+            public Optional<String> selectBroker(Set<String> actualCandidates, BundleData actualBundleData,
+                                                 LoadData actualLoadData, ServiceConfiguration actualConf) {
+                assertSame(actualCandidates, candidates);
+                assertSame(actualBundleData, bundleData);
+                assertSame(actualLoadData, loadData);
+                assertSame(actualConf, conf);
+                invocationCount.incrementAndGet();
+                return Optional.of("1");
+            }
+        };
+
+        assertEquals(strategy.selectBrokerForBundle(candidates, "bundle-1", bundleData, loadData, conf),
+                Optional.of("1"));
+        assertEquals(invocationCount.get(), 1);
+    }
+
     public void testSelectBrokerForBundleDelegatesToFourArgumentStrategy() {
         AtomicInteger invocationCount = new AtomicInteger();
         Set<String> candidates = Set.of("1");
