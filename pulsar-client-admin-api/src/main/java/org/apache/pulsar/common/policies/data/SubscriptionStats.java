@@ -58,11 +58,11 @@ public interface SubscriptionStats {
     long getEarliestMsgPublishTimeInBacklog();
 
     /**
-     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * Age of oldest unacknowledged message for this subscription, in seconds.
      * <p>
-     * The age of the oldest unacknowledged (i.e. backlog) message for this subscription, measured by the time elapsed
-     * from its published time, in seconds. This value is recorded every backlog quota check interval, hence it
-     * represents the value seen in the last check.
+     * This is a best-effort cached value from the broker's periodic subscription backlog-age refresh. The value is
+     * {@code -1} when it is unknown, not applicable, the subscription has no backlog, or the broker has disabled
+     * subscription backlog-age computation.
      * </p>
      */
     default long getOldestBacklogMessageAgeSeconds() {

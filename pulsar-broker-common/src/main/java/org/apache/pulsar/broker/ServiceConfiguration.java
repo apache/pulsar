@@ -3839,7 +3839,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "Enable exposing the age of the oldest unacknowledged message for each subscription in Prometheus.\n"
+            doc = "Enable computing the age of the oldest unacknowledged message for each subscription and exposing "
+                    + "it through topic stats and Prometheus.\n"
                     + " When disabled, the broker skips computing per-subscription backlog age and "
                     + "SubscriptionStats.oldestBacklogMessageAgeSeconds remains -1. Default is false."
     )
