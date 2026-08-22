@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.client.api.CompressionType;
@@ -85,6 +86,17 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     private boolean poolMessage;
     @Getter
     private long consumerEpoch;
+    @SuppressWarnings("rawtypes")
+    private static final AtomicIntegerFieldUpdater<MessageImpl> FLOW_PERMIT_COST_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(MessageImpl.class, "flowPermitCost");
+    @SuppressWarnings("unused")
+    private volatile int flowPermitCost;
+    private ConsumerImpl.ConsumerPermitState permitState;
+    @SuppressWarnings("rawtypes")
+    private static final AtomicIntegerFieldUpdater<MessageImpl> REFERENCES_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(MessageImpl.class, "references");
+    @SuppressWarnings("unused")
+    private volatile int references;
 
     /**
      * OpenTelemetry tracing span associated with this message.
@@ -107,6 +119,9 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         msg.schema = schema;
         msg.schemaHash = SchemaHash.of(schema);
         msg.uncompressedSize = payload.remaining();
+        msg.permitState = null;
+        FLOW_PERMIT_COST_UPDATER.set(msg, 0);
+        REFERENCES_UPDATER.set(msg, 1);
         return msg;
     }
 
@@ -198,6 +213,9 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         msg.encryptionCtx = encryptionCtx;
         msg.schema = schema;
         msg.consumerEpoch = consumerEpoch;
+        msg.permitState = null;
+        FLOW_PERMIT_COST_UPDATER.set(msg, 0);
+        REFERENCES_UPDATER.set(msg, 1);
 
         msg.poolMessage = poolMessage;
         // If it's not pool message then need to make a copy since the passed payload is
@@ -721,6 +739,40 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return cnx;
     }
 
+    int getFlowPermitCost() {
+        return FLOW_PERMIT_COST_UPDATER.get(this);
+    }
+
+    int takeFlowPermitCost() {
+        return FLOW_PERMIT_COST_UPDATER.getAndSet(this, 0);
+    }
+
+    ConsumerImpl.ConsumerPermitState getPermitState() {
+        return permitState;
+    }
+
+    void setFlowPermitOwnership(ConsumerImpl.ConsumerPermitState permitState, int flowPermitCost) {
+        if (flowPermitCost < 0 || (flowPermitCost > 0 && permitState == null)) {
+            throw new IllegalArgumentException("Permit ownership requires a source state and a non-negative cost");
+        }
+        this.permitState = permitState;
+        FLOW_PERMIT_COST_UPDATER.set(this, flowPermitCost);
+    }
+
+    void retain() {
+        if (!poolMessage) {
+            return;
+        }
+        int current = REFERENCES_UPDATER.get(this);
+        while (current > 0) {
+            if (REFERENCES_UPDATER.compareAndSet(this, current, current + 1)) {
+                return;
+            }
+            current = REFERENCES_UPDATER.get(this);
+        }
+        throw new IllegalStateException("Cannot retain a released message");
+    }
+
     public void recycle() {
         if (msgMetadata != null) {
             msgMetadata.clear();
@@ -740,6 +792,9 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         schemaState = SchemaState.None;
         poolMessage = false;
         consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+        permitState = null;
+        FLOW_PERMIT_COST_UPDATER.set(this, 0);
+        REFERENCES_UPDATER.set(this, 0);
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
@@ -749,8 +804,17 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     @Override
     public void release() {
         if (poolMessage) {
-            ReferenceCountUtil.safeRelease(payload);
-            recycle();
+            int current = REFERENCES_UPDATER.get(this);
+            while (current > 0) {
+                if (REFERENCES_UPDATER.compareAndSet(this, current, current - 1)) {
+                    if (current == 1) {
+                        ReferenceCountUtil.safeRelease(payload);
+                        recycle();
+                    }
+                    return;
+                }
+                current = REFERENCES_UPDATER.get(this);
+            }
         }
     }
 

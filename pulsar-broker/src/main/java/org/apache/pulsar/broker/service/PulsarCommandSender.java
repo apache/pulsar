@@ -86,7 +86,8 @@ public interface PulsarCommandSender {
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
                                         int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         EntryBatchIndexesAcks batchIndexesAcks,
-                                        RedeliveryTracker redeliveryTracker, long epoch);
+                                        RedeliveryTracker redeliveryTracker, long epoch,
+                                        SendMessageResult sendMessageResult);
 
     void sendTcClientConnectResponse(long requestId, ServerError error, String message);
 

@@ -74,6 +74,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         try {
             Message<T> msg = fetchSingleMessageFromBroker();
             trackMessage(msg);
+            increaseAvailablePermits((MessageImpl<?>) msg);
             return beforeConsume(msg);
         } finally {
             zeroQueueLock.unlock();
@@ -95,7 +96,10 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
-            incomingMessages.forEach(Message::release);
+            incomingMessages.forEach(message -> {
+                increaseAvailablePermits((MessageImpl<?>) message);
+                message.release();
+            });
             incomingMessages.clear();
         }
 
@@ -111,16 +115,17 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             do {
                 message = incomingMessages.take();
                 lastDequeuedMessageId = message.getMessageId();
-                ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
+                ConsumerPermitState messageState = ((MessageImpl<?>) message).getPermitState();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (this) {
                     // if message received due to an old flow - discard it and wait for the message from the
                     // latest flow command
-                    if (msgCnx == cnx()) {
+                    if (messageState == getPermitState()) {
                         waitingOnReceiveForZeroQueueSize = false;
                         break;
                     }
                 }
+                message.release();
             } while (true);
 
             stats.updateNumMsgsReceived(message);
@@ -132,7 +137,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;
             // Clearing the queue in case there was a race with messageReceived
-            incomingMessages.clear();
+            Message<T> queuedMessage;
+            while ((queuedMessage = incomingMessages.poll()) != null) {
+                increaseAvailablePermits((MessageImpl<?>) queuedMessage);
+                queuedMessage.release();
+            }
         }
     }
 
@@ -156,6 +165,14 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             return false;
         } else {
             return true;
+        }
+    }
+
+    @Override
+    void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
+        super.notifyPendingReceivedCallback(message, exception);
+        if (message instanceof MessageImpl<?> messageImpl) {
+            increaseAvailablePermits(messageImpl);
         }
     }
 
@@ -185,7 +202,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         .exception(t)
                         .log("Message listener error in processing unqueued message");
             }
-            increaseAvailablePermits(cnx());
+            increaseAvailablePermits((MessageImpl<?>) message);
             waitingOnListenerForZeroQueueSize = false;
         });
     }
@@ -198,11 +215,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
                                             int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
-                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
-                                            boolean isEncrypted) {
+                                            MessageIdData messageId, ConsumerPermitState sourceState,
+                                            long consumerEpoch,
+                                            boolean isEncrypted, int messagePermits) {
 
         rejectBatchMessageByClosingConsumer(
-                new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex())
+                new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex()), sourceState
         );
     }
 
@@ -216,18 +234,24 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     protected void processPayloadByProcessor(BrokerEntryMetadata brokerEntryMetadata,
                                              MessageMetadata messageMetadata, ByteBuf byteBuf,
                                              MessageIdImpl messageId, Schema<T> schema,
-                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
+                                             int redeliveryCount, List<Long> ackSet, long consumerEpoch,
+                                             int messagePermits, ConsumerPermitState sourceState) {
         if (this.isBatch(messageMetadata)) {
-            rejectBatchMessageByClosingConsumer(messageId);
+            try {
+                rejectBatchMessageByClosingConsumer(messageId, sourceState);
+            } finally {
+                byteBuf.release();
+            }
         } else {
             super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
-                    redeliveryCount, ackSet, consumerEpoch);
+                    redeliveryCount, ackSet, consumerEpoch, messagePermits, sourceState);
         }
     }
 
-    private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId) {
+    private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId, ConsumerPermitState sourceState) {
         log.warn().attr("messageId", messageId)
                 .log("Closing consumer - due to unsupported received batch-message with zero receiver queue size");
+        deactivatePermitState(sourceState);
         // close connection
         closeAsync().handle((ok, e) -> {
             // notify callback with failure result

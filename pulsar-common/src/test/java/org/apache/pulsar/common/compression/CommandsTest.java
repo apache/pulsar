@@ -30,6 +30,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.Base64;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -38,6 +39,25 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class CommandsTest {
+
+    @Test
+    public void testMessageCommandCarriesPermitCount() {
+        BaseCommand command = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 10);
+
+        assertTrue(command.getMessage().hasMessagePermits());
+        assertEquals(command.getMessage().getMessagePermits(), 10);
+
+        BaseCommand singleMessageCommand = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 1);
+        assertTrue(singleMessageCommand.getMessage().hasMessagePermits());
+        assertEquals(singleMessageCommand.getMessage().getMessagePermits(), 1);
+
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1, 0));
+
+        BaseCommand legacyCommand = Commands.newMessageCommand(1, 2, 3, 4, 0, null, -1);
+        Assert.assertFalse(legacyCommand.getMessage().hasMessagePermits());
+        assertEquals(legacyCommand.getMessage().getMessagePermits(), 0);
+    }
 
     @Test
     public void testChecksumSendCommand() throws Exception {

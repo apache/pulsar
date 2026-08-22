@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.ImpactedConsumersResult;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
@@ -336,17 +337,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entriesForConsumer.size();
-            consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
+            SendMessageResult sendResult = consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    getRedeliveryTracker()).addListener(future -> {
+                    getRedeliveryTracker());
+            sendResult.getSendFuture().addListener(future -> {
                 if (future.isDone() && remainingConsumersToFinishSending.decrementAndGet() == 0) {
                     readMoreEntriesAsync();
                 }
             });
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendResult.getTotalMessagePermits());
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

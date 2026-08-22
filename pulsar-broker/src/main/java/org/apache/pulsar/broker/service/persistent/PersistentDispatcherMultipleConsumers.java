@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.SharedConsumerAssignor;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
@@ -869,18 +870,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+            SendMessageResult sendResult = c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
             start += maxEntriesInThisBatch;
             entriesToDispatch -= maxEntriesInThisBatch;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendResult.getTotalMessagePermits());
             log.debug()
                     .attr("msgSent", msgSent)
-                    .attr("totalAckedIndexCount", () -> batchIndexesAcks.getTotalAckedIndexCount())
+                    .attr("messagePermits", sendResult.getTotalMessagePermits())
                     .log("Added permits to TOTAL_AVAILABLE_PERMITS_UPDATER");
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -976,17 +977,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
-            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
+            SendMessageResult sendResult = consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
-            ).addListener(future -> {
+            );
+            sendResult.getSendFuture().addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
                     readMoreEntriesAsync();
                 }
             });
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendResult.getTotalMessagePermits());
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

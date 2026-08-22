@@ -40,6 +40,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -50,9 +51,11 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -191,6 +194,36 @@ public class MultiTopicsConsumerImplTest {
         future.cancel(true);
         // then
         assertFalse(consumer.hasPendingBatchReceive());
+    }
+
+    @Test
+    public void testRedeliveryReturnsInnerMessagePermitsForParentListener() {
+        String topic = "persistent://public/default/redelivery-topic";
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setSubscriptionType(SubscriptionType.Shared);
+        consumerConfData.setMessageListener((consumer, message) -> { });
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer(consumerConfData);
+
+        @SuppressWarnings("unchecked")
+        ConsumerImpl<byte[]> internalConsumer = mock(ConsumerImpl.class);
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> innerMessage = mock(MessageImpl.class);
+        when(innerMessage.getMessageId()).thenReturn(new MessageIdImpl(1, 2, -1));
+        when(innerMessage.size()).thenReturn(1);
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topic, innerMessage, internalConsumer);
+        consumer.consumers.put(topic, internalConsumer);
+        consumer.increaseIncomingMessageSize(topicMessage);
+        consumer.incomingMessages.add(topicMessage);
+
+        Set<MessageId> messageIds = new HashSet<>();
+        messageIds.add(topicMessage.getMessageId());
+        consumer.redeliverUnacknowledgedMessages(messageIds);
+
+        verify(internalConsumer).increaseAvailablePermits(innerMessage);
+        verify(internalConsumer).redeliverUnacknowledgedMessages(any());
+        verify(innerMessage).release();
+        assertTrue(consumer.incomingMessages.isEmpty());
     }
 
     @Test(expectedExceptions = {IllegalArgumentException.class})
