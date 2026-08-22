@@ -44,4 +44,11 @@ public interface LoadSheddingStrategy {
      * @param activeBrokers active Brokers
      */
     default void onActiveBrokersChange(Set<String> activeBrokers) {}
+
+    /**
+     * Triggered after a load-shedding attempt finishes.
+     *
+     * <p>This is called whether planning or individual unloads complete successfully.
+     */
+    default void onUnloadAttemptCompleted() {}
 }
