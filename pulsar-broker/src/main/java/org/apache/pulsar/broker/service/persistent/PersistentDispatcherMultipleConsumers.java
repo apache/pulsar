@@ -260,11 +260,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
-                log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
-                        .attr("totalAvailablePermits", totalAvailablePermits)
-                        .log("Decreased totalAvailablePermits");
+                recomputeTotalAvailablePermits();
                 if (notifyAddedToReplay.booleanValue()) {
                     notifyRedeliveryMessageAdded();
                 }
@@ -281,6 +277,41 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 clearComponentsAfterRemovedAllConsumers();
             }
         }
+    }
+
+    /**
+     * Recomputes {@link #totalAvailablePermits} from the permit counters of the consumers that are
+     * still registered.
+     *
+     * <p>The subscription aggregate is a cache of the sum of the connected consumers' permits:
+     * {@link #internalConsumerFlow} credits it with the same increment {@link
+     * Consumer#flowPermits(int)} applied to the consumer's own counter, and the dispatch paths debit
+     * both by the same number of messages. Subtracting a departing consumer's counter is only
+     * equivalent to that sum while the two are in step, and they are not: {@code flowPermits} credits
+     * the consumer synchronously on the connection thread and hands the increment to {@link
+     * #consumerFlow}, which applies it to the aggregate on the broker executor and discards it when
+     * the consumer has been unregistered in the meantime. The subtraction then removes permits the
+     * aggregate was never credited with, and because nothing but the removal of the last consumer
+     * resets the aggregate, the deficit accumulates over consumer churn until it is large enough
+     * that {@link #readMoreEntries()} never reads again and the subscription stops dispatching.
+     *
+     * <p>Recomputing debits exactly what was credited and heals whatever drift an earlier removal
+     * left behind. Consumer removal is rare compared to dispatching and the consumer list of a
+     * subscription is small, so the linear scan is not on a hot path.
+     *
+     * <p>Must be called while holding the dispatcher monitor, as every other mutation of {@link
+     * #totalAvailablePermits} is.
+     */
+    private void recomputeTotalAvailablePermits() {
+        int recomputed = 0;
+        for (Consumer connectedConsumer : consumerList) {
+            recomputed += connectedConsumer.getAvailablePermits();
+        }
+        totalAvailablePermits = recomputed;
+        log.debug()
+                .attr("totalAvailablePermits", recomputed)
+                .attr("consumerCount", consumerList.size())
+                .log("Recomputed totalAvailablePermits from the connected consumers");
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
