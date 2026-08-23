@@ -1277,7 +1277,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     private double getTopicLoadFailureMetric(JerseyClient httpClient, String reason) {
-        String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/").request().get(String.class);
+        String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                .request().get(String.class);
         Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(response);
         return metrics.get("topic_load_failed_total").stream()
                 .filter(metric -> reason.equals(metric.tags.get("reason")))
