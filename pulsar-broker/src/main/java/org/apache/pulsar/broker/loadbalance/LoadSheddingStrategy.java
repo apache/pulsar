@@ -48,7 +48,7 @@ public interface LoadSheddingStrategy {
     /**
      * Triggered after a load-shedding attempt finishes.
      *
-     * <p>This is called whether planning or individual unloads complete successfully.
+     * <p>This is also called when planning or an individual unload fails.
      */
     default void onUnloadAttemptCompleted() {}
 }

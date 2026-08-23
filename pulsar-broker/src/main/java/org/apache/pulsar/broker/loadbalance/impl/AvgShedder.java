@@ -62,7 +62,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
-        // Plans are consumed after each shedding attempt. Clear any state left by a nonstandard caller.
+        // Start a fresh destination plan for this load-shedding attempt.
         pendingBundleToBroker.clear();
         // result returned by shedding, map broker to bundles.
         Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
@@ -310,18 +310,15 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                                                          BundleData bundleToAssign, LoadData loadData,
                                                          ServiceConfiguration conf) {
         final var pendingBroker = pendingBundleToBroker.get(bundle);
-        if (pendingBroker == null || !candidates.contains(pendingBroker)) {
-            // cluster initializing or the pending broker is shutdown or filtered out
-            if (pendingBroker == null) {
-                log.debug("cluster is initializing");
-            } else {
-                log.debug().attr("broker", pendingBroker).attr("candidates", candidates)
-                        .log("expected broker is shutdown");
-            }
+        if (pendingBroker == null) {
             return selectBroker(candidates, bundleToAssign, loadData, conf);
-        } else {
-            return Optional.of(pendingBroker);
         }
+        if (!candidates.contains(pendingBroker)) {
+            log.debug().attr("broker", pendingBroker).attr("bundle", bundle).attr("candidates", candidates)
+                    .log("Planned load-shedding destination is unavailable");
+            return selectBroker(candidates, bundleToAssign, loadData, conf);
+        }
+        return Optional.of(pendingBroker);
     }
 
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {
