@@ -86,6 +86,7 @@ public class SharedSubscriptionAvailablePermitsInvariantTest extends SharedPulsa
     private static final int BACKLOG_SIZE = 400;
     private static final int CHURN_ROUNDS = 4;
     private static final int FINAL_BATCH_SIZE = 30;
+    private static final int UNACKED_MESSAGES = 10;
     /** Fixed seed so the churn sequence is reproducible across runs. */
     private static final long CHURN_SEED = 20260101L;
 
@@ -273,6 +274,73 @@ public class SharedSubscriptionAvailablePermitsInvariantTest extends SharedPulsa
                     });
 
             survivor.close();
+            departing.close();
+        }
+    }
+
+    /**
+     * Deterministic probe for the double-debit of the subscription's un-acknowledged message count
+     * on the consumer-removal path.
+     *
+     * <p>{@code PersistentDispatcherMultipleConsumers#removeConsumer(Consumer)} debits the
+     * subscription by the departing consumer's un-acknowledged message count before it establishes
+     * whether that consumer was still registered at all. Removing the same consumer twice — which
+     * the defensive path of <a href="https://github.com/apache/pulsar/pull/22270">apache/pulsar#22270</a>
+     * exists precisely to tolerate — therefore debits the same deliveries twice and drives the
+     * subscription counter negative. That counter is what
+     * {@code maxUnackedMessagesOnSubscription} throttles on, so a negative value silently disables
+     * the throttle for the lifetime of the dispatcher.
+     *
+     * <p>A single consumer is attached on purpose: with a second consumer connected, the first
+     * removal replays the departing consumer's pending acknowledgements to the survivor, which
+     * credits the counter again on a timing the test cannot observe. Removing the only consumer
+     * takes {@code clearComponentsAfterRemovedAllConsumers()}, which resets the available-permits
+     * aggregate but deliberately leaves the un-acknowledged count alone, so the double debit stays
+     * observable.
+     */
+    @Test(timeOut = 60_000)
+    public void testRemovingSameConsumerTwiceDebitsUnackedMessagesOnce() throws Exception {
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try (PulsarClient departingClient = newPulsarClient();
+             Producer<byte[]> producer = pulsarClient.newProducer()
+                     .topic(topicName)
+                     .enableBatching(false)
+                     .create()) {
+            Consumer<byte[]> departing = departingClient.newConsumer(Schema.BYTES)
+                    .topic(topicName)
+                    .subscriptionName(SUBSCRIPTION)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .consumerName("departing")
+                    .receiverQueueSize(RECEIVER_QUEUE_SIZE)
+                    .subscribe();
+
+            for (int i = 0; i < UNACKED_MESSAGES; i++) {
+                producer.send(("unacked-" + i).getBytes(StandardCharsets.UTF_8));
+            }
+            for (int i = 0; i < UNACKED_MESSAGES; i++) {
+                assertNotNull(departing.receive(30, TimeUnit.SECONDS),
+                        "the consumer did not receive the delivery it has to leave un-acknowledged");
+            }
+
+            PersistentDispatcherMultipleConsumers dispatcher = sharedDispatcher(topicName);
+            org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                    brokerConsumer(dispatcher, "departing");
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertEquals(brokerConsumer.getUnackedMessages(), UNACKED_MESSAGES);
+                assertEquals(dispatcher.totalUnackedMessages, UNACKED_MESSAGES);
+            });
+
+            dispatcher.removeConsumer(brokerConsumer);
+            // The consumer is no longer registered, so this removal must not debit its
+            // un-acknowledged messages a second time.
+            dispatcher.removeConsumer(brokerConsumer);
+
+            assertEquals(dispatcher.totalUnackedMessages, 0,
+                    "removing an already-removed consumer debited its " + UNACKED_MESSAGES
+                            + " un-acknowledged messages from the subscription a second time");
+
             departing.close();
         }
     }
