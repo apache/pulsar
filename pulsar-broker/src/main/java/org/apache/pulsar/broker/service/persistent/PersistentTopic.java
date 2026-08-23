@@ -133,6 +133,8 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicLoadingContext;
+import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -206,6 +208,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -482,16 +485,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Void> initialize() {
+        return initialize(null);
+    }
+
+    public CompletableFuture<Void> initialize(@Nullable TopicLoadingContext loadingContext) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         futures.add(brokerService.getPulsar().newTopicCompactionService(topic).thenAccept(service -> {
             PersistentTopic.this.topicCompactionService = service;
             this.createPersistentSubscriptions();
         }));
 
+        CompletableFuture<Optional<Policies>> namespacePoliciesFuture = brokerService.pulsar().getPulsarResources()
+                .getNamespaceResources().getPoliciesAsync(TopicName.get(topic).getNamespaceObject());
+        if (loadingContext != null) {
+            namespacePoliciesFuture = loadingContext.trace(TopicLoadingStage.NAMESPACE_POLICIES,
+                    namespacePoliciesFuture);
+        }
+        final CompletableFuture<Optional<Policies>> trackedNamespacePoliciesFuture = namespacePoliciesFuture;
         return FutureUtil.waitForAll(futures).thenCompose(__ ->
-            brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAcceptAsync(optPolicies -> {
+            trackedNamespacePoliciesFuture.thenAcceptAsync(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
                         updatePublishRateLimiter();
@@ -517,7 +529,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getPoliciesNotifyThread())
-                .thenCompose(ignore -> initTopicPolicy())
+                .thenCompose(ignore -> loadingContext == null ? initTopicPolicy()
+                        : loadingContext.trace(TopicLoadingStage.TOPIC_POLICIES, initTopicPolicy()))
                 .thenCompose(ignore -> removeOrphanReplicationCursors()));
     }
 
