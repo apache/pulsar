@@ -43,6 +43,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         FAILED_LOAD_NAMESPACE_POLICIES("failed_load_namespace_policies"),
         FAILED_LOAD_TOPIC_POLICIES("failed_load_topic_policies"),
         FAILED_LOAD_ML("failed_load_ml"),
+        FAILED_CHECK_OWNERSHIP("failed_check_ownership"),
         FAILED_ACCESS_METADATA_STORE("failed_access_metadata_store"),
         FAILED_INIT("failed_init"),
         TIMEOUT("timeout"),
