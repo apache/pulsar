@@ -46,9 +46,10 @@ public interface LoadSheddingStrategy {
     default void onActiveBrokersChange(Set<String> activeBrokers) {}
 
     /**
-     * Triggered after a load-shedding attempt finishes.
+     * Triggered after the load manager finishes processing a load-shedding attempt.
      *
-     * <p>This is also called when planning or an individual unload fails.
+     * <p>This is also called when planning or an individual unload fails. It does not indicate that a destination
+     * broker has acquired ownership.
      */
     default void onUnloadAttemptCompleted() {}
 }
