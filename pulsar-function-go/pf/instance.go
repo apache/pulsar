@@ -327,6 +327,21 @@ func resolveSubscriptionType(configured pb.SubscriptionType, retainOrdering,
 	return subscriptionType
 }
 
+// resolveNackRedeliveryDelay returns the negative-ack redelivery delay to apply, or zero to leave
+// the client default in place.
+//
+// SourceSpec.NegativeAckRedeliveryDelayMs is a proto3 scalar with no presence, so an unset field
+// reads as 0. Only a positive value is applied, matching the guard the Java runtime uses in
+// JavaInstanceRunnable; a zero left in ConsumerOptions is treated by the client as unset, so the
+// default applies either way.
+func resolveNackRedeliveryDelay(delayMs uint64) time.Duration {
+	if delayMs == 0 {
+		return 0
+	}
+
+	return time.Duration(delayMs) * time.Millisecond
+}
+
 func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	subscriptionType := resolveSubscriptionType(
 		gi.context.instanceConf.funcDetails.Source.SubscriptionType,
@@ -343,6 +358,8 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		funcDetails.Tenant,
 		funcDetails.Namespace,
 		funcDetails.Name), gi.context.instanceConf.instanceID)
+
+	nackRedeliveryDelay := resolveNackRedeliveryDelay(funcDetails.Source.NegativeAckRedeliveryDelayMs)
 
 	channel := make(chan pulsar.ConsumerMessage)
 
@@ -362,39 +379,43 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topicName.Name,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					MessageChannel:    channel,
+					TopicsPattern:       topicName.Name,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topicName.Name,
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					MessageChannel:    channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					TopicsPattern:       topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 
 			}
