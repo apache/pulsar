@@ -533,6 +533,49 @@ public class FunctionConfigUtilsTest {
     }
 
     @SuppressWarnings("deprecation")
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesAndDeadLetterTopic() {
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesWithoutADeadLetterTopic() {
+        // The client defaults the topic to "<topic>-<subscription>-DLQ" when it is left empty.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(1);
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "maxMessageRetries must be at least 1 in python.*")
+    public void testPythonFunctionRejectsZeroMessageRetries() {
+        // Zero asks for no redelivery before the dead letter topic, which the Python client cannot
+        // express, so the dead letter topic would never receive anything.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionStillRejectsMessageRetries() {
+        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setRuntime(FunctionConfig.Runtime.GO);
+        functionConfig.setMaxMessageRetries(3);
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    private FunctionConfig createPythonFunctionConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        return functionConfig;
+    }
+
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
