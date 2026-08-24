@@ -1265,6 +1265,71 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test
+    public void testMergeCreateFailureKeepsSourceBucketsRecoverable() throws Exception {
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage() {
+            final AtomicLong mergedCreateFailures = new AtomicLong();
+
+            @Override
+            public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                                List<SnapshotSegment> bucketSnapshotSegments,
+                                                                String bucketKey, String topicName,
+                                                                String cursorName) {
+                if (bucketKey.endsWith("_1_10") && mergedCreateFailures.incrementAndGet() > 0) {
+                    return FutureUtil.failedFuture(
+                            new BucketSnapshotPersistenceException("Merged create failed"));
+                }
+                return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
+                        bucketKey, topicName, cursorName);
+            }
+        };
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_merge_fail_cursor");
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testMergeFail / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 1);
+        try {
+            for (int i = 1; i <= 11; i++) {
+                assertTrue(tracker.addMessage(i, i, 10L * i));
+            }
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging)));
+            // The source cursor properties survive the failed merged creation.
+            Map<String, String> properties = cursor.getCursorProperties();
+            assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5"));
+            assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_6_10"));
+        } finally {
+            tracker.close();
+        }
+
+        // A tracker recreated with the same cursor/storage recovers both source buckets.
+        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                    .containsKey(Range.closed(1L, 5L)));
+            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                    .containsKey(Range.closed(6L, 10L)));
+            assertEquals(recovered.getNumberOfDelayedMessages(), 10);
+        } finally {
+            recovered.close();
+        }
+        storage.close();
+    }
+
+    @Test
     public void testClearWaitsForMergeSegmentLoad() throws Exception {
         GatedMergeLoadStorage storage = new GatedMergeLoadStorage();
         TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1, storage);

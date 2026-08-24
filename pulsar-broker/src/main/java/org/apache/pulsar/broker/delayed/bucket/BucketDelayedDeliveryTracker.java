@@ -612,9 +612,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 removeBucket(Range.closed(bucket.getStartLedgerId(), bucket.getEndLedgerId()));
                             }
 
+                            // A failed merged-bucket creation completes with INVALID_BUCKET_ID: keep
+                            // the source snapshots so their delayed indexes stay recoverable.
                             return immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
                                     .orElse(NULL_LONG_PROMISE)
-                                    .thenCompose(___ -> FutureUtil.waitForAll(
+                                    .thenCompose(mergedBucketId -> INVALID_BUCKET_ID.equals(mergedBucketId)
+                                            ? CompletableFuture.<Void>completedFuture(null)
+                                            : FutureUtil.waitForAll(
                                             buckets.stream()
                                                     .map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
                                                     .toList()));
