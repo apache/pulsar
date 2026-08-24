@@ -737,8 +737,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 topicExistsInfo.recycle();
                             }).exceptionally(ex -> {
                                 lookupSemaphore.release();
-                                log.error("{} {} Failed to get partition metadata", topicName,
-                                        ServerCnx.this.toString(), ex);
+                                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                                if (actEx instanceof WebApplicationException restException
+                                        && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+                                    log.warn("{} {} Failed to get partition metadata for nonexistent resource: {}",
+                                            topicName, ServerCnx.this, actEx.getMessage());
+                                } else {
+                                    log.error("{} {} Failed to get partition metadata", topicName,
+                                            ServerCnx.this, ex);
+                                }
                                 writeAndFlush(
                                         Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                                                 "Failed to get partition metadata",
