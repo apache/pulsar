@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
@@ -733,6 +734,22 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    private static class MissingBucketAsNotExistStorage extends MockBucketSnapshotStorage {
+        @Override
+        public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
+            CompletableFuture<SnapshotMetadata> future = new CompletableFuture<>();
+            super.getBucketSnapshotMetadata(bucketId).whenComplete((metadata, ex) -> {
+                if (ex != null) {
+                    future.completeExceptionally(
+                            new BucketNotExistException("Bucket " + bucketId + " does not exist"));
+                } else {
+                    future.complete(metadata);
+                }
+            });
+            return future;
+        }
+    }
+
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
         ImmutableBucket bucket = new ImmutableBucket(trackerWithStorage.tracker.getCtx(), startLedgerId, endLedgerId);
@@ -1066,6 +1083,141 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         } finally {
             ts.close();
         }
+    }
+
+    @Test
+    public void testRecoveryLoadsBucketWhenTerminalDeleteFailed() throws Exception {
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_residual_snapshot_cursor");
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testResidualSnapshot / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            for (int i = 1; i <= 6; i++) {
+                producer.addMessage(i, i, 10L * i);
+            }
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+        } finally {
+            producer.close();
+        }
+
+        // The terminal delete exhausts its retries, so the snapshot and the cursor property survive
+        // together as a consistent pair.
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            for (int i = 0; i < 4; i++) {
+                storage.injectDeleteException(
+                        new BucketSnapshotPersistenceException("Terminal delete failed"));
+            }
+            testClockTime.set(1000);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                tracker.getScheduledMessages(10);
+                assertTrue(storage.deleteExceptionQueue.isEmpty());
+            });
+        } finally {
+            tracker.close();
+        }
+
+        // A tracker recreated with the same cursor/storage recovers the bucket normally.
+        testClockTime.set(0);
+        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                    .containsKey(Range.closed(1L, 5L)));
+            assertEquals(recovered.getNumberOfDelayedMessages(), 5);
+        } finally {
+            recovered.close();
+        }
+        storage.close();
+    }
+
+    @Test
+    public void testRecoveryRemovesResidualPropertyWhenSnapshotDeleted() throws Exception {
+        MissingBucketAsNotExistStorage storage = new MissingBucketAsNotExistStorage();
+        storage.start();
+
+        AtomicLong propertyRemoveCalls = new AtomicLong();
+        ManagedCursor cursor = new MockManagedCursor("test_residual_property_cursor") {
+            @Override
+            public CompletableFuture<Void> removeCursorProperty(String key) {
+                if (propertyRemoveCalls.incrementAndGet() <= 4) {
+                    return FutureUtil.failedFuture(
+                            new ManagedLedgerException.BadVersionException("version conflict"));
+                }
+                return super.removeCursorProperty(key);
+            }
+        };
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testResidualProperty / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            for (int i = 1; i <= 6; i++) {
+                producer.addMessage(i, i, 10L * i);
+            }
+            Awaitility.await().untilAsserted(() ->
+                    assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+        } finally {
+            producer.close();
+        }
+
+        // The snapshot delete succeeds but every property-removal attempt hits BadVersion, so only
+        // the cursor property is left behind.
+        String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            testClockTime.set(1000);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                tracker.getScheduledMessages(10);
+                assertTrue(propertyRemoveCalls.get() >= 4);
+            });
+            assertTrue(cursor.getCursorProperties().containsKey(bucketKey),
+                    "The property should survive the failed removal");
+        } finally {
+            tracker.close();
+        }
+
+        // A tracker recreated with the same cursor/storage resolves the stale property, hits
+        // BucketNotExist, and removes it.
+        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                testDispatcher, timer, 100000, testClock, true, storage,
+                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+        try {
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertFalse(cursor.getCursorProperties().containsKey(bucketKey)));
+            assertEquals(recovered.getImmutableBuckets().asMapOfRanges().size(), 0);
+        } finally {
+            recovered.close();
+        }
+        storage.close();
     }
 
     @Test

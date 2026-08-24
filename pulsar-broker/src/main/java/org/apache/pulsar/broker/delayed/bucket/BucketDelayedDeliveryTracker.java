@@ -292,7 +292,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     if (e == null) {
                         f.complete(v);
                     } else {
-                        if (e instanceof BucketNotExistException) {
+                        // Dependent stages wrap checked exceptions in CompletionException, so unwrap
+                        // before matching the not-exist case.
+                        if (FutureUtil.unwrapCompletionException(e) instanceof BucketNotExistException) {
                             // If the bucket does not exist, return an empty list,
                             // the bucket will be deleted from `immutableBuckets` in the next step.
                             f.complete(Collections.emptyList());
