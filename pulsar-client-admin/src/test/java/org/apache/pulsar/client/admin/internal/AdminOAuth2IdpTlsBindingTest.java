@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
@@ -72,7 +74,7 @@ public class AdminOAuth2IdpTlsBindingTest {
                 .serviceHttpUrl("http://localhost:8080")
                 .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-ca.pem\"}"));
         ((PulsarAdminBuilderImpl) builder).getConf()
-                .setTlsPolicyMap(new java.util.LinkedHashMap<>(java.util.Map.of(TlsPurpose.CLIENT_OAUTH2, explicit)));
+                .setTlsPolicyMap(new LinkedHashMap<>(Map.of(TlsPurpose.CLIENT_OAUTH2, explicit)));
         try (PulsarAdminImpl admin = (PulsarAdminImpl) builder.build()) {
             assertThat(admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2)
                     .trustCertsFilePath()).isEqualTo("/tls/explicit-ca.pem");
@@ -120,6 +122,55 @@ public class AdminOAuth2IdpTlsBindingTest {
         }
     }
 
+    /**
+     * Issue #26398: two admins built from one builder must each resolve against their own identity provider.
+     *
+     * <p>{@code build()} handed the admin the builder's own {@code ClientConfigurationData}, and the fold
+     * writes into it. The first build therefore installed its IdP policy on an object the builder still held,
+     * and the second build's {@code putIfAbsent} found it already there and kept it — admin <em>b</em>
+     * fetching its token from IdP B while trusting IdP A's material: the wrong private CA, or the wrong mTLS
+     * client key, with no error and no log line. {@code build()} now hands over a copy.
+     */
+    @Test
+    public void twoAdminsFromOneBuilderEachResolveTheirOwnIdp() throws Exception {
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080");
+
+        try (PulsarAdminImpl a = (PulsarAdminImpl) builder
+                .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-a-ca.pem\"}")).build();
+                PulsarAdminImpl b = (PulsarAdminImpl) builder
+                        .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-b-ca.pem\"}")).build()) {
+            assertThat(idpPolicy(a).trustCertsFilePath()).isEqualTo("/tls/idp-a-ca.pem");
+            assertThat(idpPolicy(b).trustCertsFilePath())
+                    .as("the second admin must trust its own IdP, not the first admin's")
+                    .isEqualTo("/tls/idp-b-ca.pem");
+        }
+        assertThat(((PulsarAdminBuilderImpl) builder).getConf().getTlsPolicyMap())
+                .as("and the builder must not be left holding an admin's IdP policy").isNull();
+    }
+
+    /**
+     * The same defect reached through a builder that already carries a policy map. {@code clone()} is
+     * {@code super.clone()}, so the copy shares that map <em>instance</em>: folding into it would put the
+     * first admin's IdP policy back within the builder's reach, and the copy would not have closed anything.
+     */
+    @Test
+    public void theFoldDoesNotWriteIntoAPolicyMapTheCallerStillHolds() throws Exception {
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080");
+        Map<TlsPurpose, TlsPolicy> callerPolicies = new LinkedHashMap<>();
+        callerPolicies.put(TlsPurpose.CLIENT_DEFAULT, TlsPolicy.insecure());
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsPolicyMap(callerPolicies);
+
+        try (PulsarAdminImpl a = (PulsarAdminImpl) builder
+                .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-a-ca.pem\"}")).build();
+                PulsarAdminImpl b = (PulsarAdminImpl) builder
+                        .authentication(oauth2(ISSUER + ",\"trustCertsFilePath\":\"/tls/idp-b-ca.pem\"}")).build()) {
+            assertThat(idpPolicy(a).trustCertsFilePath()).isEqualTo("/tls/idp-a-ca.pem");
+            assertThat(idpPolicy(b).trustCertsFilePath()).isEqualTo("/tls/idp-b-ca.pem");
+        }
+        assertThat(callerPolicies).as("the caller's map stays the caller's")
+                .containsOnlyKeys(TlsPurpose.CLIENT_DEFAULT);
+    }
+
     @Test
     public void noIdpMaterialAddsNoPolicy() throws Exception {
         try (PulsarAdminImpl admin = adminWith(oauth2(ISSUER + "}"))) {
@@ -127,6 +178,10 @@ public class AdminOAuth2IdpTlsBindingTest {
             assertThat(map == null || map.get(TlsPurpose.CLIENT_OAUTH2) == null)
                     .as("nothing to fold, so no CLIENT_OAUTH2 policy is invented").isTrue();
         }
+    }
+
+    private static TlsPolicy idpPolicy(PulsarAdminImpl admin) {
+        return admin.getClientConfigData().getTlsPolicyMap().get(TlsPurpose.CLIENT_OAUTH2);
     }
 
     private static PulsarAdminImpl adminWith(AuthenticationOAuth2 auth) throws Exception {

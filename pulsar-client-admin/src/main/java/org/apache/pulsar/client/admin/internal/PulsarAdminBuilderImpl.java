@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
@@ -44,11 +45,50 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     private ClassLoader clientBuilderClassLoader = null;
     private boolean acceptGzipCompression = true;
     private transient PulsarClientSharedResourcesImpl sharedResources;
+    // PIP-478: the factory instance the last build() handed to an admin, if any. Adoption is a hand-over,
+    // not a share — see the check in build().
+    private transient PulsarTlsFactory adoptedTlsFactory;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf,
+        rejectSecondAdoptionOfTheSameTlsFactory();
+        // PIP-478 (#26398): hand the admin its own configuration object, as ClientBuilderImpl.build() does.
+        // PulsarAdminImpl writes into the configuration it is given — foldOAuth2IdpPolicy installs the
+        // OAuth2 plugin's IdP TLS policy under CLIENT_OAUTH2 — so sharing the builder's instance made that
+        // fold a one-time event: a second build() with different OAuth2 credentials found the first admin's
+        // policy already there and kept it, resolving tokens against IdP B while trusting IdP A's material,
+        // with no error and no log line. Every caller that mutates the builder's configuration does so
+        // before build(), so the copy carries their changes.
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf.clone(),
                 clientBuilderClassLoader, acceptGzipCompression, sharedResources);
+    }
+
+    /**
+     * PIP-478: reject a second admin built from the same adopted {@link PulsarTlsFactory} instance, as
+     * {@code PulsarClientBuilderV5.build()} does for the client.
+     *
+     * <p>There is no {@code tlsFactory(...)} on the public admin builder; adoption is reachable through
+     * {@link #getConf()} and is how the broker and the functions worker route their own admin clients onto a
+     * custom factory ({@code PulsarService.applyBrokerClientTlsFactoryToAdmin},
+     * {@code WorkerUtils.applyBrokerClientTlsFactoryToAdmin}). Ownership transfers with the configuration:
+     * {@code AsyncHttpConnectorProvider} initializes the instance and closes it with the admin, so handing it
+     * to a second admin would {@code initialize} it twice and {@code close} it twice — the SPI says exactly
+     * once and at most once — and leave whichever admin is closed second on a closed factory. Copying the
+     * configuration at {@code build()} does not help: {@code clone()} is shallow, so the copy carries the
+     * same instance.
+     */
+    private void rejectSecondAdoptionOfTheSameTlsFactory() {
+        PulsarTlsFactory adopting = conf.getTlsFactory();
+        if (adopting == null) {
+            return;
+        }
+        if (adopting == adoptedTlsFactory) {
+            throw new IllegalStateException("the PulsarTlsFactory on this admin builder's configuration has "
+                    + "already been adopted by an admin built from it. The admin initializes that instance "
+                    + "and closes it with itself, so it cannot be handed to a second admin — closing either "
+                    + "one would break TLS for the other. Set a fresh instance before building again.");
+        }
+        adoptedTlsFactory = adopting;
     }
 
     public PulsarAdminBuilderImpl() {
@@ -68,6 +108,10 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone());
         pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
         pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
+        // PIP-478: the copy carries the same adopted factory instance (clone() is shallow), so it inherits
+        // the knowledge that it has already been handed over — otherwise cloning would be a way around the
+        // one-instance-one-admin rule.
+        pulsarAdminBuilder.adoptedTlsFactory = adoptedTlsFactory;
         return pulsarAdminBuilder;
     }
 

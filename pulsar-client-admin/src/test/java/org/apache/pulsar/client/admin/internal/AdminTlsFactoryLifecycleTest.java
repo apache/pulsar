@@ -89,6 +89,37 @@ public class AdminTlsFactoryLifecycleTest {
                 .as("closing the admin must not close the adopted factory twice").hasValue(1);
     }
 
+    /**
+     * PIP-478: and exactly once means the adopted instance belongs to the admin that took it.
+     *
+     * <p>Nothing stopped a second admin being built from the same builder — the configuration copy
+     * {@code build()} makes is shallow, so it carries the same instance — and that admin's provider would
+     * {@code initialize()} it a second time and queue a second {@code close()}, which is the very invariant
+     * the tests above pin. There is no public {@code tlsFactory(...)} on the admin builder; the seam is the
+     * one the broker and the functions worker use to route their admin clients onto a custom factory, and
+     * both of them build exactly one admin from a fresh builder. This keeps that the only way to use it.
+     */
+    @Test
+    public void anAdoptedFactoryIsHandedToOneAdminOnly() throws Exception {
+        CountingFactory adopted = new CountingFactory();
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("https://localhost:8443");
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsFactory(adopted);
+
+        PulsarAdmin admin = builder.build();
+        try {
+            assertThatThrownBy(builder::build)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("already been adopted");
+            assertThatThrownBy(() -> builder.clone().build())
+                    .as("and cloning the builder must not be a way around it — the copy carries the instance")
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(CountingFactory.INITIALIZED).as("neither rejected build may re-initialize it").hasValue(1);
+        } finally {
+            admin.close();
+        }
+        assertThat(CountingFactory.CLOSED).as("the admin that adopted it closes it, once").hasValue(1);
+    }
+
     @Test
     public void aFailedAdminBuildDoesNotLeakTheResolvedFactory() throws Exception {
         // close() is unreachable when the constructor throws, so whatever the provider resolved before the

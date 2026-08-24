@@ -501,7 +501,15 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * {@code CLIENT_OAUTH2} against. A policy the caller supplied explicitly wins: the fold is
      * {@code putIfAbsent}.
      *
-     * @param conf the admin client configuration, mutated to carry the IdP policy
+     * <p>The fold writes into a map this admin owns, never into one it was handed (#26398).
+     * {@code PulsarAdminBuilderImpl.build()} passes a {@code clone()} of the builder's configuration, but
+     * {@code ClientConfigurationData.clone()} is {@code super.clone()} — a copy still shares the
+     * {@code tlsPolicyMap} <em>instance</em>. Inserting into that shared map would put the first admin's IdP
+     * policy back in the builder's reach, and the next admin's {@code putIfAbsent} would find it already
+     * there and keep it: two admins with different OAuth2 credentials, the second one trusting the first's
+     * IdP material. Copying here rather than deepening {@code clone()} keeps the rule where the mutation is.
+     *
+     * @param conf the admin client configuration, given this admin's own policy map carrying the IdP policy
      */
     private void foldOAuth2IdpPolicy(ClientConfigurationData conf) {
         if (!(auth instanceof AuthenticationOAuth2 oauth2)) {
@@ -513,12 +521,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
         // inheritance has to happen at this site or not at all.
         TlsPolicy clientDefault = ClientTlsFactorySupport.effectiveClientDefaultPolicy(conf);
         oauth2.idpTlsPolicy(clientDefault.jsseProvider(), clientDefault.jcaProvider()).ifPresent(policy -> {
-            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
-            if (policies == null) {
-                policies = new LinkedHashMap<>();
-                conf.setTlsPolicyMap(policies);
-            }
+            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap() == null
+                    ? new LinkedHashMap<>() : new LinkedHashMap<>(conf.getTlsPolicyMap());
             policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy);
+            conf.setTlsPolicyMap(policies);
         });
     }
 
