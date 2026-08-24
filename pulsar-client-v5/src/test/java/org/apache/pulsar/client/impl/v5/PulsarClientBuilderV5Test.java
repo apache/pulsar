@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -25,9 +27,12 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.net.ssl.SSLContext;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -298,6 +303,149 @@ public class PulsarClientBuilderV5Test {
                     "closing the first client must leave the second client's TLS working");
         } finally {
             second.close();
+        }
+    }
+
+    /**
+     * PIP-478: an adopted {@link PulsarTlsFactory} instance belongs to one client.
+     *
+     * <p>Copying the configuration gives each client its own <em>composed</em> factory, but an adopted one is
+     * the caller's instance and the copy carries the same reference. A second client would have the framework
+     * {@code initialize()} it twice and {@code close()} it twice — the SPI says exactly once and at most once
+     * — and would leave whichever client is closed second serving TLS from a closed factory while still
+     * reporting itself open. So {@code build()} says so at the point where the mistake is cheap to fix, and a
+     * fresh instance re-arms the builder.
+     */
+    @Test
+    public void anAdoptedTlsFactoryIsHandedToOneClientOnly() throws Exception {
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.serviceUrl("pulsar+ssl://localhost:6651").tlsFactory(adopted);
+
+        PulsarClient first = builder.build();
+        try {
+            assertThatThrownBy(builder::build)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("already been adopted")
+                    .hasMessageContaining("fresh instance");
+            assertThat(adopted.initialized).as("and the rejected build must not re-initialize it").hasValue(1);
+        } finally {
+            first.close();
+        }
+        assertThat(adopted.closed).as("the client that adopted it closes it").hasValue(1);
+
+        AdoptableTlsFactory rearmed = new AdoptableTlsFactory();
+        builder.tlsFactory(rearmed);
+        builder.build().close();
+        assertThat(rearmed.closed).as("a fresh instance re-arms the builder").hasValue(1);
+    }
+
+    /**
+     * PIP-478: {@code build()} must resolve the authentication into the client's own configuration.
+     *
+     * <p>The copy handed to the client used to be taken <em>after</em> {@code applyAuthentication()}, which
+     * writes: it puts the resolved plugin in one of the two authentication slots and folds a bridged v4
+     * plugin's certificate and key into {@code CLIENT_DEFAULT}. Both writes landed on the builder, so they
+     * outlived the client — a second client built after swapping to a plugin with no file-based material of
+     * its own kept presenting the first plugin's client certificate, and silently authenticated as it.
+     *
+     * <p>A factory is adopted here only so the two builds succeed without real certificate files: it serves
+     * {@code CLIENT_DEFAULT} itself, so the fail-fast probe never reads the folded paths. The fold is
+     * unaffected — it happens before the factory is resolved, and the policy is what the assertions read.
+     */
+    @Test
+    public void aSecondClientDoesNotInheritTheFirstPluginsCertificate() throws Exception {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.serviceUrl("pulsar+ssl://localhost:6651")
+                .tlsPolicy(TlsPolicy.builder().trustCertsFilePath("/path/to/ca.pem").build())
+                .tlsFactory(new AdoptableTlsFactory());
+        builder.authentication(LegacyV4AuthenticationAdapter.wrap(
+                new org.apache.pulsar.client.impl.auth.AuthenticationTls(
+                        "/path/to/first.cert", "/path/to/first.key")));
+
+        PulsarClient first = builder.build();
+        try {
+            assertThat(clientDefaultOf(first).certificateFilePath())
+                    .as("the first client's own policy does carry its plugin's identity")
+                    .isEqualTo("/path/to/first.cert");
+            assertThat(builder.getConfForTesting().getTlsPolicyMap().get(TlsPurpose.CLIENT_DEFAULT)
+                    .certificateFilePath())
+                    .as("but the builder's policy must not have been folded into")
+                    .isNull();
+
+            builder.tlsFactory(new AdoptableTlsFactory());
+            builder.authentication(LegacyV4AuthenticationAdapter.wrap(
+                    new org.apache.pulsar.client.impl.auth.AuthenticationDisabled()));
+            PulsarClient second = builder.build();
+            try {
+                assertThat(clientDefaultOf(second).certificateFilePath())
+                        .as("so the second client must not authenticate as the first client's plugin")
+                        .isNull();
+                assertThat(clientDefaultOf(second).trustCertsFilePath())
+                        .as("while the trust material the caller configured is still carried")
+                        .isEqualTo("/path/to/ca.pem");
+            } finally {
+                second.close();
+            }
+        } finally {
+            first.close();
+        }
+    }
+
+    private static TlsPolicy clientDefaultOf(PulsarClient client) {
+        return ((PulsarClientV5) client).v4Client().getConfiguration().getTlsPolicyMap()
+                .get(TlsPurpose.CLIENT_DEFAULT);
+    }
+
+    /** Serves {@link TlsPurpose#CLIENT_DEFAULT}, so a client can actually adopt it, and counts its lifecycle. */
+    private static final class AdoptableTlsFactory implements PulsarTlsFactory {
+
+        private final AtomicInteger initialized = new AtomicInteger();
+        private final AtomicInteger closed = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
+            initialized.incrementAndGet();
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass) {
+            if (instanceClass != SslContext.class) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+            try {
+                SslContext context = SslContextBuilder.forClient().build();
+                TlsHandle<T> handle = new TlsHandle<>() {
+                    @Override
+                    @SuppressWarnings("unchecked")
+                    public T get() {
+                        return (T) context;
+                    }
+
+                    @Override
+                    public void dispose() {
+                    }
+                };
+                return CompletableFuture.completedFuture(Optional.of(handle));
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass, Consumer<T> onLoadOrReload) {
+            return createInstance(purpose, instanceClass).thenApply(opt -> {
+                opt.ifPresent(handle -> onLoadOrReload.accept(handle.get()));
+                return opt;
+            });
+        }
+
+        @Override
+        public void close() {
+            closed.incrementAndGet();
         }
     }
 

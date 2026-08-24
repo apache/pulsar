@@ -34,11 +34,15 @@ import org.apache.pulsar.tls.TlsPurpose;
 public interface PulsarClientBuilder {
 
     /**
-     * Build and return the configured client.
+     * Build and return the configured client. A builder may be reused to build further clients; each one
+     * takes its own copy of the configuration.
      *
      * @return the configured {@link PulsarClient} instance
      * @throws PulsarClientException if the client cannot be created (e.g., invalid configuration
      *         or connection failure)
+     * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
+     *         adopted by a client built from this builder — that instance belongs to that client and cannot
+     *         be handed to a second one
      */
     PulsarClient build() throws PulsarClientException;
 
@@ -140,8 +144,15 @@ public interface PulsarClientBuilder {
      * per-destination workload identity). The supplied factory is <em>adopted</em>: the client
      * initializes it and closes it when the client closes.
      *
+     * <p>Adoption is a hand-over rather than a share, so an instance passed here belongs to one client.
+     * A builder otherwise builds as many clients as you like, but {@link #build()} rejects a second one
+     * while this slot still holds the factory the previous build took — pass a fresh instance to build
+     * again. Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is a
+     * value, and each client composes its own factory from it.
+     *
      * @param factory the TLS factory to adopt
      * @return this builder instance for chaining
+     * @throws IllegalArgumentException if {@code factory} is null
      */
     PulsarClientBuilder tlsFactory(PulsarTlsFactory factory);
 

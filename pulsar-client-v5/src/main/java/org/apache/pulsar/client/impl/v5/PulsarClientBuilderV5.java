@@ -59,6 +59,9 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     // v4 plugin can be probed on the application thread — off the event loop — to fold its TLS material and
     // to decide whether it must stay wrapped for credential off-loading). Null when no auth is configured.
     private Authentication v5Authentication;
+    // PIP-478: the factory instance the last build() handed to a client, if any. Adoption is a hand-over,
+    // not a share — see the check in build().
+    private PulsarTlsFactory adoptedTlsFactory;
 
     PulsarClientBuilderV5() {
         conf.setStatsIntervalSeconds(0);
@@ -70,8 +73,8 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
+        rejectSecondAdoptionOfTheSameTlsFactory();
         try {
-            applyAuthentication();
             // PIP-478: hand the client its own configuration object, as ClientBuilderImpl.build() does.
             // PulsarClientImpl stores the TLS factory it composes back onto this object
             // (setupClientTlsFactory), so sharing the builder's instance would make a second build() adopt
@@ -79,12 +82,52 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             // TLS for the other. This path matters more than the v4 one: tlsFactory(...) and tlsPolicy(...)
             // exist only here, so it is the only builder that can reach the adopted-factory arm
             // deliberately, and it is what turns on the fail-fast probe whose failure handler closes the
-            // factory. applyAuthentication() has already run, so the copy carries what it resolved.
-            var v4Client = new PulsarClientImpl(conf.clone());
+            // factory.
+            //
+            // The copy is taken first, and applyAuthentication() then resolves into it, because that step
+            // writes too: it puts the resolved plugin in one of the two authentication slots and folds a
+            // bridged v4 plugin's certificate and key into CLIENT_DEFAULT. Run against the builder those
+            // writes outlive the client — the next build() would keep the previous plugin in the other slot
+            // and present the previous plugin's client certificate. clone() is shallow, so the policy map
+            // has to be copied separately for the fold to land only on this client.
+            ClientConfigurationData clientConf = conf.clone();
+            if (clientConf.getTlsPolicyMap() != null) {
+                clientConf.setTlsPolicyMap(new LinkedHashMap<>(clientConf.getTlsPolicyMap()));
+            }
+            applyAuthentication(clientConf);
+            var v4Client = new PulsarClientImpl(clientConf);
             return new PulsarClientV5(v4Client, description, transactionTimeout);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
             throw new PulsarClientException(e.getMessage(), e);
         }
+    }
+
+    /**
+     * PIP-478: reject a second client built from the same adopted {@link PulsarTlsFactory} instance.
+     *
+     * <p>Copying the configuration keeps each client's <em>composed</em> factory to itself, but an adopted
+     * one is the caller's instance and the copy carries the same reference. Handing it to a second client
+     * would have the framework break the SPI contract on the caller's behalf twice over — {@code initialize}
+     * is called "exactly once" and {@code close} "at most once" on {@link PulsarTlsFactory} — and would leave
+     * whichever client is closed second serving TLS from a closed factory while still reporting itself open.
+     * Failing here says so at the one point where the mistake is still cheap to fix.
+     *
+     * <p>A build that <em>failed</em> consumes the factory too: the fail-fast probe closes an adopted
+     * instance on its way out, so a retry needs a fresh one as much as a second client does.
+     */
+    private void rejectSecondAdoptionOfTheSameTlsFactory() {
+        PulsarTlsFactory adopting = conf.getTlsFactory();
+        if (adopting == null) {
+            return;
+        }
+        if (adopting == adoptedTlsFactory) {
+            throw new IllegalStateException("the PulsarTlsFactory passed to tlsFactory(...) has already been "
+                    + "adopted by a client built from this builder. The client initializes that instance and "
+                    + "closes it with itself, so it cannot be handed to a second client — closing either one "
+                    + "would break TLS for the other. Call tlsFactory(...) with a fresh instance before "
+                    + "building again.");
+        }
+        adoptedTlsFactory = adopting;
     }
 
     @Override
@@ -134,8 +177,11 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * {@code Authentication} for every binary connection, and the driver it builds is what keeps credential
      * work off the event loop: a bridged v4 plugin reaches it through {@code LegacyV4AuthenticationAdapter},
      * whose credential calls always run on the blocking executor.
+     *
+     * @param target the configuration to resolve into — the client's own copy at {@link #build()}, so neither
+     *               slot nor the folded policy outlives the client into the next build
      */
-    private void applyAuthentication() {
+    private void applyAuthentication(ClientConfigurationData target) {
         if (v5Authentication == null) {
             return;
         }
@@ -147,23 +193,25 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             // client starts, closes, and reads for TLS material and the OAuth2 IdP trust. The v5 body the
             // client drives is resolved from it during client construction, so the plugin's lifecycle has
             // exactly one owner.
-            resolveBridgedV4(bridgedV4);
-            conf.setAuthentication(bridgedV4);
+            resolveBridgedV4(target, bridgedV4);
+            target.setAuthentication(bridgedV4);
             return;
         }
-        conf.setV5Authentication(v5Authentication);
+        target.setV5Authentication(v5Authentication);
     }
 
     /**
      * Resolve the configured authentication and return the v4 {@code Authentication} slot's contents.
      * Package-private for tests that assert the unwrap decision without standing up a broker
-     * (VisibleForTesting; Guava's annotation is not on this module's classpath).
+     * (VisibleForTesting; Guava's annotation is not on this module's classpath). Resolves into the builder's
+     * own configuration, which is where those tests then read the folded policy from; {@link #build()}
+     * resolves into the client's copy instead.
      *
      * @return the raw v4 plugin when a bridged v4 plugin was configured, else {@code null} — a genuinely
      *         v5-native plugin occupies the v5 slot and leaves this one empty
      */
     org.apache.pulsar.client.api.Authentication resolveAuthenticationForTest() {
-        applyAuthentication();
+        applyAuthentication(conf);
         return conf.getAuthentication();
     }
 
@@ -176,13 +224,15 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * body from the v4 slot and drives it through {@code LegacyV4AuthenticationAdapter}, whose credential
      * calls always off-load — so the decision, and the return value carrying it, are gone.
      *
-     * @param v4 the bridged v4 plugin recovered from the wrapping adapter
+     * @param target the configuration to fold into
+     * @param v4     the bridged v4 plugin recovered from the wrapping adapter
      */
-    private void resolveBridgedV4(org.apache.pulsar.client.api.Authentication v4) {
-        boolean foldTls = conf.getTlsPolicyMap() != null;
+    private void resolveBridgedV4(ClientConfigurationData target,
+                                  org.apache.pulsar.client.api.Authentication v4) {
+        boolean foldTls = target.getTlsPolicyMap() != null;
         if (v4 instanceof AuthenticationTls tls) {
             if (foldTls && tls.getCertFilePath() != null && tls.getKeyFilePath() != null) {
-                mergeClientDefault(base -> pemBuilder(base)
+                mergeClientDefault(target, base -> pemBuilder(base)
                         .certificateFilePath(tls.getCertFilePath())
                         .keyFilePath(tls.getKeyFilePath())
                         .build());
@@ -192,7 +242,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         if (v4 instanceof AuthenticationKeyStoreTls keyStoreTls) {
             if (foldTls && keyStoreTls.getKeyStoreParams() != null) {
                 KeyStoreParams ks = keyStoreTls.getKeyStoreParams();
-                mergeClientDefault(base -> keyStoreBuilder(base)
+                mergeClientDefault(target, base -> keyStoreBuilder(base)
                         .keyStorePath(ks.getKeyStorePath())
                         .keyStorePassword(ks.getKeyStorePassword())
                         .keyStoreType(ks.getKeyStoreType())
@@ -203,7 +253,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         if (v4 instanceof AuthenticationDisabled) {
             return;
         }
-        resolveGenericV4(v4, foldTls);
+        resolveGenericV4(target, v4, foldTls);
     }
 
     /**
@@ -216,11 +266,13 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * the legacy v4 TLS path reads the plugin's material directly from {@code getAuthData()} anyway, and
      * skipping the call avoids an eager credential fetch at build time.
      *
+     * @param target  the configuration to fold into
      * @param v4      the bridged v4 authentication plugin (not a built-in TLS class)
      * @param foldTls whether a {@code tlsPolicy} is configured, so TLS material should be folded
      */
     @SuppressWarnings("deprecation")
-    private void resolveGenericV4(org.apache.pulsar.client.api.Authentication v4, boolean foldTls) {
+    private void resolveGenericV4(ClientConfigurationData target,
+                                  org.apache.pulsar.client.api.Authentication v4, boolean foldTls) {
         if (!foldTls) {
             return;
         }
@@ -235,7 +287,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             return;
         }
         if (data != null && data.hasDataForTls()) {
-            foldGenericV4TlsMaterial(data, v4.getClass().getName());
+            foldGenericV4TlsMaterial(target, data, v4.getClass().getName());
         }
     }
 
@@ -328,18 +380,21 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * keystore) can be represented in the file-path {@link TlsPolicy}; a plugin that exposes only in-memory
      * cert/key material is logged rather than silently dropped, since it cannot be folded on this path.
      *
+     * @param target     the configuration to fold into
      * @param data       the already-probed auth data reporting TLS material
      * @param pluginName the bridged plugin's class name, for logging
      */
     @SuppressWarnings("deprecation")
-    private void foldGenericV4TlsMaterial(AuthenticationDataProvider data, String pluginName) {
+    private void foldGenericV4TlsMaterial(ClientConfigurationData target, AuthenticationDataProvider data,
+                                          String pluginName) {
         String certPath = data.getTlsCertificateFilePath();
         String keyPath = data.getTlsPrivateKeyFilePath();
         KeyStoreParams ks = data.getTlsKeyStoreParams();
         if (isNotBlank(certPath) && isNotBlank(keyPath)) {
-            mergeClientDefault(base -> pemBuilder(base).certificateFilePath(certPath).keyFilePath(keyPath).build());
+            mergeClientDefault(target,
+                    base -> pemBuilder(base).certificateFilePath(certPath).keyFilePath(keyPath).build());
         } else if (ks != null && isNotBlank(ks.getKeyStorePath())) {
-            mergeClientDefault(base -> keyStoreBuilder(base)
+            mergeClientDefault(target, base -> keyStoreBuilder(base)
                     .keyStorePath(ks.getKeyStorePath())
                     .keyStorePassword(ks.getKeyStorePassword())
                     .keyStoreType(ks.getKeyStoreType())
@@ -356,8 +411,9 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         return s != null && !s.isBlank();
     }
 
-    private void mergeClientDefault(java.util.function.Function<TlsPolicy, TlsPolicy> merge) {
-        Map<TlsPurpose, TlsPolicy> map = conf.getTlsPolicyMap();
+    private void mergeClientDefault(ClientConfigurationData target,
+                                    java.util.function.Function<TlsPolicy, TlsPolicy> merge) {
+        Map<TlsPurpose, TlsPolicy> map = target.getTlsPolicyMap();
         TlsPolicy base = map.get(TlsPurpose.CLIENT_DEFAULT);
         map.put(TlsPurpose.CLIENT_DEFAULT, merge.apply(base));
     }
