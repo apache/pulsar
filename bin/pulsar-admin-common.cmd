@@ -61,6 +61,8 @@ set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
 set "OPTS=-Djava.net.preferIPv4Stack=true %OPTS%"
+REM Enable JUL-to-Log4j2 bridge so that JUL records are routed through Log4j2
+set "OPTS=-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager %OPTS%"
 
 REM Allow Netty to use reflection access
 set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
