@@ -775,9 +775,11 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Message retries not yet supported in Go function");
         }
 
-        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            throw new IllegalArgumentException("Retain Key Orderering not yet supported in Go function");
-        }
+        // retainKeyOrdering is no longer refused: the Go runtime honours it, selecting a KeyShared
+        // subscription in resolveSubscriptionType (pulsar-function-go/pf/instance.go), the same way
+        // python_instance.py does. doCommonChecks still rejects the two combinations that would be
+        // contradictory -- retainKeyOrdering with EFFECTIVELY_ONCE, and retainKeyOrdering together
+        // with retainOrdering -- so nothing here needs to repeat them for Go.
     }
 
     private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic)
