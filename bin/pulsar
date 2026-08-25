@@ -359,7 +359,7 @@ OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
 # Configure log4j2 to disable servlet webapp detection so that Garbage free logging can be used
 OPTS="$OPTS -Dlog4j2.is.webapp=false"
 # Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
-# (Jersey, gRPC, Guava, etc.) are routed to pulsar.log instead of stdout
+# (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
 OPTS="$OPTS -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
 
 # Functions related logging
