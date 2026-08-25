@@ -341,6 +341,76 @@ public class PulsarClientBuilderV5Test {
     }
 
     /**
+     * PIP-478: the two sides of what "handed over" means.
+     *
+     * <p>A build that fails <em>before</em> the construction — the missing {@code serviceUrl} below — has not
+     * touched the factory, so the builder must still accept it. A build that fails <em>after</em>
+     * {@code setupClientTlsFactory()} has initialized it, and the failure path closed it (the probe's own
+     * handler, or {@code shutdown()} for anything later), so the builder must refuse it: the alternative is
+     * handing the next client a closed factory instead of telling the caller.
+     */
+    @Test
+    public void aBuildThatReachedTheFactorySpendsItAndOneThatDidNotDoesNot() throws Exception {
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsFactory(adopted);
+
+        assertThatThrownBy(builder::build)
+                .as("no serviceUrl: rejected before the construction that adopts")
+                .isInstanceOf(PulsarClientException.class);
+        assertThat(adopted.initialized).as("so nothing consumed the factory").hasValue(0);
+
+        // Now let the build reach the factory and fail there: it refuses to serve CLIENT_DEFAULT, which is
+        // what the v5-builder path probes for.
+        adopted.failClientDefault = true;
+        builder.serviceUrl("pulsar+ssl://localhost:6651");
+        assertThatThrownBy(builder::build).as("the build must fail at the factory for this to be the case")
+                .isNotNull();
+        assertThat(adopted.initialized).as("but this time it was initialized").hasValue(1);
+        assertThat(adopted.closed).as("and closed on the way out").hasValue(1);
+
+        adopted.failClientDefault = false;
+        assertThatThrownBy(builder::build)
+                .as("so the instance is spent, even though no client exists")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been adopted");
+    }
+
+    /**
+     * PIP-478: a build that failed before reaching the factory hands over nothing, so it must still be usable.
+     *
+     * <p>The guard used to record the instance before the construction, which made any failure on the way to
+     * the TLS factory poison the builder against a factory that was never initialized and never closed — a
+     * blank {@code serviceUrl} is rejected by {@code PulsarClientImpl}'s constructor well before
+     * {@code setupClientTlsFactory()}. With no way to clear the slot ({@code tlsFactory(null)} throws), a
+     * typo in a URL cost the caller a whole new factory: for the HSM- and KMS-backed factories this seam
+     * exists to serve, that is not free.
+     */
+    @Test
+    public void aFailedBuildLeavesTheAdoptedFactoryUsable() throws Exception {
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsFactory(adopted);
+
+        // No serviceUrl: rejected during construction, before the TLS factory is looked at.
+        assertThatThrownBy(builder::build).isInstanceOf(PulsarClientException.class);
+        assertThat(adopted.initialized).as("nothing consumed the factory").hasValue(0);
+        assertThat(adopted.closed).hasValue(0);
+
+        builder.serviceUrl("pulsar+ssl://localhost:6651");
+        PulsarClient client = builder.build();
+        try {
+            assertThat(adopted.initialized).as("the retry adopts the same instance").hasValue(1);
+        } finally {
+            client.close();
+        }
+        assertThat(adopted.closed).hasValue(1);
+        assertThatThrownBy(builder::build)
+                .as("and it is spent once a client has actually taken it")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    /**
      * PIP-478: {@code build()} must resolve the authentication into the client's own configuration.
      *
      * <p>The copy handed to the client used to be taken <em>after</em> {@code applyAuthentication()}, which
@@ -402,6 +472,8 @@ public class PulsarClientBuilderV5Test {
 
         private final AtomicInteger initialized = new AtomicInteger();
         private final AtomicInteger closed = new AtomicInteger();
+        /** Makes the fail-fast probe fail, so a build gets past initialize() and then throws. */
+        private volatile boolean failClientDefault;
 
         @Override
         public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
@@ -412,6 +484,9 @@ public class PulsarClientBuilderV5Test {
         @Override
         public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
                 Class<T> instanceClass) {
+            if (failClientDefault && TlsPurpose.CLIENT_DEFAULT.equals(purpose)) {
+                return CompletableFuture.failedFuture(new IllegalStateException("cannot serve CLIENT_DEFAULT"));
+            }
             if (instanceClass != SslContext.class) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }

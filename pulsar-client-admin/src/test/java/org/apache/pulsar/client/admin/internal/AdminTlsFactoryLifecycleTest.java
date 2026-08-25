@@ -120,6 +120,101 @@ public class AdminTlsFactoryLifecycleTest {
         assertThat(CountingFactory.CLOSED).as("the admin that adopted it closes it, once").hasValue(1);
     }
 
+    /**
+     * PIP-478: the two sides of what "handed over" means.
+     *
+     * <p>A build that fails <em>before</em> the constructor — the missing service URL below — has not
+     * touched the factory, so the builder must still accept it. A build that fails <em>after</em> the
+     * provider resolved it has initialized it, and the failure path closed it (that is what
+     * {@link #aFailedAdminBuildDoesNotLeakTheResolvedFactory} pins), so the builder must refuse it: the
+     * alternative is handing the next admin a closed factory instead of telling the caller.
+     */
+    @Test
+    public void aBuildThatReachedTheFactorySpendsItAndOneThatDidNotDoesNot() throws Exception {
+        CountingFactory adopted = new CountingFactory();
+        PulsarAdminBuilder builder = PulsarAdmin.builder();
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsFactory(adopted);
+
+        assertThatThrownBy(builder::build)
+                .as("no service URL: rejected before the constructor that adopts")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Service URL needs to be specified");
+        assertThat(CountingFactory.INITIALIZED).as("so nothing consumed the factory").hasValue(0);
+
+        // Now let the build reach the factory and fail there: it refuses to serve CLIENT_DEFAULT.
+        CountingFactory.FAIL_CLIENT_DEFAULT.set(true);
+        builder.serviceHttpUrl("https://localhost:8443");
+        assertThatThrownBy(builder::build).as("the build must fail at the factory for this to be the case")
+                .isNotNull();
+        assertThat(CountingFactory.INITIALIZED).as("but this time it was initialized").hasValue(1);
+        assertThat(CountingFactory.CLOSED).as("and closed on the way out").hasValue(1);
+
+        CountingFactory.FAIL_CLIENT_DEFAULT.set(false);
+        assertThatThrownBy(builder::build)
+                .as("so the instance is spent, even though no admin exists")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been adopted");
+    }
+
+    /**
+     * PIP-478: a build that failed before reaching the factory hands over nothing, so the same factory must
+     * still be usable.
+     *
+     * <p>The guard used to record the instance before the construction, so any failure on the way to the TLS
+     * factory — a blank service URL is rejected by {@code PulsarAdminImpl}'s first statement, well before the
+     * provider that adopts — poisoned the builder against a factory that was never initialized and never
+     * closed.
+     */
+    @Test
+    public void aFailedBuildLeavesTheAdoptedFactoryUsable() throws Exception {
+        CountingFactory adopted = new CountingFactory();
+        PulsarAdminBuilder builder = PulsarAdmin.builder();
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsFactory(adopted);
+
+        assertThatThrownBy(builder::build)
+                .as("no service URL: rejected before the TLS factory is looked at")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(CountingFactory.INITIALIZED).as("nothing consumed the factory").hasValue(0);
+        assertThat(CountingFactory.CLOSED).hasValue(0);
+
+        builder.serviceHttpUrl("https://localhost:8443");
+        PulsarAdmin admin = builder.build();
+        try {
+            assertThat(CountingFactory.INITIALIZED).as("the retry adopts the same instance").hasValue(1);
+        } finally {
+            admin.close();
+        }
+        assertThat(CountingFactory.CLOSED).hasValue(1);
+    }
+
+    /**
+     * PIP-478: and cloning is not a way around the rule in either order.
+     *
+     * <p>The record of what has been handed over is shared with every clone rather than copied into it.
+     * Copied, a builder cloned <em>before</em> its first build would start with an empty record, and both
+     * copies would then adopt the same instance — the configuration copy does not separate them, because
+     * {@code clone()} is shallow.
+     */
+    @Test
+    public void cloningBeforeABuildDoesNotDuplicateTheAdoption() throws Exception {
+        CountingFactory adopted = new CountingFactory();
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("https://localhost:8443");
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsFactory(adopted);
+
+        PulsarAdminBuilder copy = builder.clone();
+        PulsarAdmin admin = builder.build();
+        try {
+            assertThatThrownBy(copy::build)
+                    .as("the clone carries the same instance, so it must see that it is spent")
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("already been adopted");
+            assertThat(CountingFactory.INITIALIZED).hasValue(1);
+        } finally {
+            admin.close();
+        }
+        assertThat(CountingFactory.CLOSED).hasValue(1);
+    }
+
     @Test
     public void aFailedAdminBuildDoesNotLeakTheResolvedFactory() throws Exception {
         // close() is unreachable when the constructor throws, so whatever the provider resolved before the

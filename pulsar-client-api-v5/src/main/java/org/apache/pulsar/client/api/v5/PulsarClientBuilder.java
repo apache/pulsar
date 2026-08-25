@@ -41,8 +41,8 @@ public interface PulsarClientBuilder {
      * @throws PulsarClientException if the client cannot be created (e.g., invalid configuration
      *         or connection failure)
      * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
-     *         adopted by a client built from this builder — that instance belongs to that client and cannot
-     *         be handed to a second one
+     *         handed to a client this builder built — that instance belongs to that client and cannot be
+     *         handed to a second one
      */
     PulsarClient build() throws PulsarClientException;
 
@@ -146,9 +146,10 @@ public interface PulsarClientBuilder {
      *
      * <p>Adoption is a hand-over rather than a share, so an instance passed here belongs to one client.
      * A builder otherwise builds as many clients as you like, but {@link #build()} rejects a second one
-     * while this slot still holds the factory the previous build took — pass a fresh instance to build
-     * again. Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is a
-     * value, and each client composes its own factory from it.
+     * while this slot still holds a factory an earlier build already handed to a client — pass a fresh
+     * instance to build again. A build that <em>failed</em> hands over nothing, so the same instance can be
+     * used to retry. Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is
+     * a value, and each client composes its own factory from it.
      *
      * @param factory the TLS factory to adopt
      * @return this builder instance for chaining

@@ -248,6 +248,13 @@ public final class ClientTlsFactorySupport {
         if (conf.getTlsFactory() != null) {
             // The v5 builder adopted a custom factory; the client owns and closes it.
             factory = conf.getTlsFactory();
+            // Record the hand-over on the configuration the caller passed in, before anything can fail.
+            // This is the one place the framework takes a caller-supplied instance, so it is the only place
+            // that can say so honestly: from here on it has been initialized and may have been closed again
+            // (the probe's failure handler below, or the owning component's shutdown), and a builder that
+            // reads this back must not hand the same instance to a second client. Set for a build that goes
+            // on to fail as much as for one that succeeds — the instance is spent either way.
+            conf.setTlsFactoryAdopted(true);
             initParams = conf.getTlsFactoryParams() == null ? Map.of() : Map.copyOf(conf.getTlsFactoryParams());
         } else if (conf.getTlsPolicyMap() == null && isCustomFactoryClass(conf.getTlsFactoryClassName())) {
             // PIP-478 v4 by-name successor: no v5-builder instance/policy map is set, and tlsFactoryClassName

@@ -245,6 +245,14 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient Map<TlsPurpose, TlsPolicy> tlsPolicyMap;
     @JsonIgnore
     private transient PulsarTlsFactory tlsFactory;
+    // PIP-478: set when the framework takes ownership of a tlsFactory the caller supplied — the one moment
+    // adoption happens, in ClientTlsFactorySupport.resolveClientTlsFactory. It records a fact about the
+    // instance rather than configuring anything, which is why it lives beside the slot it describes: whoever
+    // handed the factory in reads it back to know whether it was consumed. The builders use it to hand each
+    // instance to one client or admin only, including when the build then failed — the SPI allows
+    // initialize() once and close() at most once per factory, and by this point both may have happened.
+    @JsonIgnore
+    private transient boolean tlsFactoryAdopted;
     // PIP-478: factory-specific parameters delivered to a custom (non-default) TLS factory named by
     // brokerClientTlsFactoryClassName via TlsFactoryInitContext.params(). Set by the broker (parsed from
     // brokerClientTlsFactoryConfig the same way the server-side tlsFactoryConfig is parsed); empty/unset for
