@@ -129,6 +129,51 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     }
 
     @Test
+    public void testResetCursorClearsDelayedMessages() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetClearsDelayed");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
+                .get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 100));
+        List<String> bucketKeys =
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties()
+                        .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertFalse(bucketKeys.isEmpty());
+
+        // Resetting the cursor disconnects the consumer, so nothing gets re-tracked while we
+        // observe the post-reset state.
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        assertEquals(dispatcher.getNumberOfDelayedMessages(), 0,
+                "The delayed delivery tracker should be cleared by the cursor reset");
+        List<String> bucketKeysAfterReset =
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties()
+                        .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertTrue(bucketKeysAfterReset.isEmpty(),
+                "The bucket cursor properties should be removed by the cursor reset");
+    }
+
+    @Test
     public void testIncrementPartitionsDoesNotCopyBucketDelayedDeliveryState() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testBucketStatePartitionExpansion");
         String subscriptionName = "sub";
