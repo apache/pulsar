@@ -63,20 +63,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
-    // PIP-486: when enabled, the min/max entry-bucket hash is maintained while messages are added and
-    // createOpSendMsg() stamps it on the batch metadata.
-    private boolean entryBucketHashStampingEnabled;
+    // PIP-486: createOpSendMsg() stamps the min/max entry-bucket hash maintained by the three-argument add.
     private int minEntryBucketHash = Integer.MAX_VALUE;
     private int maxEntryBucketHash = Integer.MIN_VALUE;
 
-    void setEntryBucketHashStampingEnabled(boolean entryBucketHashStampingEnabled) {
-        this.entryBucketHashStampingEnabled = entryBucketHashStampingEnabled;
-    }
-
     /** PIP-486: stamp the entry-bucket hash range maintained while messages are added to the batch. */
-    @VisibleForTesting
-    void stampEntryBucketRange() {
-        if (!entryBucketHashStampingEnabled || messages.isEmpty()) {
+    private void stampEntryBucketRange() {
+        if (minEntryBucketHash > maxEntryBucketHash) {
             return;
         }
         messageMetadata.setEntryHashMin(minEntryBucketHash);
@@ -107,18 +100,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        if (entryBucketHashStampingEnabled) {
-            throw new IllegalStateException(
-                    "The entry-bucket hash must be provided when entry-bucket hash stamping is enabled");
-        }
-        return add(msg, callback, 0);
-    }
-
-    /**
-     * Adds a message whose entry-bucket hash has already been computed, avoiding a second hash
-     * calculation when the send operation is created.
-     */
-    boolean add(MessageImpl<?> msg, SendCallback callback, int entryBucketHash) {
         log.debug().attr("topic", topicName)
                 .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
                 .attr("numMessagesInBatch", numMessagesInBatch)
@@ -158,10 +139,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
-        if (entryBucketHashStampingEnabled) {
-            minEntryBucketHash = Math.min(minEntryBucketHash, entryBucketHash);
-            maxEntryBucketHash = Math.max(maxEntryBucketHash, entryBucketHash);
-        }
         tryUpdateTimestamp();
 
         if (lowestSequenceId == -1L) {
@@ -174,6 +151,19 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         return isBatchFull();
+    }
+
+    /**
+     * Adds a message whose entry-bucket hash has already been computed, avoiding a second hash
+     * calculation when the send operation is created.
+     */
+    boolean add(MessageImpl<?> msg, SendCallback callback, int entryBucketHash) {
+        boolean isBatchFull = add(msg, callback);
+        if (!isEmpty()) {
+            minEntryBucketHash = Math.min(minEntryBucketHash, entryBucketHash);
+            maxEntryBucketHash = Math.max(maxEntryBucketHash, entryBucketHash);
+        }
+        return isBatchFull;
     }
 
     protected ByteBuf getCompressedBatchMetadataAndPayload() {

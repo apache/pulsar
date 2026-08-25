@@ -24,7 +24,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBufAllocator;
@@ -33,7 +32,6 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -147,27 +145,7 @@ public class BatchMessageContainerImplTest {
 
     @Test
     public void testMessagesSize() throws Exception {
-        ProducerImpl<?> producer = mock(ProducerImpl.class);
-
-        final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
-        producerConfigurationData.setCompressionType(CompressionType.NONE);
-        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
-        ConnectionPool connectionPool = mock(ConnectionPool.class);
-        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
-        when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
-        try {
-            Field clientFiled = HandlerState.class.getDeclaredField("client");
-            clientFiled.setAccessible(true);
-            clientFiled.set(producer, pulsarClient);
-        } catch (Exception e){
-            fail(e.getMessage());
-        }
-
-        ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
-
-        when(producer.getConfiguration()).thenReturn(producerConfigurationData);
-        when(producer.encryptMessage(any(), any())).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(payload));
+        ProducerImpl<?> producer = createTestProducer();
 
         final int initNum = 32;
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
@@ -184,49 +162,30 @@ public class BatchMessageContainerImplTest {
     }
 
     @Test
-    public void testEntryBucketHashRangeIsMaintainedAndReset() {
-        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
-        batchMessageContainer.setEntryBucketHashStampingEnabled(true);
-
-        List<MessageImpl<?>> messages = new ArrayList<>();
+    public void testEntryBucketHashRangeIsStampedWhenCreatingSendOperation() throws Exception {
+        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(createTestProducer());
+        ArrayList<MessageImpl<?>> messages = new ArrayList<>();
         try {
-            messages.add(createMessage(1));
-            messages.add(createMessage(2));
-            messages.add(createMessage(3));
-            batchMessageContainer.add(messages.get(0), null, 0x3000);
-            batchMessageContainer.add(messages.get(1), null, 0x1000);
-            batchMessageContainer.add(messages.get(2), null, 0x2000);
-
-            batchMessageContainer.stampEntryBucketRange();
-            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x1000);
+            MessageImpl<?> singleMessage = createMessage(1);
+            messages.add(singleMessage);
+            batchMessageContainer.add(singleMessage, null, 0x3000);
+            batchMessageContainer.createOpSendMsg();
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x3000);
             assertEquals(batchMessageContainer.messageMetadata.getEntryHashMax(), 0x3000);
 
-            batchMessageContainer.discard(null);
-            MessageImpl<?> message = createMessage(4);
-            messages.add(message);
-            batchMessageContainer.add(message, null, 0x2000);
-            batchMessageContainer.stampEntryBucketRange();
-            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x2000);
+            batchMessageContainer.clear();
+            MessageImpl<?> firstMessage = createMessage(2);
+            MessageImpl<?> secondMessage = createMessage(3);
+            MessageImpl<?> thirdMessage = createMessage(4);
+            messages.add(firstMessage);
+            messages.add(secondMessage);
+            messages.add(thirdMessage);
+            batchMessageContainer.add(firstMessage, null, 0x2000);
+            batchMessageContainer.add(secondMessage, null, 0x1000);
+            batchMessageContainer.add(thirdMessage, null, 0x1800);
+            batchMessageContainer.createOpSendMsg();
+            assertEquals(batchMessageContainer.messageMetadata.getEntryHashMin(), 0x1000);
             assertEquals(batchMessageContainer.messageMetadata.getEntryHashMax(), 0x2000);
-        } finally {
-            batchMessageContainer.discard(null);
-            messages.forEach(ReferenceCountUtil::safeRelease);
-        }
-    }
-
-    @Test
-    public void testEntryBucketHashStampingCanBeDisabled() {
-        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
-        batchMessageContainer.setEntryBucketHashStampingEnabled(false);
-
-        List<MessageImpl<?>> messages = new ArrayList<>();
-        try {
-            messages.add(createMessage(1));
-            batchMessageContainer.add(messages.get(0), null, 0x1000);
-            batchMessageContainer.stampEntryBucketRange();
-
-            assertFalse(batchMessageContainer.messageMetadata.hasEntryHashMin());
-            assertFalse(batchMessageContainer.messageMetadata.hasEntryHashMax());
         } finally {
             batchMessageContainer.discard(null);
             messages.forEach(ReferenceCountUtil::safeRelease);
@@ -242,16 +201,27 @@ public class BatchMessageContainerImplTest {
         return MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
     }
 
+    private ProducerImpl<?> createTestProducer() throws Exception {
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        producerConfigurationData.setCompressionType(CompressionType.NONE);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.getCnxPool()).thenReturn(mock(ConnectionPool.class));
+        when(pulsarClient.getMemoryLimitController()).thenReturn(mock(MemoryLimitController.class));
+        Field clientField = HandlerState.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+        clientField.set(producer, pulsarClient);
+        when(producer.getConfiguration()).thenReturn(producerConfigurationData);
+        when(producer.encryptMessage(any(), any())).thenAnswer(__ -> ByteBufAllocator.DEFAULT.buffer()
+                .writeBytes("payload".getBytes(StandardCharsets.UTF_8)));
+        return producer;
+    }
+
     private void addMessagesAndCreateOpSendMsg(BatchMessageContainerImpl batchMessageContainer, int num)
             throws Exception{
         ArrayList<MessageImpl<?>> messages = new ArrayList<>();
         for (int i = 0; i < num; ++i) {
-            MessageMetadata messageMetadata = new MessageMetadata();
-            messageMetadata.setSequenceId(i);
-            messageMetadata.setProducerName("producer");
-            messageMetadata.setPublishTime(System.currentTimeMillis());
-            ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
-            MessageImpl<?> message = MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+            MessageImpl<?> message = createMessage(i);
             messages.add(message);
             batchMessageContainer.add(message, null);
         }
