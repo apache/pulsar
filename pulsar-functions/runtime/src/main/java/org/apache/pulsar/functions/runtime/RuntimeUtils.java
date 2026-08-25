@@ -359,8 +359,8 @@ public class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
-            // Enable the JUL-to-Log4j2 bridge so that JUL records (e.g. from gRPC, Guava)
-            // are routed through Log4j2 in function instance JVMs.
+            // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+            // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
             args.add("-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager");
             // Use a single LoggerContext for the function process. The default
             // ClassLoaderContextSelector creates separate contexts per classloader,

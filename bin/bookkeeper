@@ -196,7 +196,8 @@ OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 # Disable ipv6 as it can cause issues
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
-# Enable JUL-to-Log4j2 bridge so that JUL records are routed through Log4j2
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
 OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 # Required to allow sun.misc.Unsafe on JDK 24 without warnings
 # Also required for enabling unsafe memory access for Netty since 4.1.121.Final
