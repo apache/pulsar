@@ -588,6 +588,7 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+
   def get_dead_letter_policy(self, consumer_type):
     """Build the consumer dead letter policy from FunctionDetails.retryDetails.
 
