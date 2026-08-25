@@ -156,6 +156,10 @@ public class PulsarClientImpl implements PulsarClient {
     private final Object tlsFactoryRebuildLock = new Object();
     private volatile boolean clientTlsFactoryRebuildable;
     private volatile boolean clientComposedTlsFactory;
+    // PIP-478: whether setupClientTlsFactory() got as far as putting a resolved factory in the slot, which is
+    // what makes it this client's to close on shutdown. See the assignment for why a failed resolution must
+    // not count.
+    private volatile boolean ownsTlsFactory;
     private final List<PulsarTlsFactory> supersededTlsFactories = new CopyOnWriteArrayList<>();
 
     // PIP-478: a stable id for the owning client (logging correlation), plus a small bounded,
@@ -508,6 +512,13 @@ public class PulsarClientImpl implements PulsarClient {
             var factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor, executor,
                     conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop());
             conf.setTlsFactory(factory);
+            // Only now is the factory in the slot this client's to close. Resolution that throws has already
+            // closed whatever it initialized (the fail-fast probe's handler), and for an ADOPTED factory the
+            // slot still holds that instance — so without this the constructor's failure path would reach
+            // shutdown() and close the caller's factory a second time, which PulsarTlsFactory.close()
+            // forbids ("called at most once"). The composed path is unaffected either way: the slot is
+            // assigned above, after resolution returned.
+            this.ownsTlsFactory = true;
         } catch (Exception e) {
             throw new PulsarClientException.InvalidConfigurationException(e);
         }
@@ -608,6 +619,10 @@ public class PulsarClientImpl implements PulsarClient {
                 return;
             }
             conf.setTlsFactory(rebuilt);
+            // This client composed it, so it closes it — including on the arm where construction needed no
+            // factory at all (a plaintext client whose failover target introduces OAuth2 IdP material) and
+            // setupClientTlsFactory never set this.
+            this.ownsTlsFactory = true;
             cnxPool.updateClientTlsFactory(rebuilt);
             if (previous != null) {
                 supersededTlsFactories.add(previous);
@@ -1495,7 +1510,7 @@ public class PulsarClientImpl implements PulsarClient {
             // is a hand-over: PulsarTlsFactory.close() says a factory supplied to the v5 builder "is adopted
             // and closed with the client", tlsFactory(...) says the same on the public builder, and
             // resolveClientTlsFactory already closes an adopted instance when the fail-fast probe fails.
-            if (conf != null && conf.getTlsFactory() != null) {
+            if (conf != null && conf.getTlsFactory() != null && ownsTlsFactory) {
                 try {
                     conf.getTlsFactory().close();
                 } catch (Throwable t) {
@@ -1516,8 +1531,9 @@ public class PulsarClientImpl implements PulsarClient {
                     // statement of which factory this configuration uses, so clearing it would silently
                     // reroute the next client built from that configuration onto a factory composed from the
                     // tls* fields — different trust material, no error. Leaving the closed instance means
-                    // such a reuse hits a closed factory instead. No builder can get there: the v5 builder,
-                    // the only one with a tlsFactory(...) seam, refuses to hand the same instance twice.
+                    // such a reuse hits a closed factory instead. No second live client can get there: the
+                    // v5 builder, the only one with a tlsFactory(...) seam, refuses to hand an instance it
+                    // has already handed to a client to another one.
                     if (clientComposedTlsFactory) {
                         conf.setTlsFactory(null);
                     }

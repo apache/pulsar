@@ -20,10 +20,17 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import javax.net.ssl.SSLContext;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
 import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
@@ -44,6 +51,62 @@ public class ClientBuilderReuseTlsFactoryTest {
         return PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://localhost:6651")
                 .allowTlsInsecureConnection(true);
+    }
+
+    /**
+     * PIP-478: and a build that fails must close an adopted factory exactly once.
+     *
+     * <p>{@code PulsarTlsFactory.close()} is "called at most once", but a failed build closed a factory the
+     * application had supplied <em>twice</em>: once in {@code resolveClientTlsFactory}'s fail-fast probe
+     * handler, which releases what it initialized, and again when the constructor's failure path ran
+     * {@code shutdown()} — which closes {@code conf.getTlsFactory()}, and for an adopted factory that slot
+     * still holds the instance the probe handler just closed. A factory that releases a real resource (an HSM
+     * session, a native context) is entitled to treat the second call as an error.
+     */
+    @Test
+    public void aFailedBuildClosesAnAdoptedFactoryOnlyOnce() {
+        CountingTlsFactory adopted = new CountingTlsFactory();
+        ClientBuilderImpl builder = (ClientBuilderImpl) tlsBuilder();
+        // How a server component hands a factory in (PulsarService/WorkerUtils reach the same seam).
+        builder.getClientConfigurationData().setTlsFactory(adopted);
+
+        assertThatThrownBy(builder::build)
+                .as("the factory cannot serve CLIENT_DEFAULT, so the fail-fast probe fails the build")
+                .isNotNull();
+
+        assertThat(adopted.initialized).as("it was initialized once").hasValue(1);
+        assertThat(adopted.closed).as("and released once — not once per closer on the failure path")
+                .hasValue(1);
+    }
+
+    /** Initializes, counts, and refuses every purpose, so the fail-fast probe fails the build. */
+    private static final class CountingTlsFactory implements PulsarTlsFactory {
+
+        private final AtomicInteger initialized = new AtomicInteger();
+        private final AtomicInteger closed = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
+            initialized.incrementAndGet();
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass) {
+            return CompletableFuture.failedFuture(new IllegalStateException("cannot serve " + purpose));
+        }
+
+        @Override
+        public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(TlsPurpose purpose,
+                Class<T> instanceClass, Consumer<T> onLoadOrReload) {
+            return createInstance(purpose, instanceClass);
+        }
+
+        @Override
+        public void close() {
+            closed.incrementAndGet();
+        }
     }
 
     @Test
