@@ -69,9 +69,10 @@ import org.testng.annotations.Test;
  */
 public class OAuth2IdpTlsFrameworkClientTest {
 
-    // The shared self-signed broker.keystore.jks carries no SAN, so it fails modern hostname verification (which
-    // the folded CLIENT_OAUTH2 policy keeps on, matching v4). Build the WireMock server keystore from
-    // broker.cert.pem instead — it has SAN:localhost and chains to ca.cert.pem — so both trust and hostname pass.
+    // The shared broker.keystore.jks is self-signed (issuer == subject), so it does not chain to ca.cert.pem and
+    // fails trust verification — its SAN is fine (DNS:localhost, IP:127.0.0.1). Build the WireMock server
+    // keystore from broker.cert.pem instead — same SAN, but chained to ca.cert.pem — so both trust and hostname
+    // verification pass (the folded CLIENT_OAUTH2 policy keeps hostname verification on, matching v4).
     private static final String BROKER_CERT = resource("certificate-authority/server-keys/broker.cert.pem");
     private static final String BROKER_KEY = resource("certificate-authority/server-keys/broker.key-pk8.pem");
     private static final String CA_CERT = resource("certificate-authority/certs/ca.cert.pem");

@@ -16,15 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.tls;
-
 /**
- * Domain types differentiated by Mozilla Public Suffix List.
- *
- * @since 4.5
+ * v5-native implementation of the built-in Athenz authentication plugin (PIP-478). The v4
+ * {@code AuthenticationAthenz} class in the parent package is a thin shim that keeps its verbatim
+ * synchronous surface and drives {@link org.apache.pulsar.client.impl.auth.v5.AthenzAuthenticationV5} on
+ * the async binary path via the shared {@code V5BinaryAuthenticationDriver}.
  */
-public enum DomainType {
-
-    UNKNOWN, ICANN, PRIVATE
-
-}
+package org.apache.pulsar.client.impl.auth.v5;

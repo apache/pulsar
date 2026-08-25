@@ -46,6 +46,13 @@ dependencies {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveFileName.set("java-instance.jar")
     mergeServiceFiles()
+    // See pulsar.shadow-conventions: the default EXCLUDE strategy drops duplicates of
+    // transformer-owned paths before the transformers can merge them.
+    val transformedPaths = listOf("META-INF/services/**", "META-INF/*.kotlin_module")
+    filesMatching(transformedPaths) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    inputs.property("transformedPathsDuplicatesStrategy", "$transformedPaths=INCLUDE")
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 

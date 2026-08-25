@@ -609,17 +609,9 @@ public class PulsarClientImpl implements PulsarClient {
         return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
-        ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
-        if (!memoryLimitController.isMemoryLimited()) {
-            // set default limits for producers when memory limit controller is disabled
-            producerBuilder.maxPendingMessages(NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES);
-            producerBuilder.maxPendingMessagesAcrossPartitions(
-                    NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
-        }
-        return producerBuilder;
+        return new ProducerBuilderImpl<>(this, schema);
     }
 
     @Override
@@ -712,6 +704,85 @@ public class PulsarClientImpl implements PulsarClient {
             return createProducerAsync(topic, conf, schema, interceptors);
         }
 
+    }
+
+    /**
+     * Apply the default pending-message limits a producer gets when this client has no memory limit.
+     *
+     * <p>The client memory limit is a producer's primary backpressure: it bounds the memory held by
+     * messages that have been queued but not yet acknowledged by the broker. When it is disabled
+     * there is nothing left to bound that queue, so producers fall back to the pre-PIP-120
+     * message-count defaults rather than buffering without any limit at all.
+     *
+     * <p>These are defaults, not a floor. A limit the application configured is always kept — including
+     * an explicit {@code 0}, which is how an application asks for no message-count limit at all. Only a
+     * limit that was never configured is filled in, which is why this reads the markers the
+     * configuration carries rather than inferring it from the values: {@code 0} is both the unset value
+     * and a meaningful explicit one.
+     *
+     * <p>What is filled in here stays marked as unconfigured, so on a partitioned topic
+     * {@link PartitionedProducerImpl} divides only a budget the application actually asked for. A
+     * filled-in budget never lowers a per-producer limit that was asked for.
+     *
+     * <p>Called by {@link ProducerBuilderImpl}. The V5 client builds its segment producers through
+     * {@link #createSegmentProducerAsync} instead, and deliberately gets no defaults here: it exposes
+     * no pending-message setting at all, so its client memory limit is the only backpressure it has and
+     * the only thing an application can turn off.
+     *
+     * @param conf the requested producer configuration, carrying the markers that say which limits the
+     *             application configured
+     * @return the configuration to create the producer with; a resolved copy when a default applies,
+     *         otherwise {@code conf} unchanged
+     */
+    public ProducerConfigurationData applyNoMemoryLimitProducerDefaults(ProducerConfigurationData conf) {
+        // A limit that is already positive was configured by definition, whichever way the
+        // configuration was populated. The markers only tell an explicit 0 apart from an unset one.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || conf.getMaxPendingMessages() > 0;
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || conf.getMaxPendingMessagesAcrossPartitions() > 0;
+        if ((maxPendingMessagesConfigured && maxPendingMessagesAcrossPartitionsConfigured)
+                || memoryLimitController.isMemoryLimited()) {
+            return conf;
+        }
+        int maxPendingMessages = maxPendingMessagesConfigured
+                ? conf.getMaxPendingMessages()
+                : NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES;
+        final int maxPendingMessagesAcrossPartitions;
+        if (maxPendingMessagesAcrossPartitionsConfigured) {
+            maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
+        } else if (maxPendingMessages == 0) {
+            // The application asked for no per-producer limit at all, so there is no queue for a
+            // budget to bound. Leaving it unset keeps the resolved configuration honest about that.
+            maxPendingMessagesAcrossPartitions = 0;
+        } else {
+            maxPendingMessagesAcrossPartitions =
+                    Math.max(maxPendingMessages, NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        }
+        if (maxPendingMessagesAcrossPartitions > 0) {
+            // The across-partitions limit is a budget shared by every partition, so a single producer's
+            // queue can never exceed it. A configured 0 means there is no such budget and is left
+            // alone, rather than capping every producer at zero.
+            maxPendingMessages = Math.min(maxPendingMessages, maxPendingMessagesAcrossPartitions);
+        }
+
+        // Resolve on a copy: the builder hands over its own configuration instance, so filling in a
+        // limit here would otherwise leak into the next producer built from the same builder.
+        ProducerConfigurationData resolved = conf.clone();
+        resolved.setMaxPendingMessages(maxPendingMessages);
+        resolved.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        // The setters mark whatever they are given as configured, so restore the markers: what is
+        // filled in here is a default, and a partitioned producer still has to be able to tell it apart
+        // from a limit the application asked for, so that a budget it did ask for is the one that gets
+        // divided.
+        resolved.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        resolved.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
+        log.debug().attr("topic", conf.getTopicName())
+                .attr("maxPendingMessages", maxPendingMessages)
+                .attr("maxPendingMessagesAcrossPartitions", maxPendingMessagesAcrossPartitions)
+                .log("Client memory limit is disabled, applying default producer pending message limits");
+        return resolved;
     }
 
     @SuppressWarnings("unchecked")
