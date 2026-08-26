@@ -372,12 +372,7 @@ class PythonInstance(object):
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
 
-      batch_type = pulsar.BatchingType.Default
-      if self.instance_config.function_details.sink.producerSpec.batchBuilder != None and \
-            len(self.instance_config.function_details.sink.producerSpec.batchBuilder) > 0:
-        batch_builder = self.instance_config.function_details.sink.producerSpec.batchBuilder
-        if batch_builder == "KEY_BASED":
-          batch_type = pulsar.BatchingType.KeyBased
+      producer_config = util.producer_config_from_function_details(self.instance_config.function_details)
 
       self.output_schema = self.get_schema(self.instance_config.function_details.sink.schemaType,
                                            self.instance_config.function_details.sink.typeClassName,
@@ -403,9 +398,6 @@ class PythonInstance(object):
         schema=self.output_schema,
         producer_name=producer_name,
         block_if_queue_full=True,
-        batching_enabled=True,
-        batching_type=batch_type,
-        batching_max_publish_delay_ms=10,
         compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
@@ -417,7 +409,9 @@ class PythonInstance(object):
                         self.instance_config.function_details.tenant,
                         self.instance_config.function_details.namespace,
                         self.instance_config.function_details.name),
-                        self.instance_config.instance_id)
+                        self.instance_config.instance_id),
+        # batching / pending-queue settings configured on the function's producerSpec
+        **producer_config
       )
 
   def setup_state(self):
