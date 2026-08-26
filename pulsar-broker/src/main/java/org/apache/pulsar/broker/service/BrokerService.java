@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.util.RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.client.util.RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.RateLimiter;
@@ -901,7 +902,8 @@ public class BrokerService implements Closeable {
                     .attr("intervalSeconds", interval)
                     .log("Scheduling a thread to refresh subscription backlog age in background");
             subscriptionBacklogAgeChecker.scheduleAtFixedRateNonConcurrently(
-                    () -> refreshSubscriptionBacklogAge().join(), interval, interval, TimeUnit.SECONDS);
+                    catchingAndLoggingThrowables(() -> refreshSubscriptionBacklogAge().join()), interval, interval,
+                    TimeUnit.SECONDS);
         } else {
             log.info("Subscription backlog age monitoring is disabled");
         }
