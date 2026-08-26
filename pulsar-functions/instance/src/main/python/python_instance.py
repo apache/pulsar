@@ -150,6 +150,8 @@ class PythonInstance(object):
     elif self.instance_config.function_details.retainKeyOrdering:
       mode = pulsar._pulsar.ConsumerType.KeyShared
 
+    nack_args = self.get_negative_ack_args()
+
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
@@ -184,7 +186,8 @@ class PythonInstance(object):
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
         initial_position=position,
         properties=properties,
-        dead_letter_policy=dead_letter_policy
+        dead_letter_policy=dead_letter_policy,
+        **nack_args
       )
 
     for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
@@ -211,6 +214,7 @@ class PythonInstance(object):
         "crypto_key_reader": crypto_key_reader,
         "dead_letter_policy": dead_letter_policy
       }
+      consumer_args.update(nack_args)
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
 
@@ -376,12 +380,7 @@ class PythonInstance(object):
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
 
-      batch_type = pulsar.BatchingType.Default
-      if self.instance_config.function_details.sink.producerSpec.batchBuilder != None and \
-            len(self.instance_config.function_details.sink.producerSpec.batchBuilder) > 0:
-        batch_builder = self.instance_config.function_details.sink.producerSpec.batchBuilder
-        if batch_builder == "KEY_BASED":
-          batch_type = pulsar.BatchingType.KeyBased
+      producer_config = util.producer_config_from_function_details(self.instance_config.function_details)
 
       self.output_schema = self.get_schema(self.instance_config.function_details.sink.schemaType,
                                            self.instance_config.function_details.sink.typeClassName,
@@ -407,9 +406,6 @@ class PythonInstance(object):
         schema=self.output_schema,
         producer_name=producer_name,
         block_if_queue_full=True,
-        batching_enabled=True,
-        batching_type=batch_type,
-        batching_max_publish_delay_ms=10,
         compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
@@ -421,7 +417,9 @@ class PythonInstance(object):
                         self.instance_config.function_details.tenant,
                         self.instance_config.function_details.namespace,
                         self.instance_config.function_details.name),
-                        self.instance_config.instance_id)
+                        self.instance_config.instance_id),
+        # batching / pending-queue settings configured on the function's producerSpec
+        **producer_config
       )
 
   def setup_state(self):
@@ -588,6 +586,25 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+  def get_negative_ack_args(self):
+    """Build the negative-ack redelivery delay argument for Client.subscribe().
+
+    Returns a dict to splat into the subscribe() call: either empty, or carrying
+    negative_ack_redelivery_delay_ms.
+
+    SourceSpec.negativeAckRedeliveryDelayMs is a proto3 scalar with no presence, so an unset field
+    reads as 0. Only a positive value is forwarded, leaving the client default (60s) in place
+    otherwise - the same guard the Java runtime applies in JavaInstanceRunnable.
+
+    The argument is omitted rather than passed as None because subscribe() validates it with
+    _check_type(int, ...) rather than _check_type_or_none, so None would fail for every function
+    that does not configure it.
+    """
+    delay_ms = self.instance_config.function_details.source.negativeAckRedeliveryDelayMs
+    if delay_ms <= 0:
+      return {}
+
+    return {"negative_ack_redelivery_delay_ms": delay_ms}
 
   def get_dead_letter_policy(self):
     """Build the consumer dead letter policy from FunctionDetails.retryDetails.
