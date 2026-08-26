@@ -264,6 +264,12 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
+    // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
+    // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
+    // application hands over a class: building a schema from a class trusts it and everything the
+    // derived schema references. Granting the whole Pulsar namespace here would give every test a
+    // safety net that production does not have, so a path that fails to declare something would pass
+    // in CI and fail for users.
     if (testJavaMajorVersion >= 24) {
         // Netty loads its native libraries (epoll, io_uring, tcnative) through
         // java.lang.System::loadLibrary, which is a restricted method as of Java 24. Without this
