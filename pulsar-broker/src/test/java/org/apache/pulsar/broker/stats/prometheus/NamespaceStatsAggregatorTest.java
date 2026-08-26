@@ -100,7 +100,8 @@ public class NamespaceStatsAggregatorTest {
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
         when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
         when(topic.getManagedLedger()).thenReturn(ml);
-        when(topic.getBacklogQuota(Mockito.any())).thenReturn(Mockito.mock(BacklogQuota.class));
+        BacklogQuota backlogQuota = Mockito.mock(BacklogQuota.class);
+        when(topic.getBacklogQuota(Mockito.any())).thenReturn(backlogQuota);
         PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
         when(topic.getPersistentTopicMetrics()).thenReturn(persistentTopicMetrics);
         topicsMap.put("my-topic", topic);
@@ -108,7 +109,10 @@ public class NamespaceStatsAggregatorTest {
         PrometheusMetricStreams metricStreams = Mockito.spy(new PrometheusMetricStreams());
 
         // Populate subscriptions stats
+        ServiceConfiguration config = pulsar.getConfiguration();
+        doReturn(true).when(config).isExposeSubscriptionBacklogAgeInPrometheus();
         subStats.blockedSubscriptionOnUnackedMsgs = true;
+        subStats.oldestBacklogMessageAgeSeconds = 123;
         consumerStats.blockedConsumerOnUnackedMsgs = false; // should not affect blockedSubscriptionOnUnackedMsgs
         consumerStats.unackedMessages = 1;
         consumerStats.msgRateRedeliver = 0.7;
@@ -124,6 +128,7 @@ public class NamespaceStatsAggregatorTest {
 
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_msg_rate_redeliver", 0.7);
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_unacked_messages", 1L);
+        verifySubscriptionMetric(metricStreams, "pulsar_subscription_storage_backlog_age_seconds", 123L);
     }
 
     private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {

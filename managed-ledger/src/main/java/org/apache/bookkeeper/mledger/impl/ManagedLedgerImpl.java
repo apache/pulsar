@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -324,7 +325,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Getter
     private final OrderedScheduler scheduledExecutor;
 
-    @Getter
     protected final ExecutorService executor;
 
     @Getter
@@ -333,6 +333,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Getter
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
+
+    public Executor getExecutor() {
+        return executor;
+    }
 
     private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "readOpCount");
