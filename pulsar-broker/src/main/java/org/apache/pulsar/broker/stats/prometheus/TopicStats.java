@@ -147,7 +147,8 @@ class TopicStats {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
                                        Optional<CompactorMXBean> compactorMXBean, String cluster, String namespace,
-                                       String topic, boolean splitTopicAndPartitionIndexLabel) {
+                                       String topic, boolean splitTopicAndPartitionIndexLabel,
+                                       boolean exposeSubscriptionBacklogAge) {
         writeMetric(stream, "pulsar_subscriptions_count", stats.subscriptionsCount,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_producers_count", stats.producersCount,
@@ -308,6 +309,10 @@ class TopicStats {
                     cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_back_log_no_delayed",
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            if (exposeSubscriptionBacklogAge && subsStats.backlogAgeSeconds >= 0) {
+                writeSubscriptionMetric(stream, "pulsar_subscription_storage_backlog_age_seconds",
+                        subsStats.backlogAgeSeconds, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            }
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                     subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_in_replay",

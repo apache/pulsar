@@ -3495,6 +3495,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "Enable computing the age of the oldest unacknowledged message for each subscription and exposing "
+                    + "it through topic stats and Prometheus.\n"
+                    + " When disabled, the broker skips computing per-subscription backlog age and "
+                    + "SubscriptionStats.oldestBacklogMessageAgeSeconds remains -1. Default is false."
+    )
+    private boolean exposeSubscriptionBacklogAgeInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Enable splitting topic and partition label in Prometheus.\n"
                     + " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n"
                     + " another one is partition index, e.g. (topic=xxx, partition=0).\n"
