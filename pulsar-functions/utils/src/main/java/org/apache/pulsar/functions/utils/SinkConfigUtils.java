@@ -167,6 +167,9 @@ public class SinkConfigUtils {
                 if (spec.getConsumerProperties() != null) {
                     spec.getConsumerProperties().forEach(bldr::putConsumerProperties);
                 }
+                if (spec.getSchemaProperties() != null) {
+                    spec.getSchemaProperties().forEach(bldr::putSchemaProperties);
+                }
                 bldr.setPoolMessages(spec.isPoolMessages());
             });
         }
@@ -309,6 +312,9 @@ public class SinkConfigUtils {
             Map<String, String> consumerProps = new HashMap<>();
             input.forEachConsumerProperties(consumerProps::put);
             consumerConfig.setConsumerProperties(consumerProps);
+            Map<String, String> schemaProps = new HashMap<>();
+            input.forEachSchemaProperties(schemaProps::put);
+            consumerConfig.setSchemaProperties(schemaProps);
             consumerConfig.setPoolMessages(input.isPoolMessages());
             consumerConfigMap.put(topicName, consumerConfig);
             inputs.add(topicName);

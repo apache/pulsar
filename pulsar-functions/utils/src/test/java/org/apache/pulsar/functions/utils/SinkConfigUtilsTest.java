@@ -663,6 +663,29 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
+    public void testInputSpecSchemaPropertiesRoundTrip() throws IOException {
+        SinkConfig sinkConfig = createSinkConfig();
+        Map<String, String> schemaProperties = new HashMap<>();
+        schemaProperties.put("__alwaysAllowNull", "true");
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(true)
+                .serdeClassName("test-serde")
+                .schemaProperties(schemaProperties)
+                .build());
+        sinkConfig.setInputSpecs(inputSpecs);
+
+        FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertEquals("true",
+                functionDetails.getSource().getInputSpecs("test-input").getSchemaProperties("__alwaysAllowNull"));
+
+        SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(schemaProperties,
+                convertedConfig.getInputSpecs().get("test-input").getSchemaProperties());
+    }
+
+    @Test
     public void testAllowDisableSinkTimeout() {
         SinkConfig sinkConfig = createSinkConfig();
         sinkConfig.setInputSpecs(null);
