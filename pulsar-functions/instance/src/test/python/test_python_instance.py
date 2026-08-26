@@ -157,6 +157,11 @@ class TestDeadLetterPolicy(unittest.TestCase):
   The Java runtime applies these in JavaInstanceRunnable (guarded on hasRetryDetails) and
   PulsarSource (maxMessageRetries >= 0, deadLetterTopic only when non-empty). The Python runtime
   previously ignored retryDetails entirely.
+
+  The configured redelivery count is passed straight through, matching Java: PulsarSource builds a
+  policy for any value >= 0 and ConsumerBuilderImpl.deadLetterPolicy then rejects anything below 1.
+  Whether a subscription type can act on the policy is a client concern, so the runtime does not
+  gate on it.
   """
 
   def _instance(self, max_message_retries=None, dead_letter_topic=None):
@@ -172,13 +177,12 @@ class TestDeadLetterPolicy(unittest.TestCase):
 
   def test_no_retry_details_means_no_policy(self):
     instance = self._instance()
-    self.assertIsNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+    self.assertIsNone(instance.get_dead_letter_policy())
 
   def test_policy_built_from_retry_details(self):
     instance = self._instance(max_message_retries=3,
                               dead_letter_topic="persistent://public/default/my-dlq")
-    policy = instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared)
+    policy = instance.get_dead_letter_policy()
 
     self.assertIsNotNone(policy)
     self.assertEqual(3, policy.max_redeliver_count)
@@ -188,38 +192,33 @@ class TestDeadLetterPolicy(unittest.TestCase):
     # The Java runtime only sets the topic when non-empty, leaving the client to derive
     # "<topic>-<subscription>-DLQ". Passing "" through would override that with an invalid name.
     instance = self._instance(max_message_retries=2)
-    policy = instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared)
+    policy = instance.get_dead_letter_policy()
 
     self.assertIsNotNone(policy)
     self.assertEqual(2, policy.max_redeliver_count)
 
-  def test_zero_retries_attaches_no_policy(self):
-    # Java accepts maxMessageRetries >= 0, but ConsumerDeadLetterPolicy rejects a redelivery count
-    # below 1, so zero cannot be expressed here. It must not raise and take the instance down.
+  def test_zero_retries_fails_fast(self):
+    # Java does not start with this value either: PulsarSource forwards 0 and
+    # ConsumerBuilderImpl.deadLetterPolicy rejects "MaxRedeliverCount must be > 0". Returning None
+    # here instead would let localrun - which bypasses validateNonJavaFunction - start with retries
+    # silently disabled while Java fails.
     instance = self._instance(max_message_retries=0,
                               dead_letter_topic="persistent://public/default/my-dlq")
-    self.assertIsNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+    with self.assertRaises(ValueError):
+      instance.get_dead_letter_policy()
 
-  def test_negative_retries_attaches_no_policy(self):
+  def test_negative_retries_fails_fast(self):
     instance = self._instance(max_message_retries=-1)
-    self.assertIsNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Shared))
+    with self.assertRaises(ValueError):
+      instance.get_dead_letter_policy()
 
-  def test_key_shared_subscription_gets_policy(self):
-    instance = self._instance(max_message_retries=3)
-    self.assertIsNotNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.KeyShared))
-
-  def test_failover_subscription_gets_no_policy(self):
-    # A dead letter policy has no effect on Failover, which retainOrdering and EFFECTIVELY_ONCE
-    # both select. Returning None keeps that explicit rather than silently ineffective.
+  def test_policy_is_not_gated_on_subscription_type(self):
+    # Subscription-type support is a client concern; the Java runtime always forwards a configured
+    # policy. Gating here would add a second support matrix that can drift from the client.
     instance = self._instance(max_message_retries=3,
                               dead_letter_topic="persistent://public/default/my-dlq")
-    self.assertIsNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Failover))
+    policy = instance.get_dead_letter_policy()
 
-  def test_exclusive_subscription_gets_no_policy(self):
-    instance = self._instance(max_message_retries=3)
-    self.assertIsNone(
-      instance.get_dead_letter_policy(pulsar._pulsar.ConsumerType.Exclusive))
+    self.assertIsNotNone(policy)
+    self.assertEqual(3, policy.max_redeliver_count)
+
