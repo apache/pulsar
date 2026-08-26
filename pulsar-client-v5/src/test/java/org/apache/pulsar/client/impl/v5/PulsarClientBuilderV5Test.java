@@ -382,14 +382,15 @@ public class PulsarClientBuilderV5Test {
     /**
      * PIP-478: cleaning up after a failed {@code initialize()} must not lose the reason the build failed.
      *
-     * <p>{@code closeQuietly} attaches a close failure to the error being propagated. That is safe while the
-     * error is always one the framework minted — which it was, when only the fail-fast probe was guarded, all
-     * three of whose throws are {@code new}. Cleaning up after initialization broke that: {@code
-     * initializeBlocking} unwraps the {@code ExecutionException} and rethrows the factory's <em>own</em>
-     * exception instance, so a factory that latches one exception and hands it back from both
-     * {@code initialize()} and {@code close()} produced {@code X.addSuppressed(X)} — {@code
-     * IllegalArgumentException("Self-suppression not permitted")}, which escaped the cleanup and replaced the
-     * real failure. The caller then saw an exception unrelated to what actually went wrong.
+     * <p>{@code closeQuietly} attaches a close failure to the error being propagated, which breaks when a
+     * factory reuses one exception object as both — a latched "why I am unusable" failure handed back from
+     * {@code initialize()} and again from {@code close()}. That produces {@code X.addSuppressed(X)}, and
+     * {@code addSuppressed} rejects self-suppression: the resulting {@code
+     * IllegalArgumentException("Self-suppression not permitted")} escapes the cleanup and replaces the real
+     * failure, so the caller is told about an exception it did not cause and cannot act on.
+     *
+     * <p>Pinned on the identity rather than on any particular call, deliberately: whether a given path
+     * preserves the factory's own instance or wraps it is incidental and has already changed once.
      */
     @Test
     public void aFactoryThatFailsInitializeAndCloseWithOneExceptionKeepsTheRealFailure() throws Exception {

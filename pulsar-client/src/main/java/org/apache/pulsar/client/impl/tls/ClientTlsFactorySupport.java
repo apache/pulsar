@@ -664,11 +664,14 @@ public final class ClientTlsFactorySupport {
             // construct propagates that IllegalArgumentException itself. This guard is therefore not
             // redundant with try-with-resources and must not be deleted as such.
             //
-            // Reachable because a factory can hand the same throwable back twice: initializeBlocking unwraps
-            // the ExecutionException and rethrows the factory's OWN exception instance, so one latched
-            // failure out of both initialize() and close() is one object. The probe path can reach it too,
-            // but only through TlsHandle.dispose(), whose unchecked throwables propagate unwrapped —
-            // probe()'s own throws are all freshly minted.
+            // Reachable whenever a factory reuses one Throwable object as both the failure that aborts the
+            // build and the failure thrown from close() — latching a single "why I am unusable" exception
+            // is the obvious way to write that. Deliberately stated as the identity, not as a route: which
+            // operation failed, and whether anything between it and here happens to wrap the throwable on
+            // the way out, are incidental. Some paths preserve identity and some replace it, that split
+            // does not follow the SPI's own rules (a void method like TlsHandle.dispose() is not covered by
+            // CODING.md's no-synchronous-throw rule at all), and which paths do what has already changed
+            // once. The guard keys on the identity so none of that matters.
             if (closeFailure != failure) {
                 failure.addSuppressed(closeFailure);
             }
