@@ -57,6 +57,18 @@ public interface SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     long getEarliestMsgPublishTimeInBacklog();
 
+    /**
+     * Age of oldest unacknowledged message for this subscription, in seconds.
+     * <p>
+     * This is a best-effort cached value from the broker's periodic subscription backlog-age refresh. The value is
+     * {@code -1} when it is unknown, not applicable, the subscription has no backlog, or the broker has disabled
+     * subscription backlog-age computation.
+     * </p>
+     */
+    default long getOldestBacklogMessageAgeSeconds() {
+        return -1;
+    }
+
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();
 
