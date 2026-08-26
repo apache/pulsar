@@ -38,6 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Function;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -52,7 +54,7 @@ public class ProtobufSchemaTest {
             + "\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"doubleField\","
             + "\"type\":\"double\",\"default\":0.0},{\"name\":\"intField\",\"type\":\"int\","
             + "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\","
-            + "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"]},"
+            + "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"],\"default\":\"SHARED\"},"
             + "\"default\":\"SHARED\"},{\"name\":\"nestedField\","
             + "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\","
             + "\"fields\":[{\"name\":\"foo\",\"type\":{\"type\":\"string\","
@@ -135,7 +137,7 @@ public class ProtobufSchemaTest {
     }
 
     @Test
-    public void testSchema() {
+    public void testSchema() throws JSONException {
         ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
@@ -144,8 +146,7 @@ public class ProtobufSchemaTest {
         String schemaJson = new String(protobufSchema.getSchemaInfo().getSchema());
         Schema.Parser parser = new Schema.Parser();
         Schema schema = parser.parse(schemaJson);
-
-        Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
+        JSONAssert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON, false);
     }
 
     @Test
