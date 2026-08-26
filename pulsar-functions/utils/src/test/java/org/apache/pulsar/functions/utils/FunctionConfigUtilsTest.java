@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.GO;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -31,6 +32,7 @@ import com.google.protobuf.util.JsonFormat;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -742,5 +744,70 @@ public class FunctionConfigUtilsTest {
         Function.ProducerSpec producerSpec2 = FunctionConfigUtils.convertProducerConfigToProducerSpec(producerConfig);
         // then
         assertEquals(producerSpec2, producerSpec);
+    }
+
+    private static FunctionConfig minimalGoFunctionConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant("test-tenant");
+        functionConfig.setNamespace("test-namespace");
+        functionConfig.setName("test-function");
+        functionConfig.setInputs(Collections.singletonList("persistent://public/default/input"));
+        functionConfig.setRuntime(GO);
+        functionConfig.setGo("/path/to/function");
+        return functionConfig;
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainKeyOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        // The KeyShared subscription the Go runtime selects has to survive conversion, otherwise the
+        // instance never sees it.
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                Function.SubscriptionType.KEY_SHARED);
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                Function.SubscriptionType.FAILOVER);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Only one of retain ordering or retain key ordering can be set")
+    public void testGoFunctionRejectsBothOrderingModes() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "When effectively once processing guarantee is specified, retain Key ordering cannot be set")
+    public void testGoFunctionRejectsRetainKeyOrderingWithEffectivelyOnce() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+        functionConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionStillRejectsMessageRetries() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
     }
 }
