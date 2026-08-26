@@ -645,8 +645,9 @@ public final class ClientTlsFactorySupport {
     }
 
     /**
-     * Close a factory the framework initialized, or tried to, attaching any close failure to the original
-     * error so the cleanup problem is visible without displacing the reason the build failed.
+     * Close a factory the framework initialized, or tried to, attaching any <em>distinct</em> close failure
+     * to the original error so the cleanup problem is visible without displacing the reason the build failed.
+     * A close failure that is the original error itself is deliberately not attached — see below.
      *
      * @param factory the factory to release — initialized, or left half-built by a failed {@code initialize}
      * @param failure the failure being propagated
@@ -655,13 +656,19 @@ public final class ClientTlsFactorySupport {
         try {
             factory.close();
         } catch (Throwable closeFailure) {
-            // Identity-guarded, as try-with-resources generates: addSuppressed throws
-            // IllegalArgumentException("Self-suppression not permitted") when handed the throwable it is
-            // being attached to, and that would escape this method and replace the very failure it is
-            // supposed to preserve. Reachable since this also cleans up after a failed initialize():
-            // initializeBlocking unwraps the ExecutionException and rethrows the factory's OWN exception
-            // instance, so a factory that fails initialize() and close() with one latched exception hands
-            // the same object back twice. The probe path could not do this — it always mints a fresh one.
+            // Identity-guarded because addSuppressed rejects self-suppression — IllegalArgumentException
+            // ("Self-suppression not permitted"), and it validates the argument even when suppression is
+            // disabled — and that exception would escape this method and replace the very failure it is
+            // supposed to preserve. Deliberately STRICTER than try-with-resources, whose JLS 14.20.3.1
+            // translation calls addSuppressed unguarded (as does javac's lowering of it), so the language
+            // construct propagates that IllegalArgumentException itself. This guard is therefore not
+            // redundant with try-with-resources and must not be deleted as such.
+            //
+            // Reachable because a factory can hand the same throwable back twice: initializeBlocking unwraps
+            // the ExecutionException and rethrows the factory's OWN exception instance, so one latched
+            // failure out of both initialize() and close() is one object. The probe path can reach it too,
+            // but only through TlsHandle.dispose(), whose unchecked throwables propagate unwrapped —
+            // probe()'s own throws are all freshly minted.
             if (closeFailure != failure) {
                 failure.addSuppressed(closeFailure);
             }
