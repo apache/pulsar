@@ -149,3 +149,38 @@ class TestPropertiesForwarding(unittest.TestCase):
     self.assertNotIn("custom-key", kwargs['properties'])
     self.assertIn("__pfn_input_topic__", kwargs['properties'])
 
+class TestNegativeAckRedeliveryDelay(unittest.TestCase):
+  """Covers SourceSpec.negativeAckRedeliveryDelayMs reaching the consumer.
+
+  The runtime negatively acknowledges on failure but never configured the delay, so the client
+  default of 60s always applied. The Java runtime guards on > 0 in JavaInstanceRunnable.
+  """
+
+  def _instance(self, delay_ms=None):
+    function_details = Function_pb2.FunctionDetails()
+    function_details.sink.topic = "test_sink_topic"
+    if delay_ms is not None:
+      function_details.source.negativeAckRedeliveryDelayMs = delay_ms
+
+    return PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
+                          'user_code', Mock(), Mock(), 'test_cluster', 'test_url', None)
+
+  def test_positive_delay_is_forwarded(self):
+    args = self._instance(delay_ms=5000).get_negative_ack_args()
+    self.assertEqual({"negative_ack_redelivery_delay_ms": 5000}, args)
+
+  def test_unset_delay_is_omitted(self):
+    # proto3 scalar with no presence: unset reads as 0. The argument must be omitted rather than
+    # sent - subscribe() validates it with _check_type(int), so None would fail for every function
+    # that does not set it, and 0 would mean immediate redelivery instead of the 60s default.
+    self.assertEqual({}, self._instance().get_negative_ack_args())
+
+  def test_explicit_zero_is_omitted(self):
+    self.assertEqual({}, self._instance(delay_ms=0).get_negative_ack_args())
+
+  def test_result_is_splattable_into_subscribe_kwargs(self):
+    # The value is consumed via **nack_args and consumer_args.update(...), so it must be a dict
+    # with exactly the keyword subscribe() expects.
+    args = self._instance(delay_ms=250).get_negative_ack_args()
+    self.assertIsInstance(args, dict)
+    self.assertEqual(["negative_ack_redelivery_delay_ms"], list(args.keys()))
