@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
@@ -716,20 +717,26 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
                     return pulsarResources.getTenantResources()
                             .getTenantAsync(tenantName)
-                            .thenCompose(op -> {
-                                if (op.isPresent()) {
-                                    return isTenantAdmin(tenantName, role, op.get(), authData);
-                                } else {
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
-                                }
-                            }).exceptionally(ex -> {
-                                Throwable cause = ex.getCause();
+                            // Failing to read the tenant is a broker-side fault, so it is handled here, on the
+                            // stage that can actually fail. Keeping this handler off the stage below prevents the
+                            // expected "tenant does not exist" rejection from being reported as an error.
+                            .exceptionally(ex -> {
+                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
                                 if (cause instanceof NotFoundException) {
                                     log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                                    return Optional.empty();
                                 }
                                 log.error("Failed to get tenant {}", tenantName, cause);
                                 throw new RestException(cause);
+                            })
+                            .thenCompose(op -> {
+                                if (op.isPresent()) {
+                                    return isTenantAdmin(tenantName, role, op.get(), authData);
+                                }
+                                // A client naming a tenant that does not exist is a client error, not a broker
+                                // fault: reject it without logging. Any client can trigger this at will, and the
+                                // caller (e.g. ServerCnx) already logs the rejection at its own level.
+                                throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                             });
                 });
     }

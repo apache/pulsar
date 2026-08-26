@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -120,6 +121,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
                     return pulsarResources.getTenantResources()
                             .getTenantAsync(tenantName)
+                            // Failing to read the tenant is a broker-side fault, so it is handled here, on the
+                            // stage that can actually fail. Keeping this handler off the stage below prevents the
+                            // expected "tenant does not exist" rejection from being reported as an error.
+                            .exceptionally(ex -> {
+                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                if (cause instanceof MetadataStoreException.NotFoundException) {
+                                    log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                                    return Optional.empty();
+                                }
+                                log.error("Failed to get tenant {}", tenantName, cause);
+                                throw new RestException(cause);
+                            })
                             .thenCompose(op -> {
                                 if (op.isPresent()) {
                                     TenantInfo tenantInfo = op.get();
@@ -129,17 +142,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
                                     return CompletableFuture.completedFuture(roles.stream()
                                             .anyMatch(n -> tenantInfo.getAdminRoles().contains(n)));
-                                } else {
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                                 }
-                            }).exceptionally(ex -> {
-                                Throwable cause = ex.getCause();
-                                if (cause instanceof MetadataStoreException.NotFoundException) {
-                                    log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
-                                }
-                                log.error("Failed to get tenant {}", tenantName, cause);
-                                throw new RestException(cause);
+                                // A client naming a tenant that does not exist is a client error, not a broker
+                                // fault: reject it without logging. Any client can trigger this at will, and the
+                                // caller (e.g. ServerCnx) already logs the rejection at its own level.
+                                throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                             });
                 });
     }

@@ -19,24 +19,32 @@
 package org.apache.pulsar.broker.authorization;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import javax.ws.rs.core.Response;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.common.util.RestException;
 import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest {
@@ -410,5 +418,51 @@ public class MultiRolesTokenAuthorizationProviderTest {
         assertTrue(ex.getCause() instanceof PulsarServerException);
         assertTrue(ex.getCause().getMessage().contains(
                 "The subscription name needs to be prefixed by the authentication role"));
+    }
+
+    /**
+     * A client asking about a tenant that does not exist is a client-side 404, not a broker fault, so
+     * it must not be reported at ERROR. Any client can trigger it at will simply by mistyping a tenant.
+     */
+    @Test
+    public void testMissingTenantIsNotLoggedAtError() throws Exception {
+        String tenant = "non-existent-tenant";
+        TenantResources tenantResources = mock(TenantResources.class);
+        when(tenantResources.getTenantAsync(tenant))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        when(pulsarResources.getTenantResources()).thenReturn(tenantResources);
+
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        String token = Jwts.builder().claim("sub", new String[]{"user-a"}).signWith(secretKey).compact();
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        provider.initialize(new ServiceConfiguration(), pulsarResources);
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        try (LogCapture logs = LogCapture.attach(MultiRolesTokenAuthorizationProvider.class)) {
+            CompletableFuture<Boolean> future = provider.validateTenantAdminAccess(tenant, "user-a", ads);
+
+            ExecutionException ee = expectThrows(ExecutionException.class, future::get);
+            assertEquals(((RestException) ee.getCause()).getResponse().getStatus(),
+                    Response.Status.NOT_FOUND.getStatusCode());
+            assertEquals(logs.messagesAt(Level.ERROR), List.of(),
+                    "A tenant that does not exist must not be logged at ERROR");
+        }
     }
 }
