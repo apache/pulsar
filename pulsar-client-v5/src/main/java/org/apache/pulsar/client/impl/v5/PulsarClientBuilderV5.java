@@ -64,6 +64,9 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     private Authentication v5Authentication;
     // PIP-478: the factory instances build() has handed to a client. Adoption is a hand-over, not a share —
     // see the check in build(). Identity, not equals: a factory is an instance with a lifecycle, not a value.
+    // Unsynchronized, unlike the admin builder's: this builder has no clone(), so the record never spans more
+    // than the one builder that owns it, and two threads reaching it at once are already racing on the
+    // configuration this builder mutates.
     private final Set<PulsarTlsFactory> adoptedTlsFactories =
             Collections.newSetFromMap(new IdentityHashMap<>());
 

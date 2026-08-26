@@ -513,8 +513,9 @@ public class PulsarClientImpl implements PulsarClient {
                     conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop());
             conf.setTlsFactory(factory);
             // Only now is the factory in the slot this client's to close. Resolution that throws has already
-            // closed whatever it initialized (the fail-fast probe's handler), and for an ADOPTED factory the
-            // slot still holds that instance — so without this the constructor's failure path would reach
+            // closed whatever it initialized (its own failure handler, covering initialization and the
+            // fail-fast probe alike), and for an ADOPTED factory the slot still holds that instance — so
+            // without this the constructor's failure path would reach
             // shutdown() and close the caller's factory a second time, which PulsarTlsFactory.close()
             // forbids ("called at most once"). The composed path is unaffected either way: the slot is
             // assigned above, after resolution returned.
@@ -1506,10 +1507,13 @@ public class PulsarClientImpl implements PulsarClient {
             if (blockingAuthExecutor != null) {
                 blockingAuthExecutor.shutdownNow();
             }
-            // PIP-478: close the TLS factory this client owns. Unconditional on both arms, because adoption
-            // is a hand-over: PulsarTlsFactory.close() says a factory supplied to the v5 builder "is adopted
-            // and closed with the client", tlsFactory(...) says the same on the public builder, and
-            // resolveClientTlsFactory already closes an adopted instance when the fail-fast probe fails.
+            // PIP-478: close the TLS factory this client owns — on both arms, because adoption is a
+            // hand-over: PulsarTlsFactory.close() says a factory supplied to the v5 builder "is adopted and
+            // closed with the client", and tlsFactory(...) says the same on the public builder. The
+            // ownsTlsFactory condition does not narrow that; it only excludes the window before this client
+            // took ownership, since resolveClientTlsFactory closes what it initialized when initialization or
+            // the fail-fast probe fails, and for an adopted instance the slot still holds that same factory
+            // afterwards — so a constructor that failed there would otherwise close it a second time.
             if (conf != null && conf.getTlsFactory() != null && ownsTlsFactory) {
                 try {
                     conf.getTlsFactory().close();
