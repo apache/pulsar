@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -29,6 +30,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -377,6 +380,86 @@ public class PulsarClientBuilderV5Test {
     }
 
     /**
+     * PIP-478: cleaning up after a failed {@code initialize()} must not lose the reason the build failed.
+     *
+     * <p>{@code closeQuietly} attaches a close failure to the error being propagated. That is safe while the
+     * error is always one the framework minted — which it was, when only the fail-fast probe was guarded, all
+     * three of whose throws are {@code new}. Cleaning up after initialization broke that: {@code
+     * initializeBlocking} unwraps the {@code ExecutionException} and rethrows the factory's <em>own</em>
+     * exception instance, so a factory that latches one exception and hands it back from both
+     * {@code initialize()} and {@code close()} produced {@code X.addSuppressed(X)} — {@code
+     * IllegalArgumentException("Self-suppression not permitted")}, which escaped the cleanup and replaced the
+     * real failure. The caller then saw an exception unrelated to what actually went wrong.
+     */
+    @Test
+    public void aFactoryThatFailsInitializeAndCloseWithOneExceptionKeepsTheRealFailure() throws Exception {
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        adopted.failInitialize = true;
+        // The same instance out of initialize() and out of close() — one latched failure, as a factory that
+        // records why it is unusable and refuses every call with it would have.
+        adopted.latchedFailure = new IllegalStateException("HSM unavailable");
+        adopted.rethrowLatchedFailureOnClose = true;
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsFactory(adopted);
+        builder.serviceUrl("pulsar+ssl://localhost:6651");
+
+        Throwable thrown = catchThrowable(builder::build);
+        assertThat(thrown).as("the build must fail").isNotNull();
+        // Asserting on the ROOT cause would not see this: addSuppressed builds its
+        // IllegalArgumentException with the offending throwable AS ITS CAUSE, so the real failure stays at
+        // the bottom of the chain either way. What changes is what sits above it — an exception the caller
+        // never caused and cannot act on, displacing the one it would have matched on.
+        List<Throwable> chain = new ArrayList<>();
+        for (Throwable t = thrown; t != null && !chain.contains(t); t = t.getCause()) {
+            chain.add(t);
+        }
+        assertThat(chain)
+                .as("cleanup must not push a self-suppression error in front of the real failure")
+                .noneMatch(t -> t instanceof IllegalArgumentException
+                        && String.valueOf(t.getMessage()).contains("Self-suppression"));
+        assertThat(chain).as("and the real failure must still be reported").contains(adopted.latchedFailure);
+        assertThat(adopted.closed).as("with the cleanup itself having run").hasValue(1);
+    }
+
+    /**
+     * PIP-478: an adopted factory whose {@code initialize()} fails must still be closed.
+     *
+     * <p>This is the retry-worthy failure — an HSM session that cannot be opened, a KMS that is briefly
+     * unreachable — and it used to be the one that leaked. The mark that spends the instance is set before
+     * {@code initialize()}, correctly: the SPI calls {@code initialize} exactly once, so an instance whose
+     * initialization was attempted cannot honestly be offered to a second client. But nothing then closed it.
+     * {@code resolveClientTlsFactory} only guarded the fail-fast probe, and by the time it threw,
+     * {@code setupClientTlsFactory()} had not yet set {@code ownsTlsFactory}, so {@code shutdown()} skipped
+     * it too — leaving the caller an instance that was initialized, never released, and that the builder will
+     * not take back, with whatever {@code initialize()} registered before failing still registered.
+     */
+    @Test
+    public void anAdoptedFactoryWhoseInitializeFailsIsStillClosed() throws Exception {
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        adopted.failInitialize = true;
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsFactory(adopted);
+        builder.serviceUrl("pulsar+ssl://localhost:6651");
+
+        assertThatThrownBy(builder::build)
+                .as("a factory that cannot initialize must fail the build")
+                .isNotNull();
+        assertThat(adopted.initialized).as("initialization was attempted").hasValue(1);
+        assertThat(adopted.closed)
+                .as("so the factory must be released: close() is the only signal it gets that it will never "
+                        + "be used, and no client exists to send it later")
+                .hasValue(1);
+
+        adopted.failInitialize = false;
+        assertThatThrownBy(builder::build)
+                .as("and it is spent all the same — initialize() is called exactly once")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been adopted");
+        assertThat(adopted.initialized).as("the rejected build must not re-initialize it").hasValue(1);
+        assertThat(adopted.closed).as("nor close it twice").hasValue(1);
+    }
+
+    /**
      * PIP-478: a build that failed before reaching the factory hands over nothing, so it must still be usable.
      *
      * <p>The guard used to record the instance before the construction, which made any failure on the way to
@@ -474,10 +557,20 @@ public class PulsarClientBuilderV5Test {
         private final AtomicInteger closed = new AtomicInteger();
         /** Makes the fail-fast probe fail, so a build gets past initialize() and then throws. */
         private volatile boolean failClientDefault;
+        /** Makes initialize() itself fail — an HSM session that cannot be opened, an unreachable KMS. */
+        private volatile boolean failInitialize;
+        /** When set, the ONE exception instance both initialize() and close() fail with. */
+        private volatile RuntimeException latchedFailure;
+        /** Makes close() rethrow {@link #latchedFailure}, the instance initialize() already failed with. */
+        private volatile boolean rethrowLatchedFailureOnClose;
 
         @Override
         public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
             initialized.incrementAndGet();
+            if (failInitialize) {
+                return CompletableFuture.failedFuture(latchedFailure != null ? latchedFailure
+                        : new IllegalStateException("cannot initialize"));
+            }
             return CompletableFuture.completedFuture(null);
         }
 
@@ -521,6 +614,9 @@ public class PulsarClientBuilderV5Test {
         @Override
         public void close() {
             closed.incrementAndGet();
+            if (rethrowLatchedFailureOnClose && latchedFailure != null) {
+                throw latchedFailure;
+            }
         }
     }
 

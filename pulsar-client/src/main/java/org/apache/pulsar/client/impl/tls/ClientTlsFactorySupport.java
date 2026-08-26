@@ -250,10 +250,11 @@ public final class ClientTlsFactorySupport {
             factory = conf.getTlsFactory();
             // Record the hand-over on the configuration the caller passed in, before anything can fail.
             // This is the one place the framework takes a caller-supplied instance, so it is the only place
-            // that can say so honestly: from here on it has been initialized and may have been closed again
-            // (the probe's failure handler below, or the owning component's shutdown), and a builder that
-            // reads this back must not hand the same instance to a second client. Set for a build that goes
-            // on to fail as much as for one that succeeds — the instance is spent either way.
+            // that can say so honestly: from here on its initialization has been attempted and it may have
+            // been closed again (the failure handler below, which covers initialization and the probe alike,
+            // or the owning component's shutdown), and a builder that reads this back must not hand the same
+            // instance to a second client. Set for a build that goes on to fail as much as for one that
+            // succeeds — the instance is spent either way.
             conf.setTlsFactoryAdopted(true);
             initParams = conf.getTlsFactoryParams() == null ? Map.of() : Map.copyOf(conf.getTlsFactoryParams());
         } else if (conf.getTlsPolicyMap() == null && isCustomFactoryClass(conf.getTlsFactoryClassName())) {
@@ -275,22 +276,29 @@ public final class ClientTlsFactorySupport {
                     clientDefaultAuthMaterialSuppliers(conf));
             initParams = conf.getTlsFactoryParams() == null ? Map.of() : Map.copyOf(conf.getTlsFactoryParams());
         }
-        initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
-        // Fail-fast probe only on the v5-builder path.
-        if (v5BuilderPath) {
-            try {
+        try {
+            initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
+            // Fail-fast probe only on the v5-builder path.
+            if (v5BuilderPath) {
                 probe(factory, TlsPurpose.CLIENT_DEFAULT,
                         TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
-            } catch (Throwable t) {
-                // This method initialized the factory, so this method cleans it up when the probe then fails:
-                // initialization is what registers the metrics callback, the file watcher and the refresh task.
-                // Nothing downstream can do it — PulsarClientImpl assigns conf.setTlsFactory(...) only on the
-                // value this method *returns*, so a throw leaves no owner, and on the composed path the
-                // instance is local and unreachable. Without this, every failed build (a missing or malformed
-                // certificate file, a custom factory that cannot serve CLIENT_DEFAULT) leaks them.
-                closeQuietly(factory, t);
-                throw t;
             }
+        } catch (Throwable t) {
+            // This method initialized the factory, so this method cleans it up when initialization itself or
+            // the probe after it fails: initialization is what registers the metrics callback, the file
+            // watcher and the refresh task, and an initialize() that fails part-way — an HSM session that
+            // cannot be opened, an unreachable KMS — has registered some of them already. Nothing downstream
+            // can do it: PulsarClientImpl takes ownership only of the value this method *returns*
+            // (setupClientTlsFactory sets ownsTlsFactory after it) and AsyncHttpConnectorProvider stores its
+            // shared factory only on success, so a throw leaves no owner, while on the by-name and composed
+            // paths the instance is local and unreachable. Without this, every failed build leaks them.
+            //
+            // The adopted instance is closed here too, even though the caller still holds a reference: close()
+            // is the only signal a factory gets that it will never be used, and the caller cannot offer it to
+            // another client anyway, because initialize() has been called on it and the SPI says exactly once.
+            // PulsarTlsFactory.close() documents that a failed initialization is still followed by close().
+            closeQuietly(factory, t);
+            throw t;
         }
         return factory;
     }
@@ -637,17 +645,26 @@ public final class ClientTlsFactorySupport {
     }
 
     /**
-     * Close a factory that failed after initialization, attaching any close failure to the original error so
-     * the cleanup problem is visible without displacing the reason the build failed.
+     * Close a factory the framework initialized, or tried to, attaching any close failure to the original
+     * error so the cleanup problem is visible without displacing the reason the build failed.
      *
-     * @param factory the initialized factory to release
+     * @param factory the factory to release — initialized, or left half-built by a failed {@code initialize}
      * @param failure the failure being propagated
      */
     private static void closeQuietly(PulsarTlsFactory factory, Throwable failure) {
         try {
             factory.close();
         } catch (Throwable closeFailure) {
-            failure.addSuppressed(closeFailure);
+            // Identity-guarded, as try-with-resources generates: addSuppressed throws
+            // IllegalArgumentException("Self-suppression not permitted") when handed the throwable it is
+            // being attached to, and that would escape this method and replace the very failure it is
+            // supposed to preserve. Reachable since this also cleans up after a failed initialize():
+            // initializeBlocking unwraps the ExecutionException and rethrows the factory's OWN exception
+            // instance, so a factory that fails initialize() and close() with one latched exception hands
+            // the same object back twice. The probe path could not do this — it always mints a fresh one.
+            if (closeFailure != failure) {
+                failure.addSuppressed(closeFailure);
+            }
         }
     }
 

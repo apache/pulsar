@@ -215,6 +215,63 @@ public class AdminTlsFactoryLifecycleTest {
         assertThat(CountingFactory.CLOSED).hasValue(1);
     }
 
+    /**
+     * PIP-478: an adopted factory whose {@code initialize()} fails must still be closed — the admin's half of
+     * {@code PulsarClientBuilderV5Test.anAdoptedFactoryWhoseInitializeFailsIsStillClosed}.
+     *
+     * <p>{@code AsyncHttpConnectorProvider.sharedTlsFactory()} assigns its field only once resolution
+     * returned, so its {@code close()} returns early after a failed one and the admin's own failure path
+     * ({@code constructed = false}) has nothing to release. The instance was initialized all the same, and
+     * the builder records it as spent, so without the cleanup inside {@code resolveClientTlsFactory} the
+     * caller is left holding a factory nobody will ever close.
+     */
+    @Test
+    public void anAdoptedFactoryWhoseInitializeFailsIsStillClosed() throws Exception {
+        CountingFactory adopted = new CountingFactory();
+        CountingFactory.FAIL_INITIALIZE.set(true);
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("https://localhost:8443");
+        ((PulsarAdminBuilderImpl) builder).getConf().setTlsFactory(adopted);
+
+        assertThatThrownBy(builder::build)
+                .as("a factory that cannot initialize must fail the build").isNotNull();
+        assertThat(CountingFactory.INITIALIZED).as("initialization was attempted").hasValue(1);
+        assertThat(CountingFactory.CLOSED)
+                .as("so the factory must be released: no admin exists to close it later")
+                .hasValue(1);
+
+        CountingFactory.FAIL_INITIALIZE.set(false);
+        assertThatThrownBy(builder::build)
+                .as("and it is spent all the same — initialize() is called exactly once")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been adopted");
+        assertThat(CountingFactory.INITIALIZED).as("the rejected build must not re-initialize it").hasValue(1);
+        assertThat(CountingFactory.CLOSED).as("nor close it twice").hasValue(1);
+    }
+
+    /**
+     * PIP-478: and the same on the by-name arm, where the instance is the framework's own.
+     *
+     * <p>There is no adoption mark and no caller reference here: the factory is constructed inside
+     * {@code resolveClientTlsFactory} and is unreachable once it throws, so that method is the only place
+     * that can close it. This is the arm the composed default takes too.
+     */
+    @Test
+    public void aByNameFactoryWhoseInitializeFailsIsStillClosed() throws Exception {
+        CountingFactory.FAIL_INITIALIZE.set(true);
+        assertThatThrownBy(() -> PulsarAdmin.builder()
+                .serviceHttpUrl("https://localhost:8443")
+                .tlsFactoryClassName(CountingFactory.class.getName())
+                .build())
+                .as("a factory that cannot initialize must fail the build").isNotNull();
+
+        assertThat(CountingFactory.INSTANTIATED).as("the factory was constructed").hasValue(1);
+        assertThat(CountingFactory.INITIALIZED).as("and initialization was attempted").hasValue(1);
+        assertThat(CountingFactory.CLOSED)
+                .as("so it must be closed on the way out: nothing outside resolveClientTlsFactory can reach "
+                        + "it, and it would otherwise keep whatever initialize() registered before failing")
+                .hasValue(1);
+    }
+
     @Test
     public void aFailedAdminBuildDoesNotLeakTheResolvedFactory() throws Exception {
         // close() is unreachable when the constructor throws, so whatever the provider resolved before the
@@ -251,12 +308,16 @@ public class AdminTlsFactoryLifecycleTest {
         static final AtomicInteger CLOSED = new AtomicInteger();
         static final java.util.concurrent.atomic.AtomicBoolean FAIL_CLIENT_DEFAULT =
                 new java.util.concurrent.atomic.AtomicBoolean();
+        /** Makes initialize() itself fail — an HSM session that cannot be opened, an unreachable KMS. */
+        static final java.util.concurrent.atomic.AtomicBoolean FAIL_INITIALIZE =
+                new java.util.concurrent.atomic.AtomicBoolean();
 
         static void reset() {
             INSTANTIATED.set(0);
             INITIALIZED.set(0);
             CLOSED.set(0);
             FAIL_CLIENT_DEFAULT.set(false);
+            FAIL_INITIALIZE.set(false);
         }
 
         public CountingFactory() {
@@ -266,6 +327,9 @@ public class AdminTlsFactoryLifecycleTest {
         @Override
         public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
             INITIALIZED.incrementAndGet();
+            if (FAIL_INITIALIZE.get()) {
+                return CompletableFuture.failedFuture(new IllegalStateException("cannot initialize"));
+            }
             return CompletableFuture.completedFuture(null);
         }
 
