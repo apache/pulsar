@@ -3606,14 +3606,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // broker quietly tearing down a segment the controller still considers live.
             return;
         }
-        boolean deleteEnabled = isDeleteWhileInactive();
-        boolean closeEnabled = !deleteEnabled && isCloseWhileInactive();
+        // Close-on-inactive is a broker-level switch and takes precedence over any namespace- or topic-level
+        // `deleteWhileInactive` policy: an operator who enabled it asked for the topic data to be kept, so GC
+        // must never fall back to the delete path while it is on.
+        boolean closeEnabled = isCloseWhileInactive();
+        boolean deleteEnabled = !closeEnabled && isDeleteWhileInactive();
         if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;
         }
         InactiveTopicDeleteMode deleteMode =
                 topicPolicies.getInactiveTopicPolicies().get().getInactiveTopicDeleteMode();
+        if (closeEnabled && deleteMode != InactiveTopicDeleteMode.delete_when_no_subscriptions) {
+            // Close mode only supports delete_when_no_subscriptions. Under delete_when_subscriptions_caught_up a
+            // topic counts as inactive as soon as its subscriptions are caught up, even while consumers are still
+            // connected; closing it would only disconnect those consumers, which immediately reload the topic,
+            // turning GC into an unload/reload loop. The broker refuses to start on that combination, so reaching
+            // here means a namespace- or topic-level policy overrode the mode at runtime.
+            log.debug()
+                    .attr("deleteMode", deleteMode.name())
+                    .log("Skipping inactive-topic close, only delete_when_no_subscriptions is supported");
+            return;
+        }
         int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();

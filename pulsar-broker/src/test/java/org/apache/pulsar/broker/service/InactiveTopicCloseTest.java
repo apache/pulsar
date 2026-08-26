@@ -18,11 +18,20 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -30,6 +39,8 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InactiveTopicCloseTest extends BrokerTestBase {
+
+    private static final String NAMESPACE = "prop/ns-abc";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -41,16 +52,39 @@ public class InactiveTopicCloseTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testCloseInactiveTopicKeepsDataAndEvictsFromCache() throws Exception {
+    /** Enable close mode with the only supported delete mode and a 1s inactivity window. */
+    private void setupCloseMode(InactiveTopicDeleteMode mode) throws Exception {
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
         conf.setBrokerCloseInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsMode(mode);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
         super.baseSetup();
+    }
 
-        final String topic = "persistent://prop/ns-abc/testCloseInactive";
+    private void assertStartupFailsWith(String expectedMessageFragment) throws Exception {
+        try {
+            super.baseSetup();
+            fail("expected broker startup to fail with: " + expectedMessageFragment);
+        } catch (Exception e) {
+            Throwable cause = e;
+            while (cause != null) {
+                if (cause instanceof IllegalArgumentException
+                        && cause.getMessage() != null
+                        && cause.getMessage().contains(expectedMessageFragment)) {
+                    return;
+                }
+                cause = cause.getCause();
+            }
+            fail("expected IllegalArgumentException containing '" + expectedMessageFragment + "', got: " + e);
+        }
+    }
+
+    @Test
+    public void testCloseInactiveTopicKeepsDataAndEvictsFromCache() throws Exception {
+        setupCloseMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+
+        final String topic = "persistent://" + NAMESPACE + "/testCloseInactive";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -67,53 +101,35 @@ public class InactiveTopicCloseTest extends BrokerTestBase {
         // Topic should be evicted from broker cache (closed) but still present in metadata.
         Awaitility.await().untilAsserted(() ->
                 assertFalse(pulsar.getBrokerService().getTopicReference(topic).isPresent()));
-        assertTrue(admin.topics().getList("prop/ns-abc").contains(topic));
+        assertTrue(admin.topics().getList(NAMESPACE).contains(topic));
 
-        // Data is preserved: a fresh consumer on a new subscription reading from earliest must see the message.
-        Consumer<byte[]> reReader = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub2")
-                .subscriptionInitialPosition(org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest)
-                .subscribe();
-        org.apache.pulsar.client.api.Message<byte[]> msg = reReader.receive(10, java.util.concurrent.TimeUnit.SECONDS);
-        org.testng.Assert.assertNotNull(msg);
-        org.testng.Assert.assertEquals(new String(msg.getValue()), "hello");
-        reReader.close();
+        assertMessagePreserved(topic, "sub2", "hello");
     }
 
     @Test
     public void testMutualExclusionWithDeleteInactive() throws Exception {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerCloseInactiveTopicsEnabled(true);
-        try {
-            super.baseSetup();
-            org.testng.Assert.fail("expected broker startup to fail");
-        } catch (Exception e) {
-            Throwable cause = e;
-            boolean found = false;
-            while (cause != null) {
-                if (cause instanceof IllegalArgumentException
-                        && cause.getMessage() != null
-                        && cause.getMessage().contains("mutually exclusive")) {
-                    found = true;
-                    break;
-                }
-                cause = cause.getCause();
-            }
-            assertTrue(found, "expected IllegalArgumentException about mutual exclusion, got: " + e);
-        }
+        assertStartupFailsWith("mutually exclusive");
+    }
+
+    /**
+     * Close mode only supports delete_when_no_subscriptions: under delete_when_subscriptions_caught_up a topic
+     * with connected but caught-up consumers is inactive, so closing it would unload and reload it forever.
+     */
+    @Test
+    public void testCloseModeRejectsCaughtUpDeleteMode() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerCloseInactiveTopicsEnabled(true);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        assertStartupFailsWith("only supports brokerDeleteInactiveTopicsMode");
     }
 
     @Test
     public void testActiveTopicIsNotClosed() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsEnabled(false);
-        conf.setBrokerCloseInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
-        super.baseSetup();
+        setupCloseMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
 
-        final String topic = "persistent://prop/ns-abc/testActiveNotClosed";
+        final String topic = "persistent://" + NAMESPACE + "/testActiveNotClosed";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
@@ -126,6 +142,87 @@ public class InactiveTopicCloseTest extends BrokerTestBase {
         } finally {
             consumer.close();
             producer.close();
+        }
+    }
+
+    /**
+     * The broker-level close switch must win over a namespace-level deleteWhileInactive policy, otherwise
+     * enabling close mode would still silently delete data in namespaces that set that policy.
+     */
+    @Test
+    public void testCloseWinsOverNamespaceDeleteWhileInactivePolicy() throws Exception {
+        setupCloseMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        admin.namespaces().setInactiveTopicPolicies(NAMESPACE, new InactiveTopicPolicies(
+                InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
+        final String topic = "persistent://" + NAMESPACE + "/testCloseWinsOverDeletePolicy";
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("hello".getBytes());
+        producer.close();
+
+        // No subscription was ever created, so the topic is inactive right away.
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topic).isPresent()));
+
+        // Closed, not deleted: still in metadata and the data is still readable.
+        assertTrue(admin.topics().getList(NAMESPACE).contains(topic),
+                "topic was deleted despite brokerCloseInactiveTopicsEnabled");
+        assertMessagePreserved(topic, "sub", "hello");
+    }
+
+    /**
+     * Startup validation only covers the broker-level mode. A namespace policy can still switch the effective
+     * mode to delete_when_subscriptions_caught_up at runtime, and checkGC must then skip the topic entirely
+     * rather than close it out from under its connected consumers.
+     */
+    @Test
+    public void testCloseSkippedWhenNamespacePolicyOverridesDeleteMode() throws Exception {
+        setupCloseMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        admin.namespaces().setInactiveTopicPolicies(NAMESPACE, new InactiveTopicPolicies(
+                InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, 1, false));
+
+        final String topic = "persistent://" + NAMESPACE + "/testCaughtUpModeSkipsClose";
+
+        // A consumer with no backlog and no producer is "inactive" under delete_when_subscriptions_caught_up.
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        try {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+            // Precondition: the namespace policy really did override the mode, and under that mode the topic
+            // looks inactive - i.e. without the guard in checkGC it would be closed out from under the consumer.
+            assertEquals(persistentTopic.getInactiveTopicPolicies().getInactiveTopicDeleteMode(),
+                    InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+            assertFalse(persistentTopic.isActive(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up),
+                    "precondition: topic must look inactive under the overridden mode");
+
+            Thread.sleep(3000);
+            // Identity, not mere presence: a closed topic is reloaded within milliseconds by the consumer
+            // reconnecting, so "a topic is cached" would still hold in the unload/reload loop this guards
+            // against. Only the very same instance proves checkGC left the topic alone.
+            assertSame(pulsar.getBrokerService().getTopicReference(topic).orElseThrow(), persistentTopic,
+                    "topic was closed and reloaded under an unsupported delete mode");
+            assertTrue(admin.topics().getList(NAMESPACE).contains(topic));
+        } finally {
+            consumer.close();
+        }
+    }
+
+    private void assertMessagePreserved(String topic, String subscription, String expected) throws Exception {
+        Consumer<byte[]> reReader = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        try {
+            Message<byte[]> msg = reReader.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            assertEquals(new String(msg.getValue()), expected);
+        } finally {
+            reReader.close();
         }
     }
 }

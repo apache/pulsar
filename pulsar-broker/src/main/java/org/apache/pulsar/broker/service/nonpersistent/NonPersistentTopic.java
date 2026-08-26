@@ -1091,8 +1091,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void checkGC() {
-        boolean deleteEnabled = isDeleteWhileInactive();
-        boolean closeEnabled = !deleteEnabled && isCloseWhileInactive();
+        // Close-on-inactive is a broker-level switch and takes precedence over any namespace- or topic-level
+        // `deleteWhileInactive` policy, so enabling it can never fall through to the delete path.
+        // No delete-mode guard is needed here: isActive() only reports inactivity when there is neither a
+        // subscription nor a local producer, so a non-persistent topic always follows
+        // delete_when_no_subscriptions semantics regardless of the configured mode.
+        boolean closeEnabled = isCloseWhileInactive();
+        boolean deleteEnabled = !closeEnabled && isDeleteWhileInactive();
         if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;

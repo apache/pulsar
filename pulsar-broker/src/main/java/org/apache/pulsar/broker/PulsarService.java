@@ -169,6 +169,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -904,6 +905,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 throw new IllegalArgumentException(
                         "brokerDeleteInactiveTopicsEnabled and brokerCloseInactiveTopicsEnabled are mutually "
                                 + "exclusive. Enable at most one of them.");
+            }
+
+            if (config.isBrokerCloseInactiveTopicsEnabled()
+                    && config.getBrokerDeleteInactiveTopicsMode()
+                            != InactiveTopicDeleteMode.delete_when_no_subscriptions) {
+                throw new IllegalArgumentException(
+                        "brokerCloseInactiveTopicsEnabled only supports brokerDeleteInactiveTopicsMode="
+                                + "delete_when_no_subscriptions. Under delete_when_subscriptions_caught_up a topic "
+                                + "whose subscriptions are caught up is inactive even while consumers are still "
+                                + "connected, so closing it would repeatedly unload and reload the topic.");
             }
 
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
