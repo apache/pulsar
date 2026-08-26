@@ -26,6 +26,7 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Collections2;
@@ -1275,6 +1276,21 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getEstimatedSizeSinceMarkDeletePosition() {
+        Position markDeletePosition = this.markDeletePosition;
+        Position lastPosition = ledger.getLastPosition();
+        if (markDeletePosition == null || markDeletePosition.compareTo(lastPosition) == 0) {
+            return 0;
+        }
+        if (markDeletePosition.compareTo(lastPosition) > 0) {
+            if (!ledger.ledgerExists(lastPosition.getLedgerId())
+                    || isMarkDeletePositionOnEmptyCurrentLedger(markDeletePosition)) {
+                return 0;
+            }
+            throw new IllegalArgumentException(String.format(
+                    "Cursor %s mark-delete position %s is ahead of the last position %s for managed ledger %s",
+                    name, markDeletePosition, lastPosition, ledger.getName()));
+        }
+
         long totalSize = ledger.estimateBacklogFromPosition(markDeletePosition);
 
         // Need to subtract size of individual deleted messages
@@ -1287,7 +1303,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long deletedCount = 0;
         lock.readLock().lock();
         try {
-            Range<Position> backlogRange = Range.openClosed(markDeletePosition, ledger.getLastPosition());
+            Range<Position> backlogRange = Range.openClosed(markDeletePosition, lastPosition);
             deletedCount = individualDeletedMessages.cardinality(
                     backlogRange.lowerEndpoint().getLedgerId(), backlogRange.lowerEndpoint().getEntryId(),
                     backlogRange.upperEndpoint().getLedgerId(), backlogRange.upperEndpoint().getEntryId());
@@ -1300,7 +1316,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // Estimate size by using average entry size from the backlog range
-        Range<Position> backlogRange = Range.openClosed(markDeletePosition, ledger.getLastPosition());
+        Range<Position> backlogRange = Range.openClosed(markDeletePosition, lastPosition);
         long totalEntriesInBacklog = ledger.getNumberOfEntries(backlogRange);
 
         if (totalEntriesInBacklog <= deletedCount || totalEntriesInBacklog == 0) {
@@ -1328,6 +1344,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .log("Adjusted backlog size");
 
         return adjustedSize;
+    }
+
+    private boolean isMarkDeletePositionOnEmptyCurrentLedger(Position markDeletePosition) {
+        return ledger.currentLedger != null
+                && markDeletePosition.getLedgerId() == ledger.currentLedger.getId()
+                && ledger.currentLedgerEntries == 0;
     }
 
     private long getNumberOfEntriesInBacklog() {
@@ -3998,6 +4020,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public ManagedLedger getManagedLedger() {
         return this.ledger;
+    }
+
+    @Override
+    public void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
+        ledger.getScheduledExecutor().schedule(
+                catchingAndLoggingThrowables(() -> ledger.getExecutor().execute(callback)), delay, unit);
     }
 
     @Override

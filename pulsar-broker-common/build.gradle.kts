@@ -24,6 +24,11 @@ plugins {
 
 dependencies {
     api(project(":pulsar-metadata"))
+    // DefaultBrokerTlsFactory/TlsFactorySupport/JettyTlsFactory expose the TLS factory SPI on this
+    // module's public surface, and DefaultBrokerTlsFactory extends pulsar-common's FileBasedTlsFactory,
+    // so both are direct api dependencies rather than transitive-via-pulsar-metadata.
+    api(project(":pulsar-tls-factory-api"))
+    api(project(":pulsar-common"))
     implementation(libs.slog)
     implementation(libs.guava)
     api(libs.commons.lang3)
@@ -41,8 +46,8 @@ dependencies {
     implementation(libs.jetty.compression.gzip)
     implementation(libs.jetty.ee10.servlet)
 
-    // Non-FIPS BouncyCastle provider for tests that exercise SecurityUtility (which loads
-    // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
+    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which resolves
+    // org.bouncycastle.jce.provider.BouncyCastleProvider reflectively, on first use). This matches
     // the provider used in production. FIPS is covered separately by the bcfips-include-test
     // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
     // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.

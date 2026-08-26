@@ -52,7 +52,6 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.topics.TopicsPattern;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -206,9 +205,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.\n"
+                    + "This names a JSSE (SSLContext) security provider for the Jetty-based web service, which has\n"
+                    + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
+                    + "provider names here. Leave unset (the default) to use Conscrypt when it is available on\n"
+                    + "this platform, else the JVM's default provider; a configured name is pinned and startup\n"
+                    + "fails if it cannot be resolved. Conscrypt ships native libraries for x86_64 and, since\n"
+                    + "2.6.1, aarch64 — but not for every platform, which is why the default falls back instead of\n"
+                    + "failing where it cannot load; pinning it explicitly there does fail."
     )
-    private String webServiceTlsProvider = "Conscrypt";
+    private String webServiceTlsProvider = "";
 
     @FieldContext(
             category = CATEGORY_TLS,
@@ -2046,7 +2052,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean tlsEnabled = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        doc = "Tls cert refresh duration in seconds. Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart."
     )
     private long tlsCertRefreshCheckDurationSec = 300;
     @FieldContext(
@@ -2072,8 +2079,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TLS,
             doc = "Whether the hostname is validated when the broker creates a TLS connection with other brokers"
+                    + " (e.g. geo-replication and broker-to-broker lookup). Enabled by default since Pulsar 5.0"
+                    + " (PIP-478): a peer broker whose certificate does not match its hostname/SAN is rejected."
     )
-    private boolean tlsHostnameVerificationEnabled = false;
+    private boolean tlsHostnameVerificationEnabled = true;
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
@@ -2093,13 +2102,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
-                    + " class used is DefaultSslFactory.")
-    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the broker's server-side TLS "
+                    + "(binary listener and web server; purposes BROKER/PROXY/WEB). An empty value or the "
+                    + "literal 'default' selects the built-in DefaultBrokerTlsFactory composed from these "
+                    + "tls* settings, otherwise the named class is instantiated via its public no-arg "
+                    + "constructor. This is the only server TLS path; the removed PIP-337 sslFactoryPlugin "
+                    + "keys are rejected at startup when set to a non-default value.")
+    private String tlsFactoryClassName = "";
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory plugin configuration parameters.")
-    private String sslFactoryPluginParams = "";
+            doc = "PIP-478 configuration parameters for tlsFactoryClassName, passed to the factory as its "
+                    + "init params. Accepts a JSON object or a comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
 
     /***** --- Authentication. --- ****/
     @FieldContext(
@@ -2188,6 +2202,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
               """
     )
     private int httpMaxRequestHeaderSize = 8 * 1024;
+
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = """
+                The maximum size in bytes of the response header.
+                Larger headers will allow for larger response headers such as message properties
+                in the Admin API message inspection endpoints (getMessageById, peekNthMessage,
+                examineMessage). However, larger headers consume more memory and can make a server
+                more vulnerable to denial of service attacks.
+              """
+    )
+    private int httpMaxResponseHeaderSize = 8 * 1024;
 
     @FieldContext(
         category =  CATEGORY_HTTP,
@@ -3836,6 +3862,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "Enable computing the age of the oldest unacknowledged message for each subscription and exposing "
+                    + "it through topic stats and Prometheus.\n"
+                    + " When disabled, the broker skips computing per-subscription backlog age and "
+                    + "SubscriptionStats.oldestBacklogMessageAgeSeconds remains -1. Default is false."
+    )
+    private boolean exposeSubscriptionBacklogAgeInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Enable splitting topic and partition label in Prometheus.\n"
                     + " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n"
                     + " another one is partition index, e.g. (topic=xxx, partition=0).\n"
@@ -4237,11 +4272,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "Specify the TLS provider for the broker service: \n"
-                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+            doc = "Select the TLS engine for the broker service: either OPENSSL or JDK.\n"
+                    + "Leave unset (the default) to let Pulsar choose the engine: the native OpenSSL engine when a\n"
+                    + "netty-tcnative binary is available for the platform, otherwise the JDK engine.\n"
+                    + "To pin a JSSE (SSLContext) provider such as BCJSSE or Conscrypt, use jsseProvider instead.\n"
+                    + "For compatibility this key stays overloaded across both axes: a value that is not an engine\n"
+                    + "literal (JDK, OPENSSL, OPENSSL_REFCNT) is read as a JSSE provider name and routed to\n"
+                    + "jsseProvider, which takes precedence when both are set."
     )
     private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "broker's server-side (listener/web) TLS SSLContext. A distinct axis from tlsProvider (the "
+                    + "JDK-vs-OpenSSL engine switch): when set, the default factory builds the JDK engine with "
+                    + "this provider as the SSLContext provider, overriding the engine choice. Resolved via the "
+                    + "ServiceLoader mechanism (with a fallback to an already-registered provider), failing "
+                    + "loudly when unresolvable.")
+    private String jsseProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -4387,13 +4438,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
-                    + "The default class used is DefaultSslFactory.")
-    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the broker's own outbound "
+                    + "(broker-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the "
+                    + "literal 'default' selects the built-in default factory composed from the brokerClient "
+                    + "tls* settings, otherwise the named class is instantiated via its public no-arg "
+                    + "constructor. This is the only outbound-client TLS path; the removed PIP-337 "
+                    + "brokerClientSslFactoryPlugin keys are rejected at startup when set to a non-default "
+                    + "value.")
+    private String brokerClientTlsFactoryClassName = "";
     @FieldContext(
             category = CATEGORY_TLS,
-            doc = "SSL Factory plugin configuration parameters used by internal client.")
-    private String brokerClientSslFactoryPluginParams = "";
+            doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+                    + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "broker's own outbound (broker-to-broker / replication) client TLS SSLContext. When set, "
+                    + "the default factory builds the JDK engine with this provider as the SSLContext provider, "
+                    + "overriding the engine choice. Resolved via the ServiceLoader mechanism (with a fallback "
+                    + "to an already-registered provider), failing loudly when unresolvable.")
+    private String brokerClientJsseProvider = null;
 
     /* packages management service configurations (begin) */
 

@@ -62,6 +62,9 @@ import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     private static final Logger LOG = Logger.get(ScalableCheckpointConsumer.class);
+    /** Buffer bound for backpressure. The checkpoint consumer has no ConsumerConfigurationData;
+     * its per-segment readers use the default reader queue size, so mirror that here. */
+    private static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
     private final Logger log;
 
     private final PulsarClientV5 client;
@@ -98,7 +101,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         this.startPosition = startPosition;
         this.consumerName = consumerName;
         this.receiveQueue = new V5ReceiveQueue<>(
-                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                DEFAULT_RECEIVER_QUEUE_SIZE);
         this.log = LOG.with().attr("topic", topicName).build();
         this.asyncView = new AsyncCheckpointConsumerV5<>(this);
     }
@@ -378,10 +382,13 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // taken right after the app received message N could already point past
             // N+1 if the read loop got ahead). The advance happens in receive() /
             // receiveMulti() instead, where the message crosses into application code.
-            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId));
-            if (!closed) {
-                startReadLoop(reader, segmentId);
-            }
+            // Re-arm only once the buffer has room, so a slow consumer pauses this reader
+            // instead of pre-fetching unboundedly.
+            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId)).thenRun(() -> {
+                if (!closed) {
+                    startReadLoop(reader, segmentId);
+                }
+            });
         }).exceptionally(ex -> {
             Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
                     ? ce.getCause() : ex;

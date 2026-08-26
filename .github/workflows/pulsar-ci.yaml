@@ -127,6 +127,10 @@ jobs:
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
 
+      - name: Check if the PR is ready for running CI
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/check-pr-ready-to-test
+
       - name: Set Netty leak detection mode
         id: netty_leak_detection
         run: |
@@ -678,7 +682,7 @@ jobs:
 
       - name: Run Trivy container scan
         id: trivy_scan
-        uses: lhotari/sandboxed-trivy-action@555963036b2012b44c1071508a236e569db28ebb
+        uses: lhotari/sandboxed-trivy-action@f01374b6cc3bf7264ab238293e94f6db7ada6dd0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         continue-on-error: true
         with:

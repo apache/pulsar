@@ -205,6 +205,11 @@ public interface PulsarAdminBuilder {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
+     *
      * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
      *
      * @param enableTlsHostnameVerification
@@ -293,18 +298,25 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * SSL Factory Plugin used to generate the SSL Context and SSLEngine.
-     * @param sslFactoryPlugin Name of the SSL Factory Class to be used.
-     * @return PulsarAdminBuilder
+     * Set the class name of a custom {@code PulsarTlsFactory} (PIP-478) used to build the admin client's TLS
+     * engines. An empty value or the literal {@code "default"} selects the built-in file-based factory
+     * composed from the {@code tls*} settings; any other value is instantiated reflectively via its public
+     * no-arg constructor. This is the by-name successor of the removed PIP-337 {@code sslFactoryPlugin}.
+     *
+     * @param tlsFactoryClassName the {@code PulsarTlsFactory} class name (blank/{@code default} for built-in)
+     * @return the admin builder instance
      */
-    PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin);
+    PulsarAdminBuilder tlsFactoryClassName(String tlsFactoryClassName);
 
     /**
-     * Parameters used by the SSL Factory Plugin class.
-     * @param sslFactoryPluginParams String parameters to be used by the SSL Factory Class.
-     * @return
+     * Set the configuration parameters passed to a custom {@link #tlsFactoryClassName(String)} as its init
+     * params (PIP-478). Accepts a JSON object or a comma-separated {@code key=value} list; ignored by the
+     * built-in file-based factory.
+     *
+     * @param tlsFactoryConfig the factory configuration (JSON object or {@code key=value} list)
+     * @return the admin builder instance
      */
-    PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+    PulsarAdminBuilder tlsFactoryConfig(String tlsFactoryConfig);
 
     /**
      * This sets the connection time out for the pulsar admin client.

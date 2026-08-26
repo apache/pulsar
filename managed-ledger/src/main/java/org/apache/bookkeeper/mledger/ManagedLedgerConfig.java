@@ -57,9 +57,6 @@ public class ManagedLedgerConfig {
     private int ensembleSize = 3;
     private int writeQuorumSize = 2;
     private int ackQuorumSize = 2;
-    private int metadataEnsembleSize = 3;
-    private int metadataWriteQuorumSize = 2;
-    private int metadataAckQuorumSize = 2;
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
@@ -298,54 +295,6 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(StandardCharsets.UTF_8);
-        return this;
-    }
-
-    /**
-     * @return the metadataEnsemblesize
-     */
-    public int getMetadataEnsemblesize() {
-        return metadataEnsembleSize;
-    }
-
-    /**
-     * @param metadataEnsembleSize
-     *            the metadataEnsembleSize to set
-     */
-    public ManagedLedgerConfig setMetadataEnsembleSize(int metadataEnsembleSize) {
-        this.metadataEnsembleSize = metadataEnsembleSize;
-        return this;
-    }
-
-    /**
-     * @return the metadataAckQuorumSize
-     */
-    public int getMetadataAckQuorumSize() {
-        return metadataAckQuorumSize;
-    }
-
-    /**
-     * @return the metadataWriteQuorumSize
-     */
-    public int getMetadataWriteQuorumSize() {
-        return metadataWriteQuorumSize;
-    }
-
-    /**
-     * @param metadataAckQuorumSize
-     *            the metadataAckQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataAckQuorumSize(int metadataAckQuorumSize) {
-        this.metadataAckQuorumSize = metadataAckQuorumSize;
-        return this;
-    }
-
-    /**
-     * @param metadataWriteQuorumSize
-     *            the metadataWriteQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataWriteQuorumSize(int metadataWriteQuorumSize) {
-        this.metadataWriteQuorumSize = metadataWriteQuorumSize;
         return this;
     }
 

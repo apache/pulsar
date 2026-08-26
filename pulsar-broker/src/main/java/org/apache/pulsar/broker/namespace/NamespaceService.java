@@ -435,10 +435,27 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    // The two maps keep authoritative and non-authoritative lookups separate. The key contains every
+    // remaining option that affects the lookup result or its side effects.
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesAuthoritative = new ConcurrentHashMap<>();
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
+
+    /**
+     * Key for coalescing lookup requests handled by this lookup path.
+     *
+     * <p>Lookup properties are intentionally excluded because this lookup path does not consume them.
+     */
+    private record LookupRequestKey(NamespaceBundle bundle, boolean readOnly, boolean loadTopicsInBundle,
+                                    String advertisedListenerName, String webServiceAdvertisedListenerName) {
+        private static LookupRequestKey from(NamespaceBundle bundle, LookupOptions options) {
+            return new LookupRequestKey(bundle, options.isReadOnly(), options.isLoadTopicsInBundle(),
+                    options.hasAdvertisedListenerName() ? options.getAdvertisedListenerName() : null,
+                    options.hasWebServiceAdvertisedListenerName()
+                            ? options.getWebServiceAdvertisedListenerName() : null);
+        }
+    }
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -453,18 +470,19 @@ public class NamespaceService implements AutoCloseable {
                 .attr("bundle", bundle)
                 .attr("options", options)
                 .log("findBrokerServiceUrl");
-        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {
             targetMap = findingBundlesNotAuthoritative;
         }
+        LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(bundle, (k) -> {
+        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
-            ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+            getOwnershipCache().getOwnerAsync(bundle).thenAccept(nsData -> {
                 if (nsData.isEmpty()) {
                     // No one owns this bundle
 
@@ -493,7 +511,7 @@ public class NamespaceService implements AutoCloseable {
             });
 
             future.whenComplete((r, t) -> pulsar.getExecutor().execute(
-                () -> targetMap.remove(bundle)
+                () -> targetMap.remove(lookupRequestKey, future)
             ));
 
             return future;
@@ -1709,6 +1727,19 @@ public class NamespaceService implements AutoCloseable {
                 .thenApply(GetTopicsResult::getTopics);
     }
 
+    /**
+     * The peer-cluster lookup client used to list a peer cluster's non-persistent topics. Only the service URL
+     * comes from the cluster entry: the TLS configuration is broker-level throughout — the material from the
+     * broker's own {@code brokerClient*} settings here, and the {@code PulsarTlsFactory} from the broker-level
+     * {@code brokerClientTlsFactoryClassName} via {@link PulsarService#createClientImpl}, since nothing sets
+     * {@code tlsFactoryClassName} on this configuration. So {@code ClusterData.brokerClientTls*} does not reach
+     * this leg — as in 4.x, where it read the broker-level {@code brokerClientSslFactoryPlugin} rather than the
+     * per-cluster one. The two legs the per-cluster fields do drive (replication and the cross-cluster admin)
+     * build their configuration from {@code ClusterData} in {@code BrokerService}.
+     *
+     * @param cluster the peer cluster to reach
+     * @return the shared client for that cluster
+     */
     @SuppressWarnings("deprecation")
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
         PulsarClientImpl client = namespaceClients.get(cluster);
@@ -1743,9 +1774,7 @@ public class NamespaceService implements AutoCloseable {
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled())
-                        .sslFactoryPlugin(pulsar.getConfiguration().getBrokerClientSslFactoryPlugin())
-                        .sslFactoryPluginParams(pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams());
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

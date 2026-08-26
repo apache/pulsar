@@ -56,14 +56,10 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 public class ConnectorUtils {
 
     /**
-     * Computes MD5 digest of a file as lower-case hex (for connector archive identity on reload).
+     * Computes a SHA-256 digest of a file as lower-case hex (for connector archive identity on reload).
      */
-    public static String computeArchiveMd5Hex(Path path) throws IOException {
-        return calculateMd5Hex(path.toAbsolutePath().normalize().toFile());
-    }
-
-    private static String calculateMd5Hex(File file) throws IOException {
-        return HexFormat.of().formatHex(FileUtils.calculateMd5sum(file));
+    public static String computeArchiveChecksumHex(Path path) throws IOException {
+        return HexFormat.of().formatHex(FileUtils.calculateSha256sum(path.toAbsolutePath().normalize().toFile()));
     }
 
     /**
@@ -236,12 +232,12 @@ public class ConnectorUtils {
                 try {
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toFile());
                     String name = cntDef.getName();
-                    String md5Hex = computeArchiveMd5Hex(archive);
+                    String checksumHex = computeArchiveChecksumHex(archive);
                     Connector prev = remaining.remove(name);
                     if (prev != null
                             && prev.getArchivePath() != null
                             && archive.equals(prev.getArchivePath())
-                            && md5Hex.equals(prev.getArchiveMd5Hex())) {
+                            && checksumHex.equals(prev.getArchiveChecksumHex())) {
                         next.put(name, prev);
                     } else {
                         if (prev != null) {
@@ -253,7 +249,7 @@ public class ConnectorUtils {
                             toClose.add(prev);
                         }
                         next.put(name, new Connector(archive, cntDef, narExtractionDirectory, enableClassloading,
-                                md5Hex));
+                                checksumHex));
                     }
                 } catch (Throwable t) {
                     log.warn()
