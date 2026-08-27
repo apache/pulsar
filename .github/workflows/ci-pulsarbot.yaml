@@ -35,7 +35,7 @@ jobs:
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
     steps:
       - name: Execute pulsarbot command
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
