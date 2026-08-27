@@ -334,8 +334,9 @@ public class LegacyV4AuthenticationAdapterTest {
     }
 
     private AuthenticationInitContext initContext() {
-        // SimpleAuthInitContext lives in pulsar-client-v5, which this module cannot depend on; the
-        // in-module V5AuthContexts factory builds the same thing from the public services record.
+        // Built through the same V5AuthContexts factory the production drivers use to initialize a v5 body
+        // (V5BinaryAuthenticationDriver and HttpAuthenticationDriver both call V5AuthContexts.initContext),
+        // so this test drives the context the client actually binds rather than a test-only stand-in.
         return V5AuthContexts.initContext(
                 new DefaultClientAuthenticationServices(null, null, blockingExecutor, Clock.systemUTC(),
                         OpenTelemetry.noop(), "test-client"),
