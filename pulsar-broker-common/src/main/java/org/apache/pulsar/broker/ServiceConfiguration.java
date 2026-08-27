@@ -834,6 +834,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
+        doc = "Enable closing (unloading from broker memory) of inactive topics without deleting their data.\n"
+        + "When a topic is deemed inactive (no producers and no subscriptions), the broker will close the topic\n"
+        + "instance, releasing in-memory resources such as the managed ledger cache, subscription state, and\n"
+        + "per-topic metrics. The topic data in BookKeeper is preserved; clients will transparently reload the\n"
+        + "topic on the next produce/consume.\n"
+        + "This option is mutually exclusive with 'brokerDeleteInactiveTopicsEnabled': only one of the two may\n"
+        + "be enabled at a time. It also requires 'brokerDeleteInactiveTopicsMode' to be\n"
+        + "'delete_when_no_subscriptions'; with 'delete_when_subscriptions_caught_up' a topic is inactive as\n"
+        + "soon as its subscriptions are caught up even while consumers are connected, so closing it would only\n"
+        + "disconnect those consumers and immediately reload the topic. The broker fails to start on either\n"
+        + "unsupported combination.\n"
+        + "While enabled, this broker-level setting takes precedence over any namespace- or topic-level\n"
+        + "'inactive_topic_policies.deleteWhileInactive': inactive topics are closed, never deleted.\n"
+        + "The inactivity detection reuses 'brokerDeleteInactiveTopicsMode',\n"
+        + "'brokerDeleteInactiveTopicsFrequencySeconds', and\n"
+        + "'brokerDeleteInactiveTopicsMaxInactiveDurationSeconds'."
+    )
+    private boolean brokerCloseInactiveTopicsEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Time in seconds that a persistent geo-replication replicator may stay idle before the broker"
                 + " disconnects its replication producer. A replicator is eligible only when it has no backlog and"
                 + " has not read entries for replication processing for longer than this threshold. Disconnecting"
