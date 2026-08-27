@@ -1775,6 +1775,23 @@ public class NamespaceService implements AutoCloseable {
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
                         .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
+                    // PIP-478: this peer-cluster lookup client is an outbound leg like the others, so it
+                    // carries the same three broker-client provider pins. Only the engine axis has a builder
+                    // setter; the other two are written onto the underlying configuration, as
+                    // BrokerService.configTlsSettings does. Set only when configured, so the brokerClient_*
+                    // loadConf escape hatch applied above is not clobbered.
+                    ServiceConfiguration brokerConf = pulsar.getConfiguration();
+                    if (isNotBlank(brokerConf.getBrokerClientSslProvider())) {
+                        clientBuilder.sslProvider(brokerConf.getBrokerClientSslProvider());
+                    }
+                    ClientConfigurationData peerConf =
+                            ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+                    if (isNotBlank(brokerConf.getBrokerClientJsseProvider())) {
+                        peerConf.setJsseProvider(brokerConf.getBrokerClientJsseProvider());
+                    }
+                    if (isNotBlank(brokerConf.getBrokerClientJcaProvider())) {
+                        peerConf.setJcaProvider(brokerConf.getBrokerClientJcaProvider());
+                    }
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

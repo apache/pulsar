@@ -93,7 +93,11 @@ import java.util.function.Consumer;
  * completes before any {@code createInstance} call. After initialization, {@code createInstance} may be
  * invoked <em>concurrently</em> — for the same and for different purposes — as many connections resolve
  * TLS in parallel; implementations must be thread-safe. {@link #close} is called at most once and after
- * the owning component has stopped issuing {@code createInstance} calls.
+ * the owning component has stopped issuing {@code createInstance} calls. It may also follow a
+ * <em>failed</em> {@code initialize}, rather than only a successful one — the framework releases a factory
+ * it initialized but could not go on to use, which on the client and admin paths it always does, since a
+ * failed build leaves nothing there that could close it later. An implementation must therefore tolerate
+ * releasing a state {@code initialize} only partly built.
  *
  * <p><b>Reload callbacks</b> (subscribing overload) are serial per subscription, never concurrent,
  * never invoked on a consumer event loop, and the first delivery <em>happens-before</em> the returned
@@ -105,7 +109,9 @@ public interface PulsarTlsFactory extends AutoCloseable {
 
     /**
      * Initialize the factory with its runtime services. Completes before the first
-     * {@code createInstance} call; a failure is fatal to the owning component's startup.
+     * {@code createInstance} call; a failure is fatal to the owning component's startup, and is followed by
+     * {@link #close} — always on the client and admin paths — so that anything this method registered before
+     * failing is released.
      *
      * @param context the factory parameters and framework runtime services
      * @return a future completing when the factory is ready
@@ -173,6 +179,12 @@ public interface PulsarTlsFactory extends AutoCloseable {
      * Release the factory and all its instances. The component that created the factory owns and closes
      * it; a factory instance supplied programmatically to the v5 builder is adopted and closed with the
      * client.
+     *
+     * <p>Called at most once, and not only on the happy path: on the client and admin paths a factory whose
+     * {@link #initialize} failed, or one that failed the fail-fast probe, is closed by the framework there
+     * and then — before any client or admin exists to own it. An implementation must therefore be able to
+     * release a state it never finished building. A server component initializes its own factory and holds
+     * it in a field, so releasing it after a failed initialization is that component's own affair.
      */
     @Override
     void close();

@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.auth.v5;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.auth.AuthChallenge;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
@@ -30,6 +29,7 @@ import org.apache.pulsar.client.api.v5.auth.BinaryAuthChallengeHandler;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthData;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.auth.ChallengeResponse;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 

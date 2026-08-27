@@ -75,8 +75,15 @@ public class BasicAuthenticationV5 implements SinglePassAuthentication, Serializ
      * serializable suppliers ({@link TokenAuthenticationV5.LiteralTokenSupplier} is one). The v4 shim does
      * not: the body it builds is held only in the client's transient slot and is never serialized.
      *
-     * @param userId   supplies the current user id
-     * @param password supplies the current password
+     * <p><b>The suppliers must not block.</b> Unlike the token, OAuth2, Athenz and SASL bodies — whose
+     * credentials cost I/O, so they capture {@code AuthenticationInitContext.blockingExecutor()} and resolve
+     * through it — this body reads its two values inline and returns an already-completed future, because the
+     * v4 shim supplies plain field reads. Binary credential resolution starts on the connection's Netty event
+     * loop, so a supplier that reads a file or calls a secret manager would stall every connection multiplexed
+     * on that loop. A caller needing that must off-load inside its own supplier, or use a body that off-loads.
+     *
+     * @param userId   supplies the current user id; must not block
+     * @param password supplies the current password; must not block
      */
     public BasicAuthenticationV5(Supplier<String> userId, Supplier<String> password) {
         this.userId = userId;

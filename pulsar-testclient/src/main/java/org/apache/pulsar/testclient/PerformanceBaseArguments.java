@@ -59,6 +59,19 @@ public abstract class PerformanceBaseArguments extends CmdBase{
             descriptionKey = "tlsEnableHostnameVerification")
     public Boolean tlsHostnameVerificationEnable = null;
 
+    @Option(names = {
+            "--jsse-provider" }, description = "PIP-478: JSSE (SSLContext) java.security.Provider name, e.g. "
+            + "BCJSSE for FIPS. Also readable from client.conf.",
+            descriptionKey = "jsseProvider")
+    public String jsseProvider = null;
+
+    @Option(names = {
+            "--jca-provider" }, description = "PIP-478: JCA (material) java.security.Provider name for the "
+            + "KeyStore/CertificateFactory/KeyFactory engines that parse the TLS material, e.g. BCFIPS for "
+            + "FIPS alongside --jsse-provider=BCJSSE. Also readable from client.conf.",
+            descriptionKey = "jcaProvider")
+    public String jcaProvider = null;
+
     @Option(names = { "-c",
             "--max-connections" }, description = "Max number of TCP connections to a single broker")
     public int maxConnections = 1;

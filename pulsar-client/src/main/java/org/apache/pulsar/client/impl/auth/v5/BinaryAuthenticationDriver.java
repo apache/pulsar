@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.internal;
+package org.apache.pulsar.client.impl.auth.v5;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
- * Stable-internal marker that lets {@code ClientCnx} drive authentication asynchronously (PIP-478).
+ * How {@code ClientCnx} drives authentication over the binary protocol (PIP-478).
  *
- * <p>This is the only carve-out from the otherwise-untouched v4 client. When the configured
- * {@link org.apache.pulsar.client.api.Authentication} instance also implements this interface,
- * {@code ClientCnx} routes connect / refresh / challenge handling through these non-blocking methods
- * and pipes the result back onto the Netty event loop; plain v4 instances keep the existing
- * synchronous path verbatim. It is generic across all challenge types (initial connect, the broker's
- * {@code REFRESH_AUTH_DATA} sentinel, SASL multi-round, and custom challenge/response).
+ * <p>The client resolves one v5 {@code Authentication} and wraps it in a driver, from which every connection
+ * attempt opens its own exchange. There is no synchronous alternative: all challenge types (initial connect,
+ * the broker's {@code REFRESH_AUTH_DATA} sentinel, SASL multi-round, and custom challenge/response) run
+ * through these non-blocking methods, with the result piped back onto the Netty event loop.
  *
  * <p><b>Exchange-scoped.</b> Authentication is driven per <em>exchange</em> — one connection attempt.
  * {@code ClientCnx} calls {@link #newAuthenticationExchange(String)} once per connect and drives that
@@ -44,10 +42,10 @@ import org.apache.pulsar.common.api.AuthData;
  * conversation state does NOT survive a REFRESH. A fresh exchange is likewise created for every connection
  * attempt, so concurrent handshakes to different brokers never collide.
  *
- * <p>The {@code .internal.} subpackage signals "stable internal" — application code should not
- * implement this interface; it is observed by the framework.
+ * <p>This lives in the client implementation, not the API module: the client resolves the authentication it
+ * drives itself, so nothing outside {@code pulsar-client} implements or observes this type.
  */
-public interface AsyncAuthenticationDriver {
+public interface BinaryAuthenticationDriver {
 
     /**
      * Begin an authentication exchange for a single connection attempt to the given broker.

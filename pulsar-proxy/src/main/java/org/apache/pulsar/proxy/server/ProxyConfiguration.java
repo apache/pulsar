@@ -333,8 +333,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Specify the TLS provider for the web service, available values can be SunJSSE, Conscrypt and etc.\n"
                     + "This names a JSSE (SSLContext) security provider for a Jetty-based web service, which has\n"
                     + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
-                    + "provider names here. Note that the proxy's own HTTPS listener reads tlsProvider rather than\n"
-                    + "this setting. Leave unset (the default) to use Conscrypt when it is available on this\n"
+                    + "provider names here. The proxy's own HTTPS listener prefers this setting and falls back to\n"
+                    + "tlsProvider when it is unset, matching the broker. Leave unset (the default) to use\n"
+                    + "Conscrypt when it is available on this\n"
                     + "platform, else the JVM's default provider; a configured name is pinned and startup fails\n"
                     + "if it cannot be resolved. Conscrypt ships native libraries for x86_64 and, since 2.6.1,\n"
                     + "aarch64 — but not for every platform, which is why the default falls back instead of failing\n"
@@ -656,9 +657,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "proxy's server-side (binary front-end / web) TLS SSLContext. A distinct axis from "
                     + "tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the default factory builds the "
                     + "JDK engine with this provider as the SSLContext provider, overriding the engine choice. "
-                    + "Resolved via the ServiceLoader mechanism (with a fallback to an already-registered "
-                    + "provider), failing loudly when unresolvable.")
+                    + "Resolved by preferring a provider already registered in the JVM (Security.getProvider), "
+                    + "falling back to the ServiceLoader mechanism, and failing loudly when unresolvable.")
     private String jsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order. Applies to the proxy's listeners.")
+    private String jcaProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -732,9 +742,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "proxy's own outbound (proxy-to-broker) client TLS SSLContext. When set, the default "
                     + "factory builds the JDK engine with this provider as the SSLContext provider, overriding "
-                    + "the engine choice. Resolved via the ServiceLoader mechanism (with a fallback to an "
-                    + "already-registered provider), failing loudly when unresolvable.")
+                    + "the engine choice. Resolved by preferring a provider already registered in the JVM "
+                    + "(Security.getProvider), falling back to the ServiceLoader mechanism, and failing loudly "
+                    + "when unresolvable.")
     private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the JCA (material) provider for the proxy's own outbound (proxy-to-broker) "
+                    + "client connections — the outbound counterpart of jcaProvider, on the same axis. "
+                    + "Unset uses the JVM provider search order.")
+    private String brokerClientJcaProvider = null;
 
     // needed when client auth is required
     @FieldContext(

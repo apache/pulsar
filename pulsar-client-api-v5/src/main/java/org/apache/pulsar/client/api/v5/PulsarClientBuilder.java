@@ -34,11 +34,18 @@ import org.apache.pulsar.tls.TlsPurpose;
 public interface PulsarClientBuilder {
 
     /**
-     * Build and return the configured client.
+     * Build and return the configured client. A builder may be reused to build further clients; each one
+     * takes its own copy of the configuration.
      *
      * @return the configured {@link PulsarClient} instance
      * @throws PulsarClientException if the client cannot be created (e.g., invalid configuration
      *         or connection failure)
+     * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
+     *         taken by an earlier {@code build()} — taking it is what initializes it, so it is spent whether
+     *         or not that build went on to produce a client, and it cannot be handed over a second time.
+     *         Deliberately unchecked: it reports a programming error in how the builder is used, not a
+     *         failure to reach or configure a cluster, so it is not something a caller catching
+     *         {@link PulsarClientException} should be made to handle
      */
     PulsarClient build() throws PulsarClientException;
 
@@ -140,8 +147,25 @@ public interface PulsarClientBuilder {
      * per-destination workload identity). The supplied factory is <em>adopted</em>: the client
      * initializes it and closes it when the client closes.
      *
+     * <p>Adoption is a hand-over rather than a share, so an instance passed here belongs to one build.
+     * A builder otherwise builds as many clients as you like, but {@link #build()} rejects a second one
+     * while this slot still holds a factory an earlier build already took — pass a fresh instance to build
+     * again.
+     *
+     * <p>What matters for a retry is whether the build got as far as the factory, not whether it succeeded.
+     * A build that failed <em>before</em> that — a missing {@link #serviceUrl(String)}, say — has not touched
+     * the instance, and the same one can be used to build again. Once the client has taken it the instance is
+     * spent, whether the build then succeeded or not: taking it is what initializes it, and the SPI calls
+     * {@code initialize} exactly once. A build that took it and <em>then</em> failed closes it on the way
+     * out, so that factory is released rather than left half-open — but it still cannot be offered to a
+     * second client. (One that succeeded keeps it, and closes it with the client, as above.)
+     *
+     * <p>Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is a value, and
+     * each client composes its own factory from it.
+     *
      * @param factory the TLS factory to adopt
      * @return this builder instance for chaining
+     * @throws IllegalArgumentException if {@code factory} is null
      */
     PulsarClientBuilder tlsFactory(PulsarTlsFactory factory);
 

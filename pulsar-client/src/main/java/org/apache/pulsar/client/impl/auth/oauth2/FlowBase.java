@@ -51,6 +51,20 @@ abstract class FlowBase implements Flow {
     public static final String CONFIG_PARAM_TLS_KEY_FILE = "tlsKeyFile";
     public static final String CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION = "autoCertRefreshDuration";
     public static final String CONFIG_PARAM_WELL_KNOWN_METADATA_PATH = "wellKnownMetadataPath";
+    /**
+     * Optional OAuth2 parameter {@code jsseProvider} (PIP-478): the JSSE ({@code SSLContext} /
+     * {@code KeyManagerFactory} / {@code TrustManagerFactory}) provider name to pin for the IdP connection, e.g.
+     * {@code BCJSSE} in a FIPS deployment. Spelled exactly like the {@code jsseProvider} key of the client, broker
+     * and proxy configurations. Unset means the value inherited from the owning client (when the plugin runs
+     * inside a {@code PulsarClient}/{@code PulsarAdmin}), and failing that the JVM provider search order.
+     */
+    public static final String CONFIG_PARAM_JSSE_PROVIDER = "jsseProvider";
+    /**
+     * Optional OAuth2 parameter {@code jcaProvider} (PIP-478): the JCA provider name to pin for parsing and holding
+     * the IdP key material ({@code KeyStore} / {@code CertificateFactory} / {@code KeyFactory}), e.g. {@code BCFIPS}
+     * in a FIPS deployment. Same spelling and same inheritance rules as {@link #CONFIG_PARAM_JSSE_PROVIDER}.
+     */
+    public static final String CONFIG_PARAM_JCA_PROVIDER = "jcaProvider";
 
     protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
@@ -66,6 +80,10 @@ abstract class FlowBase implements Flow {
     private final String keyFile;
     private final long autoCertRefreshSeconds;
     protected final String wellKnownMetadataPath;
+    // PIP-478 provider pinning for the IdP leg; null unless the operator set the jsseProvider / jcaProvider
+    // OAuth2 parameters explicitly (see CONFIG_PARAM_JSSE_PROVIDER / CONFIG_PARAM_JCA_PROVIDER).
+    private final String jsseProvider;
+    private final String jcaProvider;
 
     protected transient Metadata metadata;
     // PIP-478: the framework HTTP client factory, late-bound by AuthenticationOAuth2 from the owning
@@ -79,7 +97,7 @@ abstract class FlowBase implements Flow {
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                        String certFile, String keyFile, Duration autoCertRefreshDuration,
-                       String wellKnownMetadataPath) {
+                       String wellKnownMetadataPath, String jsseProvider, String jcaProvider) {
         this.issuerUrl = issuerUrl;
         this.connectTimeout = connectTimeout;
         this.readTimeout = readTimeout;
@@ -89,6 +107,8 @@ abstract class FlowBase implements Flow {
         this.autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
                 autoCertRefreshDuration, DEFAULT_AUTO_CERT_REFRESH_DURATION);
         this.wellKnownMetadataPath = wellKnownMetadataPath;
+        this.jsseProvider = StringUtils.trimToNull(jsseProvider);
+        this.jcaProvider = StringUtils.trimToNull(jcaProvider);
         // PIP-478: the HTTP client is not built eagerly here. The flow is constructed during
         // configure() — before the client's framework services (the shared HTTP client factory) are bound —
         // so the client is created lazily on first use (initialize()), once the factory is available.
@@ -152,10 +172,39 @@ abstract class FlowBase implements Flow {
      * @return the CLIENT_OAUTH2 policy composed from this flow's IdP material, or empty
      */
     Optional<TlsPolicy> idpTlsPolicy() {
+        return idpTlsPolicy(null, null);
+    }
+
+    /**
+     * As {@link #idpTlsPolicy()}, but pinning the security providers used for the IdP connection (PIP-478) so a
+     * FIPS deployment does not silently parse the IdP certificate — or load an IdP mTLS client key — outside the
+     * validated module while the broker connection is pinned.
+     *
+     * <p>Precedence on each axis, independently: the flow's own {@code jsseProvider} / {@code jcaProvider} OAuth2
+     * parameter wins; otherwise the value inherited from the owning client's {@code CLIENT_DEFAULT} policy (passed
+     * in here); otherwise unset, i.e. the JVM provider search order — exactly today's behaviour.
+     *
+     * <p>The explicit parameters exist because the standalone path has no owning client to inherit from: the
+     * proxy and the CLIs create {@code AuthenticationOAuth2} through
+     * {@code AuthenticationFactory.create(pluginName, authParams)}, which carries nothing but the plugin name and
+     * the encoded parameter string, and then serve the IdP call from this flow's own
+     * {@link StandaloneOAuth2HttpClientFactory}.
+     *
+     * @param inheritedJsseProvider the owning client's JSSE provider name, or {@code null} when none applies
+     * @param inheritedJcaProvider  the owning client's JCA provider name, or {@code null} when none applies
+     * @return the CLIENT_OAUTH2 policy composed from this flow's IdP material, or empty
+     */
+    Optional<TlsPolicy> idpTlsPolicy(String inheritedJsseProvider, String inheritedJcaProvider) {
         if (!hasOwnTlsMaterial()) {
+            // No IdP TLS material to serve, so there is no policy to carry the provider names either. The
+            // OAuth2 call then resolves to the system default (CLIENT_OAUTH2's empty fallback) and stays
+            // unpinned; PIP-478 defers a provider-only policy for that case as a follow-up.
             return Optional.empty();
         }
-        TlsPolicy.Builder builder = TlsPolicy.builder().format(TlsPolicy.Format.PEM);
+        TlsPolicy.Builder builder = TlsPolicy.builder().format(TlsPolicy.Format.PEM)
+                // TlsPolicy.Builder trims blanks to null, so an unset axis stays unset on both sides.
+                .jsseProvider(StringUtils.defaultIfBlank(jsseProvider, inheritedJsseProvider))
+                .jcaProvider(StringUtils.defaultIfBlank(jcaProvider, inheritedJcaProvider));
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
             builder.trustCertsFilePath(trustCertsFilePath);
         }

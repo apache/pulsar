@@ -71,6 +71,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -500,19 +501,30 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * {@code CLIENT_OAUTH2} against. A policy the caller supplied explicitly wins: the fold is
      * {@code putIfAbsent}.
      *
-     * @param conf the admin client configuration, mutated to carry the IdP policy
+     * <p>The fold writes into a map this admin owns, never into one it was handed (#26398).
+     * {@code PulsarAdminBuilderImpl.build()} passes a {@code clone()} of the builder's configuration, but
+     * {@code ClientConfigurationData.clone()} is {@code super.clone()} — a copy still shares the
+     * {@code tlsPolicyMap} <em>instance</em>. Inserting into that shared map would put the first admin's IdP
+     * policy back in the builder's reach, and the next admin's {@code putIfAbsent} would find it already
+     * there and keep it: two admins with different OAuth2 credentials, the second one trusting the first's
+     * IdP material. Copying here rather than deepening {@code clone()} keeps the rule where the mutation is.
+     *
+     * @param conf the admin client configuration, given this admin's own policy map carrying the IdP policy
      */
     private void foldOAuth2IdpPolicy(ClientConfigurationData conf) {
         if (!(auth instanceof AuthenticationOAuth2 oauth2)) {
             return;
         }
-        oauth2.idpTlsPolicy().ifPresent(policy -> {
-            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap();
-            if (policies == null) {
-                policies = new LinkedHashMap<>();
-                conf.setTlsPolicyMap(policies);
-            }
+        // PIP-478: inherit the admin's own provider pins onto the IdP leg, on each axis the OAuth2 parameters
+        // do not pin themselves. This fold runs before ClientTlsFactorySupport.composePolicies and writes into
+        // the same policy map, so its putIfAbsent there can never replace what is inserted here — the
+        // inheritance has to happen at this site or not at all.
+        TlsPolicy clientDefault = ClientTlsFactorySupport.effectiveClientDefaultPolicy(conf);
+        oauth2.idpTlsPolicy(clientDefault.jsseProvider(), clientDefault.jcaProvider()).ifPresent(policy -> {
+            Map<TlsPurpose, TlsPolicy> policies = conf.getTlsPolicyMap() == null
+                    ? new LinkedHashMap<>() : new LinkedHashMap<>(conf.getTlsPolicyMap());
             policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy);
+            conf.setTlsPolicyMap(policies);
         });
     }
 
@@ -583,8 +595,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 () -> null, () -> null, () -> null, () -> authTlsFactory(conf), conf, clientInstanceId);
         OpenTelemetry openTelemetry = conf.getOpenTelemetry() != null ? conf.getOpenTelemetry()
                 : OpenTelemetry.noop();
-        // The admin OAuth2 flow only uses the HTTP client factory; the scheduler / blocking executor of the
-        // (binary-protocol) auth services are unused on the HTTP-only admin path.
+        // No scheduler: nothing on the admin path schedules periodic authentication work. The blocking
+        // executor is left unbound deliberately too — a plugin that needs one falls back to the shared pool
+        // rather than running on the caller thread, which is where the SASL-over-HTTP challenge rounds
+        // off-load their GSSAPI work. Handing the admin's own request threads over instead would let a slow
+        // KDC consume them.
         ClientAuthenticationServices services = new DefaultClientAuthenticationServices(
                 authHttpClientFactory, null, null, Clock.systemDefaultZone(), openTelemetry, clientInstanceId);
         aware.bindClientAuthenticationServices(services);

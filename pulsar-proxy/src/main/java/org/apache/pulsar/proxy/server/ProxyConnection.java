@@ -932,12 +932,21 @@ public class ProxyConnection extends PulsarHandler {
                 clientConf.setTlsCertificateFilePath(proxyConfig.getBrokerClientCertificateFilePath());
             }
             clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
-            // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-            // (jsseProvider) onto the internal lookup client config so the proxy's outbound broker client
-            // honors them — otherwise they are dropped (never copied into ClientConfigurationData) and the
-            // engine/provider silently defaults.
-            clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
-            clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal lookup client config so
+            // the proxy's outbound broker client honors them — otherwise they are dropped (never copied into
+            // ClientConfigurationData) and the engine/provider silently defaults. The JCA pin matters here
+            // because ProxyTlsFactories.brokerClientPolicy already honours it on the direct path: one
+            // proxy.conf setting drives two outbound legs, and only one of them read it.
+            if (isNotBlank(proxyConfig.getBrokerClientSslProvider())) {
+                clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(proxyConfig.getBrokerClientJcaProvider());
+            }
             // PIP-478: propagate the broker-client custom TLS factory selection so resolveClientTlsFactory
             // (run by ProxyService over the representative config built here) instantiates the named factory
             // for the lookup path's shared CLIENT_DEFAULT factory instead of silently defaulting to the

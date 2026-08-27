@@ -83,4 +83,103 @@ public class OAuth2IdpTlsFoldTest {
     public void unconfiguredPluginFoldsToEmpty() {
         assertThat(new AuthenticationOAuth2().idpTlsPolicy()).isEmpty();
     }
+
+    // PIP-478: provider pinning of the IdP leg. Both axes (jsseProvider / jcaProvider) are carried by the
+    // CLIENT_OAUTH2 policy, so a FIPS deployment does not parse the IdP certificate — or load an IdP mTLS
+    // client key — outside the validated module while the broker connection is pinned.
+
+    @Test
+    public void unsetProvidersLeaveBothAxesNull() {
+        AuthenticationOAuth2 auth = trustOnlyPlugin("");
+
+        TlsPolicy policy = auth.idpTlsPolicy().orElseThrow();
+        assertThat(policy.jsseProvider()).as("backward compatible: unset means the JVM provider search order")
+                .isNull();
+        assertThat(policy.jcaProvider()).isNull();
+    }
+
+    @Test
+    public void explicitProviderParametersFoldIntoBothAxes() {
+        AuthenticationOAuth2 auth = trustOnlyPlugin(",\"jsseProvider\":\"BCJSSE\",\"jcaProvider\":\"BCFIPS\"");
+
+        TlsPolicy policy = auth.idpTlsPolicy().orElseThrow();
+        assertThat(policy.jsseProvider()).isEqualTo("BCJSSE");
+        assertThat(policy.jcaProvider()).isEqualTo("BCFIPS");
+        assertThat(policy.trustCertsFilePath()).as("the IdP material is still folded").isEqualTo("/certs/ca.pem");
+    }
+
+    @Test
+    public void explicitProviderParametersFoldForTlsClientAuthFlow() {
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure("{"
+                + "\"type\":\"client_credentials\","
+                + "\"tokenEndpointAuthMethod\":\"tls_client_auth\","
+                + "\"issuerUrl\":\"https://idp.example.com\","
+                + "\"tlsCertFile\":\"/certs/idp-client.cert.pem\","
+                + "\"tlsKeyFile\":\"/certs/idp-client.key.pem\","
+                + "\"jsseProvider\":\"BCJSSE\",\"jcaProvider\":\"BCFIPS\"}");
+
+        TlsPolicy policy = auth.idpTlsPolicy().orElseThrow();
+        assertThat(policy.jsseProvider()).isEqualTo("BCJSSE");
+        assertThat(policy.jcaProvider()).isEqualTo("BCFIPS");
+    }
+
+    @Test
+    public void inheritedProvidersApplyWhenNoParameterIsSet() {
+        AuthenticationOAuth2 auth = trustOnlyPlugin("");
+
+        TlsPolicy policy = auth.idpTlsPolicy("BCJSSE", "BCFIPS").orElseThrow();
+        assertThat(policy.jsseProvider()).isEqualTo("BCJSSE");
+        assertThat(policy.jcaProvider()).isEqualTo("BCFIPS");
+    }
+
+    @Test
+    public void explicitParametersWinOverInheritedProvidersPerAxis() {
+        AuthenticationOAuth2 auth = trustOnlyPlugin(",\"jsseProvider\":\"SunJSSE\"");
+
+        TlsPolicy policy = auth.idpTlsPolicy("BCJSSE", "BCFIPS").orElseThrow();
+        assertThat(policy.jsseProvider()).as("the explicit OAuth2 parameter wins on its own axis")
+                .isEqualTo("SunJSSE");
+        assertThat(policy.jcaProvider()).as("the other axis still inherits").isEqualTo("BCFIPS");
+    }
+
+    @Test
+    public void blankProviderParametersAreTreatedAsUnset() {
+        AuthenticationOAuth2 auth = trustOnlyPlugin(",\"jsseProvider\":\"  \",\"jcaProvider\":\"\"");
+
+        assertThat(auth.idpTlsPolicy().orElseThrow().jsseProvider()).isNull();
+        assertThat(auth.idpTlsPolicy("BCJSSE", "BCFIPS").orElseThrow().jsseProvider())
+                .as("a blank parameter does not shadow the inherited value").isEqualTo("BCJSSE");
+    }
+
+    @Test
+    public void providersDoNotConjureAPolicyWithoutIdpTlsMaterial() {
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure("{"
+                + "\"type\":\"client_credentials\","
+                + "\"issuerUrl\":\"https://idp.example.com\","
+                + "\"privateKey\":\"data:application/json;base64,e30=\","
+                + "\"jsseProvider\":\"BCJSSE\",\"jcaProvider\":\"BCFIPS\"}");
+
+        // Unchanged from today: with no IdP TLS material there is no policy to fold, so CLIENT_OAUTH2 keeps
+        // resolving to the system default. PIP-478 defers a provider-only policy for that case.
+        assertThat(auth.idpTlsPolicy()).isEmpty();
+        assertThat(auth.idpTlsPolicy("BCJSSE", "BCFIPS")).isEmpty();
+    }
+
+    /**
+     * A client-credentials plugin carrying only IdP trust material, plus the given extra JSON parameter
+     * fragment (must start with a comma, or be empty).
+     */
+    private static AuthenticationOAuth2 trustOnlyPlugin(String extraParamsJsonFragment) {
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2();
+        auth.configure("{"
+                + "\"type\":\"client_credentials\","
+                + "\"issuerUrl\":\"https://idp.example.com\","
+                + "\"privateKey\":\"data:application/json;base64,e30=\","
+                + "\"trustCertsFilePath\":\"/certs/ca.pem\""
+                + extraParamsJsonFragment
+                + "}");
+        return auth;
+    }
 }

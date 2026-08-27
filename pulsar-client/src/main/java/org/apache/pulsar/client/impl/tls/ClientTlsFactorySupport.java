@@ -175,7 +175,8 @@ public final class ClientTlsFactorySupport {
                 .enableHostnameVerification(conf.isTlsHostnameVerificationEnable())
                 .protocols(toList(conf.getTlsProtocols()))
                 .ciphers(toList(conf.getTlsCiphers()))
-                .jsseProvider(resolveClientJsseProvider(conf));
+                .jsseProvider(resolveClientJsseProvider(conf))
+                .jcaProvider(conf.getJcaProvider());
         if (conf.isUseKeyStoreTls()) {
             // Map the keystore and truststore types independently (v4 parity): a mixed setup such as a PKCS12
             // keystore with a JKS truststore must load each store with its own type.
@@ -247,6 +248,14 @@ public final class ClientTlsFactorySupport {
         if (conf.getTlsFactory() != null) {
             // The v5 builder adopted a custom factory; the client owns and closes it.
             factory = conf.getTlsFactory();
+            // Record the hand-over on the configuration the caller passed in, before anything can fail.
+            // This is the one place the framework takes a caller-supplied instance, so it is the only place
+            // that can say so honestly: from here on its initialization has been attempted and it may have
+            // been closed again (the failure handler below, which covers initialization and the probe alike,
+            // or the owning component's shutdown), and a builder that reads this back must not hand the same
+            // instance to a second client. Set for a build that goes on to fail as much as for one that
+            // succeeds — the instance is spent either way.
+            conf.setTlsFactoryAdopted(true);
             initParams = conf.getTlsFactoryParams() == null ? Map.of() : Map.copyOf(conf.getTlsFactoryParams());
         } else if (conf.getTlsPolicyMap() == null && isCustomFactoryClass(conf.getTlsFactoryClassName())) {
             // PIP-478 v4 by-name successor: no v5-builder instance/policy map is set, and tlsFactoryClassName
@@ -267,11 +276,29 @@ public final class ClientTlsFactorySupport {
                     clientDefaultAuthMaterialSuppliers(conf));
             initParams = conf.getTlsFactoryParams() == null ? Map.of() : Map.copyOf(conf.getTlsFactoryParams());
         }
-        initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
-        // Fail-fast probe only on the v5-builder path.
-        if (v5BuilderPath) {
-            probe(factory, TlsPurpose.CLIENT_DEFAULT,
-                    TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
+        try {
+            initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
+            // Fail-fast probe only on the v5-builder path.
+            if (v5BuilderPath) {
+                probe(factory, TlsPurpose.CLIENT_DEFAULT,
+                        TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
+            }
+        } catch (Throwable t) {
+            // This method initialized the factory, so this method cleans it up when initialization itself or
+            // the probe after it fails: initialization is what registers the metrics callback, the file
+            // watcher and the refresh task, and an initialize() that fails part-way — an HSM session that
+            // cannot be opened, an unreachable KMS — has registered some of them already. Nothing downstream
+            // can do it: PulsarClientImpl takes ownership only of the value this method *returns*
+            // (setupClientTlsFactory sets ownsTlsFactory after it) and AsyncHttpConnectorProvider stores its
+            // shared factory only on success, so a throw leaves no owner, while on the by-name and composed
+            // paths the instance is local and unreachable. Without this, every failed build leaks them.
+            //
+            // The adopted instance is closed here too, even though the caller still holds a reference: close()
+            // is the only signal a factory gets that it will never be used, and the caller cannot offer it to
+            // another client anyway, because initialize() has been called on it and the SPI says exactly once.
+            // PulsarTlsFactory.close() documents that a failed initialization is still followed by close().
+            closeQuietly(factory, t);
+            throw t;
         }
         return factory;
     }
@@ -371,8 +398,10 @@ public final class ClientTlsFactorySupport {
      * {@code PulsarClientImpl} adopts, initializes (with its shared scheduler / executor / OpenTelemetry) and
      * closes it — one factory per outbound client, so per-cluster material is served without minting
      * per-cluster purposes. A non-default {@code factoryClassName} names a custom {@link PulsarTlsFactory},
-     * instantiated reflectively (it self-sources material; the config/auth composition below does not apply,
-     * and {@code brokerClientTlsFactoryConfig} params are not yet plumbed to the client init context).
+     * instantiated reflectively — it self-sources material, so the config/auth composition below does not
+     * apply. Its {@code brokerClientTlsFactoryConfig} params do reach it: every caller parses them onto
+     * {@code conf} via {@code setTlsFactoryParams} alongside this call, and
+     * {@link #resolveClientTlsFactory} hands them to {@code initialize} as the adopted factory's init params.
      *
      * @param conf            the outbound client configuration (its {@code tls*} fields hold the broker-client
      *                        material; {@code getAuthentication()} the broker-client authentication)
@@ -514,7 +543,8 @@ public final class ClientTlsFactorySupport {
         }
     }
 
-    private static Map<TlsPurpose, TlsPolicy> composePolicies(ClientConfigurationData conf) {
+    @VisibleForTesting
+    static Map<TlsPurpose, TlsPolicy> composePolicies(ClientConfigurationData conf) {
         Map<TlsPurpose, TlsPolicy> policies = new LinkedHashMap<>();
         if (conf.getTlsPolicyMap() != null) {
             policies.putAll(conf.getTlsPolicyMap());
@@ -534,8 +564,33 @@ public final class ClientTlsFactorySupport {
 
     private static void foldOAuth2IdpPolicy(ClientConfigurationData conf, Map<TlsPurpose, TlsPolicy> policies) {
         if (conf.getAuthentication() instanceof AuthenticationOAuth2 oauth2) {
-            oauth2.idpTlsPolicy().ifPresent(policy -> policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy));
+            // PIP-478: this is the framework-bound path, so the IdP leg inherits the client's provider pins on
+            // each axis unless the OAuth2 parameters pin their own. Otherwise a FIPS client would parse the IdP
+            // certificate — and any IdP mTLS client key — outside the validated module while its broker
+            // connection is pinned. The values are read off the CLIENT_DEFAULT policy that was actually
+            // composed above, not off the configuration fields: a v5 caller supplying
+            // tlsPolicy(CLIENT_DEFAULT, ...) pins the providers on that policy and leaves the fields unset, so
+            // reading the fields would inherit nothing for exactly the caller most likely to have pinned them.
+            TlsPolicy clientDefault = policies.get(TlsPurpose.CLIENT_DEFAULT);
+            oauth2.idpTlsPolicy(clientDefault.jsseProvider(), clientDefault.jcaProvider())
+                    .ifPresent(policy -> policies.putIfAbsent(TlsPurpose.CLIENT_OAUTH2, policy));
         }
+    }
+
+    /**
+     * The {@link TlsPurpose#CLIENT_DEFAULT} policy a client built from this configuration resolves to: one the
+     * v5 builder supplied explicitly, else one composed from the {@code tls*} fields (PIP-478).
+     *
+     * <p>Public because the admin folds the OAuth2 IdP policy before its factory is built, and has to inherit
+     * the same provider pins this composition would give {@code CLIENT_DEFAULT}.
+     *
+     * @param conf the client configuration
+     * @return the effective client-default policy
+     */
+    public static TlsPolicy effectiveClientDefaultPolicy(ClientConfigurationData conf) {
+        TlsPolicy explicit = conf.getTlsPolicyMap() == null
+                ? null : conf.getTlsPolicyMap().get(TlsPurpose.CLIENT_DEFAULT);
+        return explicit != null ? explicit : clientDefaultPolicy(conf);
     }
 
     private static FileBasedTlsFactorySettings settings(ClientConfigurationData conf) {
@@ -586,6 +641,41 @@ public final class ClientTlsFactorySupport {
                 throw ex;
             }
             throw new RuntimeException(cause);
+        }
+    }
+
+    /**
+     * Close a factory the framework initialized, or tried to, attaching any <em>distinct</em> close failure
+     * to the original error so the cleanup problem is visible without displacing the reason the build failed.
+     * A close failure that is the original error itself is deliberately not attached — see below.
+     *
+     * @param factory the factory to release — initialized, or left half-built by a failed {@code initialize}
+     * @param failure the failure being propagated
+     */
+    private static void closeQuietly(PulsarTlsFactory factory, Throwable failure) {
+        try {
+            factory.close();
+        } catch (Throwable closeFailure) {
+            // Identity-guarded because addSuppressed rejects self-suppression — IllegalArgumentException
+            // ("Self-suppression not permitted"), and it validates the argument even when suppression is
+            // disabled — and that exception would escape this method and replace the very failure it is
+            // supposed to preserve. Deliberately STRICTER than try-with-resources, whose JLS 14.20.3.1
+            // translation calls addSuppressed unguarded (as does javac's lowering of it), so the language
+            // construct propagates that IllegalArgumentException itself. This guard is therefore not
+            // redundant with try-with-resources and must not be deleted as such.
+            //
+            // Reachable when one Throwable object arrives here as both failure and closeFailure — a factory
+            // that latches a single "why I am unusable" exception and hands it back from both the failing
+            // call and close() is the obvious way that happens. Stated at the arrival point on purpose:
+            // reuse by the factory is necessary but not sufficient, since a path that wraps the throwable on
+            // the way here breaks the identity and the guard simply passes. Which operation failed, and
+            // which paths wrap, are incidental — the split does not follow the SPI's own rules (a void
+            // method like TlsHandle.dispose() is not covered by CODING.md's no-synchronous-throw rule at
+            // all) and has already changed once. The guard keys on what this method can see, so none of
+            // that matters.
+            if (closeFailure != failure) {
+                failure.addSuppressed(closeFailure);
+            }
         }
     }
 

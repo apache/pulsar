@@ -107,7 +107,8 @@ final class ProxyTlsFactories {
                 .jsseProvider(TlsPurpose.WEB.equals(purpose)
                         ? TlsFactorySupport.resolveWebJsseProvider(config.getJsseProvider(),
                                 firstNonBlank(config.getWebServiceTlsProvider(), config.getTlsProvider()))
-                        : TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()));
+                        : TlsFactorySupport.resolveJsseProvider(config.getJsseProvider(), config.getTlsProvider()))
+                .jcaProvider(config.getJcaProvider());
         if (config.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
@@ -136,7 +137,8 @@ final class ProxyTlsFactories {
                 // A non-engine brokerClientSslProvider value (e.g. Conscrypt) is also routed here for v4 keystore
                 // parity, mirroring the broker's two-axis split.
                 .jsseProvider(TlsFactorySupport.resolveJsseProvider(config.getBrokerClientJsseProvider(),
-                        config.getBrokerClientSslProvider()));
+                        config.getBrokerClientSslProvider()))
+                .jcaProvider(config.getBrokerClientJcaProvider());
         if (config.isBrokerClientTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getBrokerClientTlsKeyStoreType())

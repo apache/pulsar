@@ -260,10 +260,14 @@ public class PulsarClientTool implements CommandHook {
                 tls.keyFilePath(keyFile);
             }
         }
-        // Format-independent: the JSSE (SSLContext) provider applies to both PEM and KEYSTORE.
+        // Format-independent: both provider axes apply to PEM and KEYSTORE alike.
         String jsseProvider = properties.getProperty("jsseProvider");
         if (isNotBlank(jsseProvider)) {
             tls.jsseProvider(jsseProvider);
+        }
+        String jcaProvider = properties.getProperty("jcaProvider");
+        if (isNotBlank(jcaProvider)) {
+            tls.jcaProvider(jcaProvider);
         }
         clientBuilder.tlsPolicy(tls.build());
     }
