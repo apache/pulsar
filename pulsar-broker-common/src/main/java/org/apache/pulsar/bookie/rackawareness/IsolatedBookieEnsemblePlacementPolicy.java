@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
@@ -67,6 +68,17 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private volatile BookiesRackConfiguration cachedRackConfiguration = null;
 
+    /**
+     * Completes once the rack configuration load started by
+     * {@link #initialize(ClientConfiguration, Optional, HashedWheelTimer, FeatureProvider, StatsLogger,
+     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}. Until then no isolation is
+     * applied at all, so tests must wait for this future before asserting on placement decisions.
+     */
+    @Getter
+    @VisibleForTesting
+    private volatile CompletableFuture<Void> initialRackConfigurationLoadFuture =
+            CompletableFuture.completedFuture(null);
+
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
     }
@@ -91,7 +103,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
+            initialRackConfigurationLoadFuture = bookieMappingCache
+                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
                             bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration))
                     .exceptionally(e -> {
                         log.warn("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
