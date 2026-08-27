@@ -61,6 +61,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     protected static final AtomicIntegerFieldUpdater<BlobStoreBackedReadHandleImpl> PENDING_READ_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(BlobStoreBackedReadHandleImpl.class, "pendingRead");
 
+    // Bound on how far seekToEntryOffset() probes backwards through entryOffsetsCache for an anchor
+    // before falling back to re-walking from the sparse index marker.
+    private static final long MAX_OFFSET_PROBE =
+            Long.getLong("pulsar.jclouds.readhandleimpl.offsetprobe.max", 1024);
+
     private final long ledgerId;
     private final OffloadIndexBlock index;
     private final BackedInputStream inputStream;
@@ -241,6 +246,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 }
                 long entryId = dataStream.readLong();
                 if (entryId == nextExpectedEntryId) {
+                    entryOffsetsCache.put(ledgerId, entryId, offset);
                     long skipped = inputStream.skip(len);
                     if (skipped != len) {
                         LedgerMetadata ledgerMetadata = getLedgerMetadata();
@@ -285,13 +291,19 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 inputStream.seek(indexOfNearestEntry.getDataOffset());
                 return;
             }
-            // 2. Try to use the previous index. Since the entry-0 must have a precise index, we can skip to check
-            //    whether "expectedEntryId" is larger than 0;
-            Long cachedPreviousKnownOffset = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId - 1);
-            if (cachedPreviousKnownOffset != null) {
-                inputStream.seek(cachedPreviousKnownOffset);
-                skipPreviousEntry(expectedEntryId - 1, expectedEntryId);
-                return;
+            // 2. Probe backwards for the nearest cached offset within a bounded window. Since entry-0
+            //    must have a precise index, we can skip checking whether "expectedEntryId" is larger
+            //    than 0. skipPreviousEntry() below caches every entry it walks past, so once a block
+            //    has been walked once, a later jump into the same block lands on that cached run
+            //    within "gap" probes instead of re-walking from the sparse index marker in step 3.
+            long probeFloor = Math.max(indexOfNearestEntry.getEntryId(), expectedEntryId - MAX_OFFSET_PROBE);
+            for (long probe = expectedEntryId - 1; probe >= probeFloor; probe--) {
+                Long cachedOffset = entryOffsetsCache.getIfPresent(ledgerId, probe);
+                if (cachedOffset != null) {
+                    inputStream.seek(cachedOffset);
+                    skipPreviousEntry(probe, expectedEntryId);
+                    return;
+                }
             }
             // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
             //    Because it is a sparse index, some entries need to be skipped.
