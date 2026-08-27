@@ -562,13 +562,28 @@ public class FunctionConfigUtilsTest {
         FunctionConfigUtils.validateNonJavaFunction(functionConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
-    public void testGoFunctionStillRejectsMessageRetries() {
-        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
+    @Test
+    public void testPythonFunctionTreatsNegativeMessageRetriesAsUnset() {
+        // doPythonChecks refuses exactly 0; a negative count means "unset", as it does on the Java path,
+        // and convert() emits retryDetails only for a count >= 0. Pinned so tightening that guard to <= 0
+        // cannot pass silently.
         FunctionConfig functionConfig = createPythonFunctionConfig();
-        functionConfig.setRuntime(FunctionConfig.Runtime.GO);
-        functionConfig.setMaxMessageRetries(3);
+        functionConfig.setMaxMessageRetries(-1);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertFalse(FunctionConfigUtils.convert(functionConfig).hasRetryDetails());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Dead Letter Topic specified, however max retries is set to infinity")
+    public void testPythonFunctionRejectsDeadLetterTopicWithoutMessageRetries() {
+        // doCommonChecks refuses a dead letter topic nothing can route to: with maxMessageRetries unset the
+        // redelivery count is infinite, so the topic would never receive anything. Same shape as the zero
+        // case above, reached from the other side.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setDeadLetterTopic("test-dlq");
+
         FunctionConfigUtils.validateNonJavaFunction(functionConfig);
     }
 
@@ -868,8 +883,20 @@ public class FunctionConfigUtilsTest {
     @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
     public void testGoFunctionStillRejectsMessageRetries() {
+        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
         FunctionConfig functionConfig = minimalGoFunctionConfig();
         functionConfig.setMaxMessageRetries(3);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionRejectsZeroMessageRetries() {
+        // doGolangChecks refuses every count >= 0, not only a positive one -- unlike Python, which refuses
+        // only 0. Pinned so the two guards cannot be quietly aligned.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
 
         FunctionConfigUtils.validateNonJavaFunction(functionConfig);
     }
