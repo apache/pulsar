@@ -363,10 +363,18 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         // both (there is no shared client scheduler here, unlike the PulsarClientImpl funnel).
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-admin-tls-factory"));
-        PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
-                executor, conf.getOpenTelemetry());
-        this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
-        return factory;
+        try {
+            PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
+                    executor, conf.getOpenTelemetry());
+            this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
+            return factory;
+        } catch (Exception e) {
+            // Never leave the pulsar-admin-tls-factory thread alive on a failed resolution: Netty's
+            // DefaultThreadFactory creates non-daemon threads by default, so an un-shutdown executor
+            // would keep the JVM from exiting. Mirrors AsyncHttpConnectorProvider.sharedTlsFactory().
+            executor.shutdownNow();
+            throw e;
+        }
     }
 
     /**
