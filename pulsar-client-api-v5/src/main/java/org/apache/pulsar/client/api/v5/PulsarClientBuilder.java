@@ -42,7 +42,10 @@ public interface PulsarClientBuilder {
      *         or connection failure)
      * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
      *         taken by an earlier {@code build()} — taking it is what initializes it, so it is spent whether
-     *         or not that build went on to produce a client, and it cannot be handed over a second time
+     *         or not that build went on to produce a client, and it cannot be handed over a second time.
+     *         Deliberately unchecked: it reports a programming error in how the builder is used, not a
+     *         failure to reach or configure a cluster, so it is not something a caller catching
+     *         {@link PulsarClientException} should be made to handle
      */
     PulsarClient build() throws PulsarClientException;
 

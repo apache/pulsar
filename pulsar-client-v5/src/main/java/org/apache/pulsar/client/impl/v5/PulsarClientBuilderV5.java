@@ -64,11 +64,14 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     private Authentication v5Authentication;
     // PIP-478: the factory instances build() has handed to a client. Adoption is a hand-over, not a share —
     // see the check in build(). Identity, not equals: a factory is an instance with a lifecycle, not a value.
-    // Unsynchronized, unlike the admin builder's: this builder has no clone(), so the record never spans more
-    // than the one builder that owns it, and two threads reaching it at once are already racing on the
-    // configuration this builder mutates.
+    // Synchronized like the admin builder's. Having no clone() rules out sharing this record BETWEEN
+    // builders, but not two threads calling build() on this one, and that is enough: the claim in build() is
+    // an add() whose return value decides whether the build proceeds, and a bare IdentityHashMap under
+    // concurrent insertion can lose entries or spin during a resize. Corrupting the record defeats the guard
+    // outright, which is a worse failure than the visibly-wrong client that racing on the configuration
+    // would produce.
     private final Set<PulsarTlsFactory> adoptedTlsFactories =
-            Collections.newSetFromMap(new IdentityHashMap<>());
+            Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
     PulsarClientBuilderV5() {
         conf.setStatsIntervalSeconds(0);
@@ -80,8 +83,16 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        PulsarTlsFactory adopting = rejectAnAlreadyAdoptedTlsFactory();
         ClientConfigurationData clientConf = conf.clone();
+        // The mark is the framework's statement about THIS build, and the finally below reads it back as
+        // such, so start it clear rather than inheriting whatever the source carried — clone() copies a
+        // plain boolean. Unreachable here today (nothing marks a builder's own configuration), but it costs
+        // one line to stop the finally depending on that.
+        clientConf.setTlsFactoryAdopted(false);
+        // Claimed LAST: the claim is released by the finally below, so anything that can throw between the
+        // two would leak it and poison the builder against a factory no build ever took. Copying the
+        // configuration is the only such step, and it goes first.
+        PulsarTlsFactory adopting = claimTlsFactoryOrReject(clientConf);
         try {
             // PIP-478: hand the client its own configuration object, as ClientBuilderImpl.build() does.
             // PulsarClientImpl stores the TLS factory it composes back onto this object
@@ -112,9 +123,9 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             // has spent it (initialized, and closed again on the way out) exactly as a successful one has,
             // while one that failed before — no serviceUrl, say — has not touched it and must leave the
             // builder able to retry with it.
-            if (clientConf.isTlsFactoryAdopted()) {
-                recordAdoption(adopting);
-            }
+            // The claim was taken up front so it could be atomic; this gives it back when the mark says
+            // nothing consumed it.
+            releaseTlsFactoryUnlessSpent(adopting, clientConf);
         }
     }
 
@@ -136,31 +147,51 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
      * the instance untouched and the builder usable, which matters because {@code tlsFactory(null)} throws,
      * so there is otherwise no way to clear the slot and retry.
      *
-     * @return the instance about to be adopted, to be passed to {@link #recordAdoption} whatever the outcome,
-     *         or {@code null} when no factory is configured
+     * <p><b>The claim is the check.</b> {@code Set.add} reports whether the instance was already there, so
+     * testing and claiming are one operation. Checking with {@code contains} and adding afterwards left a
+     * window spanning the whole build: two concurrent {@code build()} calls carrying the same factory both
+     * found the set empty, both proceeded, and both adopted — {@code initialize} twice, {@code close} twice,
+     * and whichever client was closed second left serving TLS from a closed factory while still reporting
+     * itself open, which is the exact outcome this guard exists to prevent.
+     *
+     * <p>The claim is given back by {@link #releaseTlsFactoryUnlessSpent} when the build turns out not to
+     * have consumed the instance. A loser of the race is therefore rejected even in the case where the
+     * winner went on to fail before adopting, and would have left the instance re-usable had the two run in
+     * sequence. That is the safe direction: refusing a build the caller can retry, rather than handing one
+     * live factory to two owners.
+     *
+     * @return the instance claimed for this build, to be passed to {@link #releaseTlsFactoryUnlessSpent}
+     *         whatever the outcome, or {@code null} when no factory is configured
      */
-    private PulsarTlsFactory rejectAnAlreadyAdoptedTlsFactory() {
-        PulsarTlsFactory adopting = conf.getTlsFactory();
-        if (adopting != null && adoptedTlsFactories.contains(adopting)) {
+    private PulsarTlsFactory claimTlsFactoryOrReject(ClientConfigurationData handingOver) {
+        PulsarTlsFactory adopting = handingOver.getTlsFactory();
+        if (adopting != null && !adoptedTlsFactories.add(adopting)) {
             throw new IllegalStateException("the PulsarTlsFactory passed to tlsFactory(...) has already been "
-                    + "adopted by a client built from this builder. The client initializes that instance and "
-                    + "closes it with itself, so it cannot be handed to a second client — closing either one "
-                    + "would break TLS for the other. Call tlsFactory(...) with a fresh instance before "
-                    + "building again.");
+                    + "adopted by a client built from this builder, or is claimed by a build still in "
+                    + "progress. The client initializes that instance and closes it with itself, so it "
+                    + "cannot be handed to a second client — closing either one would break TLS for the "
+                    + "other. Call tlsFactory(...) with a fresh instance before building again.");
         }
         return adopting;
     }
 
     /**
-     * Record that {@code adopted} has been handed over. Every instance is remembered, not just the last one,
-     * so cycling back to an earlier factory is caught too; the builder therefore retains one reference per
-     * build it performed, which is bounded by the factories the caller created in the first place.
+     * Give back a claim the build did not consume, so a build that failed before the framework took the
+     * instance leaves the builder able to retry with it. A claim that WAS consumed stays, and every consumed
+     * instance is remembered rather than just the last one, so cycling back to an earlier factory is caught
+     * too. That is a deliberate trade: the record holds a strong reference to each adopted factory, so a
+     * closed one is not collectable while the builder lives, and the bound is the caller's own history of
+     * adoptions rather than anything the builder controls. Forgetting instances instead would let a
+     * long-lived builder silently re-adopt a closed factory, which is the failure this guards against; the
+     * builder therefore retains one reference per adoption performed, which is bounded by the
+     * factories the caller created in the first place.
      *
-     * @param adopted the adopted instance, or {@code null} when no factory was configured
+     * @param adopting   the instance claimed by {@link #claimTlsFactoryOrReject}, or {@code null}
+     * @param handedOver the configuration copy the client was given, carrying the framework's own mark
      */
-    private void recordAdoption(PulsarTlsFactory adopted) {
-        if (adopted != null) {
-            adoptedTlsFactories.add(adopted);
+    private void releaseTlsFactoryUnlessSpent(PulsarTlsFactory adopting, ClientConfigurationData handedOver) {
+        if (adopting != null && !handedOver.isTlsFactoryAdopted()) {
+            adoptedTlsFactories.remove(adopting);
         }
     }
 

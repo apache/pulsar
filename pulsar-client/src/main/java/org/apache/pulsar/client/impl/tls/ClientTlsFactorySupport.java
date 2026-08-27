@@ -664,14 +664,15 @@ public final class ClientTlsFactorySupport {
             // construct propagates that IllegalArgumentException itself. This guard is therefore not
             // redundant with try-with-resources and must not be deleted as such.
             //
-            // Reachable whenever a factory reuses one Throwable object as both the failure that aborts the
-            // build and the failure thrown from close() — latching a single "why I am unusable" exception
-            // is the obvious way to write that. Deliberately stated as the identity, not as a route: which
-            // operation failed, and whether anything between it and here happens to wrap the throwable on
-            // the way out, are incidental. Some paths preserve identity and some replace it, that split
-            // does not follow the SPI's own rules (a void method like TlsHandle.dispose() is not covered by
-            // CODING.md's no-synchronous-throw rule at all), and which paths do what has already changed
-            // once. The guard keys on the identity so none of that matters.
+            // Reachable when one Throwable object arrives here as both failure and closeFailure — a factory
+            // that latches a single "why I am unusable" exception and hands it back from both the failing
+            // call and close() is the obvious way that happens. Stated at the arrival point on purpose:
+            // reuse by the factory is necessary but not sufficient, since a path that wraps the throwable on
+            // the way here breaks the identity and the guard simply passes. Which operation failed, and
+            // which paths wrap, are incidental — the split does not follow the SPI's own rules (a void
+            // method like TlsHandle.dispose() is not covered by CODING.md's no-synchronous-throw rule at
+            // all) and has already changed once. The guard keys on what this method can see, so none of
+            // that matters.
             if (closeFailure != failure) {
                 failure.addSuppressed(closeFailure);
             }

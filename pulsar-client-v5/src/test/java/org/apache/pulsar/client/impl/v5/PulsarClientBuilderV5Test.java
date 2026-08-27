@@ -35,6 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.net.ssl.SSLContext;
@@ -380,17 +385,85 @@ public class PulsarClientBuilderV5Test {
     }
 
     /**
+     * PIP-478: the adoption guard must be atomic, not check-then-act.
+     *
+     * <p>The guard used to {@code contains()} on the way in and {@code add()} in the {@code finally}, so the
+     * window between them spanned the whole build. Concurrent {@code build()} calls carrying one factory all
+     * found the set empty, all proceeded, and all adopted — {@code initialize()} several times and
+     * {@code close()} several times, against an SPI that says exactly once and at most once, leaving whoever
+     * closed last on a closed factory while still reporting itself open. Synchronizing the set does not fix
+     * it: that makes each operation atomic, not the pair.
+     *
+     * <p>Asserting {@code initialized <= 1} cannot false-fail — claiming with {@code add()} lets exactly one
+     * caller through, so a green run is never luck. It can only under-detect, which is the right direction
+     * for a concurrency test: it fails on the old code when the interleaving happens and never fails on the
+     * new code.
+     */
+    @Test
+    public void anAdoptedFactoryIsClaimedByOneBuildEvenUnderConcurrentBuilds() throws Exception {
+        int threads = 8;
+        AdoptableTlsFactory adopted = new AdoptableTlsFactory();
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.tlsFactory(adopted);
+        builder.serviceUrl("pulsar+ssl://localhost:6651");
+
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<PulsarClient>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return builder.build();
+                }));
+            }
+            start.countDown();
+            List<PulsarClient> built = new ArrayList<>();
+            List<Throwable> rejected = new ArrayList<>();
+            for (Future<PulsarClient> f : futures) {
+                try {
+                    built.add(f.get());
+                } catch (ExecutionException e) {
+                    rejected.add(e.getCause());
+                }
+            }
+            try {
+                // Exactly one, not "at most one": a losing thread must be REJECTED, not silently given
+                // nothing, and the winner must actually build. Asserting <= 1 would pass on a run where
+                // every thread failed for some unrelated reason, which is how a concurrency test quietly
+                // stops testing anything.
+                assertThat(built).as("exactly one build may walk away owning the factory").hasSize(1);
+                assertThat(adopted.initialized)
+                        .as("and it is initialized exactly once, however many builds raced for it")
+                        .hasValue(1);
+                assertThat(rejected)
+                        .as("every other build must be rejected by the guard, not fail some other way")
+                        .hasSize(threads - 1)
+                        .allSatisfy(t -> assertThat(t).isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("tlsFactory"));
+            } finally {
+                for (PulsarClient c : built) {
+                    c.close();
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /**
      * PIP-478: cleaning up after a failed {@code initialize()} must not lose the reason the build failed.
      *
-     * <p>{@code closeQuietly} attaches a close failure to the error being propagated, which breaks when a
-     * factory reuses one exception object as both — a latched "why I am unusable" failure handed back from
-     * {@code initialize()} and again from {@code close()}. That produces {@code X.addSuppressed(X)}, and
-     * {@code addSuppressed} rejects self-suppression: the resulting {@code
-     * IllegalArgumentException("Self-suppression not permitted")} escapes the cleanup and replaces the real
-     * failure, so the caller is told about an exception it did not cause and cannot act on.
+     * <p>{@code closeQuietly} attaches a close failure to the error being propagated, which breaks when one
+     * exception object reaches it as <em>both</em> — as it does here, where the factory latches a single
+     * "why I am unusable" failure and hands it back from {@code initialize()} and again from
+     * {@code close()}, and nothing on the way wraps it. {@code addSuppressed} rejects self-suppression, so
+     * the resulting {@code IllegalArgumentException("Self-suppression not permitted")} escapes the cleanup
+     * and replaces the real failure: the caller is told about an exception it did not cause and cannot act
+     * on.
      *
-     * <p>Pinned on the identity rather than on any particular call, deliberately: whether a given path
-     * preserves the factory's own instance or wraps it is incidental and has already changed once.
+     * <p>Pinned on that arrival condition rather than on any particular call, deliberately: whether a given
+     * path preserves the factory's own instance or wraps it is incidental and has already changed once.
      */
     @Test
     public void aFactoryThatFailsInitializeAndCloseWithOneExceptionKeepsTheRealFailure() throws Exception {
