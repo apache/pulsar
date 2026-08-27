@@ -38,14 +38,14 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
 import org.testng.annotations.Test;
 
 public class JsonConverterTest {
@@ -148,8 +148,13 @@ public class JsonConverterTest {
         assertEquals(UUID.fromString(jsonNode.get("myuuid").asText()), myUuid);
     }
 
+    // Encodes and decodes the way Pulsar itself does when a sink consumes an Avro topic: GenericAvroReader
+    // uses a plain GenericDatumReader, so the values JsonConverter receives are the raw Avro ones
+    // (Integer, Long, Utf8) rather than converted logical-type objects. SpecificData and ReflectData must
+    // not be used here: since Avro 1.12.2 their shared singletons carry the JSR-310 conversions, so the
+    // same round trip would hand back LocalDate/Instant/UUID and would no longer test what the sink sees.
     public static byte[] serialize(GenericRecord record, Schema schema) throws IOException {
-        SpecificDatumWriter<GenericRecord> datumWriter = new SpecificDatumWriter<>(schema);
+        GenericDatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         BinaryEncoder binaryEncoder = new EncoderFactory().binaryEncoder(byteArrayOutputStream, null);
         datumWriter.write(record, binaryEncoder);
@@ -157,8 +162,8 @@ public class JsonConverterTest {
         return byteArrayOutputStream.toByteArray();
     }
 
-    public static GenericRecord  deserialize(byte[] recordBytes, Schema schema) throws IOException {
-        DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schema);
+    public static GenericRecord deserialize(byte[] recordBytes, Schema schema) throws IOException {
+        DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(schema);
         ByteArrayInputStream stream = new ByteArrayInputStream(recordBytes);
         BinaryDecoder binaryDecoder = new DecoderFactory().binaryDecoder(stream, null);
         return datumReader.read(null, binaryDecoder);

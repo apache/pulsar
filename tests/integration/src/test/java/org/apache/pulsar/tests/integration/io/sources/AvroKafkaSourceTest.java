@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.schema.AvroTrustedClasses;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.SourceStatusUtil;
@@ -355,6 +356,10 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public List<MyBean> produceSourceMessages(int numMessages) throws Exception{
+        // This test drives Avro's reflect API directly rather than through Schema.AVRO(MyBean.class), so
+        // nothing has declared MyBean to the allow-list Avro 1.12.2 enforces on reflective class
+        // resolution. Declare it here, the same way an application using raw Avro would.
+        AvroTrustedClasses.trust(MyBean.class);
         org.apache.avro.Schema schema = ReflectData.get().getSchema(MyBean.class);
         String schemaDef = schema.toString(false);
         log.info("schema {}", schemaDef);
