@@ -124,19 +124,33 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private static final SecureRandom secureRandom;
     static {
         SecureRandom rand;
-        try {
-            Provider bcfips = Security.getProvider("BCFIPS");
-            if (bcfips != null) {
-                // When the BC-FIPS provider is registered, source randomness from its SP 800-90A
-                // DRBG so data-key and IV generation stays within the FIPS-validated module.
-                // Only registered providers are consulted here to avoid triggering BouncyCastle
-                // classpath resolution during class loading (see BcProviderHolder above).
+        Provider bcfips = Security.getProvider("BCFIPS");
+        if (bcfips != null) {
+            // When the BC-FIPS provider is registered, source randomness from its SP 800-90A
+            // DRBG so data-key and IV generation stays within the FIPS-validated module.
+            // Only registered providers are consulted here to avoid triggering BouncyCastle
+            // classpath resolution during class loading (see BcProviderHolder above).
+            try {
                 rand = SecureRandom.getInstance("DEFAULT", bcfips);
-            } else {
-                rand = SecureRandom.getInstance("NativePRNGNonBlocking");
+            } catch (NoSuchAlgorithmException nsa) {
+                // Deliberately fatal rather than falling back: new SecureRandom() resolves by provider
+                // search order and may land outside the validated module, which is exactly what this
+                // branch exists to prevent. Registering BCFIPS is an operator asking for FIPS-approved
+                // randomness, and a data key or GCM IV drawn from anywhere else leaves no trace at run
+                // time -- SP 800-38D only permits a random 96-bit GCM IV from an approved DRBG. Failing
+                // class initialization surfaces the misconfiguration at the point it can still be fixed.
+                throw new IllegalStateException("The BCFIPS provider is registered but its DEFAULT SP "
+                        + "800-90A DRBG could not be obtained; refusing to fall back to a non-FIPS "
+                        + "SecureRandom for data-key and IV generation.", nsa);
             }
-        } catch (NoSuchAlgorithmException nsa) {
-            rand = new SecureRandom();
+        } else {
+            try {
+                rand = SecureRandom.getInstance("NativePRNGNonBlocking");
+            } catch (NoSuchAlgorithmException nsa) {
+                // Unchanged: on a JVM without NativePRNGNonBlocking the platform default is the
+                // long-standing behaviour, and no FIPS guarantee was being claimed on this path.
+                rand = new SecureRandom();
+            }
         }
         secureRandom = rand;
 
