@@ -3621,22 +3621,54 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // broker quietly tearing down a segment the controller still considers live.
             return;
         }
-        if (!isDeleteWhileInactive()) {
+        // Close-on-inactive is a broker-level switch and takes precedence over any namespace- or topic-level
+        // `deleteWhileInactive` policy: an operator who enabled it asked for the topic data to be kept, so GC
+        // must never fall back to the delete path while it is on.
+        boolean closeEnabled = isCloseWhileInactive();
+        boolean deleteEnabled = !closeEnabled && isDeleteWhileInactive();
+        if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;
         }
         InactiveTopicDeleteMode deleteMode =
                 topicPolicies.getInactiveTopicPolicies().get().getInactiveTopicDeleteMode();
+        if (closeEnabled && deleteMode != InactiveTopicDeleteMode.delete_when_no_subscriptions) {
+            // Close mode only supports delete_when_no_subscriptions. Under delete_when_subscriptions_caught_up a
+            // topic counts as inactive as soon as its subscriptions are caught up, even while consumers are still
+            // connected; closing it would only disconnect those consumers, which immediately reload the topic,
+            // turning GC into an unload/reload loop. The broker refuses to start on that combination, so reaching
+            // here means a namespace- or topic-level policy overrode the mode at runtime.
+            log.debug()
+                    .attr("deleteMode", deleteMode.name())
+                    .log("Skipping inactive-topic close, only delete_when_no_subscriptions is supported");
+            return;
+        }
         int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
-        } else if (shouldTopicBeRetained()) {
+        } else if (deleteEnabled && shouldTopicBeRetained()) {
             // Topic activity is still within the retention period
             return;
         } else {
+            if (closeEnabled) {
+                close(true, false)
+                        .thenRun(() -> log.info("Topic closed successfully due to inactivity"))
+                        .exceptionally(e -> {
+                            if (e.getCause() instanceof TopicBusyException) {
+                                log.debug()
+                                        .exceptionMessage(e.getCause())
+                                        .log("Did not close busy topic");
+                            } else {
+                                log.warn().exception(e).log("Inactive topic close failed");
+                            }
+                            return null;
+                        });
+                return;
+            }
+
             delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false)
                     .thenCompose((res) -> tryToDeletePartitionedMetadata())
