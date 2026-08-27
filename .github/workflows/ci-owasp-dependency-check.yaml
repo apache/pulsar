@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ matrix.branch }}
 
@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Restore Maven repository cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 5
         with:
           path: |
@@ -69,7 +69,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || '17' }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || '17' }}
@@ -85,7 +85,7 @@ jobs:
 
       - name: Restore OWASP Dependency Check data
         id: restore-owasp-dependency-check-data
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
@@ -101,7 +101,7 @@ jobs:
 
       - name: Save OWASP Dependency Check data
         if: ${{ steps.update-owasp-dependency-check-data.outcome == 'success' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
@@ -123,7 +123,7 @@ jobs:
           mvn --fail-at-end -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -DfailOnError=false -pl "${mvnprojects}"
 
       - name: Upload OWASP Dependency Check reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: owasp-dependency-check-reports-${{ matrix.branch }}
