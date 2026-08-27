@@ -25,6 +25,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -171,7 +172,8 @@ public class WebService implements AutoCloseable {
                 SslContextFactory.Server sslCtxFactory =
                         JettySslContextFactory.createSslContextFactory(config.getWebServiceTlsProvider(),
                                 this.sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
-                                config.getTlsCiphers(), config.getTlsProtocols());
+                                firstNonEmpty(config.getWebServiceTlsCiphers(), config.getTlsCiphers()),
+                                firstNonEmpty(config.getWebServiceTlsProtocols(), config.getTlsProtocols()));
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -530,6 +532,10 @@ public class WebService implements AutoCloseable {
         } catch (Exception e) {
             log.error("Failed to refresh SSL context", e);
         }
+    }
+
+    private static Set<String> firstNonEmpty(Set<String> preferred, Set<String> fallback) {
+        return preferred != null && !preferred.isEmpty() ? preferred : fallback;
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebService.class);
