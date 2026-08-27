@@ -283,35 +283,37 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
-    }
+        boolean connected;
+        int updatedTotalAvailablePermits = 0;
+        synchronized (this) {
+            consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+            connected = consumerSet.contains(consumer);
+            if (connected) {
+                totalAvailablePermits += additionalNumberOfMessages;
+                updatedTotalAvailablePermits = totalAvailablePermits;
+            }
+        }
 
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
-        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
-        if (!consumerSet.contains(consumer)) {
+        if (!connected) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
             return;
         }
 
-        totalAvailablePermits += additionalNumberOfMessages;
-
         log.debug()
                 .attr("consumer", consumer)
-                .attr("totalAvailablePermits", totalAvailablePermits)
+                .attr("totalAvailablePermits", updatedTotalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("- Trigger new read after receiving flow control message with permits " + "after adding permits");
-        readMoreEntries();
+        readMoreEntriesAsync();
     }
 
     /**
      * We should not call readMoreEntries() recursively in the same thread as there is a risk of StackOverflowError.
      *
      */
+    @Override
     public void readMoreEntriesAsync() {
         topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
