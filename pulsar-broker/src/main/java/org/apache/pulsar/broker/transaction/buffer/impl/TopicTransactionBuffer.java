@@ -656,7 +656,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (checkIfClosedAndCleared()) {
             return CompletableFuture.completedFuture(null);
         }
-        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot().thenCompose(__ -> closeAsync())
+        // Removing the aborted txn snapshot is best-effort. It writes a tombstone to the
+        // __transaction_buffer_snapshot system topic of this namespace, which can fail permanently, for
+        // instance when the snapshot topic itself is gone or its producer has been closed. The topic must
+        // stay deletable in that case: callers such as PersistentTopic#checkReplication treat a failed
+        // deletion as retriable and would otherwise retry it forever. Failing here would also skip
+        // closeAsync() and leak the snapshot writer reference.
+        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot()
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to delete the aborted transaction snapshot, closing the transaction "
+                        + "buffer anyway. A stale snapshot entry may be left behind.", topic.getName(), ex);
+                return null;
+            })
+            .thenCompose(__ -> closeAsync())
             .thenAccept(__ -> {
                 changeToClosedAndClearedState();
             });
