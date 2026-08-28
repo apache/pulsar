@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -33,6 +38,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -137,6 +143,48 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
                             persistentTopic.getManagedLedger().getLastConfirmedEntry()));
             assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
                     "Recovery of an idle topic should not move the max read position forward");
+        } finally {
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    /**
+     * Deleting the aborted txn snapshot writes a tombstone to the namespace's __transaction_buffer_snapshot
+     * system topic, which can fail permanently. Topic deletion must not depend on it: a caller that treats the
+     * failure as retriable, such as PersistentTopic#checkReplication after the local cluster has been removed
+     * from the namespace replication clusters, would otherwise retry the deletion forever. The transaction
+     * buffer must still be closed so the snapshot writer reference isn't leaked.
+     */
+    @Test
+    public void testTopicDeletionSucceedsWhenClearingAbortedTxnSnapshotFails() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp-tb-clear-snapshot-fails");
+        AtomicReference<AbortedTxnProcessor> processorRef = new AtomicReference<>();
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(originTopic -> {
+            AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+            when(processor.recoverFromSnapshot()).thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.takeAbortedTxnsSnapshot(any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.clearAbortedTxnSnapshot()).thenReturn(CompletableFuture.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Producer already closed")));
+            processorRef.set(processor);
+            return new TopicTransactionBuffer(
+                    (PersistentTopic) originTopic, processor, AbortedTxnProcessor.SnapshotType.Single);
+        });
+        try {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+            producer.send("msg".getBytes(StandardCharsets.UTF_8));
+            producer.close();
+            AbortedTxnProcessor processor = processorRef.get();
+            assertNotNull(processor, "The test transaction buffer provider should have been used");
+
+            admin.topics().delete(tpName, true);
+
+            assertFalse(pulsar.getBrokerService().getTopicIfExists(tpName).get().isPresent(),
+                    "The topic should have been deleted despite the failing aborted txn snapshot cleanup");
+            verify(processor).clearAbortedTxnSnapshot();
+            verify(processor).closeAsync();
         } finally {
             pulsar.setTransactionBufferProvider(originalProvider);
         }
