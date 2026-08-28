@@ -949,6 +949,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testInitialRackConfigurationLoadFailureIsReportedWithoutFailingInitialize() throws Exception {
+        // teardown() only closes whatever `store` points at, so close the real one before replacing it.
+        store.close();
         store = mock(MetadataStoreExtended.class);
         MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
         doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
