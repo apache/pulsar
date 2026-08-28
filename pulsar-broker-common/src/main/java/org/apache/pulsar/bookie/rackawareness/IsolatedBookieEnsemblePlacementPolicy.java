@@ -71,8 +71,13 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     /**
      * Completes once the rack configuration load started by
      * {@link #initialize(ClientConfiguration, Optional, HashedWheelTimer, FeatureProvider, StatsLogger,
-     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}. Until then no isolation is
-     * applied at all, so tests must wait for this future before asserting on placement decisions.
+     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}, and completes exceptionally
+     * when that load failed. Until it completes no isolation is applied at all, so tests must wait for this future
+     * before asserting on placement decisions.
+     *
+     * <p>It deliberately excludes the {@code exceptionally} stage that keeps initialization going on a failed
+     * load: a test awaiting this future must see the real failure rather than proceed against a still-null
+     * {@link #cachedRackConfiguration}, which looks exactly like the race this future exists to close.
      */
     @Getter
     @VisibleForTesting
@@ -103,13 +108,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            initialRackConfigurationLoadFuture = bookieMappingCache
+            CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
                     .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
-                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration))
-                    .exceptionally(e -> {
-                        log.warn("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
-                        return null;
-                    });
+                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
+            // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
+            rackConfigurationLoad.exceptionally(e -> {
+                log.warn().exception(e)
+                        .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
+                return null;
+            });
+            initialRackConfigurationLoadFuture = rackConfigurationLoad;
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
