@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -39,7 +40,7 @@ import org.apache.pulsar.client.api.TableView;
  *
  * @param <T> Load data type.
  */
-@Slf4j
+@CustomLog
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     private static final long LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART = 2;
@@ -145,7 +146,14 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void closeTableView() throws IOException {
         validateState();
         if (tableView != null) {
-            tableView.close();
+            // Close asynchronously without waiting: the close future may only be able to complete on the
+            // client's internal executor thread, and that thread can be blocked on this store's monitor
+            // (e.g. a ServiceUnitStateChannel StateChangeListener calling pushAsync/removeAsync), so a
+            // blocking close while holding the monitor could deadlock.
+            tableView.closeAsync().exceptionally(e -> {
+                log.warn().attr("topic", topic).exception(e).log("Failed to close table view");
+                return null;
+            });
             tableView = null;
         }
     }
@@ -160,11 +168,16 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     private synchronized void closeProducer() throws IOException {
         validateState();
         if (producer != null) {
-            producer.close();
+            // Close asynchronously without waiting; see closeTableView() for the deadlock rationale.
+            producer.closeAsync().exceptionally(e -> {
+                log.warn().attr("topic", topic).exception(e).log("Failed to close producer");
+                return null;
+            });
             producer = null;
         }
     }
     @Override
+    @SuppressWarnings("deprecation")
     public synchronized void startTableView() throws LoadDataStoreException {
         validateState();
         if (tableView == null) {
@@ -210,6 +223,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
         isShutdown = true;
     }
 
+    @VisibleForTesting
+    synchronized void setTableView(TableView<T> tableView) {
+        this.tableView = tableView;
+    }
+
     private String validateProducer() {
         if (isShutdown) {
             return SHUTDOWN_ERR_MSG;
@@ -219,10 +237,10 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
             try {
                 closeProducer();
                 startProducer();
-                log.info("Restarted producer on {}, {}", topic, restartReason);
+                log.info().attr("topic", topic).attr("restartReason", restartReason).log("Restarted producer on ,");
             } catch (Exception e) {
                 String msg = "Failed to restart producer on " + topic + ", restart reason: " + restartReason;
-                log.error(msg, e);
+                log.error().exception(e).log(msg);
                 return msg;
             }
         }
@@ -238,10 +256,10 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
             try {
                 closeTableView();
                 startTableView();
-                log.info("Restarted tableview on {}, {}", topic, restartReason);
+                log.info().attr("topic", topic).attr("restartReason", restartReason).log("Restarted tableview on ,");
             } catch (Exception e) {
                 String msg = "Failed to tableview on " + topic + ", restart reason: " + restartReason;
-                log.error(msg, e);
+                log.error().exception(e).log(msg);
                 return msg;
             }
         }

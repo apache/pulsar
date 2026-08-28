@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -34,8 +35,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -44,9 +43,8 @@ import org.testng.annotations.BeforeMethod;
 /**
  * A class runs several bookie servers for testing.
  */
+@CustomLog
 public abstract class MockedBookKeeperTestCase {
-
-    static final Logger LOG = LoggerFactory.getLogger(MockedBookKeeperTestCase.class);
 
     // BookKeeper related variables
     protected PulsarMockBookKeeper bkc;
@@ -70,7 +68,7 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeMethod(alwaysRun = true)
     public final void setUp(Method method) throws Exception {
-        LOG.info(">>>>>> starting {}", method);
+        log.info().attr("method", method).log(">>>>>> Starting test method");
         metadataStore = new FaultInjectionMetadataStore(
                 MetadataStoreExtended.create("memory:local",
                         MetadataStoreConfig.builder().metadataStoreName("metastore-" + method.getName()).build()));
@@ -79,7 +77,7 @@ public abstract class MockedBookKeeperTestCase {
             // start bookkeeper service
             startBookKeeper();
         } catch (Exception e) {
-            LOG.error("Error setting up", e);
+            log.error().exception(e).log("Error setting up");
             throw e;
         }
 
@@ -113,10 +111,10 @@ public abstract class MockedBookKeeperTestCase {
         try {
             cleanUpTestCase();
         } catch (Exception e) {
-            LOG.error("tearDown Error", e);
+            log.error().exception(e).log("tearDown Error");
         }
         try {
-            LOG.info("@@@@@@@@@ stopping " + method);
+            log.info().attr("method", method).log("@@@@@@@@@ Stopping test method");
             if (factory != null) {
                 try {
                     factory.shutdownAsync().get(10, TimeUnit.SECONDS);
@@ -130,9 +128,9 @@ public abstract class MockedBookKeeperTestCase {
                 metadataStore.close();
                 metadataStore = null;
             }
-            LOG.info("--------- stopped {}", method);
+            log.info().attr("method", method).log("--------- Stopped test method");
         } catch (Exception e) {
-            LOG.error("tearDown Error", e);
+            log.error().exception(e).log("tearDown Error");
         }
     }
 

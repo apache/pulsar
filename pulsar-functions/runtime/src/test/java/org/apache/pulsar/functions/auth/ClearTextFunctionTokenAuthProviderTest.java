@@ -22,7 +22,7 @@ import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -33,8 +33,8 @@ public class ClearTextFunctionTokenAuthProviderTest {
 
         ClearTextFunctionTokenAuthProvider clearTextFunctionTokenAuthProvider =
                 new ClearTextFunctionTokenAuthProvider();
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                .setNamespace("test-ns").setName("test-func").build();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
 
         Optional<FunctionAuthData> functionAuthData =
                 clearTextFunctionTokenAuthProvider.cacheAuthData(funcDetails, new AuthenticationDataSource() {

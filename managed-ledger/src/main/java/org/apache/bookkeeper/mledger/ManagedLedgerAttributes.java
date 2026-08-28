@@ -28,6 +28,7 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ManagedLedgerOper
 public class ManagedLedgerAttributes {
 
     private final Attributes attributes;
+    private final Attributes attributesOnlyNamespace;
     private final Attributes attributesOperationSucceed;
     private final Attributes attributesOperationFailure;
 
@@ -35,6 +36,9 @@ public class ManagedLedgerAttributes {
         var mlName = ml.getName();
         attributes = Attributes.of(
                 OpenTelemetryAttributes.ML_NAME, mlName,
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, getNamespace(mlName)
+        );
+        attributesOnlyNamespace = Attributes.of(
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, getNamespace(mlName)
         );
         attributesOperationSucceed = Attributes.builder()

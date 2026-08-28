@@ -23,12 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 
-@Slf4j
+@CustomLog
 public class SampleAsyncProducer {
     public static void main(String[] args) throws InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
@@ -44,9 +44,9 @@ public class SampleAsyncProducer {
 
             future.handle((v, ex) -> {
                 if (ex == null) {
-                    log.info("Message persisted: {}", content);
+                    log.info().attr("content", content).log("Message persisted");
                 } else {
-                    log.error("Error persisting message: {}", content, ex);
+                    log.error().attr("content", content).exception(ex).log("Error persisting message");
                 }
                 return null;
             });

@@ -185,7 +185,7 @@ public interface Message<T> {
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
      *
-     * @return the optiona encryption context
+     * @return the optional encryption context
      */
     Optional<EncryptionContext> getEncryptionCtx();
 

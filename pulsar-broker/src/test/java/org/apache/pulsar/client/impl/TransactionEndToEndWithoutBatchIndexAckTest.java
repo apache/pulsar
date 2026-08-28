@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * End to end transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 

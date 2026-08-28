@@ -169,7 +169,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEventsWithoutPartition() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic1-" + System.currentTimeMillis();
+        final String topicName = "persistent://prop/ns-abc/failover-topic1-" + System.currentTimeMillis();
         final String subName = "sub1";
         final int numMsgs = 100;
 
@@ -314,7 +314,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         int numPartitions = 4;
 
         final String topicName = BrokerTestUtil.newUniqueName(
-                "persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition");
+                "persistent://prop/ns-abc/testSimpleConsumerEventsWithPartition");
         final TopicName destName = TopicName.get(topicName);
         final String subName = "sub1";
         final int numMsgs = 100;
@@ -501,7 +501,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testActiveConsumerFailoverWithDelay() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
+        final String topicName = "persistent://prop/ns-abc/failover-topic3";
         final String subName = "sub1";
         final int numMsgs = 100;
         List<Message<byte[]>> receivedMessages = new ArrayList<>();

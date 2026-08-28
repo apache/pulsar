@@ -31,15 +31,15 @@ import io.netty.handler.codec.socksx.v5.Socks5InitialRequestDecoder;
 import io.netty.handler.codec.socksx.v5.Socks5PasswordAuthRequestDecoder;
 import io.netty.handler.codec.socksx.v5.Socks5ServerEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.socks5.config.Socks5Config;
 import org.apache.pulsar.socks5.handler.CommandRequestHandler;
 import org.apache.pulsar.socks5.handler.IdleHandler;
 import org.apache.pulsar.socks5.handler.InitialRequestHandler;
 import org.apache.pulsar.socks5.handler.PasswordAuthRequestHandler;
 
-@Slf4j
+@CustomLog
 public class Socks5Server {
 
     @Getter
@@ -74,9 +74,7 @@ public class Socks5Server {
                     }
                 });
         ChannelFuture future = bootstrap.bind(socks5Config.getPort()).sync();
-        if (log.isInfoEnabled()) {
-            log.info("bind port : {}", socks5Config.getPort());
-        }
+        log.info().attr("port", socks5Config.getPort()).log("bind port");
         future.channel().closeFuture().sync();
     }
 

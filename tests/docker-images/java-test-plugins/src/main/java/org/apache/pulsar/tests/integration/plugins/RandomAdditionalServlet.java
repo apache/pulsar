@@ -30,7 +30,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 public class RandomAdditionalServlet extends HttpServlet implements AdditionalServlet {
 
@@ -49,8 +48,8 @@ public class RandomAdditionalServlet extends HttpServlet implements AdditionalSe
     }
 
     @Override
-    public ServletHolder getServletHolder() {
-        return new ServletHolder(this);
+    public Object getServletInstance() {
+        return this;
     }
 
     @Override

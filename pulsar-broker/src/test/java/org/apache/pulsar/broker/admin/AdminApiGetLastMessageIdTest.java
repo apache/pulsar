@@ -22,6 +22,9 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.TimeoutHandler;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
@@ -29,8 +32,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.TimeoutHandler;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -67,9 +68,9 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"), false);
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
 
         doReturn(false).when(persistentTopics).isRequestHttps();

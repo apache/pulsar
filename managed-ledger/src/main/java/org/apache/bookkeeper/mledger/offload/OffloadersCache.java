@@ -19,15 +19,16 @@
 package org.apache.bookkeeper.mledger.offload;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Implementation of an Offloaders. The main purpose of this class is to
  * ensure that an Offloaders directory is only loaded once.
  */
-@Slf4j
+@CustomLog
 public class OffloadersCache implements AutoCloseable {
 
     private Map<String, Offloaders> loadedOffloaders = new ConcurrentHashMap<>();
@@ -41,7 +42,8 @@ public class OffloadersCache implements AutoCloseable {
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
     public Offloaders getOrLoadOffloaders(String offloadersPath, String narExtractionDirectory) {
-        return loadedOffloaders.computeIfAbsent(offloadersPath,
+        String normalizedOffloadersPath = Paths.get(offloadersPath).toAbsolutePath().normalize().toString();
+        return loadedOffloaders.computeIfAbsent(normalizedOffloadersPath,
                 (directory) -> {
                     try {
                         return OffloaderUtils.searchForOffloaders(directory, narExtractionDirectory);
@@ -57,7 +59,7 @@ public class OffloadersCache implements AutoCloseable {
             try {
                 offloaders.close();
             } catch (Exception e) {
-                log.error("Error while closing offloader.", e);
+                log.error().exception(e).log("Error while closing offloader");
                 // Even if the offloader fails to close, the graceful shutdown process continues
             }
         });

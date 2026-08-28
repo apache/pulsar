@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +32,12 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
@@ -39,24 +46,143 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     private ClassLoader clientBuilderClassLoader = null;
     private boolean acceptGzipCompression = true;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
+    // PIP-478: the factory instances build() has handed to an admin. Adoption is a hand-over, not a share —
+    // see the check in build(). Shared with every clone of this builder, since they share the instances too
+    // (clone() is shallow). Identity, not equals: a factory is an instance with a lifecycle, not a value.
+    // Synchronized because sharing it is what makes a clone-per-thread builder no longer independent.
+    private final transient Set<PulsarTlsFactory> adoptedTlsFactories;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression);
+        // PIP-478 (#26398): hand the admin its own configuration object, as ClientBuilderImpl.build() does.
+        // PulsarAdminImpl writes into the configuration it is given — foldOAuth2IdpPolicy installs the
+        // OAuth2 plugin's IdP TLS policy under CLIENT_OAUTH2 — so sharing the builder's instance made that
+        // fold a one-time event: a second build() with different OAuth2 credentials found the first admin's
+        // policy already there and kept it, resolving tokens against IdP B while trusting IdP A's material,
+        // with no error and no log line. Every caller that mutates the builder's configuration does so
+        // before build(), so the copy carries their changes.
+        ClientConfigurationData adminConf = conf.clone();
+        // The mark is the framework's statement about THIS build, and the finally below reads it back as
+        // such — so start it clear rather than inheriting whatever the source carried. clone() copies a
+        // plain boolean, and this builder's configuration is public through getConf() and is mutated from
+        // outside (PulsarService.applyBrokerClientTlsFactoryToAdmin, WorkerUtils'), so nothing in the type
+        // stops a caller handing over a configuration that is already marked. Were that to happen, every
+        // later build would read a false adoption and keep a claim it never took, permanently rejecting a
+        // factory it never used. No such path exists today; this makes the finally's read mean what it says
+        // without depending on that staying true.
+        adminConf.setTlsFactoryAdopted(false);
+        // Claimed LAST: the claim is released by the finally below, so anything that can throw between the
+        // two would leak it and poison the builder against a factory no build ever took. Copying the
+        // configuration is the only such step, and it goes first.
+        PulsarTlsFactory adopting = claimTlsFactoryOrReject(adminConf);
+        try {
+            // serviceUrl off the copy, like everything else the admin is given: the point of the copy is
+            // that the admin reads one configuration object, not two.
+            return new PulsarAdminImpl(adminConf.getServiceUrl(), adminConf,
+                    clientBuilderClassLoader, acceptGzipCompression, sharedResources);
+        } finally {
+            // Whether the factory was consumed is read off the copy the admin was given rather than inferred
+            // from how the build ended: the constructor initializes an adopted instance and closes it again
+            // on the way out (the constructed=false branch, which is what
+            // aFailedAdminBuildDoesNotLeakTheResolvedFactory pins), so a build that failed after that has
+            // spent it as much as a successful one, while one that failed before — no service URL, which
+            // PulsarAdminImpl rejects in its first statement — has not touched it. The claim was taken up
+            // front so it could be atomic; this gives it back when the mark says nothing consumed it.
+            releaseTlsFactoryUnlessSpent(adopting, adminConf);
+        }
+    }
+
+    /**
+     * PIP-478: reject a second admin built from a {@link PulsarTlsFactory} instance this builder, or a
+     * builder it was cloned from, has already handed over — as {@code PulsarClientBuilderV5.build()} does for
+     * the client.
+     *
+     * <p>There is no {@code tlsFactory(...)} on the public admin builder; adoption is reachable through
+     * {@link #getConf()} and is how the broker and the functions worker route their own admin clients onto a
+     * custom factory ({@code PulsarService.applyBrokerClientTlsFactoryToAdmin},
+     * {@code WorkerUtils.applyBrokerClientTlsFactoryToAdmin}). Ownership transfers with the configuration:
+     * {@code AsyncHttpConnectorProvider} initializes the instance and closes it with the admin, so handing it
+     * to a second admin would {@code initialize} it twice and {@code close} it twice — the SPI says exactly
+     * once and at most once — and leave whichever admin is closed second on a closed factory. Copying the
+     * configuration at {@code build()} does not help: {@code clone()} is shallow, so the copy carries the
+     * same instance.
+     *
+     * <p>What counts as handed over is what the framework says it took, not whether the build succeeded —
+     * see the note at the call site.
+     *
+     * <p><b>The claim is the check.</b> {@code Set.add} reports whether the instance was already there, so
+     * testing and claiming are one operation. Checking with {@code contains} and adding afterwards left a
+     * window spanning the whole build: two concurrent {@code build()} calls carrying the same factory both
+     * found the set empty, both proceeded, and both adopted — {@code initialize} twice, {@code close} twice,
+     * and whichever admin was closed second left serving TLS from a closed factory while still reporting
+     * itself open, which is the exact outcome this guard exists to prevent. Synchronizing the set does not
+     * help; it makes each operation atomic, not the pair. This matters here above all because a
+     * clone-per-thread builder sharing one record is the pattern {@link #clone()} deliberately supports.
+     *
+     * <p>The claim is given back by {@link #releaseTlsFactoryUnlessSpent} when the build turns out not to
+     * have consumed the instance. A loser of the race is therefore rejected even in the case where the
+     * winner went on to fail before adopting, and would have left the instance re-usable had the two run in
+     * sequence. That is the safe direction: refusing a build the caller can retry, rather than handing one
+     * live factory to two owners.
+     *
+     * @return the instance claimed for this build, to be passed to {@link #releaseTlsFactoryUnlessSpent}
+     *         whatever the outcome, or {@code null} when no factory is configured
+     */
+    private PulsarTlsFactory claimTlsFactoryOrReject(ClientConfigurationData handingOver) {
+        PulsarTlsFactory adopting = handingOver.getTlsFactory();
+        if (adopting != null && !adoptedTlsFactories.add(adopting)) {
+            throw new IllegalStateException("the PulsarTlsFactory on this admin builder's configuration has "
+                    + "already been adopted by an admin built from it, or is claimed by a build still in "
+                    + "progress. The admin initializes that instance and closes it with itself, so it cannot "
+                    + "be handed to a second admin — closing either one would break TLS for the other. Set a "
+                    + "fresh instance before building again.");
+        }
+        return adopting;
+    }
+
+    /**
+     * Give back a claim the build did not consume, so a build that failed before the framework took the
+     * instance leaves the builder able to retry with it. A claim that WAS consumed stays, and every consumed
+     * instance is remembered rather than just the last one, so cycling back to an earlier factory is caught
+     * too. That is a deliberate trade: the record holds a strong reference to each adopted factory, so a
+     * closed one is not collectable while the builder lives, and the bound is the caller's own history of
+     * adoptions rather than anything the builder controls. Forgetting instances instead would let a
+     * long-lived builder silently re-adopt a closed factory, which is the failure this guards against; the
+     * builder family therefore retains one reference per adoption performed, which is bounded by
+     * the factories the caller created in the first place.
+     *
+     * @param adopting   the instance claimed by {@link #claimTlsFactoryOrReject}, or {@code null}
+     * @param handedOver the configuration copy the admin was given, carrying the framework's own mark
+     */
+    private void releaseTlsFactoryUnlessSpent(PulsarTlsFactory adopting, ClientConfigurationData handedOver) {
+        if (adopting != null && !handedOver.isTlsFactoryAdopted()) {
+            adoptedTlsFactories.remove(adopting);
+        }
     }
 
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
         this.conf.setConnectionsPerBroker(16);
+        // Admin traffic is HTTP-only; default the scope to HTTP_ONLY so that a configured
+        // SOCKS5 proxy is applied to HTTP requests without requiring an explicit scope call.
+        this.conf.setSocks5ProxyScope(Socks5ProxyScope.HTTP_ONLY);
+        this.adoptedTlsFactories =
+                Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
     }
 
-    private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
+    private PulsarAdminBuilderImpl(ClientConfigurationData conf, Set<PulsarTlsFactory> adoptedTlsFactories) {
         this.conf = conf;
+        this.adoptedTlsFactories = adoptedTlsFactories;
     }
 
     @Override
     public PulsarAdminBuilder clone() {
-        PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone());
+        // PIP-478: the copy carries the same adopted factory instances (clone() is shallow), so it shares the
+        // record of which of them have been handed over — in both orders. Copying the record instead would
+        // leave a builder cloned *before* its first build with an empty one, and both copies would then adopt
+        // the same instance.
+        PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone(), adoptedTlsFactories);
         pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
         pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
         return pulsarAdminBuilder;
@@ -64,6 +190,8 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
         if (config.containsKey("acceptGzipCompression")) {
@@ -215,16 +343,14 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
-    public PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin) {
-        if (StringUtils.isNotBlank(sslFactoryPlugin)) {
-            conf.setSslFactoryPlugin(sslFactoryPlugin);
-        }
+    public PulsarAdminBuilder tlsFactoryClassName(String tlsFactoryClassName) {
+        conf.setTlsFactoryClassName(StringUtils.isBlank(tlsFactoryClassName) ? "" : tlsFactoryClassName);
         return this;
     }
 
     @Override
-    public PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
-        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+    public PulsarAdminBuilder tlsFactoryConfig(String tlsFactoryConfig) {
+        conf.setTlsFactoryConfig(StringUtils.isBlank(tlsFactoryConfig) ? "" : tlsFactoryConfig);
         return this;
     }
 
@@ -290,6 +416,30 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         this.conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
+        this.conf.setSocks5ProxyAddress(socks5ProxyAddress);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyUsername(String socks5ProxyUsername) {
+        this.conf.setSocks5ProxyUsername(socks5ProxyUsername);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder socks5ProxyPassword(String socks5ProxyPassword) {
+        this.conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
         return this;
     }
 }

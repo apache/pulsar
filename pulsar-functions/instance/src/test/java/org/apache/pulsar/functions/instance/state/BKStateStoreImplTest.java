@@ -55,6 +55,7 @@ public class BKStateStoreImplTest {
     private BKStateStoreImpl stateContext;
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new BKStateStoreImpl(
@@ -93,6 +94,7 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDelete() throws Exception {
         DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
         when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
@@ -117,7 +119,9 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetStateValue() throws Exception {
+        @SuppressWarnings("rawtypes")
         KeyValue returnedKeyValue = mock(KeyValue.class);
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(returnedKeyValue.value()).thenReturn(returnedValue);

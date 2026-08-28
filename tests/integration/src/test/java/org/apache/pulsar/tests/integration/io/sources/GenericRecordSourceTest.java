@@ -25,9 +25,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
  * This tests demonstrates how a Source can create messages using GenericRecord API
  * and the consumer is able to consume it as AVRO messages, with GenericRecord and with Java Model.
  */
-@Slf4j
+@CustomLog
 public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
 
     @Test(groups = {"source"})
@@ -112,7 +112,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
             "--archive", archive,
             "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
             result.getStdout().contains("Created successfully"),
@@ -147,7 +147,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
                         }
                         return false;
                     } catch (Exception e) {
-                        log.error("Encountered error when getting source status", e);
+                        log.error().exception(e).log("Encountered error when getting source status");
                         return false;
                     }
                 }, 10, 200);
@@ -186,9 +186,9 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
                 fail("message " + i + " not received in time");
                 return;
             }
-            log.info("received {}", msg.getValue());
+            log.info().attr("received", msg.getValue()).log("received");
             msg.getValue().getFields().forEach(f -> {
-                log.info("field {} {}", f, msg.getValue().getField(f));
+                log.info().attr("field", f).attr("value", msg.getValue().getField(f)).log("field");
             });
             String text = (String) msg.getValue().getField("text");
             int number = (Integer) msg.getValue().getField("number");
@@ -211,7 +211,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
                 fail("message " + i + " not received in time");
                 return;
             }
-            log.info("received {}", msg.getValue());
+            log.info().attr("received", msg.getValue()).log("received");
             String text = msg.getValue().getText();
             int number = msg.getValue().getNumber();
             assertEquals(text, "value-" + number);

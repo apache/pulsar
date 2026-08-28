@@ -128,6 +128,11 @@ public interface TransactionBuffer {
     CompletableFuture<Void> clearSnapshot();
 
     /**
+     * Clear up the snapshot of the TransactionBuffer and close it.
+     */
+    CompletableFuture<Void> clearSnapshotAndClose();
+
+    /**
      * Close the buffer asynchronously.
      *
      * @return
@@ -143,6 +148,14 @@ public interface TransactionBuffer {
      * @return whether the txn is aborted.
      */
     boolean isTxnAborted(TxnID txnID, Position readPosition);
+
+    /**
+     * Check if the transaction is still ongoing (not committed and not aborted).
+     *
+     * @param txnID {@link TxnID} the transaction id.
+     * @return whether the txn is ongoing (uncommitted).
+     */
+    boolean isTxnOngoing(TxnID txnID);
 
     /**
      * Sync max read position for normal publish.

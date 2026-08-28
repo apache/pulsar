@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -43,7 +43,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -51,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -61,12 +60,18 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the keystore server
+        // certificate's SubjectAltName. TLS hostname verification is on by default (PIP-478),
+        // and the default advertised address resolves to the machine's canonical hostname, which is not
+        // in the cert SAN. This keeps hostname verification genuinely enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(false);
 
         proxyConfig.setTlsEnabledWithKeyStore(true);
@@ -115,6 +120,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarClient internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(lookupUrl)
@@ -140,7 +146,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://public/default/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -155,7 +161,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         try {
             @Cleanup
             Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                    .topic("persistent://public/default/topic" + System.currentTimeMillis())
                     .create();
             Assert.fail("Should failed since broker setTlsRequireTrustedClientCertOnConnect, "
                         + "while client not set keystore");
@@ -170,9 +176,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     public void testPartitions() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
-        String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
+        String topicName = "persistent://public/default/partitioned-topic" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup

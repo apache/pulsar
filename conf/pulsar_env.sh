@@ -29,6 +29,9 @@
 # Logs location
 # PULSAR_LOG_DIR=
 
+# Log format: "text" (default) or "json" (flat OpenTelemetry JSON, useful for log aggregators)
+# PULSAR_LOG_FORMAT=json
+
 # Configuration file of settings used in broker server
 # PULSAR_BROKER_CONF=
 
@@ -88,9 +91,6 @@ if [[ -z "$PULSAR_GC_LOG" ]]; then
     PULSAR_GC_LOG="-Xloggc:${PULSAR_GC_LOG_DIR}/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCApplicationStoppedTime -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"
   fi
 fi
-
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=

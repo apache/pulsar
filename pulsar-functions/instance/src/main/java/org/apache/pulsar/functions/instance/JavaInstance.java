@@ -28,9 +28,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
@@ -40,19 +40,21 @@ import org.apache.pulsar.functions.api.Record;
  * program if invoking via a process based invocation or using JavaInstance using a thread
  * based invocation.
  */
-@Slf4j
+@CustomLog
 public class JavaInstance implements AutoCloseable {
 
     @Data
     public static class AsyncFuncRequest {
-        private final Record record;
-        private final CompletableFuture processResult;
+        private final Record<?> record;
+        private final CompletableFuture<?> processResult;
         private final JavaExecutionResult result;
     }
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
+    @SuppressWarnings("rawtypes") // Function type parameters are erased at runtime
     private Function function;
+    @SuppressWarnings("rawtypes") // java.util.function.Function type parameters are erased at runtime
     private java.util.function.Function javaUtilFunction;
 
     // for Async function max out standing items
@@ -122,11 +124,11 @@ public class JavaInstance implements AutoCloseable {
         final Object output;
 
         try {
-            if (function != null) {
-                output = function.process(input, context);
-            } else {
-                output = javaUtilFunction.apply(input);
-            }
+            @SuppressWarnings("unchecked") // function type parameters are erased at runtime
+            Object rawOutput = function != null
+                    ? function.process(input, context)
+                    : javaUtilFunction.apply(input);
+            output = rawOutput;
         } catch (Exception ex) {
             executionResult.setUserException(ex);
             return executionResult;
@@ -137,13 +139,13 @@ public class JavaInstance implements AutoCloseable {
                 if (asyncPreserveInputOrderForOutputMessages) {
                     // Function is in format: Function<I, CompletableFuture<O>>
                     AsyncFuncRequest request = new AsyncFuncRequest(
-                            record, (CompletableFuture) output, executionResult
+                            record, (CompletableFuture<?>) output, executionResult
                     );
                     pendingAsyncRequests.put(request);
                 } else {
                     asyncRequestsConcurrencyLimiter.acquire();
                 }
-                ((CompletableFuture<Object>) output).whenCompleteAsync((Object res, Throwable cause) -> {
+                ((CompletableFuture<?>) output).whenCompleteAsync((Object res, Throwable cause) -> {
                     try {
                         if (asyncPreserveInputOrderForOutputMessages) {
                             processAsyncResultsInInputOrder(asyncResultConsumer);
@@ -166,14 +168,12 @@ public class JavaInstance implements AutoCloseable {
                 }, executor);
                 return null;
             } catch (InterruptedException ie) {
-                log.warn("Exception while put Async requests", ie);
+                log.warn().exception(ie).log("Exception while put Async requests");
                 executionResult.setUserException(ie);
                 return executionResult;
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Got result: object: {}", output);
-            }
+            log.debug().attr("result", output).log("Got result");
             executionResult.setResult(output);
             return executionResult;
         }
@@ -214,7 +214,7 @@ public class JavaInstance implements AutoCloseable {
             try {
                 function.close();
             } catch (Exception e) {
-                log.error("function closeResource occurred exception", e);
+                log.error().exception(e).log("Function closeResource occurred exception");
             }
         }
 

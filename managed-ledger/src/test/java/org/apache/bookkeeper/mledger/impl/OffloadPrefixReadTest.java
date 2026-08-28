@@ -60,7 +60,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -112,9 +112,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ledger.offloadPrefix(ledger.getLastConfirmedEntry());
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().isComplete());
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().isComplete());
 
         if (offloadTypeAppendable.equals(offloadType)) {
             config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
@@ -199,13 +199,13 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         assertEquals(ledger.getLedgersInfoAsList().stream()
-                .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
+                .filter(e -> e.getOffloadContext().isComplete()).count(), 2);
 
         LedgerInfo firstLedger = ledger.getLedgersInfoAsList().get(0);
-        Assert.assertTrue(firstLedger.getOffloadContext().getComplete());
+        Assert.assertTrue(firstLedger.getOffloadContext().isComplete());
         LedgerInfo secondLedger;
         secondLedger = ledger.getLedgersInfoAsList().get(1);
-        Assert.assertTrue(secondLedger.getOffloadContext().getComplete());
+        Assert.assertTrue(secondLedger.getOffloadContext().isComplete());
 
         UUID firstLedgerUUID = new UUID(firstLedger.getOffloadContext().getUidMsb(),
                 firstLedger.getOffloadContext().getUidLsb());
@@ -232,8 +232,8 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         // assert bk ledger is deleted
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isBookkeeperDeleted());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().isBookkeeperDeleted());
 
         if (offloadTypeAppendable.equals(offloadType)) {
             config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
@@ -254,7 +254,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
-        CompletableFuture trimFuture = new CompletableFuture();
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.join();
         Awaitility.await().untilAsserted(() -> {
@@ -292,9 +292,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(1).getOffloadContext().isComplete());
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().isComplete());
 
         // cleanup.
         ledger.delete();
@@ -365,6 +365,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         private final AtomicInteger openedReadHandles = new AtomicInteger(0);
 
+        @SuppressWarnings("try")
         class VerifyClosingReadHandle extends MockOffloadReadHandle {
             VerifyClosingReadHandle(ReadHandle toCopy) throws Exception {
                 super(toCopy);
@@ -379,9 +380,10 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @SuppressWarnings("try")
     static class MockOffloadReadHandle implements ReadHandle, OffloadedLedgerHandle {
         final long id;
-        final List<ByteBuf> entries = new ArrayList();
+        final List<ByteBuf> entries = new ArrayList<>();
         final LedgerMetadata metadata;
         long lastAccessTimestamp = System.currentTimeMillis();
 
@@ -413,7 +415,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-            List<LedgerEntry> readEntries = new ArrayList();
+            List<LedgerEntry> readEntries = new ArrayList<>();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
                 ByteBuf buf = entries.get((int) eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));

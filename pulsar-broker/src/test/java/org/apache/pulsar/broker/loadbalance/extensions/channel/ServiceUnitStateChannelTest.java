@@ -96,6 +96,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
@@ -220,7 +221,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         brokers = mock(Brokers.class);
         doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
-                .healthcheckAsync(any(), any());
+                .healthcheckAsync(any());
     }
 
     @BeforeMethod
@@ -279,6 +280,104 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(priority = 1)
+    public void testCompletedGetOwnerRequestDoesNotRemoveNewRequest() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000000_0x10000001";
+        var getOwnerRequests = channel.getOwnerRequests();
+        getOwnerRequests.remove(serviceUnit);
+        CompletableFuture<String> oldRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+        assertEquals(getOwnerRequests.get(serviceUnit), oldRequest);
+
+        CompletableFuture<String> newRequest = null;
+        try {
+            // State-event handlers remove the current request before completing it, allowing a later lookup
+            // to install a new request generation before the old request's completion cleanup runs.
+            assertTrue(getOwnerRequests.remove(serviceUnit, oldRequest));
+            newRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+            assertTrue(newRequest != oldRequest);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest);
+
+            // The previous unconditional removal would remove newRequest here.
+            assertTrue(oldRequest.complete(brokerId1));
+
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale get-owner cleanup must not remove a newer request future");
+
+            assertTrue(newRequest.complete(brokerId2));
+            assertFalse(getOwnerRequests.containsKey(serviceUnit),
+                    "The newer request must remove itself after completion");
+        } finally {
+            getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            if (newRequest != null) {
+                newRequest.cancel(false);
+            }
+        }
+    }
+
+    @Test(priority = 1)
+    public void testSkippedEventDoesNotRemoveNewGetOwnerRequest() throws Exception {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000002_0x10000003";
+        var getOwnerRequests = channel.getOwnerRequests();
+        CompletableFuture<String> oldRequest = new CompletableFuture<>();
+        CompletableFuture<String> newRequest = new CompletableFuture<>();
+        try {
+            overrideTableView(channel, serviceUnit, new ServiceUnitStateData(Owned, brokerId1, 1));
+            getOwnerRequests.put(serviceUnit, oldRequest);
+            oldRequest.whenComplete((__, ___) -> getOwnerRequests.put(serviceUnit, newRequest));
+
+            channel.handleSkippedEvent(serviceUnit);
+
+            assertEquals(oldRequest.getNow(null), brokerId1);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale skipped-event cleanup must not remove a newer request future");
+        } finally {
+            getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            overrideTableView(channel, serviceUnit, null);
+        }
+    }
+
+    @Test(priority = 1)
+    public void testCompletedCleanupJobDoesNotRemoveNewCleanupJob() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String broker = brokerId3;
+        var cleanupJobs = channel.getCleanupJobs();
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
+
+        CompletableFuture<Void> newJob = null;
+        try {
+            // Broker-creation handling removes a cleanup job before cancelling it. A later broker-deletion
+            // event can therefore schedule a new job before the old job's completion cleanup runs.
+            assertTrue(cleanupJobs.remove(broker, oldJob));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
+
+            // The previous unconditional removal would remove newJob here.
+            assertTrue(oldJob.cancel(false));
+
+            assertTrue(cleanupJobs.get(broker) == newJob,
+                    "A stale cleanup job completion must not remove a newer cleanup job future");
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after completion");
+        } finally {
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
+        }
+    }
+
     @Test(priority = 100)
     public void channelValidationTest()
             throws ExecutionException, InterruptedException, IllegalAccessException, PulsarServerException,
@@ -288,7 +387,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(6, errorCnt);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future startFuture = executor.submit(() -> {
+        Future<?> startFuture = executor.submit(() -> {
             try {
                 channel.start();
             } catch (PulsarServerException e) {
@@ -303,7 +402,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted, true);
         assertNotNull(channel.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get());
 
-        Future closeFuture = executor.submit(() -> {
+        Future<?> closeFuture = executor.submit(() -> {
             try {
                 channel.close();
             } catch (PulsarServerException e) {
@@ -731,11 +830,87 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     }
 
+
+    @Test
+    public void metadataStateMetricsTest() throws IllegalAccessException {
+        ServiceUnitStateChannelImpl channel1 = (ServiceUnitStateChannelImpl) this.channel1;
+
+        long now = System.currentTimeMillis();
+        long oldTimestamp = now - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000) - 1;
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", oldTimestamp, true);
+        long beforeMetricsCall = System.currentTimeMillis();
+        var metrics = channel1.getMetrics();
+        long afterMetricsCall = System.currentTimeMillis();
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(oldTimestamp, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        long ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        long minAgeSeconds = TimeUnit.MILLISECONDS.toSeconds(beforeMetricsCall - oldTimestamp);
+        long maxAgeSeconds = TimeUnit.MILLISECONDS.toSeconds(afterMetricsCall - oldTimestamp);
+        assertTrue(ageSeconds >= minAgeSeconds && ageSeconds <= maxAgeSeconds,
+                "Unexpected age seconds: " + ageSeconds + ", expected within [" + minAgeSeconds + ", "
+                        + maxAgeSeconds + "]");
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        metrics = channel1.getMetrics();
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(now, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        assertTrue(ageSeconds >= 0 && ageSeconds <= 1, "Unexpected age seconds: " + ageSeconds);
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionLost, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", now, true);
+        metrics = channel1.getMetrics();
+        assertEquals(2, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(now, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        ageSeconds = getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue();
+        assertTrue(ageSeconds >= 0 && ageSeconds <= 1, "Unexpected age seconds: " + ageSeconds);
+
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEvent", SessionReestablished, true);
+        FieldUtils.writeDeclaredField(channel1, "lastMetadataSessionEventTimestamp", 0L, true);
+        metrics = channel1.getMetrics();
+        assertEquals(0, getMetric(metrics, "brk_sunit_state_chn_metadata_state").intValue());
+        assertEquals(1, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_is_reestablished")
+                .intValue());
+        assertEquals(0L, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_timestamp_ms")
+                .longValue());
+        assertEquals(-1L, getMetric(metrics, "brk_sunit_state_chn_last_metadata_session_event_age_seconds")
+                .longValue());
+    }
+
+    private static Number getMetric(List<Metrics> metrics, String metricName) {
+        for (Metrics metric : metrics) {
+            Object value = metric.getMetrics().get(metricName);
+            if (value == null) {
+                continue;
+            }
+            if (!(value instanceof Number)) {
+                fail(metricName + " is not numeric: " + value);
+            }
+            return (Number) value;
+        }
+        fail("Missing " + metricName + " metric");
+        return -1L;
+    }
+
     @Test(priority = 8)
     public void handleBrokerCreationEventTest() throws IllegalAccessException {
         var cleanupJobs = getCleanupJobs(channel1);
         String broker = brokerId2;
-        var future = new CompletableFuture();
+        var future = new CompletableFuture<Void>();
         cleanupJobs.put(broker, future);
         ((ServiceUnitStateChannelImpl) channel1).handleBrokerRegistrationEvent(broker, NotificationType.Created);
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -743,6 +918,59 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             assertTrue(future.isCancelled());
         });
 
+    }
+
+    @Test(priority = 8)
+    public void handleBrokerCreationEventDoesNotCancelNewCleanupJobTest() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        var cleanupJobs = channel.getCleanupJobs();
+        String broker = brokerId2;
+        CompletableFuture<Void> healthCheck = new CompletableFuture<>();
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
+
+        reset(brokers);
+        doReturn(healthCheck).when(brokers).healthcheckAsync(any());
+        doReturn(brokers).when(pulsarAdmin).brokers();
+        CompletableFuture<Void> newJob = null;
+        try {
+            channel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
+            verify(brokers, times(1)).healthcheckAsync(any());
+
+            // The old cleanup can finish while the asynchronous health check is still pending. A later
+            // broker-deletion event can then schedule a new cleanup job for the same broker.
+            assertTrue(oldJob.complete(null));
+            assertFalse(cleanupJobs.containsKey(broker));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
+
+            healthCheck.complete(null);
+
+            CompletableFuture<Void> expectedNewJob = newJob;
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(cleanupJobs.get(broker) == expectedNewJob,
+                        "A stale broker-creation callback must not remove a newer cleanup job");
+                assertFalse(expectedNewJob.isCancelled());
+            });
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after cancellation");
+        } finally {
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
+            reset(brokers);
+            doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
+                    .healthcheckAsync(any());
+            reset(pulsarAdmin);
+        }
     }
 
     @Test(priority = 9)
@@ -1765,7 +1993,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // case 5: the owner lookup gets delayed
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1000, true);
-        var delayedFuture = new CompletableFuture();
+        var delayedFuture = new CompletableFuture<Object>();
         doReturn(delayedFuture).when(registry).lookupAsync(eq(broker));
         CompletableFuture.runAsync(() -> {
             try {
@@ -1937,10 +2165,70 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         channel2.cleanOwnerships();
     }
 
+    @Test(priority = 24)
+    public void testHandleExistingResolvesAssigningStateOnChannelRestart()
+            throws Exception {
+        // Regression test for: handleExisting() must immediately resolve an Assigning state
+        // targeting this broker to Owned, simulating the broker-restart recovery scenario.
+        //
+        // When a broker restarts, its ServiceUnitStateChannel calls handleExisting() for each
+        // entry in the table view during start(). Without the fix, Assigning states were silently
+        // ignored, leaving bundles stuck until the ownership monitor rescued them after
+        // inFlightStateWaitingTimeInMillis (default 30s). The fix is verified by asserting
+        // that Owned state appears within 15s — shorter than the 30s monitor threshold —
+        // which proves handleExisting() drove the resolution, not the ownership monitor.
 
-    private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
+        // Case 1: Assigning targeting brokerId1 with no source broker
+        //         (fresh assignment after a Free override when no broker was available)
+        String assigningBundle1 = "public/test-existing-assigning1/0xfffffff0_0xffffffff";
+        var assigningData1 = new ServiceUnitStateData(Assigning, brokerId1, null, 1);
+
+        // Case 2: Assigning targeting brokerId1 with a source broker
+        //         (transfer interrupted mid-flight by broker restart)
+        String assigningBundle2 = "public/test-existing-assigning2/0xfffffff0_0xffffffff";
+        var assigningData2 = new ServiceUnitStateData(Assigning, brokerId1, brokerId2, 1);
+
+        // Pre-populate the Assigning states in the tableview while channels are disabled.
+        // This is required for the metadata store implementation: the conflict resolver
+        // checks that the existing versionId == (new versionId - 1), so Owned(v=2) is
+        // only accepted when Assigning(v=1) is already stored. Without pre-population,
+        // shouldKeepLeft(null, Owned(v=2)) returns true (conflict) and the put is silently
+        // dropped, leaving the bundle stuck in the Init state.
+        try {
+            disableChannels();
+            overrideTableViews(assigningBundle1, assigningData1);
+            overrideTableViews(assigningBundle2, assigningData2);
+        } finally {
+            enableChannels();
+        }
+
+        var handleExistingMethod = ServiceUnitStateChannelImpl.class
+                .getDeclaredMethod("handleExisting", String.class, ServiceUnitStateData.class);
+        handleExistingMethod.setAccessible(true);
+
+        // Simulate restart: handleExisting() is called by ServiceUnitStateTableView.start() for
+        // each entry present in the tableview snapshot when the channel starts up.
+        handleExistingMethod.invoke(channel1, assigningBundle1, assigningData1);
+        handleExistingMethod.invoke(channel1, assigningBundle2, assigningData2);
+
+        try {
+            // Both bundles must reach Owned state within 15s (< inFlightStateWaitingTimeInMillis 30s).
+            // Without the fix, the tableview state would remain Assigning until the monitor runs at ~30s.
+            Awaitility.await().atMost(15, TimeUnit.SECONDS).pollInterval(200, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> {
+                        assertEquals(Owned, state(getTableView(channel1).get(assigningBundle1)));
+                        assertEquals(Owned, state(getTableView(channel2).get(assigningBundle1)));
+                        assertEquals(Owned, state(getTableView(channel1).get(assigningBundle2)));
+                        assertEquals(Owned, state(getTableView(channel2).get(assigningBundle2)));
+                    });
+        } finally {
+            cleanTableViews();
+        }
+    }
+
+    private static ConcurrentHashMap<String, CompletableFuture<String>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
-        return (ConcurrentHashMap<String, CompletableFuture<Optional<String>>>)
+        return (ConcurrentHashMap<String, CompletableFuture<String>>)
                 FieldUtils.readDeclaredField(channel,
                         "getOwnerRequests", true);
     }
@@ -1964,6 +2252,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilNewChannelOwner(ServiceUnitStateChannel channel, String oldOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -1978,6 +2267,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilOwnerChanges(ServiceUnitStateChannel channel, String serviceUnit, String oldOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -1991,6 +2281,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilNewOwner(ServiceUnitStateChannel channel, String serviceUnit, String newOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)

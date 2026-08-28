@@ -24,9 +24,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 
-@Slf4j
+@CustomLog
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
 
@@ -150,13 +150,15 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public static EntryImpl createWithRetainedDuplicate(Position position, ByteBuf data,
-                                                        EntryReadCountHandler entryReadCountHandler) {
+                                                        EntryReadCountHandler entryReadCountHandler,
+                                                        MessageMetadata messageMetadata) {
         EntryImpl entry = RECYCLER.get();
         entry.position = PositionFactory.create(position);
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data.retainedDuplicate();
         entry.readCountHandler = entryReadCountHandler;
+        entry.messageMetadata = messageMetadata;
         entry.setRefCnt(1);
         return entry;
     }
@@ -305,15 +307,18 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         decreaseReadCountOnRelease = enabled;
     }
 
-    public void initializeMessageMetadataIfNeeded(String managedLedgerName) {
+    public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
         if (messageMetadata == null) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
-                Commands.peekMessageMetadata(data, msgMetadata);
+                Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
-                log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
-                        t);
+                log.warn().attr("managedLedgerName", managedLedgerName)
+                        .attr("ledgerId", ledgerId)
+                        .attr("entryId", entryId)
+                        .exception(t)
+                        .log("Failed to parse message metadata for entry");
             }
         }
     }

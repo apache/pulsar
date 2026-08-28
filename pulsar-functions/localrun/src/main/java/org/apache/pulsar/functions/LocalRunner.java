@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -46,8 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.Utils;
@@ -60,8 +59,8 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -89,7 +88,7 @@ import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.TypeConversionException;
 
-@Slf4j
+@CustomLog
 public class LocalRunner implements AutoCloseable {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -220,7 +219,7 @@ public class LocalRunner implements AutoCloseable {
         try {
             localRunner.start(true);
         } catch (Exception e) {
-            log.error("Encountered error starting localrunner", e);
+            log.error().exception(e).log("Encountered error starting localrunner");
             localRunner.close();
         }
     }
@@ -266,7 +265,7 @@ public class LocalRunner implements AutoCloseable {
             try {
                 LocalRunner.this.close();
             } catch (Exception exception) {
-                log.warn("Encountered exception when closing localrunner", exception);
+                log.warn().exception(exception).log("Encountered exception when closing localrunner");
             }
         });
     }
@@ -302,6 +301,7 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
             this.notify();
@@ -338,7 +338,7 @@ public class LocalRunner implements AutoCloseable {
                 try {
                     ((Closeable) userCodeClassLoader.getClassLoader()).close();
                 } catch (IOException e) {
-                    log.warn("Error closing classloader", e);
+                    log.warn().exception(e).log("Error closing classloader");
                 }
             }
         }
@@ -351,7 +351,7 @@ public class LocalRunner implements AutoCloseable {
                 throw new IllegalArgumentException("Pulsar Function local run already started!");
             }
             Runtime.getRuntime().addShutdownHook(shutdownHook);
-            Function.FunctionDetails functionDetails = null;
+            FunctionDetails functionDetails = null;
             String userCodeFile;
             String transformFunctionFile = null;
             int parallelism;
@@ -463,7 +463,8 @@ public class LocalRunner implements AutoCloseable {
             if (exitOnError) {
                 for (RuntimeSpawner spawner : local) {
                     spawner.join();
-                    log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+                    log.info().exception(spawner.getRuntime().getDeathException())
+                            .log("RuntimeSpawner quit");
                 }
                 close();
             } else {
@@ -537,7 +538,7 @@ public class LocalRunner implements AutoCloseable {
         return new UserCodeClassLoader(classLoader, classLoaderCreated);
     }
 
-    private void startProcessMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startProcessMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {
@@ -598,6 +599,7 @@ public class LocalRunner implements AutoCloseable {
         statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
+                @SuppressWarnings({"unchecked", "rawtypes"})
                 CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                 int index = 0;
                 for (RuntimeSpawner spawner : spawners) {
@@ -620,7 +622,7 @@ public class LocalRunner implements AutoCloseable {
     }
 
 
-    private void startThreadedMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startThreadedMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {
@@ -637,7 +639,10 @@ public class LocalRunner implements AutoCloseable {
                     .createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProvider.init(config);
         } else {
@@ -703,7 +708,7 @@ public class LocalRunner implements AutoCloseable {
         }
         if (metricsPortStart != null) {
             // starting metrics server
-            log.info("Starting metrics server on port {}", metricsPortStart);
+            log.info().attr("port", metricsPortStart).log("Starting metrics server");
             metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }
@@ -724,7 +729,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInFunction(String functionType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, FunctionArchive> functions = getFunctions();
+        Map<String, FunctionArchive> functions = getFunctions();
 
         String functionName = functionType.replaceFirst("^builtin://", "");
         FunctionArchive function = functions.get(functionName);
@@ -738,7 +743,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSource(String sourceType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String source = sourceType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(source);
@@ -752,7 +757,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSink(String sinkType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String sink = sinkType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(sink);
@@ -764,11 +769,11 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    private TreeMap<String, FunctionArchive> getFunctions() throws IOException {
+    private Map<String, FunctionArchive> getFunctions() throws IOException {
         return FunctionUtils.searchForFunctions(functionsDir, narExtractionDirectory, true);
     }
 
-    private TreeMap<String, Connector> getConnectors() throws IOException {
+    private Map<String, Connector> getConnectors() throws IOException {
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory, true);
     }
 
@@ -777,7 +782,10 @@ public class LocalRunner implements AutoCloseable {
         if (secretsProviderClassName != null) {
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProviderConfigurator =
                     new NameAndConfigBasedSecretsProviderConfigurator(secretsProviderClassName, config);

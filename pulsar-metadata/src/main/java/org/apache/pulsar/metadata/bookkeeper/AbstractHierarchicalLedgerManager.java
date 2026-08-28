@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.zookeeper.AsyncCallback;
 
-@Slf4j
+@CustomLog
 abstract class AbstractHierarchicalLedgerManager {
     protected final MetadataStore store;
     protected final ScheduledExecutorService scheduler;
@@ -80,7 +80,7 @@ abstract class AbstractHierarchicalLedgerManager {
                     // process its children
                     listProcessor.process(levelNodes, processor, finalCb, context, successRc, failureRc);
                 }).exceptionally(ex -> {
-                    log.error("Error polling hash nodes of {}: {}", path, ex.getMessage());
+                    log.error().attr("path", path).exceptionMessage(ex).log("Error polling hash nodes");
                     finalCb.processResult(failureRc, null, context);
                     return null;
                 });
@@ -194,9 +194,7 @@ abstract class AbstractHierarchicalLedgerManager {
                 .thenAccept(ledgerNodes -> {
                     Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
                             ledgerRootPath, path);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Processing ledgers: {}", activeLedgers);
-                    }
+                    log.debug().attr("ledgers", activeLedgers).log("Processing ledgers");
 
                     // no ledgers found, return directly
                     if (activeLedgers.isEmpty()) {

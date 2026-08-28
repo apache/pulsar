@@ -21,11 +21,12 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Sets;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -44,7 +45,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class LeaderElectionServiceTest {
 
@@ -52,7 +53,7 @@ public class LeaderElectionServiceTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         log.info("---- bk started ----");
     }
@@ -80,12 +81,15 @@ public class LeaderElectionServiceTest {
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         @Cleanup
         PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
-        pulsar.start();
 
         // mock pulsar.getLeaderElectionService() in a thread safe way
+        // This must be set up before start() to avoid UnfinishedStubbingException
+        // caused by background threads interacting with the spy during stubbing setup.
         AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
         Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
                 .when(pulsar).getLeaderElectionService();
+
+        pulsar.start();
 
         // broker and webService is started, but leaderElectionService not ready
         final String tenant = "elect";
@@ -113,6 +117,9 @@ public class LeaderElectionServiceTest {
                 leaderBrokerReference.get() != null);
         Mockito.when(leaderElectionService.getCurrentLeader())
                 .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
+        Mockito.when(leaderElectionService.readCurrentLeader())
+                .thenAnswer(invocation ->
+                        CompletableFuture.completedFuture(Optional.ofNullable(leaderBrokerReference.get())));
         leaderElectionServiceReference.set(leaderElectionService);
 
         // broker, webService and leaderElectionService is started, but elect not ready;

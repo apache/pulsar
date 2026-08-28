@@ -37,9 +37,12 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -76,7 +79,7 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -91,7 +94,7 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -115,13 +118,14 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
-    public void testBatchConfigMergeEqual() {
+    public void testBatchConfigMergeEqual() throws JSONException {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
+                new Gson().toJson(mergedConfig),
+                JSONCompareMode.STRICT
         );
     }
 
@@ -351,7 +355,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setProducerConfig(null);
         sourceConfig.setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
@@ -362,7 +366,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder("KEY_BASED");
         sourceConfig.getProducerConfig().setMaxPendingMessages(123456);
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
@@ -374,7 +378,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder(null);
         sourceConfig.getProducerConfig().setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");

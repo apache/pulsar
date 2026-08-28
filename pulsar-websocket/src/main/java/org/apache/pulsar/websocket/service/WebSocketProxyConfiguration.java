@@ -75,6 +75,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Metadata store cache expiry time in seconds.")
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(doc = "Is metadata store read-only operations.")
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @FieldContext(
             deprecated = true,
             doc = "ZooKeeper session timeout in milliseconds. "
@@ -144,8 +147,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     // Note: name matches the ServiceConfiguration name to ensure correct mapping
-    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
-    private boolean tlsHostnameVerificationEnabled = false;
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker. Enabled by default since "
+            + "Pulsar 5.0 (PIP-478): a broker whose certificate does not match its hostname/SAN is rejected.")
+    private boolean tlsHostnameVerificationEnabled = true;
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
@@ -211,8 +215,29 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
+    @FieldContext(doc = "TLS cert refresh duration (in seconds). Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart.")
     private long tlsCertRefreshCheckDurationSec = 300;
+
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's web "
+            + "server TLS (purpose WEB). When set, the new PIP-478 TLS SPI is used instead of the built-in "
+            + "file-based TLS loading: an empty value or the literal 'default' selects the built-in default "
+            + "factory composed from these tls* settings, otherwise the named class is instantiated via its "
+            + "public no-arg constructor. This is the WebSocket proxy's first TLS-factory pluggability.")
+    private String tlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or "
+            + "a comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
+
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's own "
+            + "outbound (websocket-to-broker) client connections (purpose BROKER_CLIENT). An empty value or "
+            + "the literal 'default' selects the built-in default factory composed from the broker-client "
+            + "tls* settings, otherwise the named class is instantiated via its public no-arg constructor. "
+            + "This is the only outbound-client TLS-factory path for the WebSocket proxy.")
+    private String brokerClientTlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+            + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
@@ -221,9 +246,58 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
-            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc.\n"
+                    + "Leave unset (the default) to use Conscrypt when it is available on this platform, else\n"
+                    + "the JVM's default provider; a configured name is pinned and startup fails if it cannot be\n"
+                    + "resolved. Conscrypt ships native libraries for x86_64 and, since 2.6.1, aarch64 — but not\n"
+                    + "for every platform, which is why the default falls back instead of failing where it cannot\n"
+                    + "load; pinning it explicitly there does fail."
     )
-    private String tlsProvider = "Conscrypt";
+    private String tlsProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "WebSocket service's web-listener TLS SSLContext. When set, the default factory builds the "
+                    + "JDK engine with this provider as the SSLContext provider. Resolved by preferring a "
+                    + "provider already registered in the JVM (Security.getProvider), falling back to the "
+                    + "ServiceLoader mechanism, and failing loudly when unresolvable."
+    )
+    private String jsseProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the Netty SSL engine provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — JDK, OPENSSL or OPENSSL_REFCNT. The "
+                    + "listener-side tlsProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientSslProvider. Leave unset to keep the "
+                    + "JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the WebSocket proxy's own "
+                    + "outbound (proxy-to-broker) client connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the WebSocket proxy's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the JCA (material) provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — the outbound counterpart of jcaProvider."
+    )
+    private String brokerClientJcaProvider = null;
 
     @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"

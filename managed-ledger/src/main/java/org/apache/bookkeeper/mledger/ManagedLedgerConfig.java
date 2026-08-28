@@ -19,10 +19,13 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.github.merlimat.slog.Logger;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,7 +36,6 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -55,12 +57,11 @@ public class ManagedLedgerConfig {
     private int ensembleSize = 3;
     private int writeQuorumSize = 2;
     private int ackQuorumSize = 2;
-    private int metadataEnsembleSize = 3;
-    private int metadataWriteQuorumSize = 2;
-    private int metadataAckQuorumSize = 2;
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
+    private Semaphore ledgerDeletionSemaphore;
+    private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -71,12 +72,12 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(StandardCharsets.UTF_8);
-    private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private Logger loggerContext;
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
@@ -298,67 +299,6 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * should use {@link OpenLongPairRangeSet} to store unacked ranges.
-     * @return
-     */
-    public boolean isUnackedRangesOpenCacheSetEnabled() {
-        return unackedRangesOpenCacheSetEnabled;
-    }
-
-    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
-        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
-        return this;
-    }
-
-    /**
-     * @return the metadataEnsemblesize
-     */
-    public int getMetadataEnsemblesize() {
-        return metadataEnsembleSize;
-    }
-
-    /**
-     * @param metadataEnsembleSize
-     *            the metadataEnsembleSize to set
-     */
-    public ManagedLedgerConfig setMetadataEnsembleSize(int metadataEnsembleSize) {
-        this.metadataEnsembleSize = metadataEnsembleSize;
-        return this;
-    }
-
-    /**
-     * @return the metadataAckQuorumSize
-     */
-    public int getMetadataAckQuorumSize() {
-        return metadataAckQuorumSize;
-    }
-
-    /**
-     * @return the metadataWriteQuorumSize
-     */
-    public int getMetadataWriteQuorumSize() {
-        return metadataWriteQuorumSize;
-    }
-
-    /**
-     * @param metadataAckQuorumSize
-     *            the metadataAckQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataAckQuorumSize(int metadataAckQuorumSize) {
-        this.metadataAckQuorumSize = metadataAckQuorumSize;
-        return this;
-    }
-
-    /**
-     * @param metadataWriteQuorumSize
-     *            the metadataWriteQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataWriteQuorumSize(int metadataWriteQuorumSize) {
-        this.metadataWriteQuorumSize = metadataWriteQuorumSize;
-        return this;
-    }
-
-    /**
      * @return the metadataMaxEntriesPerLedger
      */
     public int getMetadataMaxEntriesPerLedger() {
@@ -407,6 +347,30 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setThrottleMarkDelete(double throttleMarkDelete) {
         checkArgument(throttleMarkDelete >= 0.0);
         this.throttleMarkDelete = throttleMarkDelete;
+        return this;
+    }
+
+    /**
+     * @return the semaphore used to limit concurrent ledger deletions
+     */
+    public Semaphore getLedgerDeletionSemaphore() {
+        return ledgerDeletionSemaphore;
+    }
+
+    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
+        this.ledgerDeletionSemaphore = semaphore;
+        return this;
+    }
+
+    /**
+     * @return the executor service to be used for deleting ledgers
+     */
+    public ExecutorService getLedgerDeleteExecutor() {
+        return ledgerDeleteExecutor;
+    }
+
+    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
+        this.ledgerDeleteExecutor = executor;
         return this;
     }
 
@@ -566,6 +530,27 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setLedgerOffloader(LedgerOffloader offloader) {
         this.ledgerOffloader = offloader;
+        return this;
+    }
+
+    /**
+     * Get the parent logger whose context attributes are inherited by the managed ledger logger.
+     *
+     * @return the parent logger, or null if none was set
+     */
+    public Logger getLoggerContext() {
+        return loggerContext;
+    }
+
+    /**
+     * Set a parent slog {@link Logger} whose context attributes (e.g. {@code topic}, {@code subscription}) are
+     * inherited by the managed ledger logger and propagated to the BookKeeper client when ledgers are created or
+     * opened, so that log statements emitted by the BookKeeper client carry the application context.
+     *
+     * @param loggerContext logger whose context attributes to inherit; null means no extra context
+     */
+    public ManagedLedgerConfig setLoggerContext(Logger loggerContext) {
+        this.loggerContext = loggerContext;
         return this;
     }
 

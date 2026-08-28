@@ -24,6 +24,7 @@ import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
@@ -33,7 +34,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemaUtil {
 
-    public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
+    private static Boolean globalJsr310ConversionEnabled = null;
+
+    public static void setGlobalJsr310ConversionEnabled(Boolean globalJsr310ConversionEnabled) {
+        SchemaUtil.globalJsr310ConversionEnabled = globalJsr310ConversionEnabled;
+    }
+
+    public static boolean getJsr310ConversionEnabled(SchemaInfo schemaInfo) {
+        if (globalJsr310ConversionEnabled != null) {
+            return globalJsr310ConversionEnabled;
+        }
         if (schemaInfo != null) {
             return Boolean.parseBoolean(schemaInfo.getProperties()
                     .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
@@ -55,6 +65,7 @@ public class SchemaUtil {
                 .type(schemaType).build();
     }
 
+    @SuppressWarnings("unchecked")
     public static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
 
@@ -93,7 +104,12 @@ public class SchemaUtil {
                      ? new ReflectData.AllowNull()
                      : new ReflectData();
             AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
-            return reflectData.getSchema(pojo);
+            try {
+                return reflectData.getSchema(pojo);
+            } catch (RuntimeException e) {
+                throw new SchemaSerializationException(
+                        "Unable to create Avro schema for class " + pojo.getName(), e);
+            }
         }
     }
 }

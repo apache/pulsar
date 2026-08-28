@@ -19,7 +19,6 @@
 package org.apache.pulsar.opentelemetry;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
-import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.satisfies;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
@@ -29,16 +28,16 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.opentelemetry.semconv.ResourceAttributes;
+import io.opentelemetry.semconv.ServiceAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
-import org.assertj.core.api.AbstractCharSequenceAssert;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -98,7 +97,7 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testResourceAttributesAreSet() throws Exception {
+    public void testServiceAttributesAreSet() throws Exception {
         @Cleanup
         var reader = InMemoryMetricReader.create();
 
@@ -116,9 +115,8 @@ public class OpenTelemetryServiceTest {
             .allSatisfy(metric -> assertThat(metric)
                 .hasResourceSatisfying(resource -> resource
                     .hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testServiceNameAndVersion")
-                    .hasAttribute(ResourceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
-                    .hasAttribute(ResourceAttributes.SERVICE_VERSION, "1.0.0")
-                    .hasAttribute(satisfies(ResourceAttributes.HOST_NAME, AbstractCharSequenceAssert::isNotBlank))));
+                    .hasAttribute(ServiceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
+                    .hasAttribute(ServiceAttributes.SERVICE_VERSION, "1.0.0")));
     }
 
     @Test
@@ -154,6 +152,26 @@ public class OpenTelemetryServiceTest {
             var overflowMetric = allMetrics.findByNameAndLabels("dummyCounter_total", "otel_metric_overflow", "true");
             return actualMetrics.size() == OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1 && overflowMetric.size() == 1;
         });
+    }
+
+    @Test
+    public void testPrometheusExporterDefaultsToAllInterfacesHost() {
+        // OpenTelemetry 1.62.0 changed the Prometheus exporter's default server host from "0.0.0.0" to "localhost".
+        // Pulsar restores the previous "0.0.0.0" default so the metrics endpoint stays reachable from outside the
+        // local host (e.g. another container or a remote Prometheus scraper). The default must remain overridable
+        // via the standard OTEL_EXPORTER_PROMETHEUS_HOST / otel.exporter.prometheus.host configuration.
+        var capturedHost = new AtomicReference<String>();
+        @Cleanup
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(null,
+                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))
+                        .andThen(builder -> builder.addPropertiesCustomizer(config -> {
+                            capturedHost.set(config.getString(OpenTelemetryService.OTEL_EXPORTER_PROMETHEUS_HOST_KEY));
+                            return Map.of();
+                        })))
+                .clusterName("openTelemetryServicePrometheusHostTestCluster")
+                .build();
+        assertThat(capturedHost.get()).isEqualTo("0.0.0.0");
     }
 
     @Test
@@ -207,7 +225,12 @@ public class OpenTelemetryServiceTest {
 
     @Test
     public void testJvmRuntimeMetrics() {
-        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
+        // Force GC by creating memory pressure. Runtime.getRuntime().gc() is just a hint that the JVM
+        // can ignore, especially in a fresh JVM with plenty of heap. Allocating and discarding memory
+        // ensures at least one GC cycle occurs, so that jvm.gc.duration metric is populated.
+        for (int i = 0; i < 100; i++) {
+            byte[] waste = new byte[1024 * 1024]; // 1MB
+        }
         Runtime.getRuntime().gc();
 
         var metrics = reader.collectAllMetrics();
@@ -230,7 +253,7 @@ public class OpenTelemetryServiceTest {
 
         // Buffer Pool Metrics
         // Replaces jvm_buffer_pool_used_bytes
-        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.used"));
         // Replaces jvm_buffer_pool_capacity_bytes
         assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
         // Replaces jvm_buffer_pool_used_buffers

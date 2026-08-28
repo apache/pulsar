@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -49,8 +50,6 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -58,9 +57,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxySaslAuthenticationTest.class);
-
     public static File kdcDir;
     public static File kerberosWorkDir;
     public static File brokerSecretKeyFile;
@@ -177,7 +175,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        log.info("-- {} --, start at host: {}", methodName, localHostname);
+        log.info().attr("method", methodName).attr("host", localHostname).log("start at host");
         isTcpLookup = true;
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
@@ -209,7 +207,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
             .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(),
                     clientSaslConfig)).build();
         super.producerBaseSetup();
-        log.info("-- {} --, end.", methodName);
+        log.info().attr("value", methodName).log("----, end.");
     }
 
     @Override
@@ -224,7 +222,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
     @Test
     void testAuthentication() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("value", methodName).log("-- Startingtest --");
 
         // Step 1: Create Admin Client
 
@@ -266,12 +264,12 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
         proxyService.start();
         final String proxyServiceUrl = "pulsar://localhost:" + proxyService.getListenPort().get();
-        log.info("1 proxy service started {}", proxyService);
+        log.info().attr("value", proxyService).log("1 proxy service started");
 
         // Step 3: Pass correct client params
         @Cleanup
         PulsarClient proxyClient = createProxyClient(proxyServiceUrl, 1);
-        log.info("2 create proxy client {}, {}", proxyServiceUrl, proxyClient);
+        log.info().attr("url", proxyServiceUrl).attr("client", proxyClient).log("2 create proxy client");
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
         log.info("3 created producer.");
@@ -283,7 +281,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
+            log.info().attr("value", message).log("Produced message: []");
         }
 
         Message<byte[]> msg = null;
@@ -291,7 +289,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("value", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }

@@ -23,17 +23,16 @@ import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarTestClient;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class MemoryLimitTest extends ProducerConsumerBase {
+public class MemoryLimitTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "batchingAndMemoryLimit")
     public Object[][] provider() {
@@ -44,26 +43,13 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test(dataProvider = "batchingAndMemoryLimit")
     public void testRejectMessages(boolean batching, int memoryLimit)
             throws Exception {
         String topic = newTopicName();
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
         @Cleanup
@@ -120,7 +106,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         String t2 = newTopicName();
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
         @Cleanup

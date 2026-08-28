@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -31,9 +32,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class OpReadEntry implements ReadEntriesCallback {
     static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
@@ -81,7 +81,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
     private void internalReadEntriesComplete(List<Entry> returnedEntries) {
         if (returnedEntries.isEmpty()) {
-            log.warn("[{}] Read no entries unexpectedly", this);
+            log.warn().attr("op", this).log("Read no entries unexpectedly");
             checkReadCompletion();
             return;
         }
@@ -93,10 +93,13 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
-                    cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
-        }
+        log.debug()
+                .attr("managedLedger", cursor.ledger.getName())
+                .attr("cursor", cursor.getName())
+                .attr("batchSize", returnedEntries.size())
+                .attr("cumulativeSize", entries.size())
+                .attr("requestedCount", count)
+                .log("Read entries succeeded");
 
         // Entries might be released after `filterReadEntries`, so retrieve the last position before that
         final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
@@ -115,7 +118,8 @@ class OpReadEntry implements ReadEntriesCallback {
         try {
             internalReadEntriesComplete(returnedEntries);
         } catch (Throwable throwable) {
-            log.error("[{}] Fallback to readEntriesFailed for exception in readEntriesComplete", this, throwable);
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in readEntriesComplete");
             readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
         }
     }
@@ -138,8 +142,12 @@ class OpReadEntry implements ReadEntriesCallback {
             complete(ctx);
         } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
-                    readPosition, exception.getMessage());
+            log.warn()
+                    .attr("managedLedger", cursor.ledger.getName())
+                    .attr("cursor", cursor.getName())
+                    .attr("readPosition", readPosition)
+                    .exceptionMessage(exception)
+                    .log("Read failed from ledger");
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
             Long lostLedger = null;
@@ -165,13 +173,18 @@ class OpReadEntry implements ReadEntriesCallback {
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
-                log.warn("[{}][{}] read failed from ledger at position:{}", cursor.ledger.getName(),
-                        cursor.getName(), readPosition, exception);
+                log.warn()
+                        .attr("managedLedger", cursor.ledger.getName())
+                        .attr("cursor", cursor.getName())
+                        .attr("readPosition", readPosition)
+                        .exception(exception)
+                        .log("Read failed from ledger");
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
-                            cursor.getName(), readPosition);
-                }
+                log.debug()
+                        .attr("managedLedger", cursor.ledger.getName())
+                        .attr("cursor", cursor.getName())
+                        .attr("readPosition", readPosition)
+                        .log("Read throttled failed from ledger");
             }
 
             fail(exception, ctx);
@@ -261,7 +274,10 @@ class OpReadEntry implements ReadEntriesCallback {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             } catch (Throwable throwable) {
-                log.error("[{}] readEntriesComplete failed (last position: {})", this, lastEntryPosition(), throwable);
+                log.error().attr("op", this)
+                        .attr("lastPosition", lastEntryPosition())
+                        .exception(throwable)
+                        .log("readEntriesComplete failed");
             }
         });
     }
@@ -272,7 +288,8 @@ class OpReadEntry implements ReadEntriesCallback {
             cursor.ledger.mbean.recordReadEntriesError();
             recycle();
         } catch (Throwable throwable) {
-            log.error("[{}] readEntriesFailed failed (exception: {})", this, e.getMessage(), throwable);
+            log.error().attr("op", this).exception(throwable).exceptionMessage(e)
+                    .log("readEntriesFailed failed");
         }
     }
 
@@ -304,5 +321,4 @@ class OpReadEntry implements ReadEntriesCallback {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);
 }

@@ -20,8 +20,8 @@ package org.apache.pulsar.common.util.netty;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Static utility methods for operating on {@link ChannelFuture}s.
@@ -41,7 +41,9 @@ public class ChannelFutures {
      *         and completes exceptionally if the channelFuture completes with a {@link Throwable}
      */
     public static CompletableFuture<Channel> toCompletableFuture(ChannelFuture channelFuture) {
-        Objects.requireNonNull(channelFuture, "channelFuture cannot be null");
+        if (channelFuture == null) {
+            return FutureUtil.failedFuture(new NullPointerException("channelFuture cannot be null"));
+        }
 
         CompletableFuture<Channel> adapter = new CompletableFuture<>();
         if (channelFuture.isDone()) {

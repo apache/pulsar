@@ -31,6 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -52,14 +53,17 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
 
     protected static final AtomicIntegerFieldUpdater<BlobStoreBackedReadHandleImpl> PENDING_READ_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(BlobStoreBackedReadHandleImpl.class, "pendingRead");
+
+    // Bound on how far seekToEntryOffset() probes backwards through entryOffsetsCache for an anchor
+    // before falling back to re-walking from the sparse index marker.
+    private static final long MAX_OFFSET_PROBE =
+            Long.getLong("pulsar.jclouds.readhandleimpl.offsetprobe.max", 1024);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -138,8 +142,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         @Override
         public void run() {
             if (state == State.Closed) {
-                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
+                log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                        .attr("lastEntry", lastEntry).log("Reading a closed read handler");
                 promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
                 return;
             }
@@ -181,8 +185,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 }
                 promise.complete(LedgerEntriesImpl.create(entryCollector));
             } catch (Throwable t) {
-                log.error("Failed to read entries {} - {} from the offloader in ledger {}, current position of input"
-                        + " stream is {}", firstEntry, lastEntry, ledgerId, inputStream.getCurrentPosition(), t);
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId)
+                        .attr("position", inputStream.getCurrentPosition()).exception(t)
+                        .log("Failed to read entries from the offloader");
                 if (t instanceof KeyNotFoundException) {
                     promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                 } else {
@@ -200,22 +206,27 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedId);
             OffloadIndexEntry offsetOfActId = actEntryId <= getLedgerMetadata().getLastEntryId() && actEntryId >= 0
                     ? index.getIndexEntryForEntry(actEntryId) : null;
-            String logLine = String.format("Failed to read [ %s ~ %s ] of the ledger %s."
-                    + " Because got a incorrect entry id %s, the offset is %s."
-                    + " The expected entry id is %s, the offset is %s."
-                    + " Have seeked and retry read times: %s. LAC is %s.",
-                    firstEntry, lastEntry, ledgerId,
-                    actEntryId, offsetOfActId == null ? "null because it does not exist"
-                            : String.valueOf(offsetOfActId),
-                    expectedId, String.valueOf(offsetOfExpectedId),
-                    seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
             // If it still fails after tried entries count times, throw the exception.
             long maxTryTimes = Math.max(3, (lastEntry - firstEntry + 1) >> 2);
             if (seekedAndTryTimes > maxTryTimes) {
-                log.error(logLine);
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId).attr("actualEntryId", actEntryId)
+                        .attr("actualOffset", offsetOfActId != null ? String.valueOf(offsetOfActId) : "null")
+                        .attr("expectedEntryId", expectedId)
+                        .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect entry id, exhausted retries");
                 throw new BKException.BKUnexpectedConditionException();
             } else {
-                log.warn(logLine);
+                log.warn().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId).attr("actualEntryId", actEntryId)
+                        .attr("actualOffset", offsetOfActId != null ? String.valueOf(offsetOfActId) : "null")
+                        .attr("expectedEntryId", expectedId)
+                        .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect entry id, retrying");
             }
             seekToEntryOffset(expectedId);
             seekedAndTryTimes++;
@@ -229,43 +240,44 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 if (len < 0) {
                     LedgerMetadata ledgerMetadata = getLedgerMetadata();
                     OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
-                    log.error("Failed to read [ {} ~ {} ] of the ledger {}."
-                        + " Because failed to skip a previous entry {}, len: {}, got a negative len."
-                        + " The expected entry id is {}, the offset is {}."
-                        + " Have seeked and retry read times: {}. LAC is {}.",
-                        firstEntry, lastEntry, ledgerId,
-                        nextExpectedEntryId, len,
-                        expectedEntryId, String.valueOf(offsetOfExpectedId),
-                        seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                    log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                            .attr("ledgerId", ledgerId).attr("entryId", nextExpectedEntryId)
+                            .attr("len", len)
+                            .attr("expectedEntryId", expectedEntryId)
+                            .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                            .attr("retries", seekedAndTryTimes)
+                            .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                            .log("Failed to skip previous entry, got negative len");
                     throw new BKException.BKUnexpectedConditionException();
                 }
                 long entryId = dataStream.readLong();
                 if (entryId == nextExpectedEntryId) {
+                    entryOffsetsCache.put(ledgerId, entryId, offset);
                     long skipped = inputStream.skip(len);
                     if (skipped != len) {
                         LedgerMetadata ledgerMetadata = getLedgerMetadata();
                         OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
-                        log.error("Failed to read [ {} ~ {} ] of the ledger {}."
-                            + " Because failed to skip a previous entry {}, offset: {}, len: {}, there is no more data."
-                            + " The expected entry id is {}, the offset is {}."
-                            + " Have seeked and retry read times: {}. LAC is {}.",
-                            firstEntry, lastEntry, ledgerId,
-                            entryId, offset, len,
-                            expectedEntryId, String.valueOf(offsetOfExpectedId),
-                            seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                        log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                                .attr("ledgerId", ledgerId).attr("entryId", entryId)
+                                .attr("offset", offset).attr("len", len)
+                                .attr("expectedEntryId", expectedEntryId)
+                                .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                                .attr("retries", seekedAndTryTimes)
+                                .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                                .log("Failed to skip previous entry, no more data");
                         throw new BKException.BKUnexpectedConditionException();
                     }
                     nextExpectedEntryId++;
                 } else {
                     LedgerMetadata ledgerMetadata = getLedgerMetadata();
                     OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
-                    log.error("Failed to read [ {} ~ {} ] of the ledger {}."
-                        + " Because got a incorrect entry id {},."
-                        + " The expected entry id is {}, the offset is {}."
-                        + " Have seeked and retry read times: {}. LAC is {}.",
-                        firstEntry, lastEntry, ledgerId,
-                        entryId, expectedEntryId, String.valueOf(offsetOfExpectedId),
-                        seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                    log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                            .attr("ledgerId", ledgerId).attr("actualEntryId", entryId)
+                            .attr("expectedEntryId", expectedEntryId)
+                            .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                            .attr("retries", seekedAndTryTimes)
+                            .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                            .log("Got incorrect entry id while skipping previous entry");
                     throw new BKException.BKUnexpectedConditionException();
                 }
             }
@@ -285,13 +297,19 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 inputStream.seek(indexOfNearestEntry.getDataOffset());
                 return;
             }
-            // 2. Try to use the previous index. Since the entry-0 must have a precise index, we can skip to check
-            //    whether "expectedEntryId" is larger than 0;
-            Long cachedPreviousKnownOffset = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId - 1);
-            if (cachedPreviousKnownOffset != null) {
-                inputStream.seek(cachedPreviousKnownOffset);
-                skipPreviousEntry(expectedEntryId - 1, expectedEntryId);
-                return;
+            // 2. Probe backwards for the nearest cached offset within a bounded window. Since entry-0
+            //    must have a precise index, we can skip checking whether "expectedEntryId" is larger
+            //    than 0. skipPreviousEntry() below caches every entry it walks past, so once a block
+            //    has been walked once, a later jump into the same block lands on that cached run
+            //    within "gap" probes instead of re-walking from the sparse index marker in step 3.
+            long probeFloor = Math.max(indexOfNearestEntry.getEntryId(), expectedEntryId - MAX_OFFSET_PROBE);
+            for (long probe = expectedEntryId - 1; probe >= probeFloor; probe--) {
+                Long cachedOffset = entryOffsetsCache.getIfPresent(ledgerId, probe);
+                if (cachedOffset != null) {
+                    inputStream.seek(cachedOffset);
+                    skipPreviousEntry(probe, expectedEntryId);
+                    return;
+                }
             }
             // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
             //    Because it is a sparse index, some entries need to be skipped.
@@ -300,12 +318,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 skipPreviousEntry(indexOfNearestEntry.getEntryId(), expectedEntryId);
             } else {
                 LedgerMetadata ledgerMetadata = getLedgerMetadata();
-                log.error("Failed to read [ {} ~ {} ] of the ledger {}."
-                    + " Because got a incorrect index {} of the entry {}, which is greater than expected."
-                    + " Have seeked and retry read times: {}. LAC is {}.",
-                    firstEntry, lastEntry, ledgerId,
-                    String.valueOf(indexOfNearestEntry), expectedEntryId,
-                    seekedAndTryTimes, ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : "unknown");
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId)
+                        .attr("index", String.valueOf(indexOfNearestEntry))
+                        .attr("expectedEntryId", expectedEntryId)
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect index greater than expected entry");
                 throw new BKException.BKUnexpectedConditionException();
             }
         }
@@ -313,10 +332,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (log.isDebugEnabled()) {
-            log.debug("Ledger {}: reading {} - {} ({} entries}",
-                    getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
-        }
+        log.debug().attr("ledgerId", getId()).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).attr("entries", 1 + lastEntry - firstEntry)
+                .log("Reading entries");
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
 
         // Ledger handles will be only marked idle when "pendingRead" is "0", it is not needed to update
@@ -408,7 +426,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
             if (blob == null) {
-                log.error("{} not found in container {}", indexKey, bucket);
+                log.error().attr("indexKey", indexKey).attr("bucket", bucket)
+                    .log("Index key not found in container");
                 throw new BKException.BKNoSuchLedgerExistsException();
             }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
@@ -419,8 +438,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
             } catch (IOException e) {
                 // retry to avoid the network issue caused read failure
-                log.warn("Failed to get index block from the offoaded index file {}, still have {} times to retry",
-                    indexKey, retryCount, e);
+                log.warn().attr("indexKey", indexKey).attr("retriesLeft", retryCount)
+                        .exception(e).log("Failed to get index block from offloaded index file");
                 lastException = e;
                 continue;
             }

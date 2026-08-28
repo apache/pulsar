@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.val;
 import org.apache.pulsar.broker.PulsarService;
@@ -40,8 +41,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The <code>ResourceGroupService</code> contains APIs to manipulate resource groups. It is assumed that there is a
@@ -53,6 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see PulsarService
  */
+@CustomLog
 public class ResourceGroupService implements AutoCloseable{
     /**
      * Default constructor.
@@ -213,6 +213,9 @@ public class ResourceGroupService implements AutoCloseable{
         // Associate this tenant name with the RG.
         this.tenantToRGsMap.put(tenantName, rg);
         rgTenantRegisters.labels(resourceGroupName).inc();
+
+        // Ensure schedulers are started if this is the first registration.
+        maybeStartSchedulers();
     }
 
     /**
@@ -235,6 +238,9 @@ public class ResourceGroupService implements AutoCloseable{
         // Dissociate this tenant name from the RG.
         this.tenantToRGsMap.remove(tenantName, rg);
         rgTenantUnRegisters.labels(resourceGroupName).inc();
+
+        // If this was the last registration (tenant or namespace), stop schedulers.
+        maybeStopSchedulersIfIdle();
     }
 
     /**
@@ -266,6 +272,9 @@ public class ResourceGroupService implements AutoCloseable{
         // Associate this NS-name with the RG.
         this.namespaceToRGsMap.put(fqNamespaceName, rg);
         rgNamespaceRegisters.labels(resourceGroupName).inc();
+
+        // Ensure schedulers are started if this is the first registration.
+        maybeStartSchedulers();
     }
 
     /**
@@ -290,6 +299,9 @@ public class ResourceGroupService implements AutoCloseable{
         // Dissociate this NS-name from the RG.
         this.namespaceToRGsMap.remove(fqNamespaceName, rg);
         rgNamespaceUnRegisters.labels(resourceGroupName).inc();
+
+        // If this was the last registration (tenant or namespace), stop schedulers.
+        maybeStopSchedulersIfIdle();
     }
 
     /**
@@ -306,10 +318,16 @@ public class ResourceGroupService implements AutoCloseable{
     public void close() throws Exception {
         if (aggregateLocalUsagePeriodicTask != null) {
             aggregateLocalUsagePeriodicTask.cancel(true);
+            aggregateLocalUsagePeriodicTask = null;
         }
         if (calculateQuotaPeriodicTask != null) {
             calculateQuotaPeriodicTask.cancel(true);
+            calculateQuotaPeriodicTask = null;
         }
+
+        // Ensure the flag is consistent with the stopped state.
+        schedulersRunning.set(false);
+
         resourceGroupsMap.clear();
         tenantToRGsMap.clear();
         namespaceToRGsMap.clear();
@@ -425,7 +443,7 @@ public class ResourceGroupService implements AutoCloseable{
         ConcurrentHashMap<String, BytesAndMessagesCount> hm;
         switch (monClass) {
             default:
-                log.error("updateStatsWithDiff: Unknown monitoring class={}; ignoring", monClass);
+                log.error().attr("monClass", monClass).log("updateStatsWithDiff: Unknown monitoring class; ignoring");
                 return;
 
             case Publish:
@@ -459,16 +477,21 @@ public class ResourceGroupService implements AutoCloseable{
 
         try {
             boolean statsUpdated = this.incrementUsage(tenantString, nsString, monClass, bmDiff);
-            if (log.isDebugEnabled()) {
-                log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
-                                + "by {} bytes, {} mesgs",
-                        topicName, monClass, statsUpdated, tenantString, nsString,
-                        bmDiff.bytes, bmDiff.messages);
-            }
-            hm.put(topicName, bmNewCount);
+                log.debug()
+                        .attr("topic", topicName)
+                        .attr("monClass", monClass)
+                        .attr("statsUpdated", statsUpdated)
+                        .attr("tenant", tenantString)
+                        .attr("namespace", nsString)
+                        .attr("bytes", bmDiff.bytes)
+                        .attr("messages", bmDiff.messages)
+                        .log("updateStatsWithDiff");
+                        hm.put(topicName, bmNewCount);
         } catch (Throwable t) {
-            log.error("updateStatsWithDiff: got ex={} while aggregating for {} side",
-                    t.getMessage(), monClass);
+            log.error()
+                    .exceptionMessage(t)
+                    .attr("monClass", monClass)
+                    .log("updateStatsWithDiff: got exception while aggregating");
         }
     }
 
@@ -540,6 +563,9 @@ public class ResourceGroupService implements AutoCloseable{
     // Periodically aggregate the usage from all topics known to the BrokerService.
     // Visibility for unit testing.
     protected void aggregateResourceGroupLocalUsages() {
+        if (!shouldRunPeriodicTasks()) {
+            return;
+        }
         final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
@@ -569,25 +595,29 @@ public class ResourceGroupService implements AutoCloseable{
                     ResourceGroupMonitoringClass.Dispatch);
         }
         double diffTimeSeconds = aggrUsageTimer.observeDuration();
-        if (log.isDebugEnabled()) {
-            log.debug("aggregateResourceGroupLocalUsages took {} milliseconds", diffTimeSeconds * 1000);
-        }
-
-        // Check any re-scheduling requirements for next time.
+            log.debug().attr("took", diffTimeSeconds * 1000).log("aggregateResourceGroupLocalUsages took milliseconds");
+                // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
         // cancel and re-schedule this task if the period of execution has changed.
         ServiceConfiguration config = pulsar.getConfiguration();
         long newPeriodInSeconds = config.getResourceUsageTransportPublishIntervalInSecs();
-        if (newPeriodInSeconds != this.aggregateLocalUsagePeriodInSeconds) {
+        if (schedulersRunning.get() && newPeriodInSeconds != this.aggregateLocalUsagePeriodInSeconds) {
             if (this.aggregateLocalUsagePeriodicTask == null) {
-                log.error("aggregateResourceGroupLocalUsages: Unable to find running task to cancel when "
-                                + "publish period changed from {} to {} {}",
-                        this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                log.error()
+                        .attr("from", this.aggregateLocalUsagePeriodInSeconds)
+                        .attr("to", newPeriodInSeconds)
+                        .attr("timeUnitScale", timeUnitScale)
+                        .log("aggregateResourceGroupLocalUsages: Unable to find running task to cancel when publish"
+                                + " period changed");
             } else {
                 boolean cancelStatus = this.aggregateLocalUsagePeriodicTask.cancel(true);
-                log.info("aggregateResourceGroupLocalUsages: Got status={} in cancel of periodic "
-                                + "when publish period changed from {} to {} {}",
-                        cancelStatus, this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                log.info()
+                        .attr("cancelStatus", cancelStatus)
+                        .attr("from", this.aggregateLocalUsagePeriodInSeconds)
+                        .attr("to", newPeriodInSeconds)
+                        .attr("timeUnitScale", timeUnitScale)
+                        .log("aggregateResourceGroupLocalUsages: Got status in cancel of periodic when publish"
+                                + " period changed");
             }
             this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
@@ -602,6 +632,9 @@ public class ResourceGroupService implements AutoCloseable{
     // from the reports received from other brokers.
     // [Visibility for unit testing.]
     protected void calculateQuotaForAllResourceGroups() {
+        if (!shouldRunPeriodicTasks()) {
+            return;
+        }
         // Calculate the quota for the next window for this RG, based on the observed usage.
         final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
         BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
@@ -638,46 +671,57 @@ public class ResourceGroupService implements AutoCloseable{
                     if (oldBMCount != null) {
                         long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
                         long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
-                        if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: "
-                                            + "updatedlocalBytes={}, updatedlocalMesgs={}; "
-                                            + "old bytes={}, old mesgs={};  incremented bytes by {}, messages by {}",
-                                    rgName, monClass, updatedQuota.bytes, updatedQuota.messages,
-                                    oldBMCount.bytes, oldBMCount.messages,
-                                    bytesIncrement, messagesIncrement);
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: got back null from updateLocalQuota",
-                                    rgName, monClass);
-                        }
-                    }
+                            log.debug()
+                                    .attr("resourceGroup", rgName)
+                                    .attr("monClass", monClass)
+                                    .attr("updatedLocalBytes", updatedQuota.bytes)
+                                    .attr("updatedLocalMessages", updatedQuota.messages)
+                                    .attr("oldBytes", oldBMCount.bytes)
+                                    .attr("oldMessages", oldBMCount.messages)
+                                    .attr("bytesIncrement", bytesIncrement)
+                                    .attr("messagesIncrement", messagesIncrement)
+                                    .log("calculateQuota for RG");
+                                            } else {
+                            log.debug()
+                                    .attr("resourceGroup", rgName)
+                                    .attr("monClass", monClass)
+                                    .log("calculateQuota: got back null from updateLocalQuota");
+                                            }
                 } catch (Throwable t) {
-                    log.error("Got exception={} while calculating new quota for monitoring-class={} of RG={}",
-                            t.getMessage(), monClass, rgName);
+                    log.error()
+                            .exceptionMessage(t)
+                            .attr("class", monClass)
+                            .attr("resourceGroup", rgName)
+                            .log("Got exception while calculating new quota for monitoring-class of RG");
                 }
             }
         });
         double diffTimeSeconds = quotaCalcTimer.observeDuration();
-        if (log.isDebugEnabled()) {
-            log.debug("calculateQuotaForAllResourceGroups took {} milliseconds", diffTimeSeconds * 1000);
-        }
-
-        // Check any re-scheduling requirements for next time.
+            log.debug()
+                    .attr("took", diffTimeSeconds * 1000)
+                    .log("calculateQuotaForAllResourceGroups took milliseconds");
+                // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
         // cancel and re-schedule this task if the period of execution has changed.
         ServiceConfiguration config = pulsar.getConfiguration();
         long newPeriodInSeconds = config.getResourceUsageTransportPublishIntervalInSecs();
-        if (newPeriodInSeconds != this.resourceUsagePublishPeriodInSeconds) {
+        if (schedulersRunning.get() && newPeriodInSeconds != this.resourceUsagePublishPeriodInSeconds) {
             if (this.calculateQuotaPeriodicTask == null) {
-                log.error("calculateQuotaForAllResourceGroups: Unable to find running task to cancel when "
-                                + "publish period changed from {} to {} {}",
-                        this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                log.error()
+                        .attr("from", this.resourceUsagePublishPeriodInSeconds)
+                        .attr("to", newPeriodInSeconds)
+                        .attr("timeUnitScale", timeUnitScale)
+                        .log("calculateQuotaForAllResourceGroups: Unable to find running task to cancel when publish"
+                                + " period changed");
             } else {
                 boolean cancelStatus = this.calculateQuotaPeriodicTask.cancel(true);
-                log.info("calculateQuotaForAllResourceGroups: Got status={} in cancel of periodic "
-                        + " when publish period changed from {} to {} {}",
-                        cancelStatus, this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
+                log.info()
+                        .attr("cancelStatus", cancelStatus)
+                        .attr("from", this.resourceUsagePublishPeriodInSeconds)
+                        .attr("to", newPeriodInSeconds)
+                        .attr("timeUnitScale", timeUnitScale)
+                        .log("calculateQuotaForAllResourceGroups: Got status in cancel of periodic when publish"
+                                + " period changed");
             }
             this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
                         catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
@@ -690,23 +734,71 @@ public class ResourceGroupService implements AutoCloseable{
         }
     }
 
-    private void initialize() {
-        ServiceConfiguration config = this.pulsar.getConfiguration();
-        long periodInSecs = config.getResourceUsageTransportPublishIntervalInSecs();
-        this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
-        this.aggregateLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
-                    periodInSecs,
-                    periodInSecs,
-                    this.timeUnitScale);
-        this.calculateQuotaPeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
-                    catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
-                    periodInSecs,
-                    periodInSecs,
-                    this.timeUnitScale);
-        maxIntervalForSuppressingReportsMSecs =
-                TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
+    // Returns true if at least one tenant or namespace is registered to resource group.
+    private boolean hasActiveResourceGroups() {
+        return !tenantToRGsMap.isEmpty() || !namespaceToRGsMap.isEmpty();
+    }
 
+    /**
+     * Whether the periodic ResourceGroupService tasks (aggregation & quota calculation) should run.
+     * True only when:
+     *  1. the scheduler flag is set,
+     *  2. at least one Resource Group exists locally, and
+     *  3. at least one tenant or namespace is registered to Resource Group.
+     */
+    private boolean shouldRunPeriodicTasks() {
+        return schedulersRunning.get()
+                && !resourceGroupsMap.isEmpty()
+                && hasActiveResourceGroups();
+    }
+
+    // Start periodic aggregation/quota schedulers if we actually need them.
+    private void maybeStartSchedulers() {
+        if (!hasActiveResourceGroups()) {
+            return;
+        }
+        if (schedulersRunning.compareAndSet(false, true)) {
+            final long periodInSecs = pulsar.getConfiguration().getResourceUsageTransportPublishIntervalInSecs();
+            this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
+            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
+                    catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
+                    periodInSecs, periodInSecs, timeUnitScale);
+            this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
+                    catchingAndLoggingThrowables(this::calculateQuotaForAllResourceGroups),
+                    periodInSecs, periodInSecs, timeUnitScale);
+            maxIntervalForSuppressingReportsMSecs =
+                    TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
+            log.info()
+                    .attr("period", periodInSecs)
+                    .attr("timeUnitScale", timeUnitScale)
+                    .log("Started ResourceGroupService periodic tasks with period");
+        }
+    }
+    // Stop schedulers when no tenant or namespace registrations remain.
+    private void maybeStopSchedulersIfIdle() {
+        if (hasActiveResourceGroups()) {
+            return;
+        }
+        if (schedulersRunning.compareAndSet(true, false)) {
+            if (aggregateLocalUsagePeriodicTask != null) {
+                aggregateLocalUsagePeriodicTask.cancel(true);
+                aggregateLocalUsagePeriodicTask = null;
+            }
+            if (calculateQuotaPeriodicTask != null) {
+                calculateQuotaPeriodicTask.cancel(true);
+                calculateQuotaPeriodicTask = null;
+            }
+            log.info("Stopped ResourceGroupService periodic tasks because no registrations remain");
+        }
+    }
+
+    private void initialize() {
+        // Store the configured interval. Do not start periodic tasks unconditionally here.
+        // Schedulers are started by maybeStartSchedulers() when the first tenant/namespace is registered.
+        final long periodInSecs = pulsar.getConfiguration().getResourceUsageTransportPublishIntervalInSecs();
+        this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
+        // if any tenant/namespace registrations already exist, maybeStartSchedulers() will start the schedulers now.
+        maybeStartSchedulers();
     }
 
     private void checkRGCreateParams(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
@@ -724,9 +816,6 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException("Resource group already exists:" + rgName);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceGroupService.class);
-
     @Getter
     private final PulsarService pulsar;
 
@@ -749,7 +838,6 @@ public class ResourceGroupService implements AutoCloseable{
     private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap<>();
 
-
     // The task that periodically re-calculates the quota budget for local usage.
     private ScheduledFuture<?> aggregateLocalUsagePeriodicTask;
     private long aggregateLocalUsagePeriodInSeconds;
@@ -760,6 +848,9 @@ public class ResourceGroupService implements AutoCloseable{
 
     // Allow a pluggable scale on time units; for testing periodic functionality.
     private TimeUnit timeUnitScale;
+
+    private final java.util.concurrent.atomic.AtomicBoolean schedulersRunning =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     // The maximum number of successive rounds that we can suppress reporting local usage, because there was no
     // substantial change from the prior round. This is to ensure the reporting does not become too chatty.
@@ -863,5 +954,10 @@ public class ResourceGroupService implements AutoCloseable{
     @VisibleForTesting
     ScheduledFuture<?> getCalculateQuotaPeriodicTask() {
         return this.calculateQuotaPeriodicTask;
+    }
+
+    @VisibleForTesting
+    boolean isSchedulersRunning() {
+        return schedulersRunning.get();
     }
 }

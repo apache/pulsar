@@ -112,6 +112,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         super.tearDown();
     }
 
+    @SuppressWarnings("try")
     private class TestBookKeeperAdmin extends BookKeeperAdmin {
 
         private final MultiKeyMap<String, AvailabilityOfEntriesOfLedger> returnAvailabilityOfEntriesOfLedger;
@@ -227,6 +228,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         lm.createLedgerMetadata(ledgerId, initMeta).get();
     }
 
+    @SuppressWarnings("deprecation")
     private void runTestScenario(MultiKeyMap<String, AvailabilityOfEntriesOfLedger> returnAvailabilityOfEntriesOfLedger,
             MultiKeyMap<String, Integer> errorReturnValueForGetAvailabilityOfEntriesOfLedger,
             int expectedNumLedgersFoundHavingNoReplicaOfAnEntry,

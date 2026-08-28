@@ -21,6 +21,7 @@ package org.apache.pulsar.websocket;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.Constants.WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.servlet.ServletException;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -31,8 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -40,12 +40,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -54,13 +57,12 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
  *
  */
+@CustomLog
 public class WebSocketService implements Closeable {
 
     AuthenticationService authenticationService;
@@ -94,8 +96,7 @@ public class WebSocketService implements Closeable {
         this.proxyStats = new ProxyStats(this);
     }
 
-    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
 
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
@@ -126,7 +127,7 @@ public class WebSocketService implements Closeable {
                         .getDeclaredConstructor().newInstance();
                 cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
             } catch (Exception e) {
-                log.info("Failed to initialize crypto-key reader", e);
+                log.info().exception(e).log("Failed to initialize crypto-key reader");
                 throw new PulsarServerException(e);
             }
         }
@@ -185,6 +186,7 @@ public class WebSocketService implements Closeable {
         this.localCluster = clusterData;
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),
@@ -224,7 +226,56 @@ public class WebSocketService implements Closeable {
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
+        applyBrokerClientProviders(clientBuilder);
+        applyBrokerClientTlsFactory(clientBuilder);
         return clientBuilder.build();
+    }
+
+    /**
+     * PIP-478: route the WebSocket proxy's own outbound (websocket-to-broker) Pulsar client onto the new TLS
+     * SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}. Mirrors
+     * the broker's {@code PulsarService.maybeApplyBrokerClientTlsFactory}: the broker-client {@code tls*}
+     * material is already on the client configuration, so this only attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} (default file-based, or the named custom factory) that the
+     * transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate is
+     * off, when the client is not TLS, or when it is already on the new path.
+     */
+    /**
+     * PIP-478: pin the proxy's own outbound (proxy-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe
+     * how TLS is built, not which factory builds it — mirroring the broker, the proxy and the functions
+     * worker. The listener-side {@code tlsProvider}/{@code jsseProvider} govern this service's own web
+     * server and must not leak onto this leg.
+     */
+    private void applyBrokerClientProviders(ClientBuilder clientBuilder) {
+        if (!(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (isNotBlank(config.getBrokerClientSslProvider())) {
+            conf.setSslProvider(config.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(config.getBrokerClientJsseProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(config.getBrokerClientJcaProvider());
+        }
+    }
+
+    private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {
+        String factoryClassName = config.getBrokerClientTlsFactoryClassName();
+        if (!isNotBlank(factoryClassName) || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
+        // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context params
+        // (parsed the same way as the server-side tlsFactoryConfig).
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(config.getBrokerClientTlsFactoryConfig()));
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
@@ -337,6 +388,4 @@ public class WebSocketService implements Closeable {
     public ServiceConfiguration getConfig() {
         return config;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
 }

@@ -22,6 +22,7 @@ import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMess
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.opentelemetry.api.trace.Span;
 import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -31,22 +32,23 @@ import java.io.Closeable;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
+import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class NegativeAcksTracker implements Closeable {
-    private static final Logger log = LoggerFactory.getLogger(NegativeAcksTracker.class);
 
     // timestamp -> ledgerId -> entryId, no need to batch index, if different messages have
     // different timestamp, there will be multiple entries in the map
     // RB Tree -> LongOpenHashMap -> Roaring64Bitmap
     private Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> nackedMessages = null;
+    private final Long2ObjectMap<Long2ObjectMap<MessageId>> nackedMessageIds = new Long2ObjectOpenHashMap<>();
 
     private final ConsumerBase<?> consumer;
     private final Timer timer;
@@ -89,7 +91,17 @@ class NegativeAcksTracker implements Closeable {
                     long ledgerId = ledgerEntry.getLongKey();
                     Roaring64Bitmap entrySet = ledgerEntry.getValue();
                     entrySet.forEach(entryId -> {
-                        MessageId msgId = new MessageIdImpl(ledgerId, entryId, DUMMY_PARTITION_INDEX);
+                        MessageId msgId = null;
+                        Long2ObjectMap<MessageId> entryMap = nackedMessageIds.get(ledgerId);
+                        if (entryMap != null) {
+                            msgId = entryMap.remove(entryId);
+                            if (entryMap.isEmpty()) {
+                                nackedMessageIds.remove(ledgerId);
+                            }
+                        }
+                        if (msgId == null) {
+                            msgId = new MessageIdImpl(ledgerId, entryId, DUMMY_PARTITION_INDEX);
+                        }
                         addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
                         messagesToRedeliver.add(msgId);
                     });
@@ -125,7 +137,9 @@ class NegativeAcksTracker implements Closeable {
         // in which we may acquire the lock of consumer, leading to potential deadlock.
         if (!messagesToRedeliver.isEmpty()) {
             consumer.onNegativeAcksSend(messagesToRedeliver);
-            log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
+            log.info().attr("consumer", consumer)
+                    .attr("count", messagesToRedeliver.size())
+                    .log("messages will be re-delivered");
             consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
         }
     }
@@ -143,6 +157,15 @@ class NegativeAcksTracker implements Closeable {
     }
 
     private synchronized void add(MessageId messageId, int redeliveryCount) {
+        if (messageId instanceof TraceableMessageId) {
+            Span span = ((TraceableMessageId) messageId).getTracingSpan();
+            if (span != null || messageId instanceof ChunkMessageIdImpl) {
+                MessageIdAdv msgId = (MessageIdAdv) messageId;
+                nackedMessageIds.computeIfAbsent(msgId.getLedgerId(), k -> new Long2ObjectOpenHashMap<>())
+                        .put(msgId.getEntryId(), messageId);
+            }
+        }
+
         if (nackedMessages == null) {
             nackedMessages = new Long2ObjectAVLTreeMap<>();
         }
@@ -200,6 +223,9 @@ class NegativeAcksTracker implements Closeable {
         if (nackedMessages != null) {
             nackedMessages.clear();
             nackedMessages = null;
+        }
+        if (nackedMessageIds != null) {
+            nackedMessageIds.clear();
         }
     }
 }

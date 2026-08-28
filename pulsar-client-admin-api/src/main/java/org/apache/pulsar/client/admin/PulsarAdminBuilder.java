@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 /**
  * Builder class for a {@link PulsarAdmin} instance.
@@ -33,6 +35,12 @@ public interface PulsarAdminBuilder {
 
     /**
      * @return the new {@link PulsarAdmin} instance
+     * @throws PulsarClientException if the admin client cannot be created
+     * @throws IllegalStateException if a {@code PulsarTlsFactory} set on this builder's configuration was
+     *         already taken by an earlier {@code build()} — taking it initializes it, so it belongs to that
+     *         build and cannot be handed over twice. Deliberately unchecked: it reports a programming error
+     *         in how the builder is used, not a failure to reach or configure a cluster, so it is not
+     *         something a caller catching {@link PulsarClientException} should be made to handle
      */
     PulsarAdmin build() throws PulsarClientException;
 
@@ -44,7 +52,7 @@ public interface PulsarAdminBuilder {
      * <pre>
      * {@code
      * Map<String, Object> config = new HashMap<>();
-     * config.put("serviceHttpUrl", "http://localhost:6650");
+     * config.put("serviceUrl", "pulsar://localhost:6650");
      *
      * PulsarAdminBuilder builder = ...;
      * builder = builder.loadConf(config);
@@ -203,6 +211,11 @@ public interface PulsarAdminBuilder {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
+     *
      * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
      *
      * @param enableTlsHostnameVerification
@@ -291,18 +304,25 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * SSL Factory Plugin used to generate the SSL Context and SSLEngine.
-     * @param sslFactoryPlugin Name of the SSL Factory Class to be used.
-     * @return PulsarAdminBuilder
+     * Set the class name of a custom {@code PulsarTlsFactory} (PIP-478) used to build the admin client's TLS
+     * engines. An empty value or the literal {@code "default"} selects the built-in file-based factory
+     * composed from the {@code tls*} settings; any other value is instantiated reflectively via its public
+     * no-arg constructor. This is the by-name successor of the removed PIP-337 {@code sslFactoryPlugin}.
+     *
+     * @param tlsFactoryClassName the {@code PulsarTlsFactory} class name (blank/{@code default} for built-in)
+     * @return the admin builder instance
      */
-    PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin);
+    PulsarAdminBuilder tlsFactoryClassName(String tlsFactoryClassName);
 
     /**
-     * Parameters used by the SSL Factory Plugin class.
-     * @param sslFactoryPluginParams String parameters to be used by the SSL Factory Class.
-     * @return
+     * Set the configuration parameters passed to a custom {@link #tlsFactoryClassName(String)} as its init
+     * params (PIP-478). Accepts a JSON object or a comma-separated {@code key=value} list; ignored by the
+     * built-in file-based factory.
+     *
+     * @param tlsFactoryConfig the factory configuration (JSON object or {@code key=value} list)
+     * @return the admin builder instance
      */
-    PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+    PulsarAdminBuilder tlsFactoryConfig(String tlsFactoryConfig);
 
     /**
      * This sets the connection time out for the pulsar admin client.
@@ -370,7 +390,7 @@ public interface PulsarAdminBuilder {
     /**
      * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified
      * amount of seconds, it will be released back to the connection pool.
-     * Defaults to 25 seconds.
+     * Defaults to 60 seconds.
      *
      * @param connectionMaxIdleSeconds the maximum idle time, in seconds, for a pooled connection
      * @return the PulsarAdminBuilder instance
@@ -393,4 +413,46 @@ public interface PulsarAdminBuilder {
      * @throws IllegalArgumentException if the length of description exceeds 64
      */
     PulsarAdminBuilder description(String description);
+
+    /**
+     * Set the SOCKS5 proxy address to be used by the Pulsar Admin client for outgoing HTTP(S)
+     * requests. When set, all admin traffic is tunneled through the given SOCKS5 proxy.
+     *
+     * @param socks5ProxyAddress the SOCKS5 proxy address (host + port), or {@code null} to disable
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
+
+    /**
+     * Set the username used to authenticate against the SOCKS5 proxy configured via
+     * {@link #socks5ProxyAddress(InetSocketAddress)}. If the username is {@code null} or blank,
+     * no authentication will be performed against the proxy.
+     *
+     * @param socks5ProxyUsername the SOCKS5 proxy username
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder socks5ProxyUsername(String socks5ProxyUsername);
+
+    /**
+     * Set the password used to authenticate against the SOCKS5 proxy configured via
+     * {@link #socks5ProxyAddress(InetSocketAddress)}. Only used when a non-blank username has
+     * been configured.
+     *
+     * @param socks5ProxyPassword the SOCKS5 proxy password
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (only support IO/event loops, timers, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the adminClient builder instance
+     */
+    PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources);
+
 }

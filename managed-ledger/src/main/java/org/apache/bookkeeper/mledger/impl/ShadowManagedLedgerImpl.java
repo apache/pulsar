@@ -27,7 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -38,14 +38,15 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.NestedPositionInfo;
 import org.apache.pulsar.metadata.api.Stat;
 
 /**
  * Detailed design can be found in <a href="https://github.com/apache/pulsar/issues/16153">PIP-180</a>.
  */
-@Slf4j
+@CustomLog
 public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     private final String sourceMLName;
     private volatile Stat sourceLedgersStat;
@@ -69,7 +70,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      */
     @Override
     synchronized void initialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
-        log.info("Opening shadow managed ledger {} with source={}", name, sourceMLName);
+        log.info().attr("name", name).attr("source", sourceMLName).log("Opening shadow managed ledger");
         executor.execute(() -> doInitialize(callback, ctx));
     }
 
@@ -80,33 +81,41 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         );
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
-            public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Source ML info:{}", name, sourceMLName, mlInfo);
-                }
+            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                log.debug().attr("name", name)
+                        .attr("source", sourceMLName)
+                        .attr("mlInfo", mlInfo)
+                        .log("Source ML info");
                 if (sourceLedgersStat != null && sourceLedgersStat.getVersion() >= stat.getVersion()) {
-                    log.warn("Newer version of mlInfo is already processed. Previous stat={}, current stat={}",
-                            sourceLedgersStat, stat);
+                    log.warn().attr("previousStat", sourceLedgersStat)
+                            .attr("currentStat", stat)
+                            .log("Newer version of mlInfo is already processed");
                     return;
                 }
                 sourceLedgersStat = stat;
-                if (mlInfo.getLedgerInfoCount() == 0) {
+                if (mlInfo.getLedgerInfosCount() == 0) {
                     // Small chance here, since shadow topic is created after source topic exists.
-                    log.warn("[{}] Source topic ledger list is empty! source={},mlInfo={},stat={}", name, sourceMLName,
-                            mlInfo, stat);
+                    log.warn().attr("name", name)
+                            .attr("source", sourceMLName)
+                            .attr("mlInfo", mlInfo)
+                            .attr("stat", stat)
+                            .log("Source topic ledger list is empty");
                     ShadowManagedLedgerImpl.super.initialize(callback, ctx);
                     return;
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+                    NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
                     lastConfirmedEntry =
                             PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
-                    log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
-                            lastConfirmedEntry);
+                    log.info().attr("name", name)
+                            .attr("source", sourceMLName)
+                            .attr("lastConfirmedEntry", lastConfirmedEntry)
+                            .log("Recovering managed ledger terminated");
                 }
 
-                for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+                    LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
                     ledgers.put(ls.getLedgerId(), ls);
                 }
 
@@ -114,16 +123,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 mbean.startDataLedgerOpenOp();
                 AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                     mbean.endDataLedgerOpenOp();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Opened source ledger {}", name, lastLedgerId);
-                    }
+                    log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened source ledger");
                     if (rc == BKException.Code.OK) {
                         LedgerInfo info =
-                                LedgerInfo.newBuilder()
+                                new LedgerInfo()
                                         .setLedgerId(lastLedgerId)
                                         .setEntries(lh.getLastAddConfirmed() + 1)
                                         .setSize(lh.getLength())
-                                        .setTimestamp(clock.millis()).build();
+                                        .setTimestamp(clock.millis());
                         ledgers.put(lastLedgerId, info);
 
                         //Always consider the last ledger is opened in source.
@@ -144,12 +151,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             ShadowManagedLedgerImpl.super.initialize(callback, ctx);
                         }
                     } else if (isNoSuchLedgerExistsException(rc)) {
-                        log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
+                        log.warn().attr("name", name).attr("ledgerId", lastLedgerId).log("Source ledger not found");
                         ledgers.remove(lastLedgerId);
                         ShadowManagedLedgerImpl.super.initialize(callback, ctx);
                     } else {
-                        log.error("[{}] Failed to open source ledger {}: {}", name, lastLedgerId,
-                                BKException.getMessage(rc));
+                        log.error().attr("name", name)
+                                .attr("ledgerId", lastLedgerId)
+                                .attr("errorMessage", BKException.getMessage(rc))
+                                .log("Failed to open source ledger");
                         callback.initializeFailed(createManagedLedgerException(rc));
                     }
                 });
@@ -171,9 +180,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     protected synchronized void initializeBookKeeper(ManagedLedgerInitializeLedgerCallback callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] initializing bookkeeper for shadowManagedLedger; ledgers {}", name, ledgers);
-        }
+        log.debug().attr("name", name).attr("ledgers", ledgers).log("Initializing bookkeeper for shadowManagedLedger");
 
         // Calculate total entries and size
         Iterator<LedgerInfo> iterator = ledgers.values().iterator();
@@ -237,10 +244,12 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Add entry into shadow ledger lh={} entries={}, pos=({},{})",
-                    name, currentLedger.getId(), currentLedgerEntries, position.getLedgerId(), position.getEntryId());
-        }
+        log.debug().attr("name", name)
+                .attr("ledgerId", currentLedger.getId())
+                .attr("entries", currentLedgerEntries)
+                .attr("posLedgerId", position.getLedgerId())
+                .attr("posEntryId", position.getEntryId())
+                .log("Add entry into shadow ledger");
         pendingAddEntries.add(addOperation);
         if (position.getLedgerId() <= currentLedger.getId()) {
             // Write into lastLedger
@@ -271,28 +280,35 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 2. old ledgers deleted.
      * 3. old ledger offload info updated (including ledger deleted from bookie by offloader)
      */
-    private synchronized void processSourceManagedLedgerInfo(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+    private synchronized void processSourceManagedLedgerInfo(ManagedLedgerInfo mlInfo, Stat stat) {
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] new SourceManagedLedgerInfo:{}, prevStat={},stat={}", name, sourceMLName, mlInfo,
-                    sourceLedgersStat, stat);
-        }
+        log.debug().attr("name", name)
+                .attr("source", sourceMLName)
+                .attr("mlInfo", mlInfo)
+                .attr("previousStat", sourceLedgersStat)
+                .attr("stat", stat)
+                .log("New SourceManagedLedgerInfo");
         if (sourceLedgersStat != null && sourceLedgersStat.getVersion() >= stat.getVersion()) {
-            log.warn("Newer version of mlInfo is already processed. Previous stat={}, current stat={}",
-                    sourceLedgersStat, stat);
+            log.warn().attr("previousStat", sourceLedgersStat)
+                    .attr("currentStat", stat)
+                    .log("Newer version of mlInfo is already processed");
             return;
         }
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+            NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
             lastConfirmedEntry =
                     PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
-            log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
+            log.info().attr("name", name)
+                    .attr("source", sourceMLName)
+                    .attr("lastConfirmedEntry", lastConfirmedEntry)
+                    .log("Process managed ledger terminated");
         }
 
         TreeMap<Long, LedgerInfo> newLedgerInfos = new TreeMap<>();
-        for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+        for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+            LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
             newLedgerInfos.put(ls.getLedgerId(), ls);
         }
 
@@ -302,17 +318,21 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             if (ledgerInfo.getEntries() > 0) {
                 LedgerInfo oldLedgerInfo = ledgers.put(ledgerId, ledgerInfo);
                 if (oldLedgerInfo == null) {
-                    log.info("[{}]Read new ledger info from source,ledgerId={}", name, ledgerId);
+                    log.info().attr("name", name).attr("ledgerId", ledgerId).log("Read new ledger info from source");
                 } else {
                     if (!oldLedgerInfo.equals(ledgerInfo)) {
-                        log.info("[{}] Old ledger info updated in source,ledgerId={}", name, ledgerId);
+                        log.info().attr("name", name)
+                                .attr("ledgerId", ledgerId)
+                                .log("Old ledger info updated in source");
                         // ledger deleted from bookkeeper by offloader.
                         if (ledgerInfo.hasOffloadContext()
-                                && ledgerInfo.getOffloadContext().getBookkeeperDeleted()
+                                && ledgerInfo.getOffloadContext().isBookkeeperDeleted()
                                 && (!oldLedgerInfo.hasOffloadContext() || !oldLedgerInfo.getOffloadContext()
-                                .getBookkeeperDeleted())) {
-                            log.info("[{}] Old ledger removed from bookkeeper by offloader in source,ledgerId={}", name,
-                                    ledgerId);
+                                .isBookkeeperDeleted())) {
+                            log.info().attr("name", name)
+                                    .attr("ledgerId", ledgerId)
+                                    .log("Old ledger removed from bookkeeper"
+                                            + " by offloader in source");
                             invalidateReadHandle(ledgerId);
                         }
                     }
@@ -328,15 +348,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
                     (rc, lh, ctx1) -> executor.execute(() -> {
                         mbean.endDataLedgerOpenOp();
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);
-                        }
+                        log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened new source ledger");
                         if (rc == BKException.Code.OK) {
-                            LedgerInfo info = LedgerInfo.newBuilder()
+                            LedgerInfo info = new LedgerInfo()
                                     .setLedgerId(lastLedgerId)
                                     .setEntries(lh.getLastAddConfirmed() + 1)
                                     .setSize(lh.getLength())
-                                    .setTimestamp(clock.millis()).build();
+                                    .setTimestamp(clock.millis());
                             ledgers.put(lastLedgerId, info);
                             currentLedger = lh;
                             currentLedgerEntries = 0;
@@ -345,11 +363,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             updateLedgersIdsComplete(null);
                             maybeUpdateCursorBeforeTrimmingConsumedLedger();
                         } else if (isNoSuchLedgerExistsException(rc)) {
-                            log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
+                            log.warn().attr("name", name).attr("ledgerId", lastLedgerId).log("Source ledger not found");
                             ledgers.remove(lastLedgerId);
                         } else {
-                            log.error("[{}] Failed to open source ledger {}: {}", name, lastLedgerId,
-                                    BKException.getMessage(rc));
+                            log.error().attr("name", name)
+                                    .attr("ledgerId", lastLedgerId)
+                                    .attr("errorMessage", BKException.getMessage(rc))
+                                    .log("Failed to open source ledger");
                         }
                     }), null);
         }
@@ -357,11 +377,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         //handle old ledgers deleted.
         List<LedgerInfo> ledgersToDelete = new ArrayList<>(ledgers.headMap(newLedgerInfos.firstKey(), false).values());
         if (!ledgersToDelete.isEmpty()) {
-            log.info("[{}]ledgers deleted in source, size={}", name, ledgersToDelete.size());
+            log.info().attr("name", name).attr("size", ledgersToDelete.size()).log("Ledgers deleted in source");
             try {
                 advanceCursorsIfNecessary(ledgersToDelete);
             } catch (ManagedLedgerException.LedgerNotExistException e) {
-                log.info("[{}] First non deleted Ledger is not found, advanceCursors fails", name);
+                log.info().attr("name", name).log("First non deleted Ledger is not found, advanceCursors fails");
             }
             doDeleteLedgers(ledgersToDelete);
         }
@@ -379,9 +399,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         STATE_UPDATER.set(this, State.LedgerOpened);
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
-        }
+        log.debug().attr("name", name)
+                .attr("pendingMessages", pendingAddEntries.size())
+                .log("Resending pending messages");
 
         createNewOpAddEntryForNewLedger();
 

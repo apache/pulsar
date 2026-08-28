@@ -26,6 +26,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -51,13 +52,13 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Group the acknowledgements for a certain time and then sends them out in a single protobuf command.
  */
-@Slf4j
+@CustomLog
 public class PersistentAcknowledgmentsGroupingTracker implements AcknowledgmentsGroupingTracker {
 
     /**
@@ -83,7 +84,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     private final ConcurrentSkipListSet<MessageIdAdv> pendingIndividualAcks;
     @VisibleForTesting
-    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
+    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
@@ -133,7 +134,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return true;
             }
             if (messageIdAdv.getBatchIndex() >= 0) {
-                ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.get(key);
+                ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.get(key);
                 return bitSet != null && !bitSet.get(messageIdAdv.getBatchIndex());
             }
             return false;
@@ -279,6 +280,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         return CompletableFuture.completedFuture(null);
     }
 
+    @VisibleForTesting
+    int getPendingIndividualAcksSize() {
+        return pendingIndividualAcks.size();
+    }
+
     private CompletableFuture<Void> doIndividualBatchAck(MessageIdAdv batchMessageId,
                                                          Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
@@ -327,21 +333,22 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @VisibleForTesting
     CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
-        ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
+        ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 MessageIdAdvUtils.discardBatch(msgId), __ -> {
                     final BitSet ackSet = msgId.getAckSet();
-                    final ConcurrentBitSetRecyclable value;
+                    final ConcurrentBitSet value;
                     if (ackSet != null) {
                         synchronized (ackSet) {
                             if (!ackSet.isEmpty()) {
-                                value = ConcurrentBitSetRecyclable.create(ackSet);
+                                value =  new ConcurrentBitSet();
+                                value.or(ackSet);
                             } else {
-                                value = ConcurrentBitSetRecyclable.create();
+                                value = new ConcurrentBitSet();
                                 value.set(0, msgId.getBatchSize());
                             }
                         }
                     } else {
-                        value = ConcurrentBitSetRecyclable.create();
+                        value = new ConcurrentBitSet();
                         value.set(0, msgId.getBatchSize());
                     }
                     return value;
@@ -404,7 +411,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         CompletableFuture<Void> completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId,
-                msgId.getLedgerId(), msgId.getEntryId(), bitSet, ackType, properties, true, null, null);
+                msgId.getLedgerId(), msgId.getEntryId(), bitSet, ackType, properties, true, null, null, null);
         bitSet.recycle();
         return completableFuture;
     }
@@ -417,9 +424,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Cannot flush pending acks since we're not connected to broker", consumer);
-            }
+                log.debug().attr("consumer", consumer)
+                        .log("Cannot flush pending acks since we're not connected to broker");
             return;
         }
 
@@ -440,13 +446,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, messageId.getLedgerId(), messageId.getEntryId(),
                     lastCumulativeAckToFlush.getBitSetRecyclable(), AckType.Cumulative,
                     Collections.emptyMap(), false,
-                    (TimedCompletableFuture<Void>) this.currentCumulativeAckFuture, null);
+                    (TimedCompletableFuture<Void>) this.currentCumulativeAckFuture, null, null);
             this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageId);
         }
 
         // Flush all individual acks
-        List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck =
+        List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck =
                 new ArrayList<>(pendingIndividualAcks.size() + pendingIndividualBatchIndexAcks.size());
+        List<MessageIdAdv> individualAcksToFlush = new ArrayList<>(pendingIndividualAcks.size());
+        Map<MessageIdAdv, MessageIdImpl[]> chunkedMessageIdsToRestore = new HashMap<>();
         if (!pendingIndividualAcks.isEmpty()) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
                 // We can send 1 single protobuf command with all individual acks
@@ -455,11 +463,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     if (msgId == null) {
                         break;
                     }
+                    individualAcksToFlush.add(msgId);
 
                     // if messageId is checked then all the chunked related to that msg also processed so, ack all of
                     // them
                     MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.get(msgId);
                     if (chunkMsgIds != null && chunkMsgIds.length > 1) {
+                        chunkedMessageIdsToRestore.put(msgId, chunkMsgIds);
                         for (MessageIdImpl cMsgId : chunkMsgIds) {
                             if (cMsgId != null) {
                                 entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
@@ -478,21 +488,24 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     if (msgId == null) {
                         break;
                     }
+                    individualAcksToFlush.add(msgId);
                     newMessageAckCommandAndWrite(cnx, consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
                             null, AckType.Individual, Collections.emptyMap(), false,
-                            null, null);
+                            null, null, () -> restoreIndividualAck(msgId, null));
                     shouldFlush = true;
                 }
             }
         }
 
+        List<Map.Entry<MessageIdAdv, ConcurrentBitSet>> batchIndexAcksToFlush = new ArrayList<>();
         while (true) {
-            Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry =
+            Map.Entry<MessageIdAdv, ConcurrentBitSet> entry =
                     pendingIndividualBatchIndexAcks.pollFirstEntry();
             if (entry == null) {
                 // The entry has been removed in a different thread
                 break;
             }
+            batchIndexAcksToFlush.add(entry);
             entriesToAck.add(Triple.of(
                     entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
         }
@@ -501,16 +514,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
                     null, AckType.Individual, null, true,
-                    (TimedCompletableFuture<Void>) currentIndividualAckFuture, entriesToAck);
+                    (TimedCompletableFuture<Void>) currentIndividualAckFuture, entriesToAck,
+                    () -> restoreIndividualAndBatchIndexAcks(individualAcksToFlush, chunkedMessageIdsToRestore,
+                            batchIndexAcksToFlush));
             shouldFlush = true;
         }
 
         if (shouldFlush) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}"
-                                + " -- individual-batch-index-acks: {}",
-                        consumer, lastCumulativeAck, pendingIndividualAcks, entriesToAck);
-            }
+                log.debug().attr("consumer", consumer)
+                        .attr("lastCumulativeAck", lastCumulativeAck)
+                        .attr("individualAcks", pendingIndividualAcks)
+                        .attr("individualBatchIndexAcks", entriesToAck)
+                        .log("Flushing pending acks to broker");
             cnx.ctx().flush();
         }
 
@@ -539,26 +554,26 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         // cumulative ack chunk by the last messageId
         if (chunkMsgIds != null &&  ackType != AckType.Cumulative) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
-                List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
+                List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     if (cMsgId != null && chunkMsgIds.length > 1) {
                         entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
                     }
                 }
                 completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
-                        null, ackType, null, true, null, entriesToAck);
+                        null, ackType, null, true, null, entriesToAck, null);
             } else {
                 // if don't support multi message ack, it also support ack receipt, so we should not think about the
                 // ack receipt in this logic
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     newMessageAckCommandAndWrite(cnx, consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
-                            bitSet, ackType, map, true, null, null);
+                            bitSet, ackType, map, true, null, null, null);
                 }
                 completableFuture = CompletableFuture.completedFuture(null);
             }
         } else {
             completableFuture = newMessageAckCommandAndWrite(cnx, consumerId, msgId.getLedgerId(), msgId.getEntryId(),
-                    bitSet, ackType, map, true, null, null);
+                    bitSet, ackType, map, true, null, null, null);
         }
         return completableFuture;
     }
@@ -568,7 +583,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             long entryId, BitSetRecyclable ackSet, AckType ackType,
             Map<String, Long> properties, boolean flush,
             TimedCompletableFuture<Void> timedCompletableFuture,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
+            List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck,
+            Runnable writeFailureCallback) {
         if (consumer.isAckReceiptEnabled()) {
             final long requestId = consumer.getClient().newRequestId();
             final ByteBuf cmd;
@@ -610,11 +626,50 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, -1);
             }
             if (flush) {
-                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                if (writeFailureCallback == null) {
+                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                } else {
+                    cnx.ctx().writeAndFlush(cmd).addListener(writeFuture -> {
+                        if (!writeFuture.isSuccess()) {
+                            writeFailureCallback.run();
+                        }
+                    });
+                }
             } else {
-                cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                if (writeFailureCallback == null) {
+                    cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                } else {
+                    cnx.ctx().write(cmd).addListener(writeFuture -> {
+                        if (!writeFuture.isSuccess()) {
+                            writeFailureCallback.run();
+                        }
+                    });
+                }
             }
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private void restoreIndividualAck(MessageIdAdv messageId, @Nullable MessageIdImpl[] chunkMsgIds) {
+        pendingIndividualAcks.add(messageId);
+        restoreChunkedMessageIds(messageId, chunkMsgIds);
+    }
+
+    private void restoreIndividualAndBatchIndexAcks(List<MessageIdAdv> messageIds,
+                                                    Map<MessageIdAdv, MessageIdImpl[]> chunkMsgIds,
+                                                    List<Map.Entry<MessageIdAdv, ConcurrentBitSet>> batchIndexAcks) {
+        pendingIndividualAcks.addAll(messageIds);
+        chunkMsgIds.forEach(this::restoreChunkedMessageIds);
+        batchIndexAcks.forEach(entry -> pendingIndividualBatchIndexAcks.merge(entry.getKey(), entry.getValue(),
+                (currentValue, valueToRestore) -> {
+                    currentValue.and(valueToRestore);
+                    return currentValue;
+                }));
+    }
+
+    private void restoreChunkedMessageIds(MessageIdAdv messageId, @Nullable MessageIdImpl[] chunkMsgIds) {
+        if (chunkMsgIds != null) {
+            consumer.unAckedChunkedMessageIdSequenceMap.putIfAbsent(messageId, chunkMsgIds);
         }
     }
 

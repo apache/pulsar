@@ -22,21 +22,25 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Scheduler;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
+@CustomLog
 public class ProducerCache implements Closeable {
     // allow tuning the cache timeout with PRODUCER_CACHE_TIMEOUT_SECONDS env variable
     private static final int PRODUCER_CACHE_TIMEOUT_SECONDS =
@@ -60,27 +64,36 @@ public class ProducerCache implements Closeable {
 
     private final Cache<ProducerCacheKey, Producer<?>> cache;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
+    @VisibleForTesting
+    final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
+    private final ExecutorService cacheExecutor;
 
     public ProducerCache() {
+        cacheExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("ProducerCache"));
         Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
                 .recordStats()
                 .scheduler(Scheduler.systemScheduler())
+                .executor(cacheExecutor)
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
-                    log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
-                    CompletableFuture closeFuture =
-                            CompletableFuture.supplyAsync(() -> producer.flushAsync(), Runnable::run)
+                    log.info()
+                            .attr("topic", key.topic())
+                            .attr("cause", cause)
+                            .log("Closing producer");
+                    CompletableFuture<Void> closeFuture =
+                            producer.flushAsync()
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
                                         if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
-                                            log.error(
-                                                    "Error flushing producer for topic {} due to "
-                                                            + "AlreadyClosedException",
-                                                    key.topic());
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .log("Error flushing producer due to"
+                                                            + " AlreadyClosedException");
                                         } else {
-                                            log.error("Error flushing producer for topic {}", key.topic(),
-                                                    unwrappedCause);
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .exception(unwrappedCause)
+                                                    .log("Error flushing producer");
                                         }
                                         return null;
                                     }).thenCompose(__ ->
@@ -89,13 +102,15 @@ public class ProducerCache implements Closeable {
                                     ).exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
                                         if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
-                                            log.error(
-                                                    "Error closing producer for topic {} due to "
-                                                            + "AlreadyClosedException",
-                                                    key.topic());
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .log("Error closing producer due to"
+                                                            + " AlreadyClosedException");
                                         } else {
-                                            log.error("Error closing producer for topic {}", key.topic(),
-                                                    unwrappedCause);
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .exception(unwrappedCause)
+                                                    .log("Error closing producer");
                                         }
                                         return null;
                                     });
@@ -117,7 +132,9 @@ public class ProducerCache implements Closeable {
         if (closed.get()) {
             throw new IllegalStateException("ProducerCache is already closed");
         }
-        return (Producer<T>) cache.get(new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
+        @SuppressWarnings("unchecked")
+        Producer<T> producer = (Producer<T>) cache.get(
+                new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
             try {
                 return supplier.call();
             } catch (RuntimeException e) {
@@ -126,15 +143,27 @@ public class ProducerCache implements Closeable {
                 throw new RuntimeException("Unable to create producer for topic '" + topicName + "'", e);
             }
         });
+        return producer;
     }
 
     public void close() {
         if (closed.compareAndSet(false, true)) {
             cache.invalidateAll();
-            try {
-                FutureUtil.waitForAll(closeFutures).get();
-            } catch (InterruptedException | ExecutionException e) {
-                log.warn("Failed to close producers", e);
+            // schedule the waiting job on the cache executor
+            cacheExecutor.execute(() -> {
+                try {
+                    FutureUtil.waitForAll(closeFutures).get();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.warn().exception(e).log("Failed to close producers");
+                }
+            });
+            // Wait for the cache executor to terminate.
+            // The eviction jobs and waiting for the close futures to complete will run on the single-threaded
+            // cache executor, so we need to wait for them to finish to ensure that the cache is closed properly.
+            boolean terminated = MoreExecutors.shutdownAndAwaitTermination(cacheExecutor,
+                    Duration.ofSeconds(FLUSH_OR_CLOSE_TIMEOUT_SECONDS));
+            if (!terminated) {
+                log.warn("Failed to shutdown cache executor gracefully.");
             }
         }
     }

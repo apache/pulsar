@@ -19,10 +19,10 @@
 package org.apache.pulsar.utils;
 
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class TimedSingleThreadRateLimiter {
 
     @Getter
@@ -52,17 +52,13 @@ public class TimedSingleThreadRateLimiter {
         mayRenew(now);
         if (remaining > permits) {
             remaining -= permits;
-            if (log.isDebugEnabled()) {
-                log.debug("acquired: {}, remaining:{}", permits, remaining);
-            }
-            return permits;
+                log.debug().attr("acquired", permits).attr("remaining", remaining).log("acquired: , remaining");
+                        return permits;
         } else {
             int acquired = remaining;
             remaining = 0;
-            if (log.isDebugEnabled()) {
-                log.debug("acquired: {}, remaining:{}", acquired, remaining);
-            }
-            return acquired;
+                log.debug().attr("acquired", acquired).attr("remaining", remaining).log("acquired: , remaining");
+                        return acquired;
         }
     }
 

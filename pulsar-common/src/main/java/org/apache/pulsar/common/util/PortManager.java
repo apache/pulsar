@@ -22,14 +22,18 @@ import java.net.ServerSocket;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Allocates ports for tests that need a known port number BEFORE binding (e.g. tests that build
+ * advertised-listener URLs, or that pre-create metadata znodes at the broker's would-be address).
+ * For everything else, prefer binding to port 0 and reading the kernel-assigned port back.
+ */
 public class PortManager {
 
     private static final Set<Integer> PORTS = new HashSet<>();
 
     /**
-     * Return a locked available port.
-     *
-     * @return locked available port.
+     * Return a free port that is reserved for the caller until {@link #releaseLockedPort(int)}
+     * is invoked.
      */
     public static synchronized int nextLockedFreePort() {
         int exceptionCount = 0;
@@ -50,18 +54,16 @@ public class PortManager {
     }
 
     /**
-     * Returns whether the port was released successfully.
+     * Release a previously locked port.
      *
-     * @return whether the release is successful.
+     * @return true if the port was previously locked by this manager
      */
     public static synchronized boolean releaseLockedPort(int lockedPort) {
         return PORTS.remove(lockedPort);
     }
 
     /**
-     * Check port if locked.
-     *
-     * @return whether the port is locked.
+     * @return true if the port is currently locked by this manager
      */
     public static synchronized boolean checkPortIfLocked(int lockedPort) {
         return PORTS.contains(lockedPort);

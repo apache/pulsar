@@ -23,7 +23,7 @@ import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
@@ -40,7 +40,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                     AuthenticationDataSource authenticationDataSource)
             throws Exception {
         String token = null;
@@ -57,7 +57,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
                                                      AuthenticationDataSource authenticationDataSource)
             throws Exception {
@@ -65,7 +65,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails,
+    public void cleanUpAuthData(FunctionDetails funcDetails,
                                 Optional<FunctionAuthData> functionAuthData) throws Exception {
         //no-op
     }

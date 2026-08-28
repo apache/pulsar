@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
@@ -32,11 +33,9 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockAuthorizationProvider implements AuthorizationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthorizationProvider.class);
 
     @Override
     public void close() {}

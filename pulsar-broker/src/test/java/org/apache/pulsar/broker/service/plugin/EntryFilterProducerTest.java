@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.Collections;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.Consumer;
 
-@Slf4j
+@CustomLog
 public class EntryFilterProducerTest implements EntryFilter {
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
@@ -34,23 +33,27 @@ public class EntryFilterProducerTest implements EntryFilter {
         }
         Consumer consumer = context.getConsumer();
         Map<String, String> metadata = consumer != null ? consumer.getMetadata() : Collections.emptyMap();
-        log.info("filterEntry for {}", metadata);
+        log.info().attr("filterentryFor", metadata).log("filterEntry for");
         String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
         String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
         String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
         // filter by string
         String producerName = context.getMsgMetadata().getProducerName();
         if (matchValueAccept.equalsIgnoreCase(producerName)) {
-            log.info("metadata {} producerName {} outcome ACCEPT", metadata, producerName);
+            log.info().attr("metadata", metadata).attr("producername", producerName)
+                    .log("metadata producerName outcome ACCEPT");
             return FilterResult.ACCEPT;
         } else if (matchValueReject.equalsIgnoreCase(producerName)){
-            log.info("metadata {} producerName {} outcome REJECT", metadata, producerName);
+            log.info().attr("metadata", metadata).attr("producername", producerName)
+                    .log("metadata producerName outcome REJECT");
             return FilterResult.REJECT;
         } else if (matchValueReschedule.equalsIgnoreCase(producerName)){
-            log.info("metadata {} producerName {} outcome RESCHEDULE", metadata, producerName);
+            log.info().attr("metadata", metadata).attr("producername", producerName)
+                    .log("metadata producerName outcome RESCHEDULE");
             return FilterResult.RESCHEDULE;
         } else {
-            log.info("metadata {} producerName {} outcome ??", metadata, producerName);
+            log.info().attr("metadata", metadata).attr("producername", producerName)
+                    .log("metadata producerName outcome ??");
         }
         return null;
     }

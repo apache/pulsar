@@ -18,47 +18,44 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
-public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsumerBase {
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName =
-                BrokerTestUtil.newUniqueName("persistent://public/default/testSkipReadEntriesFromCloseCursor");
+        final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -70,8 +67,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         producer.close();
 
         // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get();
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
 
         ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
         Mockito.doReturn(subscription).when(cursor).getName();
@@ -106,7 +102,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         Mockito.doAnswer(inv -> {
             callReadEntriesFailed.getAndIncrement();
             return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
+        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any(), Mockito.anyLong());
 
         Mockito.doReturn(false).when(cursor).isClosed();
 
@@ -128,5 +124,75 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
         // Verify: the topic can be deleted successfully.
         admin.topics().delete(topicName, false);
+    }
+
+    @DataProvider
+    public static Object[][] closeDelayMs() {
+        return new Object[][] { { 500 }, { 2000 } };
+    }
+
+    @Test(dataProvider = "closeDelayMs")
+    public void testOverrideInactiveConsumer(long closeDelayMs) throws Exception {
+        final var interceptor = new Interceptor();
+        SharedPulsarCluster.get().getPulsarService().getBrokerService().setInterceptor(interceptor);
+        final var topic = newTopicName();
+        @Cleanup final var client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl()).build();
+        @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+        final var dispatcher = ((PersistentTopic) SharedPulsarCluster.get().getPulsarService().getBrokerService()
+                .getTopicIfExists(TopicName.get(topic).toString()).get().orElseThrow())
+                .getSubscription("sub").dispatcher;
+        Assert.assertEquals(dispatcher.getConsumers().size(), 1);
+
+        // Generally `isActive` could only be false after `channelInactive` is called, setting it with false directly
+        // to avoid race condition.
+        final var latch = new CountDownLatch(1);
+        interceptor.latch.set(latch);
+        interceptor.injectCloseLatency.set(true);
+        interceptor.delayMs = closeDelayMs;
+        // Simulate the real case because `channelInactive` is always called in the event loop thread
+        final var cnx = (ServerCnx) dispatcher.getConsumers().get(0).cnx();
+        cnx.ctx().executor().execute(() -> {
+            try {
+                cnx.channelInactive(cnx.ctx());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        @Cleanup final var mockConsumer = Mockito.mock(Consumer.class);
+        Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
+        if (closeDelayMs < 1000) {
+            dispatcher.addConsumer(mockConsumer).get();
+            Assert.assertEquals(dispatcher.getConsumers().size(), 1);
+            Assert.assertSame(mockConsumer, dispatcher.getConsumers().get(0));
+        } else {
+            try {
+                dispatcher.addConsumer(mockConsumer).get();
+                Assert.fail();
+            } catch (ExecutionException e) {
+                Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+            }
+        }
+    }
+
+    private static class Interceptor extends MockBrokerInterceptor {
+
+        final AtomicBoolean injectCloseLatency = new AtomicBoolean(false);
+        final AtomicReference<CountDownLatch> latch = new AtomicReference<>();
+        long delayMs = 500;
+
+        @Override
+        public void onConnectionClosed(ServerCnx cnx) {
+            if (injectCloseLatency.compareAndSet(true, false)) {
+                Optional.ofNullable(latch.get()).ifPresent(CountDownLatch::countDown);
+                latch.set(null);
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }

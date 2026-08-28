@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * S3 simulation container.
  */
-@Slf4j
+@CustomLog
 public class S3Container extends ChaosContainer<S3Container> {
 
     public static final String NAME = "s3";

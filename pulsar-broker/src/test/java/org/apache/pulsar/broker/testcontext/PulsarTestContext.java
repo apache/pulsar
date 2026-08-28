@@ -33,11 +33,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Singular;
 import lombok.SneakyThrows;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -132,10 +132,11 @@ import org.mockito.internal.util.MockUtil;
  * }
  * }</pre>
  */
-@Slf4j
+@CustomLog
 @ToString
 @Getter
 @Builder(builderClassName = "Builder")
+@SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
     private final MetadataStoreExtended localMetadataStore;
@@ -226,7 +227,7 @@ public class PulsarTestContext implements AutoCloseable {
             try {
                 closeables.get(i).close();
             } catch (Exception e) {
-                log.error("Failure in calling cleanup function", e);
+                log.error().exception(e).log("Failure in calling cleanup function");
             }
         }
     }
@@ -288,6 +289,7 @@ public class PulsarTestContext implements AutoCloseable {
          * This is used to run tests with smaller thread pools and shorter timeouts by default.
          * You can use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
          */
+        @SuppressWarnings("deprecation")
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             ServiceConfiguration unconfiguredDefaults = new ServiceConfiguration();
 
@@ -508,7 +510,6 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
-
         /**
          * Configure this PulsarTestContext to use a test ZooKeeper instance which is
          * shared for both the local and configuration metadata stores.
@@ -709,6 +710,7 @@ public class PulsarTestContext implements AutoCloseable {
                     CreateMode.PERSISTENT);
         }
 
+        @SuppressWarnings("try")
         private TestZKServer createTestZookeeper(int sessionTimeout) throws Exception {
             TestZKServer testZKServer = new TestZKServer();
             try (ZooKeeper zkc = new ZooKeeper(testZKServer.getConnectionString(), sessionTimeout, event -> {
@@ -721,6 +723,11 @@ public class PulsarTestContext implements AutoCloseable {
 
         protected void handlePreallocatePorts(ServiceConfiguration config) {
             if (super.preallocatePorts) {
+                // Pre-allocate ports for callers that need the port number BEFORE the broker
+                // starts (e.g. to build advertised-listener URLs). PortManager hands out ports
+                // outside the ephemeral range, so the kernel won't auto-assign them to other
+                // processes. Tests that don't need a pre-known port should leave
+                // preallocatePorts=false and let the broker bind to 0 directly.
                 config.getBrokerServicePort().ifPresent(portNumber -> {
                     if (portNumber == 0) {
                         config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));

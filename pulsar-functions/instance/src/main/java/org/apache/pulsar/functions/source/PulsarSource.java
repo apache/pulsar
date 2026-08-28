@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import java.security.Security;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +38,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.io.core.Source;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public abstract class PulsarSource<T> implements Source<T> {
     protected final PulsarClient pulsarClient;
@@ -61,7 +59,7 @@ public abstract class PulsarSource<T> implements Source<T> {
 
     public abstract List<Consumer<T>> getInputConsumers();
 
-    protected ConsumerBuilder<T> createConsumeBuilder(String topic, PulsarSourceConsumerConfig conf) {
+    protected ConsumerBuilder<T> createConsumeBuilder(String topic, PulsarSourceConsumerConfig<T> conf) {
 
         ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
                 .subscriptionName(pulsarSourceConfig.getSubscriptionName())
@@ -113,19 +111,19 @@ public abstract class PulsarSource<T> implements Source<T> {
         return cb;
     }
 
+    @SuppressWarnings("unchecked") // schema type casts are safe within message context
     protected Record<T> buildRecord(Consumer<T> consumer, Message<T> message) {
         Schema<T> schema = null;
         if (message instanceof MessageImpl) {
-            MessageImpl impl = (MessageImpl) message;
+            MessageImpl<T> impl = (MessageImpl<T>) message;
             schema = impl.getSchemaInternal();
         } else if (message instanceof TopicMessageImpl) {
-            TopicMessageImpl impl = (TopicMessageImpl) message;
+            TopicMessageImpl<T> impl = (TopicMessageImpl<T>) message;
             schema = impl.getSchemaInternal();
         }
 
         // we don't want the Function/Sink to see AutoConsumeSchema
-        if (schema instanceof AutoConsumeSchema) {
-            AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
+        if (schema instanceof AutoConsumeSchema autoConsumeSchema) {
             // we cannot use atSchemaVersion, because atSchemaVersion is only
             // able to decode data, here we want a Schema that
             // is able to re-encode the payload when needed.
@@ -168,6 +166,7 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .build();
     }
 
+    @SuppressWarnings("unchecked") // schema type is determined by runtime type arg
     protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(String topic, ConsumerConfig conf,
                                                                             Class<?> typeArg) {
         PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder =
@@ -184,11 +183,6 @@ public abstract class PulsarSource<T> implements Source<T> {
         consumerConfBuilder.schema(schema);
 
         if (conf.getCryptoConfig() != null) {
-            // add provider only if it's not in the JVM
-            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-                Security.addProvider(new BouncyCastleProvider());
-            }
-
             consumerConfBuilder.consumerCryptoFailureAction(conf.getCryptoConfig().getConsumerCryptoFailureAction());
             consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
                     conf.getCryptoConfig().getCryptoKeyReaderClassName(),

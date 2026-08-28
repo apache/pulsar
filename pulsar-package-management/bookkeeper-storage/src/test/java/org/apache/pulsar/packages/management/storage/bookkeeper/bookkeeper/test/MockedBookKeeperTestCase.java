@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -31,8 +32,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -41,10 +40,8 @@ import org.testng.annotations.BeforeMethod;
 /**
  * A class runs several bookie servers for testing.
  */
+@CustomLog
 public abstract class MockedBookKeeperTestCase {
-
-    static final Logger LOG = LoggerFactory.getLogger(MockedBookKeeperTestCase.class);
-
     protected FaultInjectionMetadataStore metadataStore;
 
     // BookKeeper related variables
@@ -69,14 +66,14 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp(Method method) throws Exception {
-        LOG.info(">>>>>> starting {}", method);
+        log.info().attr("value", method).log(">>>>>> starting");
         metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create("memory:local",
                 MetadataStoreConfig.builder().build()));
         try {
             // start bookkeeper service
             startBookKeeper();
         } catch (Exception e) {
-            LOG.error("Error setting up", e);
+            log.error().exception(e).log("Error setting up");
             throw e;
         }
 
@@ -87,14 +84,14 @@ public abstract class MockedBookKeeperTestCase {
     @AfterMethod(alwaysRun = true)
     public void tearDown(Method method) {
         try {
-            LOG.info("@@@@@@@@@ stopping " + method);
+            log.info("@@@@@@@@@ stopping " + method);
             factory.shutdown();
             factory = null;
             stopBookKeeper();
             stopMetadataStore();
-            LOG.info("--------- stopped {}", method);
+            log.info().attr("value", method).log("--------- stopped");
         } catch (Exception e) {
-            LOG.error("tearDown Error", e);
+            log.error().exception(e).log("tearDown Error");
         }
     }
 

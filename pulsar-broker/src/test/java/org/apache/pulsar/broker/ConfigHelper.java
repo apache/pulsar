@@ -35,6 +35,7 @@ public class ConfigHelper {
                 timeBacklogQuota(configuration));
     }
 
+    @SuppressWarnings("deprecation")
     public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
         long backlogQuotaBytes = configuration.getBacklogQuotaDefaultLimitGB() > 0
                 ? ((long) (configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE))
