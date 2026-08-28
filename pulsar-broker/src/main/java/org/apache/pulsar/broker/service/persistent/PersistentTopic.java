@@ -340,6 +340,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final CompletableFuture<Void> initialReplicationCheck = new CompletableFuture<>();
     private final AtomicBoolean initialReplicationCheckInitialized = new AtomicBoolean(false);
 
+    /**
+     * Set while a deletion triggered by {@link #removeTopicIfLocalClusterNotAllowed()} is in progress, and while
+     * a failed one is waiting to be retried. Every failure path of {@link #delete} un-fences the topic, and
+     * un-fencing runs {@link #checkReplication()} again, which would start the same deletion again straight away.
+     * Without this guard, a deletion that keeps failing is retried in a tight loop for as long as the local
+     * cluster stays out of the replication clusters.
+     */
+    private final AtomicBoolean clusterRemovalDeletionInProgress = new AtomicBoolean(false);
+
     /***
      * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
      * the in-progress one when it is called the second time.
@@ -1548,6 +1557,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
 
             AtomicBoolean alreadyUnFenced = new AtomicBoolean();
+            // The outer whenComplete below sees the same failure the inner handlers already reported, so it only
+            // logs the ones they did not.
+            AtomicBoolean deleteFailureLogged = new AtomicBoolean();
             CompletableFuture<Void> res = getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
                         .getPartitionedTopicResources().runWithMarkDeleteAsync(TopicName.get(topic), () -> {
                 CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
@@ -1586,6 +1598,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .thenCompose(ignore -> transactionBufferCleanupAndClose())
                                 .whenComplete((v, ex) -> {
                                     if (ex != null) {
+                                        deleteFailureLogged.set(true);
                                         log.error("[{}] Error deleting topic", topic, ex);
                                         alreadyUnFenced.set(true);
                                         unfenceTopicToResume();
@@ -1596,6 +1609,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                                     FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
                                         if (e != null) {
+                                            deleteFailureLogged.set(true);
                                             log.error("[{}] Error deleting topic", topic, e);
                                             alreadyUnFenced.set(true);
                                             unfenceTopicToResume();
@@ -1626,6 +1640,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                 topic, exception.getMessage());
                                                         deleteLedgerComplete(ctx);
                                                     } else {
+                                                        deleteFailureLogged.set(true);
                                                         log.error("[{}] Error deleting topic",
                                                                 topic, exception);
                                                         alreadyUnFenced.set(true);
@@ -1652,7 +1667,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return deleteFuture;
                 }).whenComplete((value, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Error deleting topic", topic, ex);
+                        if (!deleteFailureLogged.get()) {
+                            log.error("[{}] Error deleting topic", topic, ex);
+                        }
                         if (!alreadyUnFenced.get()) {
                             unfenceTopicToResume();
                         }
@@ -2137,15 +2154,74 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected CompletableFuture<Boolean> removeTopicIfLocalClusterNotAllowed() {
         final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         return checkAllowedCluster(localCluster).thenCompose(isAllowed -> {
-            if (!isAllowed) {
-                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                // because pulsar doesn't serve global topic without local repl-cluster configured.
-                return deleteForcefully().thenCompose(ignore -> {
-                    return deleteSchemaAndPoliciesIfClusterRemoved().thenApply(__ -> true);
-                });
+            if (isAllowed) {
+                return CompletableFuture.completedFuture(false);
             }
-            return CompletableFuture.completedFuture(false);
+            // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+            // because pulsar doesn't serve global topic without local repl-cluster configured.
+            if (!clusterRemovalDeletionInProgress.compareAndSet(false, true)) {
+                // A deletion is already in progress, or a failed one is waiting to be retried. Report the topic
+                // as removed so the caller does not start replicators for a topic that is being deleted.
+                return CompletableFuture.completedFuture(true);
+            }
+            return deleteForcefully()
+                    .thenCompose(ignore -> deleteSchemaAndPoliciesIfClusterRemoved())
+                    .thenApply(__ -> true)
+                    .whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            scheduleClusterRemovalDeletionRetry();
+                        }
+                    });
         });
+    }
+
+    /**
+     * Schedules another attempt at the deletion triggered by the local cluster removal, so one that failed for a
+     * transient reason is still retried, at a bounded rate instead of in a tight loop. Must only be called while
+     * {@link #clusterRemovalDeletionInProgress} is set, which is what keeps a re-entrant check from starting a
+     * deletion of its own before the delay elapses.
+     */
+    private void scheduleClusterRemovalDeletionRetry() {
+        try {
+            brokerService.executor().schedule(this::retryClusterRemovalDeletion,
+                    getClusterRemovalDeletionRetryDelaySeconds(), SECONDS);
+        } catch (RejectedExecutionException e) {
+            // The broker is shutting down, so there is nothing left to retry.
+            clusterRemovalDeletionInProgress.set(false);
+        }
+    }
+
+    private void retryClusterRemovalDeletion() {
+        clusterRemovalDeletionInProgress.set(false);
+        if (isClosed()) {
+            return;
+        }
+        try {
+            checkReplication().exceptionally(ex -> {
+                rescheduleClusterRemovalDeletionAfterFailedCheck();
+                return null;
+            });
+        } catch (Throwable t) {
+            // checkReplication is overridable, so an implementation can fail before returning its future.
+            rescheduleClusterRemovalDeletionAfterFailedCheck();
+        }
+    }
+
+    /**
+     * Handles a replication check that failed before it could start a deletion, for instance because reading the
+     * namespace policies failed: nothing downstream scheduled the next attempt, so it has to be scheduled here. A
+     * failure of the deletion itself has already scheduled one and left {@link #clusterRemovalDeletionInProgress}
+     * set, which is what the compareAndSet detects, so the two paths never schedule competing retries.
+     */
+    private void rescheduleClusterRemovalDeletionAfterFailedCheck() {
+        if (clusterRemovalDeletionInProgress.compareAndSet(false, true)) {
+            scheduleClusterRemovalDeletionRetry();
+        }
+    }
+
+    @VisibleForTesting
+    long getClusterRemovalDeletionRetryDelaySeconds() {
+        return POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS;
     }
 
     protected CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
