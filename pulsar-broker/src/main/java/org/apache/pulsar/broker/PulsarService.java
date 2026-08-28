@@ -131,6 +131,7 @@ import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5;
@@ -148,6 +149,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarSe
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -156,6 +158,7 @@ import org.apache.pulsar.client.impl.DnsResolverGroupImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
@@ -166,6 +169,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -895,6 +899,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                 + "the retention time duration is %d",
                         config.getBacklogQuotaDefaultLimitSecond(),
                         config.getDefaultRetentionTimeInMinutes() * 60));
+            }
+
+            if (config.isBrokerDeleteInactiveTopicsEnabled() && config.isBrokerCloseInactiveTopicsEnabled()) {
+                throw new IllegalArgumentException(
+                        "brokerDeleteInactiveTopicsEnabled and brokerCloseInactiveTopicsEnabled are mutually "
+                                + "exclusive. Enable at most one of them.");
+            }
+
+            if (config.isBrokerCloseInactiveTopicsEnabled()
+                    && config.getBrokerDeleteInactiveTopicsMode()
+                            != InactiveTopicDeleteMode.delete_when_no_subscriptions) {
+                throw new IllegalArgumentException(
+                        "brokerCloseInactiveTopicsEnabled only supports brokerDeleteInactiveTopicsMode="
+                                + "delete_when_no_subscriptions. Under delete_when_subscriptions_caught_up a topic "
+                                + "whose subscriptions are caught up is inactive even while consumers are still "
+                                + "connected, so closing it would repeatedly unload and reload the topic.");
             }
 
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
@@ -1847,8 +1867,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public PulsarClientImpl createClientImpl(ClientConfigurationData conf,
                                              Consumer<PulsarClientImpl.PulsarClientImplBuilder> customizer)
             throws PulsarClientException {
+        ClientConfigurationData clientConf = conf != null ? conf : createClientConfigurationData();
+        // PIP-478: route the broker's own outbound clients (replication + cluster-internal lookup)
+        // onto the new TLS SPI (BROKER_CLIENT) when opted in via brokerClientTlsFactoryClassName.
+        maybeApplyBrokerClientTlsFactory(clientConf);
         PulsarClientImpl.PulsarClientImplBuilder pulsarClientImplBuilder = PulsarClientImpl.builder()
-                .conf(conf != null ? conf : createClientConfigurationData())
+                .conf(clientConf)
                 .eventLoopGroup(ioEventLoopGroup)
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
@@ -1860,6 +1884,110 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             customizer.accept(pulsarClientImplBuilder);
         }
         return pulsarClientImplBuilder.build();
+    }
+
+    /**
+     * Route the broker's own outbound Pulsar client (geo-replication and cluster-internal lookup) onto the
+     * new PIP-478 TLS SPI for the {@code BROKER_CLIENT} purpose, gated on the
+     * {@code brokerClientTlsFactoryClassName} opt-in. The broker-client material — per-cluster
+     * {@code ClusterData.brokerClientTls*} first, else the broker's {@code brokerClient*}
+     * {@code ServiceConfiguration} — is already mapped onto the config's {@code tls*} fields by the caller
+     * ({@code createClientConfigurationData} / {@code BrokerService.configTlsSettings}), so this only attaches
+     * a per-client {@link org.apache.pulsar.tls.PulsarTlsFactory} composed from those fields (folding
+     * the broker-client {@code Authentication} TLS material). Leaves the config on the legacy PIP-337 path
+     * when the gate is off, or when the outbound client is not TLS, or when it is already on the new path.
+     *
+     * @param conf the outbound client configuration (mutated to carry the TLS factory when opted in)
+     */
+    private void maybeApplyBrokerClientTlsFactory(ClientConfigurationData conf) {
+        String factoryClassName = brokerClientTlsFactorySelection(conf);
+        if (!isNotBlank(factoryClassName)) {
+            return;
+        }
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
+        // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context
+        // params (parsed the same way as the server-side tlsFactoryConfig).
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(brokerClientTlsFactoryConfig(conf)));
+    }
+
+    /**
+     * The {@code PulsarTlsFactory} class name for an outbound broker-client connection: the value
+     * {@code BrokerService} already resolved onto this configuration from the target
+     * {@link org.apache.pulsar.common.policies.data.ClusterData} when the cluster names one, else the
+     * broker-level {@code brokerClientTlsFactoryClassName} (PIP-478).
+     *
+     * <p>Reading the config rather than the {@code ServiceConfiguration} directly is what makes per-cluster
+     * selection work: a cluster entry that names its own factory must both win over the broker-level value
+     * <em>and</em> be routed through {@link ClientTlsFactorySupport#brokerClientTlsFactory}, which wraps a
+     * custom factory so it answers the transport's {@code CLIENT_DEFAULT} request from its
+     * {@code BROKER_CLIENT} material. Resolving it by name later, outside that wrapper, makes a compliant
+     * {@code BROKER_CLIENT}-only factory return empty and the connection fail.
+     *
+     * @param conf the outbound client configuration
+     * @return the selected factory class name, or blank when neither level selects one
+     */
+    private String brokerClientTlsFactorySelection(ClientConfigurationData conf) {
+        return isNotBlank(conf.getTlsFactoryClassName())
+                ? conf.getTlsFactoryClassName()
+                : getConfiguration().getBrokerClientTlsFactoryClassName();
+    }
+
+    /**
+     * The init params for {@link #brokerClientTlsFactorySelection}. The pair resolves <em>atomically</em>:
+     * when the cluster selects the factory class, its config wins even if blank, so factory A's parameters
+     * are never handed to factory B.
+     *
+     * @param conf the outbound client configuration
+     * @return the factory configuration string for the selected factory
+     */
+    private String brokerClientTlsFactoryConfig(ClientConfigurationData conf) {
+        return isNotBlank(conf.getTlsFactoryClassName())
+                ? conf.getTlsFactoryConfig()
+                : getConfiguration().getBrokerClientTlsFactoryConfig();
+    }
+
+    /**
+     * Route the broker's own outbound admin clients (the {@code PulsarAdmin} instances built by
+     * {@link #getCreateAdminClientBuilder} and {@code BrokerService.getClusterPulsarAdmin}) onto the new
+     * PIP-478 TLS SPI, gated on the same {@code brokerClientTlsFactoryClassName} opt-in as the
+     * binary path. The admin builder rides a {@link ClientConfigurationData} internally; this
+     * reaches it through {@link PulsarAdminBuilderImpl#getConf()} and attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} composed from the broker-client {@code tls*}
+     * material already mapped onto the config (folding the broker-client {@code Authentication} TLS material).
+     * Ownership transfers with the configuration: the admin client initializes the factory and closes it when
+     * the admin closes, so this method must not retain or close it. (Concretely the owner is that admin's
+     * {@code AsyncHttpConnectorProvider}, which resolves one factory for all of the admin's connectors —
+     * see {@code TlsFactoryOwnership}.) Leaves the builder on the
+     * legacy PIP-337 path when the gate is off, when the admin URL is not TLS, or when it is already on the
+     * new path.
+     *
+     * @param builder the admin builder to route (a {@link PulsarAdminBuilderImpl}; other implementations are
+     *                left untouched)
+     */
+    public void applyBrokerClientTlsFactoryToAdmin(PulsarAdminBuilder builder) {
+        if (!(builder instanceof PulsarAdminBuilderImpl adminBuilder)) {
+            return;
+        }
+        ClientConfigurationData conf = adminBuilder.getConf();
+        String factoryClassName = brokerClientTlsFactorySelection(conf);
+        if (!isNotBlank(factoryClassName)) {
+            return;
+        }
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null) {
+            return;
+        }
+        // Admin traffic is HTTP; TLS is selected by an https service URL (there is no useTls flag on the
+        // admin builder path).
+        if (conf.getServiceUrl() == null || !conf.getServiceUrl().startsWith("https")) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
+        // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context
+        // params (parsed the same way as the server-side tlsFactoryConfig).
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(brokerClientTlsFactoryConfig(conf)));
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
@@ -1897,10 +2025,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (tlsEnabled) {
             conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
             conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal client config so the
+            // broker's own outbound client honors them — all three are documented as "used by the internal
+            // client" but were otherwise dropped here (never copied into ClientConfigurationData), silently
+            // defaulting the engine/provider. The client conf field is the only route: the policy this client
+            // builds comes from ClientTlsFactorySupport.clientDefaultPolicy, which reads it.
+            if (isNotBlank(this.getConfiguration().getBrokerClientSslProvider())) {
+                conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJsseProvider())) {
+                conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJcaProvider())) {
+                conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
+            }
             conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
             conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
-            conf.setSslFactoryPlugin(this.getConfiguration().getBrokerClientSslFactoryPlugin());
-            conf.setSslFactoryPluginParams(this.getConfiguration().getBrokerClientSslFactoryPluginParams());
             if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                 conf.setUseKeyStoreTls(true);
                 conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());
@@ -1974,9 +2115,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         if (conf.isBrokerClientTlsEnabled()) {
             builder.tlsCiphers(conf.getBrokerClientTlsCiphers())
-                    .tlsProtocols(conf.getBrokerClientTlsProtocols())
-                    .sslFactoryPlugin(conf.getBrokerClientSslFactoryPlugin())
-                    .sslFactoryPluginParams(conf.getBrokerClientSslFactoryPluginParams());
+                    .tlsProtocols(conf.getBrokerClientTlsProtocols());
             if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                 builder.useKeyStoreTls(true).tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
                         .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
@@ -1991,11 +2130,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection())
                     .enableTlsHostnameVerification(conf.isTlsHostnameVerificationEnabled());
+            // PIP-478: the broker's own admin client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. It reached none of them: the whole brokerClient* TLS material
+            // family is mapped above, but the provider axes were not, and the ClientConfigurationData is their
+            // only route (the admin transport composes its policy through
+            // ClientTlsFactorySupport.clientDefaultPolicy). Pinning BCJSSE/BCFIPS in broker.conf therefore left
+            // this leg building its SSLContext on the JVM default and parsing key material on the search order.
+            // Set only when configured, so the brokerClient_* loadConf escape hatch above is not clobbered.
+            if (isNotBlank(conf.getBrokerClientSslProvider())) {
+                builder.sslProvider(conf.getBrokerClientSslProvider());
+            }
+            if (builder instanceof PulsarAdminBuilderImpl adminBuilder) {
+                if (isNotBlank(conf.getBrokerClientJsseProvider())) {
+                    adminBuilder.getConf().setJsseProvider(conf.getBrokerClientJsseProvider());
+                }
+                if (isNotBlank(conf.getBrokerClientJcaProvider())) {
+                    adminBuilder.getConf().setJcaProvider(conf.getBrokerClientJcaProvider());
+                }
+            }
         }
 
         // most of the admin request requires to make zk-call so, keep the max read-timeout based on
         // zk-operation timeout
         builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        // PIP-478: route the broker's own admin client onto the new TLS SPI when opted in.
+        applyBrokerClientTlsFactoryToAdmin(builder);
         return builder;
     }
 
@@ -2197,6 +2356,28 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
         workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        // PIP-478: an embedded worker inherits the broker's TLS provider pins — the outbound (broker-client)
+        // axes for its own worker-to-broker connections, and the web-listener axes for its web server — unless
+        // its own configuration file sets them. Without this a FIPS deployment that pins BCJSSE in broker.conf
+        // gets an embedded worker silently running on the default provider.
+        if (isBlank(workerConfig.getBrokerClientSslProvider())) {
+            workerConfig.setBrokerClientSslProvider(brokerConfig.getBrokerClientSslProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJsseProvider())) {
+            workerConfig.setBrokerClientJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+        }
+        if (isBlank(workerConfig.getTlsProvider())) {
+            workerConfig.setTlsProvider(brokerConfig.getWebServiceTlsProvider());
+        }
+        if (isBlank(workerConfig.getJsseProvider())) {
+            workerConfig.setJsseProvider(brokerConfig.getJsseProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJcaProvider())) {
+            workerConfig.setBrokerClientJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+        }
+        if (isBlank(workerConfig.getJcaProvider())) {
+            workerConfig.setJcaProvider(brokerConfig.getJcaProvider());
+        }
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());

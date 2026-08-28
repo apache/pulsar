@@ -31,6 +31,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -39,8 +40,9 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
-import org.apache.pulsar.client.api.v5.config.TlsPolicy;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Utility for test clients.
@@ -99,11 +101,6 @@ public class PerfClientUtils {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            clientBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
-        }
-
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
@@ -127,9 +124,8 @@ public class PerfClientUtils {
      *
      * <p>A few v4 settings have no direct V5 equivalent and are dropped here: {@code --stats-
      * interval-seconds} (V5 stats are OpenTelemetry-driven), {@code --max-lookup-request} (V5
-     * does not expose a public knob), {@code --ssl-factory-plugin*} (V5 does not have a pluggable
-     * SSL factory yet), and {@code --busy-wait} (no V5 equivalent). All other relevant flags map
-     * 1:1.
+     * does not expose a public knob), and {@code --busy-wait} (no V5 equivalent). All other
+     * relevant flags map 1:1.
      */
     public static PulsarClientBuilder createV5ClientBuilderFromArguments(PerformanceBaseArguments arguments)
             throws org.apache.pulsar.client.api.v5.PulsarClientException {
@@ -157,20 +153,7 @@ public class PerfClientUtils {
             builder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        // TLS: only wire a TlsPolicy if the user genuinely wants TLS. The Boolean flags can come
-        // through as Boolean.FALSE (not null) when picocli's default-value resolution fires even
-        // without the flag being passed, so we cannot treat "non-null" as "user wanted TLS" —
-        // that would incorrectly enable TLS against a plaintext broker. The rule:
-        //   - TLS is "on" if the URL is pulsar+ssl://, or
-        //   - a trust cert path was explicitly supplied, or
-        //   - either boolean was explicitly set to TRUE.
-        // PulsarClientBuilderV5#tlsPolicy unconditionally flips useTls=true.
-        boolean tlsByUrl = arguments.serviceURL != null
-                && arguments.serviceURL.startsWith("pulsar+ssl://");
-        boolean tlsByTrustPath = isNotBlank(arguments.tlsTrustCertsFilePath);
-        boolean tlsByBoolean = Boolean.TRUE.equals(arguments.tlsAllowInsecureConnection)
-                || Boolean.TRUE.equals(arguments.tlsHostnameVerificationEnable);
-        if (tlsByUrl || tlsByTrustPath || tlsByBoolean) {
+        if (wantsTls(arguments)) {
             TlsPolicy.Builder tls = TlsPolicy.builder();
             if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
                 tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
@@ -181,6 +164,14 @@ public class PerfClientUtils {
             if (arguments.tlsHostnameVerificationEnable != null) {
                 tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
             }
+            // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
+            // independent — they apply to PEM and keystore material alike.
+            if (isNotBlank(arguments.jsseProvider)) {
+                tls.jsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                tls.jcaProvider(arguments.jcaProvider);
+            }
             builder.tlsPolicy(tls.build());
         }
 
@@ -189,6 +180,36 @@ public class PerfClientUtils {
         }
 
         return builder;
+    }
+
+    /**
+     * Whether the arguments express an actual intent to use TLS, and so whether a {@code TlsPolicy} should be
+     * wired onto the V5 builder at all — {@code PulsarClientBuilderV5#tlsPolicy} unconditionally flips
+     * {@code useTls=true}, so setting one against a plaintext endpoint makes the client attempt a TLS
+     * handshake the broker will close.
+     *
+     * <p>The Boolean flags arrive as {@code Boolean.FALSE} (not {@code null}) whenever picocli's
+     * default-value resolution fires without the flag being passed, so "non-null" cannot mean "the user
+     * wanted TLS". TLS is on when the URL is {@code pulsar+ssl://}, when a trust-cert path was supplied, or
+     * when {@code tlsAllowInsecureConnection} was explicitly {@code TRUE}.
+     *
+     * <p>{@code tlsHostnameVerificationEnable} is deliberately <em>not</em> one of those signals. Hostname
+     * verification is on by default since Pulsar 5.0 (PIP-478) and {@code conf/client.conf} ships that
+     * default, so picocli's {@code descriptionKey} resolution hands us {@code TRUE} on every invocation in a
+     * distribution, whether or not TLS was wanted. Reading it as intent forces a TLS handshake against a
+     * plaintext {@code pulsar://} endpoint, which fails with "Connection closed while SSL/TLS handshake was
+     * in progress". It still configures the policy once TLS is on for one of the reasons above.
+     *
+     * <p>Package-private for {@code PerfClientUtilsTest} (VisibleForTesting).
+     *
+     * @param arguments the parsed perf-tool arguments
+     * @return whether a {@code TlsPolicy} should be configured
+     */
+    static boolean wantsTls(PerformanceBaseArguments arguments) {
+        boolean tlsByUrl = arguments.serviceURL != null && arguments.serviceURL.startsWith("pulsar+ssl://");
+        boolean tlsByTrustPath = isNotBlank(arguments.tlsTrustCertsFilePath);
+        boolean tlsByAllowInsecure = Boolean.TRUE.equals(arguments.tlsAllowInsecureConnection);
+        return tlsByUrl || tlsByTrustPath || tlsByAllowInsecure;
     }
 
     public static PulsarAdminBuilder createAdminBuilderFromArguments(PerformanceBaseArguments arguments,
@@ -203,17 +224,29 @@ public class PerfClientUtils {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            pulsarAdminBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
-        }
-
         if (arguments.tlsAllowInsecureConnection != null) {
             pulsarAdminBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
         if (arguments.tlsHostnameVerificationEnable != null) {
             pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
+        }
+
+        // PIP-478: the admin leg must be pinned on the same two axes as the binary leg above, otherwise
+        // `pulsar-perf --jsse-provider/--jca-provider` would parse the broker certificate for its HTTPS admin
+        // calls through the JVM provider search order while the data connection is pinned — a FIPS-shaped run
+        // rather than a FIPS one, on the tool whose flags exist to validate exactly that. PulsarAdminBuilder has
+        // no fluent setter for either axis, so this mirrors BrokerService.configAdminTlsSettings and writes them
+        // onto the underlying configuration.
+        if (pulsarAdminBuilder instanceof PulsarAdminBuilderImpl adminBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData adminConf = adminBuilderImpl.getConf();
+            if (isNotBlank(arguments.jsseProvider)) {
+                adminConf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                adminConf.setJcaProvider(arguments.jcaProvider);
+            }
         }
 
         return pulsarAdminBuilder;

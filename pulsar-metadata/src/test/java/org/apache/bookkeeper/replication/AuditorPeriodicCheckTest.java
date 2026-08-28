@@ -960,7 +960,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
-    private BookieId replaceBookieWithWriteFailingBookie(LedgerHandle lh) throws Exception {
+    private BookieId replaceBookieWithWriteFailingBookie(LedgerHandle lh, CountDownLatch releaseWriteFailures)
+            throws Exception {
         int bookieIdx = -1;
         Long entryId = lh.getLedgerMetadata().getAllEnsembles().firstKey();
         List<BookieId> curEnsemble = lh.getLedgerMetadata().getAllEnsembles().get(entryId);
@@ -985,11 +986,13 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                     throws IOException, BookieException {
                 try {
                     log.info("Failing write to entry ");
-                    // sleep a bit so that writes to other bookies succeed before
-                    // the client hears about the failure on this bookie. If the
-                    // client gets ack-quorum number of acks first, it won't care
-                    // about any failures and won't reform the ensemble.
-                    Thread.sleep(100);
+                    // Hold the failure back until the test has the ack-quorum number of acks from the
+                    // other bookies. The add operation is complete by then, so the client won't care
+                    // about this failure and won't reform the ensemble. Reporting it any earlier makes
+                    // the client replace this bookie, and the ledger never becomes under replicated.
+                    // The wait is bounded so that a stalled test cannot block this bookie thread
+                    // indefinitely; the write is failed either way.
+                    releaseWriteFailures.await(30, TimeUnit.SECONDS);
                     throw new IOException();
                 } catch (InterruptedException ie) {
                     // ignore, only interrupted if shutting down,
@@ -1015,29 +1018,36 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
 
         // kill one of the bookies and replace it with one that rejects write;
         // This way we get into the under replication state
-        BookieId replacedBookie = replaceBookieWithWriteFailingBookie(lh);
+        CountDownLatch releaseWriteFailures = new CountDownLatch(1);
+        BookieId replacedBookie = replaceBookieWithWriteFailingBookie(lh, releaseWriteFailures);
 
-        // Write a few entries; this should cause under replication
+        // Write a few entries; this should cause under replication. Each add completes as soon as the
+        // remaining bookie acknowledges it, since the ack quorum is 1.
         byte[] data = "foobar".getBytes();
-        data = "foobar".getBytes();
         lh.addEntry(data);
         lh.addEntry(data);
         lh.addEntry(data);
+
+        // All the adds are complete now, so letting the writes fail can no longer trigger an ensemble
+        // change: the failures are recorded as delayed write failures, and those are only acted upon
+        // when a subsequent entry is added, which this test doesn't do.
+        releaseWriteFailures.countDown();
 
         lh.close();
+
+        // The closed ledger must still list the write failing bookie in its ensemble. If the client
+        // reformed the ensemble instead, the entries were rewritten to a healthy bookie and the ledger
+        // never becomes under replicated, so the rest of this test would be meaningless.
+        assertTrue("Write failing bookie was replaced in the ensemble",
+                lh.getLedgerMetadata().getAllEnsembles().values().stream()
+                        .anyMatch(ensemble -> ensemble.contains(replacedBookie)));
 
         // enable under replication detection and wait for it to report
         // under replicated ledger
         underReplicationManager.enableLedgerReplication();
-        long underReplicatedLedger = -1;
-        for (int i = 0; i < 5; i++) {
-            underReplicatedLedger = underReplicationManager.pollLedgerToRereplicate();
-            if (underReplicatedLedger != -1) {
-                break;
-            }
-            Thread.sleep(CHECK_INTERVAL * 1000);
-        }
-        assertEquals("Ledger should be under replicated", lh.getId(), underReplicatedLedger);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals("Ledger should be under replicated", lh.getId(),
+                        underReplicationManager.pollLedgerToRereplicate()));
 
         // now start the replication workers
         List<ReplicationWorker> l = new ArrayList<ReplicationWorker>();
