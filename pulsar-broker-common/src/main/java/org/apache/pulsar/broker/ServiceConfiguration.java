@@ -1471,6 +1471,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on a single segment's entry-bucket count (PIP-486). Bounds both the "
+                    + "manual rebucket operation and the controller's auto rebucket-up; a segment's "
+                    + "bucket count caps how many consumers can share it."
+    )
+    private int scalableTopicEntryBucketMaxPerSegment = 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."

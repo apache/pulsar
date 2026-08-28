@@ -181,6 +181,16 @@ public class ScalableTopicService {
     }
 
     /**
+     * Rebucket a segment (delegates to controller). Same leader contract as
+     * {@link #splitSegment(TopicName, long)}.
+     */
+    public CompletableFuture<Void> rebucketSegment(TopicName topic, long segmentId, int bucketCount) {
+        return getOrCreateController(topic)
+                .thenCompose(controller -> controller.rebucketSegment(segmentId, bucketCount))
+                .thenApply(__ -> null);
+    }
+
+    /**
      * Merge two adjacent segments (delegates to controller). Same leader contract as
      * {@link #splitSegment(TopicName, long)}.
      */

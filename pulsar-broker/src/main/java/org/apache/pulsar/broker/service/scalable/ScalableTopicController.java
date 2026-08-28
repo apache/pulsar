@@ -108,6 +108,7 @@ public class ScalableTopicController {
     private volatile long lastSplitAtMs = Long.MIN_VALUE;
     /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
     private volatile long lastMergeAtMs = Long.MIN_VALUE;
+    private volatile long lastRebucketAtMs = Long.MIN_VALUE;
 
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
@@ -712,6 +713,58 @@ public class ScalableTopicController {
               // Step 5: Notify subscriptions of layout change (triggers consumer reassignment)
               return notifySubscriptions(currentLayout);
           }).thenApply(__ -> currentLayout);
+    }
+
+    /**
+     * Rebucket an active segment (PIP-486 rollover): seal it and roll over to a single
+     * <b>same-range</b> successor with {@code newBucketCount} entry-buckets. A segment's
+     * bucketing is immutable for its life, so changing it rides the ordinary seal →
+     * successor flow — producers redirect through the standard segment-gone retry and
+     * per-key order is preserved by the existing machinery.
+     *
+     * <p>Same ordering invariant as split: the successor topic and subscription cursors are
+     * created before the parent is terminated, and the metadata CAS lands last.
+     */
+    public CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount) {
+        checkLeader();
+        int maxBuckets = maxEntryBucketsPerSegment();
+        if (newBucketCount < 1 || newBucketCount > maxBuckets) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    "bucketCount must be in [1, " + maxBuckets + "]: " + newBucketCount));
+        }
+        final long nowMs = clock.millis();
+        final List<Integer> newSplits = EntryBucketSplits.equalWidth(newBucketCount);
+
+        // Compute the new layout locally to derive the successor's info (this also validates:
+        // segment exists, is active, and the splits actually change).
+        SegmentLayout newLayout = currentLayout.rebucketSegment(segmentId, newSplits, nowMs);
+        SegmentInfo successor = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
+        SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
+        String parentTopicName = toSegmentPersistentName(parent);
+
+        return resources.listSubscriptionsAsync(topicName)
+          .thenCompose(parentSubs ->
+                  createSegmentTopic(successor, new java.util.ArrayList<>(parentSubs)))
+          .thenCompose(__ -> terminateSegmentTopic(parentTopicName))
+          .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
+              SegmentLayout latest = SegmentLayout.fromMetadata(md);
+              SegmentLayout updated = latest.rebucketSegment(segmentId, newSplits, nowMs);
+              return updated.toMetadata(md);
+          }))
+          .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the rebucket cooldown only once the rollover actually happened
+              // (a failed attempt doesn't burn the cooldown).
+              lastRebucketAtMs = nowMs;
+              return notifySubscriptions(currentLayout);
+          }).thenApply(__ -> currentLayout);
+    }
+
+    private int maxEntryBucketsPerSegment() {
+        // Defensive: PulsarService.getConfig() is null in some unit-test mocks.
+        var config = brokerService.getPulsar().getConfig();
+        return config != null ? config.getScalableTopicEntryBucketMaxPerSegment() : 1024;
     }
 
     /**

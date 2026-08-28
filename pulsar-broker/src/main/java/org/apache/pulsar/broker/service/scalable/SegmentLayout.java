@@ -240,6 +240,47 @@ public class SegmentLayout {
     }
 
     /**
+     * Produce a new layout by rebucketing a segment: seal it and create a single successor
+     * with the <b>same hash range</b> but a new entry-bucket boundary list (PIP-486 "rebucket
+     * rollover"). A segment's bucketing is immutable for its life, so changing N is a layout
+     * operation: the sealed predecessor drains under its old buckets while the successor takes
+     * new writes under the new ones — the ordinary seal → successor flow, so per-key order
+     * across the change is preserved by the existing machinery.
+     *
+     * @param segmentId the active segment to rebucket
+     * @param newSplits the successor's entry-bucket split points (ascending start hashes of
+     *                  buckets {@code 1..N-1}; empty = a single bucket spanning the ring)
+     * @param nowMs     wall-clock millis used as the parent's seal time and the successor's
+     *                  create time
+     * @return a new SegmentLayout with the rollover applied
+     */
+    public SegmentLayout rebucketSegment(long segmentId, List<Integer> newSplits, long nowMs) {
+        SegmentInfo segment = allSegments.get(segmentId);
+        if (segment == null) {
+            throw new IllegalArgumentException("Segment not found: " + segmentId);
+        }
+        if (!segment.isActive()) {
+            throw new IllegalArgumentException("Cannot rebucket non-active segment: " + segmentId);
+        }
+        if (newSplits.equals(segment.entryBucketSplits())) {
+            throw new IllegalArgumentException(
+                    "Segment " + segmentId + " already has the requested entry-bucket splits");
+        }
+
+        long newEpoch = epoch + 1;
+        long successorId = nextSegmentId;
+        SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(successorId));
+        SegmentInfo successor = SegmentInfo.active(successorId, segment.hashRange(),
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(newSplits);
+
+        Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
+        newSegments.put(segmentId, sealedParent);
+        newSegments.put(successorId, successor);
+
+        return new SegmentLayout(newEpoch, nextSegmentId + 1, newSegments);
+    }
+
+    /**
      * Prune an expired segment from the DAG. The segment must be sealed and have no
      * children that are still in the DAG (i.e., children have already been pruned or
      * the segment is a leaf that was sealed).

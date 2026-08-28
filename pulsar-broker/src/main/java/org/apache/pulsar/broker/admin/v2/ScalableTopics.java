@@ -936,6 +936,50 @@ public class ScalableTopics extends AdminResource {
     }
 
     @POST
+    @Path("/{tenant}/{namespace}/{topic}/rebucket/{segmentId}")
+    @Operation(summary = "Rebucket a segment: roll it over to a same-range successor with a new "
+            + "entry-bucket count.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Segment rebucketed successfully"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
+            @ApiResponse(responseCode = "412",
+                    description = "Segment is not active or the bucket count is invalid"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void rebucketSegment(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID to rebucket", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Entry-bucket count for the successor segment", required = true)
+            @QueryParam("bucketCount") int bucketCount) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.rebucketSegment(tn, segmentId, bucketCount)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("bucketCount", bucketCount)
+                            .attr("topic", tn)
+                            .log("Rebucketed segment of scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("topic", tn)
+                            .exception(ex).log("Failed to rebucket segment");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
     @Path("/{tenant}/{namespace}/{topic}/merge/{segmentId1}/{segmentId2}")
     @Operation(summary = "Merge two adjacent segments into one.")
     @ApiResponses(value = {
