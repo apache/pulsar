@@ -212,6 +212,8 @@ public class ScalableTopicControllerAutoScaleTest {
 
     @Test
     public void testConsumerDrivenSplit() throws Exception {
+        // Zero the split-vs-rebucket floor so the cold test topic exercises the split lane.
+        config.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(0);
         startController(1);
         assertEquals(activeSegmentCount(), 1);
 
@@ -333,7 +335,10 @@ public class ScalableTopicControllerAutoScaleTest {
     public void testConsumerBurstConvergesWithoutTicks() throws Exception {
         // A group of consumers joining in quick succession must converge to one segment
         // each purely from the event-driven evaluations + post-split follow-up chain — no
-        // periodic tick and no manual evaluation calls.
+        // periodic tick and no manual evaluation calls. Zero the split-vs-rebucket floor so
+        // the cold test topic stays in the split lane (this test is about the convergence
+        // chain; the bucket lane has its own coverage).
+        config.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(0);
         startController(1);
         for (int i = 1; i <= 4; i++) {
             controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
