@@ -68,7 +68,11 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
 
     private Tracer tracer;
     private TextMapPropagator propagator;
-    private String topic;
+    /**
+     * Topic returned by the consumer. Used as a fallback when a message has no topic name,
+     * and as the topic key for acknowledgment callbacks that only carry a MessageId.
+     */
+    private String consumerTopic;
     private String subscription;
     private boolean initialized = false;
 
@@ -96,7 +100,19 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         if (messageId instanceof TopicMessageId) {
             return ((TopicMessageId) messageId).getOwnerTopic();
         }
-        return topic != null ? topic : "";
+        return consumerTopic != null ? consumerTopic : "";
+    }
+
+    private String getMessageTopic(Message<T> message) {
+        MessageId messageId = message.getMessageId();
+        if (messageId instanceof TopicMessageId) {
+            return ((TopicMessageId) messageId).getOwnerTopic();
+        }
+        String messageTopic = message.getTopicName();
+        if (messageTopic != null && !messageTopic.isEmpty()) {
+            return messageTopic;
+        }
+        return consumerTopic != null ? consumerTopic : "";
     }
 
     /**
@@ -150,15 +166,16 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         }
 
         try {
-            if (topic == null) {
-                topic = consumer.getTopic();
+            if (consumerTopic == null) {
+                consumerTopic = consumer.getTopic();
             }
             if (subscription == null) {
                 subscription = consumer.getSubscription();
             }
+            String messageTopic = getMessageTopic(message);
 
             // Create a consumer span for this message
-            Span span = TracingContext.createConsumerSpan(tracer, topic, subscription, message, propagator);
+            Span span = TracingContext.createConsumerSpan(tracer, messageTopic, subscription, message, propagator);
 
             if (TracingContext.isValid(span)) {
                 MessageId messageId = message.getMessageId();
@@ -175,7 +192,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(span);
                 }
 
-                log.debug("Created consumer span for message {} on topic {}", messageId, topic);
+                log.debug("Created consumer span for message {} on topic {}", messageId, messageTopic);
             }
         } catch (Exception e) {
             log.error("Error creating consumer span", e);

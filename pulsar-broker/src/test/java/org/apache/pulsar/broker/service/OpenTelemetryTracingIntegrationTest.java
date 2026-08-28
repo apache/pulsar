@@ -363,11 +363,20 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
 
         // Verify spans for both topics
         List<SpanData> spans = spanExporter.getFinishedSpanItems();
-        long consumerSpans = spans.stream()
+        List<SpanData> consumerSpans = spans.stream()
                 .filter(s -> s.getKind() == SpanKind.CONSUMER)
-                .count();
+                .collect(java.util.stream.Collectors.toList());
+        Set<String> consumerSpanTopics = consumerSpans.stream()
+                .map(s -> s.getAttributes().get(
+                        io.opentelemetry.api.common.AttributeKey.stringKey("messaging.destination.name")))
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> consumerSpanNames = consumerSpans.stream()
+                .map(SpanData::getName)
+                .collect(java.util.stream.Collectors.toSet());
 
-        assertEquals(consumerSpans, 2);
+        assertEquals(consumerSpans.size(), 2);
+        assertEquals(consumerSpanTopics, Set.of(topic1, topic2));
+        assertEquals(consumerSpanNames, Set.of("process " + topic1, "process " + topic2));
 
         producer1.close();
         producer2.close();
