@@ -1498,6 +1498,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
+                    + "busiest segment's inbound msg/s is at or above this floor; below it the "
+                    + "controller grows the segment's entry-buckets instead (a low-throughput topic "
+                    + "should not materialize physical segments just for consumer count)."
+    )
+    private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic entry-bucket rollovers (rebuckets) on a "
+                    + "topic. Coalesces consumer-join bursts, like the split cooldown."
+    )
+    private int scalableTopicRebucketCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Minimum time (seconds) between automatic merges on a topic."
     )
     private int scalableTopicMergeCooldownSeconds = 300;

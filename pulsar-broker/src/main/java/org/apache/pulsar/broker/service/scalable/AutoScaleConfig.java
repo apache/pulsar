@@ -46,6 +46,10 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
  * @param mergeWindow       how long a segment must continuously stay below every merge threshold
  *                          before it becomes merge-eligible (measured from the load record's
  *                          metadata-store last-modified time)
+ * @param rebucketCooldown  minimum interval between automatic entry-bucket rollovers
+ * @param splitVsRebucketMinMsgRateIn consumer-driven scale-up splits only at/above this inbound
+ *                          msg/s on the busiest segment; below it, entry-buckets grow instead
+ * @param maxEntryBucketsPerSegment hard ceiling on a single segment's entry-bucket count
  * @param splitMsgRateIn    inbound msg/s above which a segment is split
  * @param splitBytesRateIn  inbound bytes/s above which a segment is split
  * @param splitMsgRateOut   outbound (dispatched) msg/s above which a segment is split
@@ -62,8 +66,11 @@ public record AutoScaleConfig(
         int minSegments,
         int maxDagDepth,
         Duration splitCooldown,
+        Duration rebucketCooldown,
         Duration mergeCooldown,
         Duration mergeWindow,
+        double splitVsRebucketMinMsgRateIn,
+        int maxEntryBucketsPerSegment,
         double splitMsgRateIn,
         double splitBytesRateIn,
         double splitMsgRateOut,
@@ -112,6 +119,10 @@ public record AutoScaleConfig(
                 .minSegments(conf.getScalableTopicMinSegments())
                 .maxDagDepth(conf.getScalableTopicMaxDagDepth())
                 .splitCooldown(Duration.ofSeconds(conf.getScalableTopicSplitCooldownSeconds()))
+                .rebucketCooldown(Duration.ofSeconds(conf.getScalableTopicRebucketCooldownSeconds()))
+                .splitVsRebucketMinMsgRateIn(
+                        conf.getScalableTopicSplitVsRebucketMinMsgRateInThreshold())
+                .maxEntryBucketsPerSegment(conf.getScalableTopicEntryBucketMaxPerSegment())
                 .mergeCooldown(Duration.ofSeconds(conf.getScalableTopicMergeCooldownSeconds()))
                 .mergeWindow(Duration.ofSeconds(conf.getScalableTopicMergeWindowSeconds()))
                 .splitMsgRateIn(conf.getScalableTopicSplitMsgRateInThreshold())
@@ -144,6 +155,12 @@ public record AutoScaleConfig(
         }
         if (o.getSplitCooldownSeconds() != null) {
             b.splitCooldown(Duration.ofSeconds(o.getSplitCooldownSeconds()));
+        }
+        if (o.getRebucketCooldownSeconds() != null) {
+            b.rebucketCooldown(Duration.ofSeconds(o.getRebucketCooldownSeconds()));
+        }
+        if (o.getSplitVsRebucketMinMsgRateInThreshold() != null) {
+            b.splitVsRebucketMinMsgRateIn(o.getSplitVsRebucketMinMsgRateInThreshold());
         }
         if (o.getMergeCooldownSeconds() != null) {
             b.mergeCooldown(Duration.ofSeconds(o.getMergeCooldownSeconds()));

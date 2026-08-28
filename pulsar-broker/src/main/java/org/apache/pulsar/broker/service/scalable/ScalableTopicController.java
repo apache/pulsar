@@ -379,7 +379,7 @@ public class ScalableTopicController {
                                 .thenCombine(collectLoadSamples(), (consumers, load) ->
                                         AutoScalePolicyEvaluator.decide(currentLayout, load,
                                                 consumers, config, clock.millis(),
-                                                lastSplitAtMs, lastMergeAtMs))
+                                                lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
                                 .thenCompose(decision -> dispatch(decision, config, trigger));
                     })
                     .whenComplete((__, ex) -> {
@@ -444,6 +444,19 @@ public class ScalableTopicController {
                     .attr("trigger", trigger).log("Auto split");
             return splitSegment(split.segmentId())
                     .thenApply(__ -> {
+                        scheduleFollowUpEvaluation(config);
+                        return null;
+                    });
+        }
+        if (decision instanceof AutoScaleDecision.Rebucket rebucket) {
+            log.info().attr("segmentId", rebucket.segmentId())
+                    .attr("bucketCount", rebucket.newBucketCount()).attr("reason", rebucket.reason())
+                    .attr("trigger", trigger).log("Auto rebucket");
+            return rebucketSegment(rebucket.segmentId(), rebucket.newBucketCount())
+                    .thenApply(__ -> {
+                        // Like post-split: a consumer burst may need another rollover once the
+                        // cooldown expires (e.g. when the target was clamped by the per-segment
+                        // bucket ceiling); the chain stops at the first NoAction.
                         scheduleFollowUpEvaluation(config);
                         return null;
                     });

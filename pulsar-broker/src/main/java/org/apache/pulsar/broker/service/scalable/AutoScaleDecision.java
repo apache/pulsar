@@ -24,7 +24,8 @@ package org.apache.pulsar.broker.service.scalable;
  * carries a short {@code reason} string used for logging and metrics.
  */
 public sealed interface AutoScaleDecision
-        permits AutoScaleDecision.Split, AutoScaleDecision.Merge, AutoScaleDecision.NoAction {
+        permits AutoScaleDecision.Split, AutoScaleDecision.Merge, AutoScaleDecision.Rebucket,
+                AutoScaleDecision.NoAction {
 
     /** Split {@code segmentId} at its midpoint. */
     record Split(long segmentId, String reason) implements AutoScaleDecision {
@@ -32,6 +33,13 @@ public sealed interface AutoScaleDecision
 
     /** Merge the two adjacent active segments {@code segmentId1} and {@code segmentId2}. */
     record Merge(long segmentId1, long segmentId2, String reason) implements AutoScaleDecision {
+    }
+
+    /**
+     * Roll {@code segmentId} over to a same-range successor with {@code newBucketCount}
+     * entry-buckets (PIP-486): consumer scale-up served by buckets instead of a split.
+     */
+    record Rebucket(long segmentId, int newBucketCount, String reason) implements AutoScaleDecision {
     }
 
     /** No action this evaluation. */
