@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -33,17 +34,24 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -63,11 +71,14 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlight
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ProducerSendCallback;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.ReasonOfWaitForCursorRewinding;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
@@ -154,6 +165,10 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false)
                     .join().get();
             ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+            // errorOrNot blocks on failRead, so run it on a dedicated single-threaded executor instead of the
+            // calling read thread; otherwise the blocked read thread would stall replicator.terminate().
+            @Cleanup("shutdownNow")
+            ExecutorService readFailExecutor = Executors.newSingleThreadExecutor();
             ManagedLedgerTest.makeReadEntryProbFail(ml, () -> {
                 readStarted.countDown();
                 try {
@@ -165,7 +180,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
                     return new ManagedLedgerException(e);
                 }
                 return new ManagedLedgerException.TooManyRequestsException("mocked read failure");
-            });
+            }, readFailExecutor);
 
             pulsar1.getConfig().setReplicationStartAt("earliest");
             admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
@@ -216,6 +231,336 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         } finally {
             inFlightTasks.clear();
             inFlightTasks.addAll(originalTasks);
+        }
+    }
+
+    /**
+     * Reproduces a geo-replication stall on the cursor-rewind path.
+     *
+     * <p>When a cursor rewind happens while a cursor read has already been dispatched to bookies,
+     * {@code cursor.cancelPendingReadRequest()} returns {@code false} (there is no registered waiting
+     * read op to cancel), so {@code cancelPendingReadTasks()} only flags the in-flight task with
+     * {@code skipReadResultDueToCursorRewind=true} without completing it. When that dispatched read
+     * later completes, {@link PersistentReplicator#readEntriesComplete} hits the skip branch and must
+     * still complete the task; otherwise the task stays {@code entries == null} forever,
+     * {@link PersistentReplicator#hasPendingRead()} stays {@code true}, all permits remain occupied,
+     * and reads never resume — replication stalls with backlog.
+     */
+    @Test
+    public void testCursorRewindSkippedReadCompletesInFlightTask() throws Exception {
+        PersistentReplicator replicator = spy(getReplicator(topicName));
+        // Isolate the unit: don't issue a real cursor read, only verify reads are resumed.
+        doNothing().when(replicator).readMoreEntries();
+
+        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
+        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
+        inFlightTasks.clear();
+
+        try {
+            int fullPermits = replicator.getPermitsIfNoPendingRead();
+            assertTrue(fullPermits > 0, "precondition: replicator should have free permits");
+
+            // A pending cursor read (entries == null) flagged to be skipped because of a cursor rewind
+            // whose pending read could not be cancelled (cancelPendingReadRequest() returned false).
+            InFlightTask task =
+                    new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
+            task.setSkipReadResultDueToCursorRewind(true);
+            inFlightTasks.add(task);
+
+            // Precondition: the uncompleted task blocks all reads.
+            assertTrue(replicator.hasPendingRead(), "precondition: task must look like a pending read");
+            assertEquals(replicator.getPermitsIfNoPendingRead(), 0,
+                    "precondition: pending read must occupy all permits");
+
+            // The dispatched read finally completes; its result is discarded because of the rewind.
+            replicator.readEntriesComplete(Collections.singletonList(mock(Entry.class)), task);
+
+            // The task must be completed so it no longer blocks replication.
+            assertTrue(task.isDone(), "skipped read must complete the in-flight task");
+            assertFalse(replicator.hasPendingRead(),
+                    "replication must not stay stuck on an uncompleted pending read");
+            assertEquals(replicator.getPermitsIfNoPendingRead(), fullPermits,
+                    "permits must be released after the skipped read completes");
+            // Reads must be resumed once the slot is freed (dispatched on the broker executor to
+            // avoid recursing in the read-completion thread).
+            Awaitility.await().untilAsserted(() -> verify(replicator, atLeastOnce()).readMoreEntries());
+        } finally {
+            inFlightTasks.clear();
+            inFlightTasks.addAll(originalTasks);
+        }
+    }
+
+    /**
+     * End-to-end reproduction of the cursor-rewind stall over a real two-cluster replication setup.
+     *
+     * <p>A real cursor read is held in flight (entries == null) while the cursor is rewound the same way
+     * {@link ProducerSendCallback#sendComplete} does on a failed publish to the remote cluster:
+     * {@code beforeTerminateOrCursorRewinding(Failed_Publishing)} followed by {@code doRewindCursor(false)}.
+     * Because the read was already dispatched, {@code cursor.cancelPendingReadRequest()} returns false, so
+     * {@code cancelPendingReadTasks()} only flags the task and does not complete it. When the dispatched
+     * read then completes through the skip branch, the task must still be completed and reads resumed —
+     * otherwise the replicator stalls and the backlog is never delivered to the remote cluster.
+     *
+     * <p>Before the fix this test times out: the task stays {@code entries == null}, {@code hasPendingRead()}
+     * stays true, and the backlog never drains.
+     */
+    @Test
+    public void testReplicationRecoversAfterPublishFailureRewindWithInflightRead() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final int messageCount = 5;
+        final CountDownLatch readBlocked = new CountDownLatch(1);
+        final CountDownLatch releaseRead = new CountDownLatch(1);
+        final AtomicBoolean blockNextRead = new AtomicBoolean(true);
+        Producer<String> producer = null;
+        Consumer<String> remoteConsumer = null;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            admin2.topics().createNonPartitionedTopic(topicName);
+            // Create the verifier subscription on the remote topic up front so replicated messages are
+            // retained for the end-to-end assertion regardless of retention policy.
+            admin2.topics().createSubscription(topicName, "e2e-verify", MessageId.earliest);
+
+            // Produce a backlog before replication starts so the replicator must read it from the ledger.
+            producer = client1.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+            for (int i = 0; i < messageCount; i++) {
+                producer.send("msg-" + i);
+            }
+
+            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false)
+                    .join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+            // Clear the entry cache and intercept ledger reads: block the first read so it stays in flight
+            // (the in-flight task keeps entries == null), then let it and all later reads succeed.
+            // errorOrNot blocks the first read on releaseRead, so run it on a dedicated single-threaded executor
+            // instead of the calling read thread.
+            @Cleanup("shutdownNow")
+            ExecutorService readFailExecutor = Executors.newSingleThreadExecutor();
+            ManagedLedgerTest.makeReadEntryProbFail(ml, () -> {
+                if (blockNextRead.compareAndSet(true, false)) {
+                    readBlocked.countDown();
+                    try {
+                        releaseRead.await(30, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                // Never fail the read; it must complete successfully to reach the skip branch.
+                return null;
+            }, readFailExecutor);
+
+            // Start replication from earliest; the first read blocks inside the ledger read (in flight).
+            pulsar1.getConfig().setReplicationStartAt("earliest");
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+            assertTrue(readBlocked.await(30, TimeUnit.SECONDS), "the replicator's cursor read should start");
+
+            PersistentReplicator replicator = (PersistentReplicator) topic.getReplicators().get(cluster2);
+            Assert.assertNotNull(replicator, "Replicator should not be null");
+            // The dispatched read is in flight and occupies the only read slot.
+            assertTrue(replicator.hasPendingRead());
+
+            // Rewind the cursor exactly as a failed publish to the remote cluster does. The in-flight read
+            // was already dispatched, so cancelPendingReadRequest() returns false and the task is only
+            // flagged for skipping (not completed).
+            replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
+            replicator.doRewindCursor(false);
+
+            // The in-flight read now completes successfully and is discarded by the skip branch.
+            releaseRead.countDown();
+
+            // Recovery: the freed slot lets reading resume, so the whole backlog is replicated and the
+            // cursor mark-delete advances, draining the backlog to 0. Before the fix the leaked task keeps
+            // getPermitsIfNoPendingRead() == 0, so no read is ever issued and the backlog stays at
+            // messageCount (this await times out). Note: hasPendingRead() is intentionally NOT used as the
+            // recovery signal because a healthy idle replicator also holds a pending "wait for new entries"
+            // read, so it stays true even after a successful recovery.
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(replicator.getNumberOfEntriesInBacklog(), 0,
+                            "replication backlog must drain after recovery"));
+
+            // End-to-end: verify every produced message is delivered to the remote cluster, with no loss
+            // and (in this single-batch scenario, where the discarded read sent nothing) no duplicates.
+            remoteConsumer = client2.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName("e2e-verify")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            List<String> deliveredValues = new ArrayList<>();
+            for (int i = 0; i < messageCount; i++) {
+                Message<String> received = remoteConsumer.receive(30, TimeUnit.SECONDS);
+                Assert.assertNotNull(received, "remote cluster should receive replicated message " + i);
+                deliveredValues.add(received.getValue());
+                remoteConsumer.acknowledge(received);
+            }
+            // No duplicate/extra messages were replicated on the rewind/recovery path.
+            Assert.assertNull(remoteConsumer.receive(3, TimeUnit.SECONDS),
+                    "no duplicate messages should be replicated after recovery");
+            Set<String> expectedValues = new HashSet<>();
+            for (int i = 0; i < messageCount; i++) {
+                expectedValues.add("msg-" + i);
+            }
+            assertEquals(new HashSet<>(deliveredValues), expectedValues,
+                    "every produced message must be replicated exactly once (no loss)");
+        } finally {
+            releaseRead.countDown();
+            if (producer != null) {
+                producer.close();
+            }
+            if (remoteConsumer != null) {
+                remoteConsumer.close();
+            }
+            admin1.topics().delete(topicName, true);
+            admin2.topics().delete(topicName, true);
+        }
+    }
+
+    /**
+     * End-to-end reproduction of the cursor-rewind stall on the schema-fetch path.
+     *
+     * <p>{@link GeoPersistentReplicator#replicateEntries} rewinds the cursor when it reaches a message
+     * whose schema is not yet available locally: it calls
+     * {@code beforeTerminateOrCursorRewinding(Fetching_Schema)} synchronously and, once the schema has
+     * been fetched, {@code doRewindCursor(true)} (which rewinds the cursor and resumes reads). If a
+     * cursor read was already dispatched when the schema-fetch rewind happens,
+     * {@code cursor.cancelPendingReadRequest()} returns false, so the in-flight task is only flagged
+     * for skipping and is not completed. When that dispatched read later completes through the
+     * {@link PersistentReplicator#readEntriesComplete} skip branch it must still be completed and reads
+     * resumed; otherwise the task stays {@code entries == null}, {@link
+     * PersistentReplicator#hasPendingRead()} stays true, all permits remain occupied and replication
+     * stalls with backlog. This is the same root cause as
+     * {@link #testReplicationRecoversAfterPublishFailureRewindWithInflightRead}, reached through the
+     * {@code Fetching_Schema} rewind reason (with {@code doRewindCursor(true)}) instead of
+     * {@code Failed_Publishing}; it is the stall observed as the flaky
+     * {@code ReplicatorTest.testReplicationWithSchema}.
+     *
+     * <p>The schema-fetch rewind is driven directly (rather than by crossing a real schema boundary)
+     * because the bug requires a cursor read to be in flight at the exact moment the rewind runs. On
+     * the natural path that needs a read to be pipelined — dispatched by an earlier message's
+     * {@code sendComplete} — concurrently with {@code replicateEntries} reaching the schema boundary,
+     * an inherently racy interleaving that cannot be reproduced deterministically (which is why
+     * {@code testReplicationWithSchema} only fails intermittently). This test issues the same two
+     * rewind calls ({@code beforeTerminateOrCursorRewinding(Fetching_Schema)} then
+     * {@code doRewindCursor(true)}) that {@code GeoPersistentReplicator.replicateEntries} issues at a
+     * schema boundary; in production they are separated by the asynchronous schema fetch and the
+     * stranded read is a separately-pipelined one, so this test collapses that timing into a
+     * deterministic sequence on a single held-in-flight read. It therefore guards the
+     * {@code readEntriesComplete} skip-branch recovery for the {@code Fetching_Schema} rewind, not the
+     * schema-detection wiring in {@code replicateEntries} itself.
+     *
+     * <p>Before the fix this test times out: the task stays {@code entries == null} and the backlog
+     * never drains.
+     */
+    @Test
+    public void testReplicationRecoversAfterSchemaFetchRewindWithInflightRead() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final int messageCount = 5;
+        final CountDownLatch readBlocked = new CountDownLatch(1);
+        final CountDownLatch releaseRead = new CountDownLatch(1);
+        final AtomicBoolean blockNextRead = new AtomicBoolean(true);
+        // Capture and restore the shared per-class broker config so this method does not leak
+        // "earliest" into sibling tests that rely on the default replicationStartAt.
+        final String prevReplicationStartAt = pulsar1.getConfig().getReplicationStartAt();
+        Producer<String> producer = null;
+        Consumer<String> remoteConsumer = null;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            admin2.topics().createNonPartitionedTopic(topicName);
+            // Create the verifier subscription on the remote topic up front so replicated messages are
+            // retained for the end-to-end assertion regardless of retention policy.
+            admin2.topics().createSubscription(topicName, "e2e-verify", MessageId.earliest);
+
+            // Produce a backlog before replication starts so the replicator must read it from the ledger.
+            producer = client1.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+            for (int i = 0; i < messageCount; i++) {
+                producer.send("msg-" + i);
+            }
+
+            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false)
+                    .join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+            // Clear the entry cache and intercept ledger reads: block the first read so it stays in flight
+            // (the in-flight task keeps entries == null), then let it and all later reads succeed.
+            // errorOrNot blocks the first read on releaseRead, so run it on a dedicated single-threaded executor
+            // instead of the calling read thread.
+            @Cleanup("shutdownNow")
+            ExecutorService readFailExecutor = Executors.newSingleThreadExecutor();
+            ManagedLedgerTest.makeReadEntryProbFail(ml, () -> {
+                if (blockNextRead.compareAndSet(true, false)) {
+                    readBlocked.countDown();
+                    try {
+                        releaseRead.await(30, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                // Never fail the read; it must complete successfully to reach the skip branch.
+                return null;
+            }, readFailExecutor);
+
+            // Start replication from earliest; the first read blocks inside the ledger read (in flight).
+            pulsar1.getConfig().setReplicationStartAt("earliest");
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+            assertTrue(readBlocked.await(30, TimeUnit.SECONDS), "the replicator's cursor read should start");
+
+            PersistentReplicator replicator = (PersistentReplicator) topic.getReplicators().get(cluster2);
+            Assert.assertNotNull(replicator, "Replicator should not be null");
+            // The dispatched read is in flight and occupies the only read slot.
+            assertTrue(replicator.hasPendingRead());
+
+            // Rewind the cursor with the same two calls GeoPersistentReplicator.replicateEntries issues
+            // when it reaches a message whose schema must be fetched from the local cluster: flag the
+            // in-flight read for skipping (beforeTerminateOrCursorRewinding(Fetching_Schema)), then, once
+            // the schema has been fetched, rewind and resume reads (doRewindCursor(true)). The in-flight
+            // read was already dispatched, so cancelPendingReadRequest() returns false and the task is only
+            // flagged, not completed. doRewindCursor(true)'s readMoreEntries() is a no-op here because the
+            // still-pending (skip-flagged) read keeps hasPendingRead() true.
+            replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Fetching_Schema);
+            replicator.doRewindCursor(true);
+
+            // The in-flight read now completes successfully and is discarded by the skip branch.
+            releaseRead.countDown();
+
+            // Recovery: the freed slot lets reading resume, so the whole backlog is replicated and the
+            // cursor mark-delete advances, draining the backlog to 0. Before the fix the leaked task keeps
+            // getPermitsIfNoPendingRead() == 0, so no read is ever issued and the backlog stays at
+            // messageCount (this await times out). Note: hasPendingRead() is intentionally NOT used as the
+            // recovery signal because a healthy idle replicator also holds a pending "wait for new entries"
+            // read, so it stays true even after a successful recovery.
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(replicator.getNumberOfEntriesInBacklog(), 0,
+                            "replication backlog must drain after recovery"));
+
+            // End-to-end: verify every produced message is delivered to the remote cluster, with no loss
+            // and (in this single-batch scenario, where the discarded read sent nothing) no duplicates.
+            remoteConsumer = client2.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName("e2e-verify")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            List<String> deliveredValues = new ArrayList<>();
+            for (int i = 0; i < messageCount; i++) {
+                Message<String> received = remoteConsumer.receive(30, TimeUnit.SECONDS);
+                Assert.assertNotNull(received, "remote cluster should receive replicated message " + i);
+                deliveredValues.add(received.getValue());
+                remoteConsumer.acknowledge(received);
+            }
+            // No duplicate/extra messages were replicated on the rewind/recovery path.
+            Assert.assertNull(remoteConsumer.receive(3, TimeUnit.SECONDS),
+                    "no duplicate messages should be replicated after recovery");
+            Set<String> expectedValues = new HashSet<>();
+            for (int i = 0; i < messageCount; i++) {
+                expectedValues.add("msg-" + i);
+            }
+            assertEquals(new HashSet<>(deliveredValues), expectedValues,
+                    "every produced message must be replicated exactly once (no loss)");
+        } finally {
+            releaseRead.countDown();
+            pulsar1.getConfig().setReplicationStartAt(prevReplicationStartAt);
+            if (producer != null) {
+                producer.close();
+            }
+            if (remoteConsumer != null) {
+                remoteConsumer.close();
+            }
+            admin1.topics().delete(topicName, true);
+            admin2.topics().delete(topicName, true);
         }
     }
 

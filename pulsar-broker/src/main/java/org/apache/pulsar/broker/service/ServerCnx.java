@@ -1233,10 +1233,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 topicExistsInfo.recycle();
                             }).exceptionally(ex -> {
                                 lookupSemaphore.release();
-                                log.error()
-                                        .attr("topic", topicName)
-                                        .exception(ex)
-                                        .log("Failed to get partition metadata");
+                                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                                if (actEx instanceof WebApplicationException restException
+                                        && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+                                    log.warn()
+                                            .attr("topic", topicName)
+                                            .exceptionMessage(actEx)
+                                            .log("Failed to get partition metadata for nonexistent resource");
+                                } else {
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .exception(ex)
+                                            .log("Failed to get partition metadata");
+                                }
                                 writeAndFlush(
                                         Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                                                 "Failed to get partition metadata",
@@ -3165,13 +3174,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }, null);
 
             CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-                MessageMetadata metadata = entry.getMessageMetadata();
-                if (metadata == null) {
-                    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                try {
+                    MessageMetadata metadata = entry.getMessageMetadata();
+                    if (metadata == null) {
+                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    }
+                    int batchSize = metadata.getNumMessagesInBatch();
+                    return metadata.hasNumMessagesInBatch() ? batchSize : -1;
+                } finally {
+                    entry.release();
                 }
-                int batchSize = metadata.getNumMessagesInBatch();
-                entry.release();
-                return metadata.hasNumMessagesInBatch() ? batchSize : -1;
             });
 
             batchSizeFuture.whenComplete((batchSize, e) -> {

@@ -29,7 +29,7 @@ tasks.named("jar") { enabled = false }
 val pulsarVersion = project.version.toString()
 
 // Resolvable configuration for offloader NAR artifacts
-val offloaderNars by configurations.creating {
+val offloaderNars = configurations.create("offloaderNars") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
@@ -43,7 +43,7 @@ dependencies {
     offloaderNars(project(":tiered-storage:tiered-storage-file-system"))
 }
 
-val offloaderDistTar by tasks.registering(Tar::class) {
+val offloaderDistTar = tasks.register<Tar>("offloaderDistTar") {
     val baseDir = "apache-pulsar-offloaders-${pulsarVersion}"
 
     archiveBaseName.set("apache-pulsar-offloaders")
@@ -67,7 +67,7 @@ val offloaderDistTar by tasks.registering(Tar::class) {
 }
 
 // Consumable configuration exposing the offloader distribution tarball
-val offloaderDistElements by configurations.creating {
+val offloaderDistElements = configurations.create("offloaderDistElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {

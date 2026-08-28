@@ -876,6 +876,13 @@ public class PersistentTopicTest extends BrokerTestBase {
             public void onUpdate(TopicPolicies policies) {
                 receivedUpdates.add(policies);
             }
+
+            // initTopicPolicy() moved to AbstractTopic (a different package), so widen it to public here to keep
+            // this same-package test able to invoke it directly.
+            @Override
+            public CompletableFuture<Void> initTopicPolicy() {
+                return super.initTopicPolicy();
+            }
         }
 
         final String topic = "persistent://prop/ns-abc/testTopicPolicyInitFailure-" + UUID.randomUUID();

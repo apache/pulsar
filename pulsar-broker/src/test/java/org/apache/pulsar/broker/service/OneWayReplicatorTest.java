@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -937,7 +938,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             }
             return new ManagedLedgerException.TooManyRequestsException("mocked error");
         };
-        ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot);
+        // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
+        ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
 
         // Verify: the replication will finish even though received ManagedLedgerException.TooManyRequestsException.
         pulsar1.getConfig().setReplicationStartAt("earliest");

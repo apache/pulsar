@@ -99,7 +99,7 @@ public class ScalableTopicControllerTest {
 
         // Seed the topic's initial metadata so initialize() has something to load.
         ScalableTopicMetadata metadata =
-                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, Map.of());
+                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, 4, Map.of());
         resources.createScalableTopicAsync(topicName, metadata).get();
 
         // --- Mock the BrokerService / PulsarService / PulsarAdmin chain ---
@@ -478,7 +478,7 @@ public class ScalableTopicControllerTest {
 
     @Test
     public void testCreateInitialMetadataDefaults() {
-        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         assertEquals(md.getEpoch(), 0);
         assertEquals(md.getNextSegmentId(), 4);
         assertEquals(md.getSegments().size(), 4);
@@ -487,7 +487,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testCreateInitialMetadataRejectsZeroSegments() {
         assertThrows(IllegalArgumentException.class,
-                () -> ScalableTopicController.createInitialMetadata(0, Map.of()));
+                () -> ScalableTopicController.createInitialMetadata(0, 4, Map.of()));
     }
 
     // --- close / lifecycle ---
@@ -827,7 +827,7 @@ public class ScalableTopicControllerTest {
         // 3-partition source → 3 sealed legacy parents (ids 0..2, full range, wrapping
         // each -partition-K) + 3 active range-based children (ids 3..5, full fan-in).
         TopicName base = TopicName.get("persistent://tenant/ns/my-topic");
-        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3);
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3, 4);
 
         assertEquals(md.getEpoch(), 0L);
         assertEquals(md.getNextSegmentId(), 6L);
@@ -869,7 +869,7 @@ public class ScalableTopicControllerTest {
         // Non-partitioned source (partitions <= 0) → 1 sealed legacy parent wrapping the
         // base persistent:// topic + 1 active child covering the full range.
         TopicName base = TopicName.get("persistent://tenant/ns/np-topic");
-        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0);
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0, 4);
 
         assertEquals(md.getNextSegmentId(), 2L);
         assertEquals(md.getSegments().size(), 2);

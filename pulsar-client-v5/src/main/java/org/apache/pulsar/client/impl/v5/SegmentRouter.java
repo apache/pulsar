@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.ScalableTopicHashing;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
@@ -118,18 +119,18 @@ final class SegmentRouter {
      * clears bit 31, which would confine the high half to {@code [0, 0x7FFF]}.
      */
     static int murmur(byte[] keyBytes) {
-        return Murmur3_32Hash.makeRawHash(keyBytes);
+        return ScalableTopicHashing.murmur(keyBytes);
     }
 
     /** The 16-bit segment-routing hash (high 16 bits) from a precomputed {@link #murmur(byte[])}. */
     static int segmentHash(int murmur) {
-        return (murmur >>> 16) & HashRange.MAX_HASH;
+        return ScalableTopicHashing.segmentHash(murmur);
     }
 
     /** The 16-bit entry-bucket hash (low 16 bits) from a precomputed {@link #murmur(byte[])} (PIP-486).
      *  Independent of the segment-routing hash, so a segment's keys spread evenly across its buckets. */
     static int entryBucketHash(int murmur) {
-        return murmur & HashRange.MAX_HASH;
+        return ScalableTopicHashing.entryBucketHash(murmur);
     }
 
     /** Convenience: the segment-routing hash for a key. Equivalent to {@code segmentHash(murmur(key))}. */
@@ -153,11 +154,17 @@ final class SegmentRouter {
      * {@code segmentTopicName} otherwise.
      */
     record ActiveSegment(long segmentId, HashRange hashRange, String segmentTopicName,
-                         String legacyTopicName, List<Integer> entryBucketSplits) {
+                         String legacyTopicName, List<Integer> entryBucketSplits,
+                         List<HashRange> ownedBucketRanges) {
 
         ActiveSegment {
-            // PIP-486: entry-bucket split points (empty = single bucket over the whole ring).
+            // PIP-486: entry-bucket split points (empty = single bucket over the whole ring). Used by
+            // the producer to bucket its batches.
             entryBucketSplits = entryBucketSplits != null ? List.copyOf(entryBucketSplits) : List.of();
+            // PIP-486: the entry-bucket hash ranges this consumer owns within the segment (from the
+            // controller assignment). Empty = the whole segment (subscribe Shared); non-empty = subscribe
+            // Key_Shared STICKY declaring exactly these ranges. Unused on the producer side.
+            ownedBucketRanges = ownedBucketRanges != null ? List.copyOf(ownedBucketRanges) : List.of();
         }
 
         /** Number of entry-buckets this segment is divided into ({@code entryBucketSplits.size()+1}). */

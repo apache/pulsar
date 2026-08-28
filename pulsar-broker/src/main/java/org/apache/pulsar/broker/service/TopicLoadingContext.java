@@ -21,19 +21,37 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.LatencyTracer;
 import org.jspecify.annotations.Nullable;
 
-@RequiredArgsConstructor
-public class TopicLoadingContext {
+public class TopicLoadingContext extends LatencyTracer {
 
-    private static final String EXAMPLE_LATENCY_OUTPUTS = "1234 ms (queued: 567)";
+    public enum TopicLoadingStage {
+        NAMESPACE_POLICIES("namespace policies", TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES),
+        TOPIC_POLICIES("topic policies", TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES),
+        OPEN_ML("open-ml", TopicLoadFailureReason.TIMEOUT_LOAD_ML),
+        INITIALIZE("init", TopicLoadFailureReason.TIMEOUT_INIT),
+        PRE_CREATE_COMPACTED_SUB("pre-create compacted sub", TopicLoadFailureReason.TIMEOUT_INIT),
+        REPLICATION("replication", TopicLoadFailureReason.TIMEOUT_INIT),
+        DEDUPLICATION("deduplication", TopicLoadFailureReason.TIMEOUT_DEDUP);
 
-    private final long startNs = System.nanoTime();
+        private final String tracePoint;
+        private final TopicLoadFailureReason timeoutReason;
+
+        TopicLoadingStage(String tracePoint, TopicLoadFailureReason timeoutReason) {
+            this.tracePoint = tracePoint;
+            this.timeoutReason = timeoutReason;
+        }
+    }
+
     @Getter
     private final TopicName topicName;
     @Getter
@@ -43,23 +61,56 @@ public class TopicLoadingContext {
     @Getter
     @Setter
     @Nullable private Map<String, String> properties;
-    private long polledFromQueueNs = -1L;
+    private final AtomicReference<TopicLoadFailureReason> failureReason = new AtomicReference<>();
+    private final ConcurrentHashMap<TopicLoadingStage, AtomicInteger> pendingStages = new ConcurrentHashMap<>();
 
-    public void polledFromQueue() {
-        polledFromQueueNs = System.nanoTime();
+    public TopicLoadingContext(TopicName topicName, boolean createIfMissing,
+                               CompletableFuture<Optional<Topic>> topicFuture) {
+        // The topic loading could be ended asynchronously by a timeout event, so we need a thread safe queue here
+        super(new ConcurrentLinkedQueue<>(), System::nanoTime);
+        this.topicName = topicName;
+        this.createIfMissing = createIfMissing;
+        this.topicFuture = topicFuture;
     }
 
-    public long latencyMs(long nowInNanos) {
-        return TimeUnit.NANOSECONDS.toMillis(nowInNanos - startNs);
-    }
-
-    public String latencyString(long nowInNanos) {
-        final var builder = new StringBuilder(EXAMPLE_LATENCY_OUTPUTS.length());
-        builder.append(latencyMs(nowInNanos));
-        builder.append(" ms");
-        if (polledFromQueueNs >= 0) {
-            builder.append(" (queued: ").append(latencyMs(polledFromQueueNs)).append(")");
+    public <T> CompletableFuture<T> trace(TopicLoadingStage stage, CompletableFuture<T> future) {
+        if (future.isDone()) {
+            return future;
         }
-        return builder.toString();
+        start(stage);
+        return future.whenComplete((__, ___) -> {
+            finish(stage);
+        });
+    }
+
+    public void start(TopicLoadingStage stage) {
+        pendingStages.computeIfAbsent(stage, __ -> new AtomicInteger()).incrementAndGet();
+    }
+
+    public void finish(TopicLoadingStage stage) {
+        pendingStages.computeIfPresent(stage, (__, count) -> count.decrementAndGet() == 0 ? null : count);
+        trace(stage.tracePoint);
+    }
+
+    public void setTopicLoadFailureReason(TopicLoadFailureReason reason) {
+        failureReason.compareAndSet(null, reason);
+    }
+
+    public TopicLoadFailureReason getTopicLoadFailureReason() {
+        return failureReason.get();
+    }
+
+    public TopicLoadFailureReason getTopicLoadTimeoutReason() {
+        boolean namespacePoliciesPending = pendingStages.containsKey(TopicLoadingStage.NAMESPACE_POLICIES);
+        boolean topicPoliciesPending = pendingStages.containsKey(TopicLoadingStage.TOPIC_POLICIES);
+        if (namespacePoliciesPending != topicPoliciesPending) {
+            return namespacePoliciesPending
+                    ? TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES
+                    : TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
+        }
+        if (pendingStages.size() != 1) {
+            return TopicLoadFailureReason.TIMEOUT;
+        }
+        return pendingStages.keySet().iterator().next().timeoutReason;
     }
 }

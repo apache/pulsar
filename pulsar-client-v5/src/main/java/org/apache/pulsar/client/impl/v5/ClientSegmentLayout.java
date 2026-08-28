@@ -87,8 +87,10 @@ final class ClientSegmentLayout {
             for (int j = 0; j < seg.getEntryBucketSplitsCount(); j++) {
                 bucketSplits.add(seg.getEntryBucketSplitAt(j));
             }
+            // The DAG topology carries the segment's split points (for producer bucketing); the
+            // consumer's owned bucket ranges come from the assignment, not the topology.
             ActiveSegment ref = new ActiveSegment(seg.getSegmentId(), range, segTopicName, legacy,
-                    bucketSplits);
+                    bucketSplits, List.of());
             if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.ACTIVE) {
                 activeSegments.add(ref);
             } else if (seg.getState() == org.apache.pulsar.common.api.proto.SegmentState.SEALED) {
