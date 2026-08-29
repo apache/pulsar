@@ -136,16 +136,18 @@ public class AvgShedderTest {
         assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
                 plannedBundleData, loadData, conf), Optional.of("broker2"));
         avgShedder.onActiveBrokersChange(Set.of("broker1", "broker3"));
-        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker3"), plannedBundle,
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker1", "broker3"), plannedBundle,
                 plannedBundleData, loadData, conf), Optional.of("broker3"));
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker1"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.empty());
         assertTrue(avgShedder.hasPendingDestination(plannedBundle));
         assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
                 plannedBundleData, loadData, conf), Optional.of("broker2"));
 
-        // If the planned destination becomes overloaded, select only from healthy alternatives. An overloaded source
-        // is not eligible, and the original plan is retained when no healthy alternative remains.
+        // If the planned destination becomes overloaded, select only from healthy alternatives. The shedding source
+        // is not eligible even below the overload threshold, and the plan is retained when no alternative remains.
         conf.setLoadBalancerBrokerOverloadedThresholdPercentage(85);
-        brokerData1.getLocalData().setCpu(new ResourceUsage(90, 100));
+        brokerData1.getLocalData().setCpu(new ResourceUsage(80, 100));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         brokerData3.getLocalData().setCpu(new ResourceUsage(50, 100));
         assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker1", "broker2", "broker3"), plannedBundle,

@@ -52,8 +52,8 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 @CustomLog
 public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrategy {
-    // Pending destinations produced by the current load-shedding attempt, keyed by stable bundle name.
-    private final ConcurrentMap<String, String> pendingBundleToBroker = new ConcurrentHashMap<>();
+    // Pending unloads produced by the current load-shedding attempt, keyed by stable bundle name.
+    private final ConcurrentMap<String, PendingUnload> pendingBundleToUnload = new ConcurrentHashMap<>();
     // map broker to Scores. scores:0-100
     private final Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
@@ -63,8 +63,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
-        // Start a fresh destination plan for this load-shedding attempt.
-        pendingBundleToBroker.clear();
+        // Start a fresh unload plan for this load-shedding attempt.
+        pendingBundleToUnload.clear();
         // result returned by shedding, map broker to bundles.
         Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
@@ -199,7 +199,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             double traffic = e.getRight();
             if (traffic > 0 && traffic <= trafficMarkedToOffload.doubleValue()) {
                 selectedBundlesCache.put(overloadedBroker, bundle.getKey());
-                pendingBundleToBroker.put(bundle.getKey(), underloadedBroker);
+                pendingBundleToUnload.put(bundle.getKey(), new PendingUnload(overloadedBroker, underloadedBroker));
                 trafficMarkedToOffload.add(-traffic);
                 log.debug().attr("bundle", bundle).attr("isMsgRateToOffload", isMsgRateToOffload)
                         .attr("traffic", traffic)
@@ -216,12 +216,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public void onUnloadAttemptCompleted() {
-        pendingBundleToBroker.clear();
+        pendingBundleToUnload.clear();
     }
 
     @VisibleForTesting
     boolean hasPendingDestination(String bundle) {
-        return pendingBundleToBroker.containsKey(bundle);
+        return pendingBundleToUnload.containsKey(bundle);
     }
 
     private List<String> calculateScoresAndSort(LoadData loadData, ServiceConfiguration conf) {
@@ -309,21 +309,25 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private Optional<String> selectBrokerWithBundleName(Set<String> candidates, String bundle,
                                                          BundleData bundleToAssign, LoadData loadData,
                                                          ServiceConfiguration conf) {
-        final var pendingBroker = pendingBundleToBroker.get(bundle);
-        if (pendingBroker == null) {
+        final var pendingUnload = pendingBundleToUnload.get(bundle);
+        if (pendingUnload == null) {
             return selectBroker(candidates, bundleToAssign, loadData, conf);
         }
+        final String sourceBroker = pendingUnload.sourceBroker();
+        final String pendingBroker = pendingUnload.destinationBroker();
         if (!candidates.contains(pendingBroker)) {
             log.debug().attr("broker", pendingBroker).attr("bundle", bundle).attr("candidates", candidates)
                     .log("Planned load-shedding destination is unavailable");
-            return selectBroker(candidates, bundleToAssign, loadData, conf);
+            Set<String> alternativeCandidates = new HashSet<>(candidates);
+            alternativeCandidates.remove(sourceBroker);
+            return selectBroker(alternativeCandidates, bundleToAssign, loadData, conf);
         }
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage();
         final Optional<Double> pendingBrokerScore = getBrokerScore(pendingBroker, loadData, conf);
         if (pendingBrokerScore.isPresent() && pendingBrokerScore.get() > overloadThreshold) {
             Set<String> healthyCandidates = new HashSet<>();
             for (String candidate : candidates) {
-                if (!candidate.equals(pendingBroker)
+                if (!candidate.equals(pendingBroker) && !candidate.equals(sourceBroker)
                         && getBrokerScore(candidate, loadData, conf)
                                 .filter(score -> score <= overloadThreshold).isPresent()) {
                     healthyCandidates.add(candidate);
@@ -366,5 +370,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             log.error().attr("bundle", bundle).exception(e).log("Bundle format is invalid");
             return sortedBrokers.get(Math.abs(bundle.hashCode()) % sortedBrokers.size());
         }
+    }
+
+    private record PendingUnload(String sourceBroker, String destinationBroker) {
     }
 }
