@@ -27,7 +27,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 
 /**
- * Coordinates snapshot recovery and resource closure so resources remain available until recovery stops.
+ * Coordinates snapshot recovery and resource closure so resources remain available until processor-owned recovery
+ * work finishes.
  */
 abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcessor {
 
@@ -44,71 +45,94 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     private volatile State state = State.OPEN;
     private Future<?> recoveryTask;
     private CompletableFuture<Position> recoveryFuture = CompletableFuture.completedFuture(null);
-    private CompletableFuture<Void> recoveryStoppedFuture = CompletableFuture.completedFuture(null);
+    // Completes before the recovery result, so close waits only for processor-owned work.
+    private CompletableFuture<Void> recoveryWorkFinishedFuture = CompletableFuture.completedFuture(null);
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    protected AbstractSnapshotAbortedTxnProcessor(ScheduledExecutorService recoveryExecutor) {
+    AbstractSnapshotAbortedTxnProcessor(ScheduledExecutorService recoveryExecutor) {
         this.recoveryExecutor = recoveryExecutor;
     }
 
     @Override
-    public final synchronized CompletableFuture<Position> recoverFromSnapshot() {
-        if (this.state == State.CLOSED) {
-            return CompletableFuture.failedFuture(closedException());
+    public CompletableFuture<Position> recoverFromSnapshot() {
+        CompletableFuture<Position> newRecoveryFuture;
+        CompletableFuture<Void> newRecoveryWorkFinishedFuture;
+        RejectedExecutionException submissionFailure = null;
+        synchronized (this) {
+            if (this.state == State.CLOSED) {
+                return CompletableFuture.failedFuture(closedException());
+            }
+            if (!recoveryFuture.isDone()) {
+                return recoveryFuture.copy();
+            }
+            // Bind the task to this recovery attempt so a later retry cannot complete the wrong future.
+            newRecoveryFuture = new CompletableFuture<>();
+            newRecoveryWorkFinishedFuture = new CompletableFuture<>();
+            this.recoveryFuture = newRecoveryFuture;
+            this.recoveryWorkFinishedFuture = newRecoveryWorkFinishedFuture;
+            this.state = State.RECOVERY_QUEUED;
+            try {
+                this.recoveryTask = recoveryExecutor.submit(
+                        () -> runRecovery(newRecoveryFuture, newRecoveryWorkFinishedFuture));
+            } catch (RejectedExecutionException e) {
+                this.state = State.RECOVERY_FINISHED;
+                submissionFailure = e;
+            }
         }
-        if (!recoveryFuture.isDone()) {
-            return recoveryFuture.copy();
-        }
-        // Bind the task to this recovery attempt so a later retry cannot complete the wrong future.
-        CompletableFuture<Position> future = new CompletableFuture<>();
-        CompletableFuture<Void> stoppedFuture = new CompletableFuture<>();
-        this.recoveryFuture = future;
-        this.recoveryStoppedFuture = stoppedFuture;
-        this.state = State.RECOVERY_QUEUED;
-        try {
-            this.recoveryTask = recoveryExecutor.submit(() -> runRecovery(future, stoppedFuture));
-        } catch (RejectedExecutionException e) {
-            this.state = State.RECOVERY_FINISHED;
-            future.completeExceptionally(e);
-            stoppedFuture.complete(null);
+        if (submissionFailure != null) {
+            newRecoveryWorkFinishedFuture.complete(null);
+            newRecoveryFuture.completeExceptionally(submissionFailure);
         }
         // Do not let callers complete the internal recovery result.
-        return future.copy();
+        return newRecoveryFuture.copy();
     }
 
-    private void runRecovery(CompletableFuture<Position> future, CompletableFuture<Void> stoppedFuture) {
+    private void runRecovery(CompletableFuture<Position> recoveryResult,
+                             CompletableFuture<Void> recoveryWorkFinished) {
+        Position recoveredPosition = null;
+        Throwable recoveryFailure = null;
+        boolean closeWon = false;
         try {
             if (!tryStartRecovery()) {
-                future.completeExceptionally(closedException());
-                return;
-            }
-            Position recoveredPosition = doRecoverFromSnapshot(recoveryExecutor);
-            if (tryMarkRecoveryFinished()) {
-                future.complete(recoveredPosition);
+                closeWon = true;
             } else {
-                future.completeExceptionally(closedException());
+                recoveredPosition = doRecoverFromSnapshot(recoveryExecutor);
+                if (!tryMarkRecoveryFinished()) {
+                    closeWon = true;
+                }
             }
         } catch (Throwable throwable) {
-            future.completeExceptionally(tryMarkRecoveryFinished() ? throwable : closedException());
-        } finally {
-            stoppedFuture.complete(null);
+            if (tryMarkRecoveryFinished()) {
+                recoveryFailure = throwable;
+            } else {
+                closeWon = true;
+            }
+        }
+        recoveryWorkFinished.complete(null);
+        if (closeWon) {
+            failRecoveryAfterClose(recoveryResult);
+        } else if (recoveryFailure == null) {
+            recoveryResult.complete(recoveredPosition);
+        } else {
+            recoveryResult.completeExceptionally(recoveryFailure);
         }
     }
 
     /**
      * Recovers the processor state synchronously on the recovery executor thread.
+     * If closure wins while this method is running, its result is discarded and recovery fails as closed.
      *
      * @param executor executor used by recovery-related operations
      * @return the recovery position, or {@code null} when no snapshot exists
      */
-    protected abstract Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception;
+    abstract Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception;
 
-    protected final boolean isClosed() {
+    final boolean isClosed() {
         return this.state == State.CLOSED;
     }
 
     private synchronized boolean tryStartRecovery() {
-        if (this.state == State.CLOSED) {
+        if (this.state != State.RECOVERY_QUEUED) {
             return false;
         }
         this.state = State.RECOVERY_RUNNING;
@@ -116,7 +140,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     }
 
     private synchronized boolean tryMarkRecoveryFinished() {
-        if (this.state == State.CLOSED) {
+        if (this.state != State.RECOVERY_RUNNING) {
             return false;
         }
         this.state = State.RECOVERY_FINISHED;
@@ -124,29 +148,23 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     }
 
     @Override
-    public final CompletableFuture<Void> closeAsync() {
-        boolean recoveryOwnsFutureCompletion;
+    public CompletableFuture<Void> closeAsync() {
+        State previousState;
         CompletableFuture<Position> currentRecoveryFuture;
-        CompletableFuture<Void> currentRecoveryStoppedFuture;
+        CompletableFuture<Void> currentRecoveryWorkFinishedFuture;
         synchronized (this) {
             if (this.state == State.CLOSED) {
                 return closeFuture;
             }
-            State previousState = this.state;
+            previousState = this.state;
             this.state = State.CLOSED;
-            recoveryOwnsFutureCompletion = previousState == State.RECOVERY_RUNNING
-                    || previousState == State.RECOVERY_FINISHED;
             currentRecoveryFuture = this.recoveryFuture;
-            currentRecoveryStoppedFuture = this.recoveryStoppedFuture;
+            currentRecoveryWorkFinishedFuture = this.recoveryWorkFinishedFuture;
             if (this.recoveryTask != null && previousState == State.RECOVERY_QUEUED) {
                 this.recoveryTask.cancel(false);
             }
         }
-        if (!recoveryOwnsFutureCompletion) {
-            currentRecoveryFuture.completeExceptionally(closedException());
-            currentRecoveryStoppedFuture.complete(null);
-        }
-        currentRecoveryStoppedFuture.thenCompose(v -> closeResources())
+        currentRecoveryWorkFinishedFuture.thenCompose(v -> closeResources())
                 .whenComplete((v, throwable) -> {
                     if (throwable != null) {
                         closeFuture.completeExceptionally(throwable);
@@ -154,16 +172,26 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
                         closeFuture.complete(null);
                     }
                 });
+        if (previousState == State.RECOVERY_QUEUED) {
+            failRecoveryAfterClose(currentRecoveryFuture);
+        }
+        if (previousState != State.RECOVERY_RUNNING) {
+            currentRecoveryWorkFinishedFuture.complete(null);
+        }
         return closeFuture;
     }
 
+    private void failRecoveryAfterClose(CompletableFuture<Position> recoveryResult) {
+        closeFuture.whenComplete((__, ___) -> recoveryResult.completeExceptionally(closedException()));
+    }
+
     /**
-     * Closes resources after recovery has stopped.
+     * Closes resources after processor-owned recovery work has finished.
      *
      * <p>This method may be invoked on the caller of {@link #closeAsync()} or on the recovery executor thread.
      * Implementations must not rely on thread affinity and should return without blocking.
      */
-    protected abstract CompletableFuture<Void> closeResources();
+    abstract CompletableFuture<Void> closeResources();
 
     private static BrokerServiceException closedException() {
         return new BrokerServiceException.ServiceUnitNotReadyException(

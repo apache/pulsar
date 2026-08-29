@@ -64,6 +64,7 @@ import org.testng.annotations.Test;
 public class SnapshotSegmentAbortedTxnProcessorCloseTest {
 
     @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
     public void testCloseWaitsForRecoveryIndexUpdate() throws Exception {
         ListeningScheduledExecutorService recoveryExecutor =
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
@@ -94,22 +95,16 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             when(recoveryScheduler.chooseThread(any(Object.class))).thenReturn(recoveryExecutor);
             when(pulsar.getTransactionBufferSnapshotServiceFactory()).thenReturn(serviceFactory);
 
-            @SuppressWarnings("unchecked")
             SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment> segmentService =
                     mock(SystemTopicTxnBufferSnapshotService.class);
-            @SuppressWarnings("unchecked")
             SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> indexService =
                     mock(SystemTopicTxnBufferSnapshotService.class);
-            @SuppressWarnings("unchecked")
             ReferenceCountedWriter<TransactionBufferSnapshotSegment> segmentWriter =
                     mock(ReferenceCountedWriter.class);
-            @SuppressWarnings("unchecked")
             ReferenceCountedWriter<TransactionBufferSnapshotIndexes> indexWriter =
                     mock(ReferenceCountedWriter.class);
-            @SuppressWarnings("unchecked")
             SystemTopicClient.Writer<TransactionBufferSnapshotSegment> segmentSystemWriter =
                     mock(SystemTopicClient.Writer.class);
-            @SuppressWarnings("unchecked")
             SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexSystemWriter =
                     mock(SystemTopicClient.Writer.class);
 
@@ -129,7 +124,6 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
                     new TransactionBufferSnapshotIndexesMetadata(3, 3, Collections.emptyList());
             TransactionBufferSnapshotIndexes indexes =
                     new TransactionBufferSnapshotIndexes(topicName, Collections.singletonList(invalidIndex), metadata);
-            @SuppressWarnings("unchecked")
             TableView<TransactionBufferSnapshotIndexes> tableView = mock(TableView.class);
             when(indexService.getTableView(recoveryExecutor)).thenReturn(tableView);
             when(tableView.readLatest(topicName)).thenReturn(indexes);
@@ -156,6 +150,8 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             processor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
             processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
             assertTrue(indexUpdateStarted.await(5, TimeUnit.SECONDS));
+            // A later recovery must not replace the in-flight update in the close barrier.
+            processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
 
             CompletableFuture<Void> closeFuture = processor.closeAsync();
 
