@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -287,11 +288,10 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     }
 
     /**
-     * @deprecated This overload does not receive a stable bundle name and therefore cannot reuse a pending
-     *             load-shedding destination. Use {@link #selectBrokerForBundle(Set, String, BundleData, LoadData,
-     *             ServiceConfiguration)} when the bundle name is available.
+     * This selector does not receive a stable bundle name and therefore cannot reuse a pending load-shedding
+     * destination. Use {@link #selectBrokerForBundle(Set, String, BundleData, LoadData, ServiceConfiguration)} when
+     * the bundle name is available.
      */
-    @Deprecated
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
@@ -318,7 +318,32 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                     .log("Planned load-shedding destination is unavailable");
             return selectBroker(candidates, bundleToAssign, loadData, conf);
         }
+        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage();
+        final Optional<Double> pendingBrokerScore = getBrokerScore(pendingBroker, loadData, conf);
+        if (pendingBrokerScore.isPresent() && pendingBrokerScore.get() > overloadThreshold) {
+            Set<String> healthyCandidates = new HashSet<>();
+            for (String candidate : candidates) {
+                if (!candidate.equals(pendingBroker)
+                        && getBrokerScore(candidate, loadData, conf)
+                                .filter(score -> score <= overloadThreshold).isPresent()) {
+                    healthyCandidates.add(candidate);
+                }
+            }
+            if (!healthyCandidates.isEmpty()) {
+                log.debug().attr("broker", pendingBroker).attr("bundle", bundle)
+                        .attr("candidates", healthyCandidates)
+                        .log("Planned load-shedding destination is overloaded; selecting a healthy alternative");
+                return selectBroker(healthyCandidates, bundleToAssign, loadData, conf)
+                        .or(() -> Optional.of(pendingBroker));
+            }
+        }
         return Optional.of(pendingBroker);
+    }
+
+    private Optional<Double> getBrokerScore(String broker, LoadData loadData, ServiceConfiguration conf) {
+        BrokerData brokerData = loadData.getBrokerData().get(broker);
+        return brokerData == null || brokerData.getLocalData() == null
+                ? Optional.empty() : Optional.of(calculateScores(brokerData.getLocalData(), conf));
     }
 
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {

@@ -142,6 +142,19 @@ public class AvgShedderTest {
         assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker2", "broker3"), plannedBundle,
                 plannedBundleData, loadData, conf), Optional.of("broker2"));
 
+        // If the planned destination becomes overloaded, select only from healthy alternatives. An overloaded source
+        // is not eligible, and the original plan is retained when no healthy alternative remains.
+        conf.setLoadBalancerBrokerOverloadedThresholdPercentage(85);
+        brokerData1.getLocalData().setCpu(new ResourceUsage(90, 100));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        brokerData3.getLocalData().setCpu(new ResourceUsage(50, 100));
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker1", "broker2", "broker3"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.of("broker3"));
+
+        brokerData3.getLocalData().setCpu(new ResourceUsage(95, 100));
+        assertEquals(avgShedder.selectBrokerForBundle(Set.of("broker1", "broker2", "broker3"), plannedBundle,
+                plannedBundleData, loadData, conf), Optional.of("broker2"));
+
         Set<String> plannedBundles = Set.copyOf(bundlesToUnload.values());
         plannedBundles.forEach(bundle -> assertTrue(avgShedder.hasPendingDestination(bundle)));
         avgShedder.onUnloadAttemptCompleted();

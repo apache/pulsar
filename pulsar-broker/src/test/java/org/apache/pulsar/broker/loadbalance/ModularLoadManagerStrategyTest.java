@@ -63,7 +63,6 @@ public class ModularLoadManagerStrategyTest {
         assertTrue(candidates.contains(selectedBroker.get()));
     }
 
-    @SuppressWarnings("deprecation")
     public void testAvgShedderWithoutPendingDestinationDelegatesToSubclassSelector() {
         AtomicInteger invocationCount = new AtomicInteger();
         Set<String> candidates = Set.of("1");
@@ -108,8 +107,7 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(invocationCount.get(), 1);
     }
 
-    @SuppressWarnings("deprecation")
-    public void testDeprecatedAvgShedderSelectorIsUncachedFallback() {
+    public void testAvgShedderSelectorIsUncachedFallback() {
         AvgShedder strategy = new AvgShedder();
         BundleData bundleData = new BundleData();
         Set<String> candidates = new HashSet<>(Set.of("1", "2", "3"));

@@ -711,7 +711,7 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
-    public void testOverloadRetryBypassesBundleAwareSelectionWithoutRemovingCandidates() throws Exception {
+    public void testOverloadRetryUsesBundleAwareSelectionWithoutRemovingCandidates() throws Exception {
         // Force every populated broker report through the overload retry branch without mutating live load data.
         pulsar1.getConfiguration().setLoadBalancerBrokerOverloadedThresholdPercentage(-1);
         LoadData loadData = primaryLoadManager.getLoadData();
@@ -720,35 +720,36 @@ public class ModularLoadManagerImplTest {
             assertTrue(loadData.getBrokerData().keySet().containsAll(primaryLoadManager.getAvailableBrokers()));
         });
         AtomicInteger bundleAwareSelectionCount = new AtomicInteger();
-        AtomicInteger fallbackSelectionCount = new AtomicInteger();
+        AtomicInteger legacySelectionCount = new AtomicInteger();
         AtomicReference<String> firstSelectedBroker = new AtomicReference<>();
         AtomicReference<Set<String>> retryCandidates = new AtomicReference<>();
         ModularLoadManagerStrategy strategy = new ModularLoadManagerStrategy() {
             @Override
             public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData data,
                                                  ServiceConfiguration conf) {
-                fallbackSelectionCount.incrementAndGet();
-                retryCandidates.set(Set.copyOf(candidates));
-                return candidates.contains(firstSelectedBroker.get())
-                        ? Optional.of(firstSelectedBroker.get()) : Optional.empty();
+                legacySelectionCount.incrementAndGet();
+                return Optional.empty();
             }
 
             @Override
             public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
                                                            BundleData bundleToAssign, LoadData data,
                                                            ServiceConfiguration conf) {
-                bundleAwareSelectionCount.incrementAndGet();
-                String broker = candidates.iterator().next();
-                firstSelectedBroker.set(broker);
-                return Optional.of(broker);
+                if (bundleAwareSelectionCount.incrementAndGet() == 1) {
+                    String broker = candidates.iterator().next();
+                    firstSelectedBroker.set(broker);
+                    return Optional.of(broker);
+                }
+                retryCandidates.set(Set.copyOf(candidates));
+                return Optional.of(firstSelectedBroker.get());
             }
         };
         primaryLoadManager.setPlacementStrategy(strategy);
 
         Optional<String> selectedBroker = primaryLoadManager.selectBroker(makeBundle("test", "overload-retry"));
 
-        assertEquals(bundleAwareSelectionCount.get(), 1);
-        assertEquals(fallbackSelectionCount.get(), 1);
+        assertEquals(bundleAwareSelectionCount.get(), 2);
+        assertEquals(legacySelectionCount.get(), 0);
         assertTrue(retryCandidates.get().contains(firstSelectedBroker.get()));
         assertEquals(selectedBroker, Optional.of(firstSelectedBroker.get()));
     }
