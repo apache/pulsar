@@ -119,10 +119,10 @@ public class Consumer {
     private volatile int messagePermits = 0;
     /**
      * Guards the Flow-side compound update of {@link #messagePermits} and
-     * {@link #pendingDispatcherFlowPermits}. A Flow command increases the consumer permits before entering the
-     * dispatcher. Consumer removal can happen while the Flow caller is waiting for the dispatcher monitor, so both
-     * values must be observed consistently when calculating how many permits are already included in the dispatcher
-     * total.
+     * {@link #pendingDispatcherFlowPermits}. A Flow command increases the consumer permits before the corresponding
+     * task runs on the dispatcher's message thread. Consumer removal can happen while that task is queued or waiting
+     * for the dispatcher monitor, so both values must be observed consistently when calculating how many permits are
+     * already included in the dispatcher total.
      *
      * <p>The dispatcher callback is invoked only after this lock is released. This avoids holding the lock while
      * calling into the subscription and preserves the lock order used by dispatcher flow processing and removal.
@@ -969,8 +969,7 @@ public class Consumer {
 
     /**
      * Adds permits after a Flow command is accepted and immediately before notifying the dispatcher. The pending
-     * count covers the interval until the dispatcher starts processing the same permits, including time spent waiting
-     * for the dispatcher monitor.
+     * count covers the interval until the dispatcher's asynchronous Flow task starts processing the same permits.
      */
     private int addPermitsPendingDispatcherUpdate(int additionalNumberOfPermits) {
         if (!shouldTrackPendingDispatcherFlowPermits()) {
@@ -987,9 +986,9 @@ public class Consumer {
     }
 
     /**
-     * Called at the start of dispatcher Flow processing, before checking whether this consumer is still connected. At
-     * this point the Flow update is no longer pending: the dispatcher will either add the permits to its total or
-     * ignore them because the consumer has already been removed.
+     * Called at the start of the dispatcher's asynchronous Flow task, before checking whether this consumer is still
+     * connected. At this point the Flow update is no longer pending: the dispatcher will either add the permits to
+     * its total or ignore them because the consumer has already been removed.
      */
     public void completePendingDispatcherFlow(int additionalNumberOfPermits) {
         synchronized (flowPermitAccountingLock) {
@@ -999,19 +998,19 @@ public class Consumer {
     }
 
     /**
-     * Called while the dispatcher removes this consumer. Permits belonging to Flow updates that the dispatcher has
-     * not started processing are excluded because those permits have not been added to the dispatcher total and must
-     * not be subtracted from it during removal.
+     * Called while the dispatcher removes this consumer. Permits belonging to Flow tasks that have not started yet
+     * are excluded because those permits have not been added to the dispatcher total and must not be subtracted from
+     * it during removal.
      *
      * <p>This accounting is enabled for persistent Shared and Key_Shared dispatchers. It requires every dispatcher
-     * Flow update to call {@link #completePendingDispatcherFlow(int)} before applying or ignoring it. For these
+     * Flow task to call {@link #completePendingDispatcherFlow(int)} before applying or ignoring it. For these
      * dispatchers, when observed under the dispatcher monitor, the total available permits equal the sum of this
      * balance over all connected consumers.
      *
      * <p>The returned balance can be negative. A pending Flow makes permits visible on the consumer before its
-     * dispatcher update runs, so the dispatcher can consume those permits while they are still counted as pending.
-     * Subtracting the negative balance during removal is required to restore the dispatcher total; callers must not
-     * clamp it to zero.
+     * asynchronous dispatcher update runs, so the dispatcher can consume those permits while they are still counted
+     * as pending. Subtracting the negative balance during removal is required to restore the dispatcher total; callers
+     * must not clamp it to zero.
      */
     public int getAvailablePermitsForDispatcherRemoval() {
         synchronized (flowPermitAccountingLock) {

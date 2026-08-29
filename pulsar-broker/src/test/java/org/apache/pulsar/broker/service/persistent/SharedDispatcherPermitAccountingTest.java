@@ -33,7 +33,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
@@ -45,8 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -135,15 +132,14 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
 
         remainingConsumer.flowPermits(10);
         removedConsumer.flowPermits(20);
-        drainBrokerWorkerGroup(context.topic());
+        drainDispatchMessagesThread(context.dispatcher());
         assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(30);
 
-        runWithFlowWaitingForDispatcher(context.dispatcher(), removedConsumer, 1_020,
+        runWithFlowQueuedForDispatcher(context.dispatcher(), removedConsumer, 1_020,
                 () -> removedConsumer.flowPermits(1_000), () -> {
                     assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(30);
                     context.dispatcher().removeConsumer(removedConsumer);
                 });
-        drainBrokerWorkerGroup(context.topic());
 
         assertThat(totalAvailablePermits(context.dispatcher()))
                 .isEqualTo(remainingConsumer.getAvailablePermits());
@@ -187,10 +183,10 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         remainingConsumer.flowPermits(10);
         secondRemainingConsumer.flowPermits(15);
         removedConsumer.flowPermits(20);
-        drainBrokerWorkerGroup(context.topic());
+        drainDispatchMessagesThread(context.dispatcher());
         assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(45);
 
-        runWithFlowWaitingForDispatcher(context.dispatcher(), removedConsumer, 120,
+        runWithFlowQueuedForDispatcher(context.dispatcher(), removedConsumer, 120,
                 () -> removedConsumer.flowPermits(100), () -> {
                     // Dispatch more than the removed consumer's 20 accounted permits. Its removal balance becomes
                     // 70 available - 100 pending = -30 and must be applied as-is.
@@ -203,7 +199,6 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                     context.dispatcher().removeConsumer(removedConsumer);
                     assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(25);
                 });
-        drainBrokerWorkerGroup(context.topic());
 
         // Keep two consumers after removal so a single-consumer read floor cannot mask dispatcher permit drift.
         assertThat(context.dispatcher().getConsumers())
@@ -221,7 +216,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         Consumer removedConsumer = context.removedConsumer();
 
         remainingConsumer.flowPermits(10);
-        drainBrokerWorkerGroup(context.topic());
+        drainDispatchMessagesThread(context.dispatcher());
         assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
 
         ConsumerStatsImpl blockedStats = new ConsumerStatsImpl();
@@ -233,85 +228,14 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         removedConsumer.flowPermits(1_000);
         assertThat(removedConsumer.getAvailablePermits()).isZero();
 
-        runWithFlowWaitingForDispatcher(context.dispatcher(), removedConsumer, 1_000,
+        runWithFlowQueuedForDispatcher(context.dispatcher(), removedConsumer, 1_000,
                 () -> removedConsumer.updateBlockedConsumerOnUnackedMsgs(removedConsumer), () -> {
                     assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
                     context.dispatcher().removeConsumer(removedConsumer);
                 });
-        drainBrokerWorkerGroup(context.topic());
 
         assertThat(totalAvailablePermits(context.dispatcher()))
                 .isEqualTo(remainingConsumer.getAvailablePermits());
-    }
-
-    @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
-    public void testReadTriggerRunsOutsideDispatcherMonitorAfterConsumerRemoval(boolean classic) throws Exception {
-        TestContext context = createTestContext(classic, Shared, true);
-        Consumer remainingConsumer = context.remainingConsumer();
-        Consumer removedConsumer = context.removedConsumer();
-        AbstractPersistentDispatcherMultipleConsumers dispatcher =
-                (AbstractPersistentDispatcherMultipleConsumers) context.dispatcher();
-
-        remainingConsumer.flowPermits(10);
-        removedConsumer.flowPermits(20);
-        drainBrokerWorkerGroup(context.topic());
-        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(30);
-
-        CountDownLatch readTriggerEntered = new CountDownLatch(1);
-        CountDownLatch allowReadTrigger = new CountDownLatch(1);
-        AtomicBoolean readTriggerHeldDispatcherMonitor = new AtomicBoolean();
-        AtomicInteger readMoreEntriesCalls = new AtomicInteger();
-        if (classic) {
-            doAnswer(invocation -> {
-                readMoreEntriesCalls.incrementAndGet();
-                return invocation.callRealMethod();
-            }).when((PersistentDispatcherMultipleConsumersClassic) dispatcher).readMoreEntries();
-        } else {
-            doAnswer(invocation -> {
-                readMoreEntriesCalls.incrementAndGet();
-                return invocation.callRealMethod();
-            }).when((PersistentDispatcherMultipleConsumers) dispatcher).readMoreEntries();
-        }
-        doAnswer(invocation -> {
-            readTriggerHeldDispatcherMonitor.set(Thread.holdsLock(dispatcher));
-            readTriggerEntered.countDown();
-            assertThat(allowReadTrigger.await(5, TimeUnit.SECONDS)).isTrue();
-            return invocation.callRealMethod();
-        }).when(dispatcher).readMoreEntriesAsync();
-
-        ExecutorService flowExecutor = Executors.newSingleThreadExecutor();
-        Future<?> flowFuture = null;
-        try {
-            flowFuture = flowExecutor.submit(() -> {
-                removedConsumer.flowPermits(1_000);
-                return null;
-            });
-            assertThat(readTriggerEntered.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(readTriggerHeldDispatcherMonitor).isFalse();
-            assertThat(flowFuture.isDone()).isFalse();
-            assertThat(totalAvailablePermits(dispatcher)).isEqualTo(1_030);
-
-            dispatcher.removeConsumer(removedConsumer);
-            assertThat(totalAvailablePermits(dispatcher)).isEqualTo(remainingConsumer.getAvailablePermits());
-            // Classic removal invokes readMoreEntries synchronously. Count only the task submitted by the Flow
-            // trigger after the removal has completed.
-            readMoreEntriesCalls.set(0);
-        } finally {
-            allowReadTrigger.countDown();
-            try {
-                if (flowFuture != null) {
-                    flowFuture.get(5, TimeUnit.SECONDS);
-                }
-            } finally {
-                flowExecutor.shutdownNow();
-                assertThat(flowExecutor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
-            }
-        }
-        drainBrokerWorkerGroup(context.topic());
-
-        assertThat(dispatcher.getConsumers()).containsExactly(remainingConsumer);
-        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(remainingConsumer.getAvailablePermits());
-        assertThat(readMoreEntriesCalls).hasValue(1);
     }
 
     @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
@@ -360,13 +284,13 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                     assertThat(removedBrokerConsumer.getAvailablePermits()).isEqualTo(receiverQueueSize);
                 });
                 drainBrokerWorkerGroup(topic);
+                drainDispatchMessagesThread(dispatcher);
                 assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
 
-                // Follow the production subscription -> dispatcher lock order. The Flow thread first updates the
-                // consumer permits and then waits for the dispatcher monitor. Closing from this thread removes the
-                // consumer before the Flow update reaches the dispatcher.
+                // Follow the production subscription -> dispatcher lock order. Queue the Flow behind a lane barrier
+                // so closing from this thread removes the consumer before the Flow update reaches the dispatcher.
                 synchronized (subscription) {
-                    runWithFlowWaitingForDispatcher(dispatcher, removedBrokerConsumer,
+                    runWithFlowQueuedForDispatcher(dispatcher, removedBrokerConsumer,
                             receiverQueueSize + additionalFlowPermits,
                             () -> removedBrokerConsumer.flowPermits(additionalFlowPermits), () -> {
                                 assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
@@ -383,6 +307,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                                 .containsKey(removedBrokerConsumer.consumerId())).isFalse());
                 removedClient.close();
                 drainBrokerWorkerGroup(topic);
+                drainDispatchMessagesThread(dispatcher);
 
                 assertThat(dispatcher.getConsumers()).containsExactly(remainingBrokerConsumer);
                 assertThat(totalAvailablePermits(dispatcher))
@@ -407,10 +332,6 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     private TestContext createTestContext(boolean classic, SubType subType) throws Exception {
-        return createTestContext(classic, subType, false);
-    }
-
-    private TestContext createTestContext(boolean classic, SubType subType, boolean spyDispatcher) throws Exception {
         String topicName = newTopicName();
         String subscriptionName = "shared-sub";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -435,21 +356,17 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                     ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
                     : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
         }
-        if (spyDispatcher) {
-            dispatcher = spy(dispatcher);
-        }
-        Dispatcher configuredDispatcher = dispatcher;
         doAnswer(invocation -> {
-            configuredDispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
+            dispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(subscription).consumerFlow(any(), anyInt());
 
         Consumer remainingConsumer = createConsumer(subscription, subType, topicName, 1);
         Consumer removedConsumer = createConsumer(subscription, subType, topicName, 2);
-        configuredDispatcher.addConsumer(remainingConsumer).join();
-        configuredDispatcher.addConsumer(removedConsumer).join();
+        dispatcher.addConsumer(remainingConsumer).join();
+        dispatcher.addConsumer(removedConsumer).join();
 
-        return new TestContext(topic, configuredDispatcher, remainingConsumer, removedConsumer);
+        return new TestContext(topic, dispatcher, remainingConsumer, removedConsumer);
     }
 
     private Consumer createConsumer(Subscription subscription, SubType subType, String topicName, long consumerId) {
@@ -497,33 +414,54 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         }
     }
 
-    private static void runWithFlowWaitingForDispatcher(Dispatcher dispatcher, Consumer consumer,
-                                                        int expectedConsumerPermits, CheckedRunnable flow,
-                                                        CheckedRunnable whileFlowWaits) throws Exception {
+    private static void runWithFlowQueuedForDispatcher(Dispatcher dispatcher, Consumer consumer,
+                                                       int expectedConsumerPermits, CheckedRunnable flow,
+                                                       CheckedRunnable whileFlowIsQueued) throws Exception {
+        CountDownLatch dispatchThreadBlocked = new CountDownLatch(1);
+        CountDownLatch releaseDispatchThread = new CountDownLatch(1);
+        Future<?> blockingTask = dispatchMessagesThread(dispatcher).submit(() -> {
+            dispatchThreadBlocked.countDown();
+            assertThat(releaseDispatchThread.await(5, TimeUnit.SECONDS)).isTrue();
+            return null;
+        });
         ExecutorService flowExecutor = Executors.newSingleThreadExecutor();
         try {
-            Future<?> flowFuture;
-            synchronized (dispatcher) {
-                flowFuture = flowExecutor.submit(() -> {
-                    flow.run();
-                    return null;
-                });
-                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
-                        assertThat(consumer.getAvailablePermits()).isEqualTo(expectedConsumerPermits));
-                assertThat(flowFuture.isDone()).isFalse();
-                whileFlowWaits.run();
-            }
+            assertThat(dispatchThreadBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+            Future<?> flowFuture = flowExecutor.submit(() -> {
+                flow.run();
+                return null;
+            });
+            // The Flow caller only queues dispatcher work and must return while the dispatch lane remains blocked.
             flowFuture.get(5, TimeUnit.SECONDS);
+            assertThat(consumer.getAvailablePermits()).isEqualTo(expectedConsumerPermits);
+            whileFlowIsQueued.run();
         } finally {
-            flowExecutor.shutdownNow();
-            assertThat(flowExecutor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            releaseDispatchThread.countDown();
+            try {
+                blockingTask.get(5, TimeUnit.SECONDS);
+            } finally {
+                flowExecutor.shutdownNow();
+                assertThat(flowExecutor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            }
         }
+        drainDispatchMessagesThread(dispatcher);
+    }
+
+    private static void drainDispatchMessagesThread(Dispatcher dispatcher) throws Exception {
+        dispatchMessagesThread(dispatcher).submit(() -> { }).get(5, TimeUnit.SECONDS);
     }
 
     private static void drainBrokerWorkerGroup(PersistentTopic topic) throws Exception {
         for (EventExecutor eventExecutor : topic.getBrokerService().executor()) {
             eventExecutor.submit(() -> { }).sync();
         }
+    }
+
+    private static ExecutorService dispatchMessagesThread(Dispatcher dispatcher) {
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers pip379Dispatcher) {
+            return pip379Dispatcher.dispatchMessagesThread;
+        }
+        return ((PersistentDispatcherMultipleConsumersClassic) dispatcher).dispatchMessagesThread;
     }
 
     private static int totalAvailablePermits(Dispatcher dispatcher) {

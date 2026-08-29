@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -283,6 +284,21 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        Runnable flowTask = () -> internalConsumerFlow(consumer, additionalNumberOfMessages);
+        try {
+            dispatchMessagesThread.execute(flowTask);
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow. Never wait for the dispatcher
+            // monitor on the connection EventLoop, including while the broker is shutting down.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", dispatchMessagesThread.isShutdown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
+    }
+
+    private void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         boolean connected;
         int updatedTotalAvailablePermits = 0;
         synchronized (this) {
@@ -306,7 +322,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 .attr("totalAvailablePermits", updatedTotalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("- Trigger new read after receiving flow control message with permits " + "after adding permits");
-        readMoreEntriesAsync();
+        readMoreEntries();
     }
 
     /**
