@@ -323,7 +323,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         int updatedTotalAvailablePermits = 0;
         synchronized (this) {
             consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
-            connected = consumerSet.contains(consumer);
+            connected = containsConsumerInstance(consumer);
             if (connected) {
                 totalAvailablePermits += additionalNumberOfMessages;
                 updatedTotalAvailablePermits = totalAvailablePermits;

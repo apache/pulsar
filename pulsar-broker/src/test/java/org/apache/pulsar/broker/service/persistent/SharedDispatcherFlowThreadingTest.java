@@ -185,6 +185,52 @@ public class SharedDispatcherFlowThreadingTest extends SharedPulsarBaseTest {
         assertThat(readTriggers).hasValue(0);
     }
 
+    @Test(dataProvider = "dispatcherVariants", timeOut = 30_000)
+    public void testQueuedFlowDoesNotApplyToEqualReplacementConsumer(boolean classic, SubType subType)
+            throws Exception {
+        TestContext context = createTestContext(classic, subType);
+        CountDownLatch dispatchThreadBlocked = new CountDownLatch(1);
+        CountDownLatch releaseDispatchThread = new CountDownLatch(1);
+        AtomicInteger readTriggers = new AtomicInteger();
+        stubReadMoreEntries(context.dispatcher(), readTriggers::incrementAndGet);
+        Future<?> dispatchTask = dispatchMessagesThread(context.dispatcher()).submit(() -> {
+            dispatchThreadBlocked.countDown();
+            assertThat(releaseDispatchThread.await(5, TimeUnit.SECONDS)).isTrue();
+            return null;
+        });
+        Consumer original = context.consumer();
+        Consumer replacement = new Consumer(original.getSubscription(), original.subType(), context.topic().getName(),
+                original.consumerId(), 0, original.consumerName(), true, original.cnx(), "role", emptyMap(), false,
+                new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+
+        try {
+            assertThat(dispatchThreadBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+            EventExecutor ioEventLoop = context.topic().getBrokerService().executor().next();
+            ioEventLoop.submit(() -> original.flowPermits(100)).get(5, TimeUnit.SECONDS);
+
+            assertThat(original.getAvailablePermits()).isEqualTo(100);
+            assertThat(original.getAvailablePermitsForDispatcherRemoval()).isZero();
+            context.dispatcher().removeConsumer(original);
+            context.dispatcher().addConsumer(replacement).join();
+            assertThat(replacement).isNotSameAs(original).isEqualTo(original);
+            assertThat(replacement.hashCode()).isEqualTo(original.hashCode());
+        } finally {
+            releaseDispatchThread.countDown();
+            try {
+                dispatchTask.get(5, TimeUnit.SECONDS);
+            } finally {
+                drainDispatchMessagesThread(context.dispatcher());
+            }
+        }
+
+        assertThat(context.dispatcher().getConsumers()).containsExactly(replacement);
+        assertThat(context.dispatcher().getConsumers().get(0)).isSameAs(replacement);
+        assertThat(original.getAvailablePermitsForDispatcherRemoval()).isEqualTo(100);
+        assertThat(replacement.getAvailablePermits()).isZero();
+        assertThat(totalAvailablePermits(context.dispatcher())).isZero();
+        assertThat(readTriggers).hasValue(0);
+    }
+
     @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
     public void testRejectedFlowStaysPendingAndIsExcludedFromRemoval(boolean classic) throws Exception {
         String topicName = newTopicName();
