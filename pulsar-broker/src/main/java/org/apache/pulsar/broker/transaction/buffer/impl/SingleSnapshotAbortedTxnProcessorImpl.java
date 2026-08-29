@@ -89,7 +89,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl extends AbstractSnapshotAbort
     }
 
     @Override
-    protected Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+    Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
         final var pulsar = topic.getBrokerService().getPulsar();
         final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
                 .getTableView(executor).readLatest(topic.getName());
@@ -165,7 +165,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl extends AbstractSnapshotAbort
     }
 
     @Override
-    protected CompletableFuture<Void> closeResources() {
+    CompletableFuture<Void> closeResources() {
         takeSnapshotWriter.release();
         return CompletableFuture.completedFuture(null);
     }

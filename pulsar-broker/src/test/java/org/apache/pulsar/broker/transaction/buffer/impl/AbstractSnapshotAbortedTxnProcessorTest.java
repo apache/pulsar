@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -47,7 +48,11 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
     @Test(timeOut = 10_000)
     public void testCloseCancelsQueuedRecovery() throws Exception {
         try (RecoveryTestContext context = RecoveryTestContext.queued()) {
-            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<?> recoveryFuture = context.processor.recoverFromSnapshot();
+            CompletableFuture<Boolean> callbackHeldProcessorLock =
+                    trackCallbackLock(recoveryFuture, context.processor);
+            CompletableFuture<Boolean> closeCompletedBeforeRecovery = recoveryFuture.handle(
+                    (__, ___) -> context.processor.closeAsync().isDone());
             CompletableFuture<?> repeatedRecoveryFuture = context.processor.recoverFromSnapshot();
             context.awaitRecoveryQueued();
 
@@ -58,13 +63,17 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
             context.verifyRecoveryFailedAfterClose(repeatedRecoveryFuture);
             assertFalse(context.processor.recoveryStarted());
             assertTrue(context.processor.resourcesClosed());
+            assertFalse(callbackHeldProcessorLock.get(1, TimeUnit.SECONDS),
+                    "Recovery callbacks must run without holding the processor lock");
+            assertTrue(closeCompletedBeforeRecovery.get(1, TimeUnit.SECONDS),
+                    "Close must finish before publishing a close-induced recovery failure");
         }
     }
 
     @Test(timeOut = 10_000)
     public void testCloseWaitsForRunningRecovery() throws Exception {
         try (RecoveryTestContext context = RecoveryTestContext.running()) {
-            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<?> recoveryFuture = context.processor.recoverFromSnapshot();
             context.awaitRecoveryStarted();
 
             Future<?> recoveryTask = context.submittedRecoveryTask();
@@ -83,11 +92,11 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testCloseWaitsForSynchronousRecoveryCallback() throws Exception {
+    public void testCloseDoesNotWaitForRecoveryCallback() throws Exception {
         CountDownLatch callbackStarted = new CountDownLatch(1);
         CountDownLatch finishCallback = new CountDownLatch(1);
         try (RecoveryTestContext context = RecoveryTestContext.running()) {
-            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<?> recoveryFuture = context.processor.recoverFromSnapshot();
             CompletableFuture<Void> callbackFuture = recoveryFuture.thenRun(() -> {
                 callbackStarted.countDown();
                 try {
@@ -103,13 +112,11 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
             assertTrue(callbackStarted.await(5, TimeUnit.SECONDS));
             CompletableFuture<Void> closeFuture = context.processor.closeAsync();
 
-            assertFalse(closeFuture.isDone(), "Closing must wait for the recovery callback to return");
-            assertFalse(context.processor.resourcesClosed());
+            closeFuture.get(5, TimeUnit.SECONDS);
+            assertTrue(context.processor.resourcesClosed());
 
             finishCallback.countDown();
             callbackFuture.get(5, TimeUnit.SECONDS);
-            closeFuture.get(5, TimeUnit.SECONDS);
-            assertTrue(context.processor.resourcesClosed());
         } finally {
             finishCallback.countDown();
         }
@@ -118,15 +125,21 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
     @Test(timeOut = 10_000)
     public void testCloseAfterRecoveryCompleted() throws Exception {
         try (RecoveryTestContext context = RecoveryTestContext.running()) {
-            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<?> recoveryFuture = context.processor.recoverFromSnapshot();
+            CompletableFuture<Boolean> callbackHeldProcessorLock =
+                    trackCallbackLock(recoveryFuture, context.processor);
             context.awaitRecoveryStarted();
 
             context.finishRecovery();
             context.verifyRecoverySucceeded(recoveryFuture);
+            context.verifyRecoverySucceeded(context.processor.recoverFromSnapshot());
+            assertEquals(context.processor.recoveryAttempts(), 2);
+            assertFalse(callbackHeldProcessorLock.get(1, TimeUnit.SECONDS),
+                    "Recovery callbacks must run without holding the processor lock");
             context.processor.closeAsync().get(5, TimeUnit.SECONDS);
 
             assertTrue(context.processor.resourcesClosed());
-            context.verifyRecoveryFailedAfterClose(context.recoverFromSnapshot());
+            context.verifyRecoveryFailedAfterClose(context.processor.recoverFromSnapshot());
         }
     }
 
@@ -135,12 +148,12 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
         try (RecoveryTestContext context = RecoveryTestContext.running()) {
             RuntimeException failure = new RuntimeException("recovery failed");
             context.processor.failNextRecovery(failure);
-            CompletableFuture<?> recoveryFuture = context.recoverFromSnapshot();
+            CompletableFuture<?> recoveryFuture = context.processor.recoverFromSnapshot();
             context.awaitRecoveryStarted();
 
             context.finishRecovery();
             context.verifyRecoveryFailed(recoveryFuture, failure);
-            context.verifyRecoverySucceeded(context.recoverFromSnapshot());
+            context.verifyRecoverySucceeded(context.processor.recoverFromSnapshot());
 
             context.processor.closeAsync().get(5, TimeUnit.SECONDS);
         }
@@ -160,13 +173,19 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
         assertTrue(processor.resourcesClosed());
     }
 
+    private static CompletableFuture<Boolean> trackCallbackLock(CompletableFuture<?> recoveryFuture,
+                                                                 Object processor) {
+        CompletableFuture<Boolean> callbackHeldProcessorLock = new CompletableFuture<>();
+        recoveryFuture.whenComplete((__, ___) ->
+                callbackHeldProcessorLock.complete(Thread.holdsLock(processor)));
+        return callbackHeldProcessorLock;
+    }
+
     private static final class RecoveryTestContext implements AutoCloseable {
 
         private final TrackingScheduledExecutor recoveryExecutor = new TrackingScheduledExecutor();
         private final CountDownLatch releaseBlocker = new CountDownLatch(1);
         private final TestSnapshotProcessor processor;
-
-        private CompletableFuture<Boolean> recoveryCallbackHeldProcessorLock;
 
         static RecoveryTestContext queued() throws Exception {
             return new RecoveryTestContext(true);
@@ -193,14 +212,6 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
             processor = new TestSnapshotProcessor(recoveryExecutor);
         }
 
-        CompletableFuture<?> recoverFromSnapshot() {
-            CompletableFuture<?> recoveryFuture = processor.recoverFromSnapshot();
-            recoveryCallbackHeldProcessorLock = new CompletableFuture<>();
-            recoveryFuture.whenComplete((__, ___) ->
-                    recoveryCallbackHeldProcessorLock.complete(Thread.holdsLock(processor)));
-            return recoveryFuture;
-        }
-
         void awaitRecoveryQueued() {
             assertEquals(recoveryExecutor.getQueue().size(), 1);
             assertFalse(submittedRecoveryTask().isCancelled());
@@ -225,23 +236,16 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
                     () -> recoveryFuture.get(5, TimeUnit.SECONDS));
             assertTrue(exception.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException,
                     "Closing the processor must fail the recovery future");
-            verifyRecoveryCallbackDidNotHoldProcessorLock();
         }
 
         void verifyRecoverySucceeded(CompletableFuture<?> recoveryFuture) throws Exception {
             assertNull(recoveryFuture.get(5, TimeUnit.SECONDS));
-            verifyRecoveryCallbackDidNotHoldProcessorLock();
         }
 
         void verifyRecoveryFailed(CompletableFuture<?> recoveryFuture, Throwable expected) {
             ExecutionException exception = expectThrows(ExecutionException.class,
                     () -> recoveryFuture.get(5, TimeUnit.SECONDS));
             assertSame(exception.getCause(), expected);
-        }
-
-        private void verifyRecoveryCallbackDidNotHoldProcessorLock() throws Exception {
-            assertFalse(recoveryCallbackHeldProcessorLock.get(1, TimeUnit.SECONDS),
-                    "Recovery callbacks must run without holding the processor lock");
         }
 
         @Override
@@ -279,13 +283,15 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
         private final CountDownLatch finishRecovery = new CountDownLatch(1);
         private final AtomicBoolean resourcesClosed = new AtomicBoolean();
         private final AtomicReference<RuntimeException> nextRecoveryFailure = new AtomicReference<>();
+        private final AtomicInteger recoveryAttempts = new AtomicInteger();
 
         private TestSnapshotProcessor(ScheduledExecutorService recoveryExecutor) {
             super(recoveryExecutor);
         }
 
         @Override
-        protected Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+        Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+            recoveryAttempts.incrementAndGet();
             recoveryStarted.countDown();
             assertTrue(finishRecovery.await(5, TimeUnit.SECONDS));
             RuntimeException failure = nextRecoveryFailure.getAndSet(null);
@@ -295,8 +301,12 @@ public class AbstractSnapshotAbortedTxnProcessorTest {
             return null;
         }
 
+        private int recoveryAttempts() {
+            return recoveryAttempts.get();
+        }
+
         @Override
-        protected CompletableFuture<Void> closeResources() {
+        CompletableFuture<Void> closeResources() {
             resourcesClosed.set(true);
             return CompletableFuture.completedFuture(null);
         }

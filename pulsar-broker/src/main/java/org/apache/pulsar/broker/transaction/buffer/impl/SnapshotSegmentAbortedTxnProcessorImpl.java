@@ -74,7 +74,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
 
     private static final Logger LOG = Logger.get(SnapshotSegmentAbortedTxnProcessorImpl.class);
     private final Logger log;
-    private final PersistentTopic topic;
 
     /**
      * Stored the unsealed aborted transaction IDs Whose size is always less than the snapshotSegmentCapacity.
@@ -120,6 +119,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
      */
     private final LinkedMap<Position, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
 
+    private final PersistentTopic topic;
+
     private volatile long lastSnapshotTimestamps;
 
     private volatile long lastTakedSnapshotSegmentTimestamp;
@@ -138,7 +139,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
      * <p>    Clear all snapshot segment. </p>
      */
     private final PersistentWorker persistentWorker;
-    private CompletableFuture<Void> recoveryIndexUpdateFuture = CompletableFuture.completedFuture(null);
+    // A failed recovery can be retried, so close must retain updates started by every attempt.
+    private CompletableFuture<Void> recoveryIndexUpdatesFuture = CompletableFuture.completedFuture(null);
 
     private static final String SNAPSHOT_PREFIX = "multiple-";
 
@@ -232,7 +234,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     }
 
     @Override
-    protected Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+    Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
         final var pulsar = topic.getBrokerService().getPulsar();
         final var indexes = pulsar.getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotIndexService().getTableView(executor)
@@ -298,10 +300,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                 }
             }
         }
-        if (hasInvalidIndex) {
+        if (hasInvalidIndex && !isClosed()) {
             // Update the snapshot segment index if there exist invalid indexes.
-            recoveryIndexUpdateFuture = persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                    () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot()));
+            recoveryIndexUpdatesFuture = CompletableFuture.allOf(recoveryIndexUpdatesFuture,
+                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+                            () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot())));
         }
     }
 
@@ -416,8 +419,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     }
 
     @Override
-    protected CompletableFuture<Void> closeResources() {
-        return recoveryIndexUpdateFuture.handle((__, throwable) -> null)
+    CompletableFuture<Void> closeResources() {
+        return recoveryIndexUpdatesFuture.handle((__, throwable) -> null)
                 .thenCompose(__ -> persistentWorker.closeAsync());
     }
 
