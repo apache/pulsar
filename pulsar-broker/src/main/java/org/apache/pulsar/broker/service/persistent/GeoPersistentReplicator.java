@@ -282,9 +282,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             log.warn()
                                     .attr("backoffMs", PersistentTopic.MESSAGE_RATE_BACKOFF_MS)
                                     .exception(e)
-                                    .log("Failed to get schema from local cluster, will try in the next loop");
+                                    .log("Failed to get schema from local cluster, will retry after backoff");
                             topic.getBrokerService().executor().schedule(() -> {
-                                log.info("Resume the data replication after the schema fetching done");
+                                log.debug("Resume the data replication after the schema fetching done");
                                 doRewindCursor(true);
                             },
                                     PersistentTopic.MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
