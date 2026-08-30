@@ -344,8 +344,15 @@ public class SubscriptionCoordinator {
      * as assignable.
      */
     private boolean isAssignable(SegmentInfo segment, SegmentLayout layout) {
-        if (drainChecker == null || !segment.isActive()) {
+        if (drainChecker == null) {
             return true;
+        }
+        if (!segment.isActive()) {
+            // A sealed segment is assignable only while it still has backlog to drain. Once
+            // fully drained it carries no traffic, and keeping it assignable would pin
+            // consumers to a dead segment forever (the drain rebalance would spread the
+            // group across it and its successor).
+            return !drainedSegmentIds.contains(segment.segmentId());
         }
         for (long parentId : segment.parentIds()) {
             // A parent that's no longer in the DAG has been pruned (its data is gone), so

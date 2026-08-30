@@ -70,6 +70,21 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
                     "exactly one rollover: sealed parent + successor");
         });
 
+        // Once the (empty) parent drains, every consumer must move to the successor — none
+        // may stay pinned to the drained parent, and none may idle.
+        long successorId = admin.scalableTopics().getMetadata(topic).getSegments().values().stream()
+                .filter(ScalableTopicMetadata.SegmentInfo::isActive).findFirst().orElseThrow()
+                .getSegmentId();
+        String successorTopic = admin.scalableTopics().getStats(topic).getSegments().values()
+                .stream().filter(seg -> seg.name().endsWith("-" + successorId)).findFirst()
+                .orElseThrow().name();
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            var sub = getTopicReference(successorTopic).orElseThrow().getSubscription(subscription);
+            assertTrue(sub != null && sub.getConsumers().size() == 5,
+                    "all five consumers must attach to the successor, got "
+                            + (sub == null ? "no subscription" : sub.getConsumers().size()));
+        });
+
         // The rebucketed segment serves all five consumers: keyed traffic must reach them
         // collectively, per-key in order, with every key wholly on one consumer.
         @Cleanup
