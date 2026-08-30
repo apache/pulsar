@@ -148,7 +148,8 @@ public class AutoScalePolicyEvaluatorTest {
                 baseConfig().maxSegments(2).build());
         assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
         AutoScaleDecision.Rebucket r = (AutoScaleDecision.Rebucket) d;
-        assertEquals(r.segmentId(), 0L, "smallest-bucketed segment, id tie-break");
+        assertEquals(r.segmentIds(), List.of(0L, 1L),
+                "both below-target segments roll in the one decision");
         assertEquals(r.newBucketCount(), 4);
         assertEquals(r.reason(), "at-max-segments");
     }
@@ -186,7 +187,7 @@ public class AutoScalePolicyEvaluatorTest {
         AutoScaleDecision d = decide(layout, load, Map.of("sub", 5), baseConfig().build());
         assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
         AutoScaleDecision.Rebucket r = (AutoScaleDecision.Rebucket) d;
-        assertEquals(r.segmentId(), 0L);
+        assertEquals(r.segmentIds(), List.of(0L));
         assertEquals(r.newBucketCount(), 8);
         assertEquals(r.reason(), "below-split-rate-floor");
     }
@@ -210,6 +211,7 @@ public class AutoScalePolicyEvaluatorTest {
                 baseConfig().maxEntryBucketsPerSegment(8).build());
         assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
         assertEquals(((AutoScaleDecision.Rebucket) d).newBucketCount(), 8);
+        assertEquals(((AutoScaleDecision.Rebucket) d).segmentIds(), List.of(0L));
 
         // …and once the segment is at the ceiling, the remaining surplus stays idle.
         SegmentLayout maxed = SegmentLayout.fromMetadata(
@@ -217,6 +219,43 @@ public class AutoScalePolicyEvaluatorTest {
         AutoScaleDecision none = decide(maxed, load, Map.of("sub", 5_000),
                 baseConfig().maxEntryBucketsPerSegment(8).build());
         assertTrue(none instanceof AutoScaleDecision.NoAction, none.toString());
+    }
+
+    @Test
+    public void testMultiSegmentSurplusRebucketsAllSegmentsInOneShot() {
+        // Review scenario: four N=1 segments at the cap and ten consumers must converge in a
+        // single decision — every segment to the common target 4 (ceil(10/4)=3 → pow2 4),
+        // never one segment per cooldown.
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(4, 4, Map.of())); // 4 × N=1
+        Map<Long, SegmentLoadSample> load = Map.of(
+                0L, cold(0), 1L, cold(0), 2L, cold(0), 3L, cold(0));
+        AutoScaleDecision d = decide(layout, load, Map.of("sub", 10),
+                baseConfig().maxSegments(4).build());
+        assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
+        AutoScaleDecision.Rebucket r = (AutoScaleDecision.Rebucket) d;
+        assertEquals(r.segmentIds(), List.of(0L, 1L, 2L, 3L));
+        assertEquals(r.newBucketCount(), 4);
+    }
+
+    @Test
+    public void testPartiallyRebucketedLayoutConvergesToUniformTarget() {
+        // A layout left uneven (one segment already rolled to 4, three still at N=1) must
+        // bring exactly the below-target segments up to the same target — the steady state
+        // is uniform, not arrival-history-dependent.
+        SegmentLayout base = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(4, 4, Map.of())); // 4 × N=1
+        SegmentLayout uneven = base.rebucketSegment(0, EntryBucketSplits.equalWidth(4), 0L);
+        // Active: successor(id=4, N=4) + segments 1..3 (N=1). Capacity 7 < 10 consumers.
+        Map<Long, SegmentLoadSample> load = Map.of(
+                1L, cold(0), 2L, cold(0), 3L, cold(0), 4L, cold(0));
+        AutoScaleDecision d = decide(uneven, load, Map.of("sub", 10),
+                baseConfig().maxSegments(4).build());
+        assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
+        AutoScaleDecision.Rebucket r = (AutoScaleDecision.Rebucket) d;
+        assertEquals(r.segmentIds(), List.of(1L, 2L, 3L),
+                "only the below-target segments roll; the already-at-target one is untouched");
+        assertEquals(r.newBucketCount(), 4);
     }
 
     // --- load-driven split ---

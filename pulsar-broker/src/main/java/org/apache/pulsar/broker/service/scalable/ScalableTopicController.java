@@ -449,17 +449,25 @@ public class ScalableTopicController {
                     });
         }
         if (decision instanceof AutoScaleDecision.Rebucket rebucket) {
-            log.info().attr("segmentId", rebucket.segmentId())
+            log.info().attr("segmentIds", rebucket.segmentIds())
                     .attr("bucketCount", rebucket.newBucketCount()).attr("reason", rebucket.reason())
                     .attr("trigger", trigger).log("Auto rebucket");
-            return rebucketSegment(rebucket.segmentId(), rebucket.newBucketCount())
-                    .thenApply(__ -> {
-                        // Like post-split: a consumer burst may need another rollover once the
-                        // cooldown expires (e.g. when the target was clamped by the per-segment
-                        // bucket ceiling); the chain stops at the first NoAction.
-                        scheduleFollowUpEvaluation(config);
-                        return null;
-                    });
+            // Roll the whole batch sequentially (each rollover is its own seal → successor →
+            // CAS → notify). A mid-batch failure aborts the rest; the follow-up evaluation
+            // retries the remainder after the cooldown.
+            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+            for (long segmentId : rebucket.segmentIds()) {
+                chain = chain.thenCompose(__ ->
+                        rebucketSegment(segmentId, rebucket.newBucketCount()))
+                        .thenApply(__ -> null);
+            }
+            return chain.thenApply(__ -> {
+                // Like post-split: a consumer burst may need another rollover once the
+                // cooldown expires (e.g. when the target was clamped by the per-segment
+                // bucket ceiling); the chain stops at the first NoAction.
+                scheduleFollowUpEvaluation(config);
+                return null;
+            });
         }
         if (decision instanceof AutoScaleDecision.Merge merge) {
             log.info().attr("segmentId1", merge.segmentId1()).attr("segmentId2", merge.segmentId2())

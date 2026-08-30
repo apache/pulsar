@@ -36,10 +36,13 @@ public sealed interface AutoScaleDecision
     }
 
     /**
-     * Roll {@code segmentId} over to a same-range successor with {@code newBucketCount}
-     * entry-buckets (PIP-486): consumer scale-up served by buckets instead of a split.
+     * Roll every segment in {@code segmentIds} over to a same-range successor with
+     * {@code newBucketCount} entry-buckets (PIP-486): consumer scale-up served by buckets
+     * instead of a split. One decision carries the whole batch so a multi-segment topic
+     * converges to a uniform bucketing in a single evaluation, not one segment per cooldown.
      */
-    record Rebucket(long segmentId, int newBucketCount, String reason) implements AutoScaleDecision {
+    record Rebucket(java.util.List<Long> segmentIds, int newBucketCount, String reason)
+            implements AutoScaleDecision {
     }
 
     /** No action this evaluation. */

@@ -152,14 +152,23 @@ public final class AutoScalePolicyEvaluator {
         if (withinCooldown(nowMs, lastRebucketAtMs, config.rebucketCooldown().toMillis())) {
             return AutoScaleDecision.NONE;
         }
-        SegmentInfo smallest = smallestByBucketCount(active);
+        // One shot: bring every segment below the common per-segment target up to it in a
+        // single decision, so the topic converges to a uniform bucketing in one evaluation —
+        // never one segment per cooldown, and no arrival-history-dependent skew.
         int target = Math.min(nextPowerOfTwo(ceilDiv(consumers, segments)),
                 config.maxEntryBucketsPerSegment());
-        if (target <= smallest.bucketCount()) {
+        List<Long> below = new ArrayList<>();
+        for (SegmentInfo segment : active) {
+            if (segment.bucketCount() < target) {
+                below.add(segment.segmentId());
+            }
+        }
+        if (below.isEmpty()) {
             // Bucket capacity is maxed out; the remaining surplus stays idle.
             return AutoScaleDecision.NONE;
         }
-        return new AutoScaleDecision.Rebucket(smallest.segmentId(), target,
+        below.sort(Long::compareTo);
+        return new AutoScaleDecision.Rebucket(below, target,
                 atSegmentCap ? "at-max-segments" : "below-split-rate-floor");
     }
 
@@ -312,19 +321,6 @@ public final class AutoScalePolicyEvaluator {
     private static int nextPowerOfTwo(int v) {
         int highest = Integer.highestOneBit(v);
         return highest == v ? v : highest << 1;
-    }
-
-    /** The active segment with the fewest entry-buckets (tie-break on segment id). */
-    private static SegmentInfo smallestByBucketCount(List<SegmentInfo> active) {
-        SegmentInfo best = null;
-        for (SegmentInfo segment : active) {
-            if (best == null || segment.bucketCount() < best.bucketCount()
-                    || (segment.bucketCount() == best.bucketCount()
-                            && segment.segmentId() < best.segmentId())) {
-                best = segment;
-            }
-        }
-        return best;
     }
 
     private static SegmentInfo busiestByMsgRateIn(List<SegmentInfo> active,
