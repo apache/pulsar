@@ -185,6 +185,7 @@ public class FutureUtilTest {
         }
     }
 
+    @Test
     public void testSequencer() {
         int concurrentNum = 1000;
         @Cleanup("shutdownNow")
