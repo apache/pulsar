@@ -29,7 +29,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -107,7 +108,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
+    private final ExecutorService transactionExecutor;
     private final MaxReadPositionCallBack maxReadPositionCallBack;
+    private Future<?> recoveryReplayTask;
     /** if the first snapshot is in progress, it will pending following publishing tasks. **/
     private final LinkedList<PendingAppendingTxnBufferTask> pendingAppendingTxnBufferTasks = new LinkedList<>();
 
@@ -144,14 +147,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
         this.snapshotAbortedTxnProcessor = snapshotAbortedTxnProcessor;
         this.snapshotType = snapshotType;
+        this.transactionExecutor = topic.getBrokerService().getPulsar()
+                .getTransactionExecutorProvider().getExecutor(this);
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.recover();
     }
 
     private void recover() {
         recoverTime.setRecoverStartTime(System.currentTimeMillis());
-        Executor transactionExecutor = this.topic.getBrokerService().getPulsar()
-                .getTransactionExecutorProvider().getExecutor(this);
         transactionExecutor.execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
@@ -243,7 +246,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                         + " transaction buffer throw exception");
                         topic.close(true);
                     }
-                }, this.topic, this, snapshotAbortedTxnProcessor, transactionExecutor));
+                }, this.topic, this, snapshotAbortedTxnProcessor));
+    }
+
+    private synchronized void submitRecoveryReplay(Runnable replay) {
+        if (checkIfClosed()) {
+            return;
+        }
+        recoveryReplayTask = transactionExecutor.submit(replay);
     }
 
     @Override
@@ -703,12 +713,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Void> closeAsync() {
         boolean closeStarted;
-        // Serialize closure with recovery entry handling, which uses the same monitor.
+        // Serialize closure with recovery entry handling and replay submission, which use the same monitor.
         synchronized (this) {
             closeStarted = !checkIfClosed();
             changeToCloseState();
+            if (recoveryReplayTask != null) {
+                recoveryReplayTask.cancel(false);
+                recoveryReplayTask = null;
+            }
         }
-        // Cancel queued recovery before completing futures whose callbacks may run inline.
+        // Cancel snapshot recovery before completing futures whose callbacks may run inline.
         CompletableFuture<Void> processorCloseFuture = this.snapshotAbortedTxnProcessor.closeAsync();
         if (closeStarted) {
             Throwable closeException =
@@ -835,17 +849,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final AbortedTxnProcessor abortedTxnProcessor;
 
-        private final Executor replayExecutor;
-
         private TopicTransactionBufferRecover(TopicTransactionBufferRecoverCallBack callBack, PersistentTopic topic,
                                               TopicTransactionBuffer transactionBuffer,
-                                              AbortedTxnProcessor abortedTxnProcessor, Executor replayExecutor) {
+                                              AbortedTxnProcessor abortedTxnProcessor) {
             this.topic = topic;
             this.callBack = callBack;
             this.entryQueue = new SpscArrayQueue<>(2000);
             this.topicTransactionBuffer = transactionBuffer;
             this.abortedTxnProcessor = abortedTxnProcessor;
-            this.replayExecutor = replayExecutor;
         }
 
         @Override
@@ -856,9 +867,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         .log("TransactionBuffer of topic can not change state to Initializing");
                 return;
             }
-            // Transaction-buffer replay must not extend the snapshot processor's close barrier.
-            abortedTxnProcessor.recoverFromSnapshot().thenAcceptAsync(this::replayTransactionBuffer, replayExecutor)
+            // Keep replay on the transaction executor while retaining a task handle that close can cancel.
+            abortedTxnProcessor.recoverFromSnapshot().thenAccept(this::submitReplay)
                     .exceptionally(this::handleRecoveryFailure);
+        }
+
+        private void submitReplay(Position recoveredPosition) {
+            topicTransactionBuffer.submitRecoveryReplay(() -> {
+                try {
+                    replayTransactionBuffer(recoveredPosition);
+                } catch (Throwable error) {
+                    handleRecoveryFailure(error);
+                }
+            });
         }
 
         private Void handleRecoveryFailure(Throwable error) {

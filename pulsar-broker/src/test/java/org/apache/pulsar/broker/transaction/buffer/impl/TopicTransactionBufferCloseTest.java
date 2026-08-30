@@ -27,13 +27,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -95,6 +97,38 @@ public class TopicTransactionBufferCloseTest {
     }
 
     @Test(timeOut = 10_000)
+    public void testCloseCancelsQueuedRecoveryReplay() throws Exception {
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        CountDownLatch blockerStarted = new CountDownLatch(1);
+        CountDownLatch releaseBlocker = new CountDownLatch(1);
+        try (TestContext context = new TestContext(recoveryFuture, PositionFactory.EARLIEST)) {
+            try {
+                context.awaitExecutorIdle();
+                context.executor.clearSubmittedTask();
+                context.executor.execute(() -> {
+                    blockerStarted.countDown();
+                    try {
+                        releaseBlocker.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+                assertTrue(blockerStarted.await(5, TimeUnit.SECONDS));
+
+                recoveryFuture.complete(PositionFactory.EARLIEST);
+                Future<?> replayTask = context.executor.submittedTask();
+                assertNotNull(replayTask);
+
+                context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
+
+                assertTrue(replayTask.isCancelled());
+            } finally {
+                releaseBlocker.countDown();
+            }
+        }
+    }
+
+    @Test(timeOut = 10_000)
     public void testLateRecoveryReadIsReleasedAfterClose() throws Exception {
         Position startPosition = PositionFactory.create(1, 0);
         Position lastPosition = PositionFactory.create(1, 3);
@@ -122,7 +156,7 @@ public class TopicTransactionBufferCloseTest {
     }
 
     private static final class TestContext implements AutoCloseable {
-        private final ExecutorService executor = Executors.newSingleThreadExecutor();
+        private final TrackingExecutor executor = new TrackingExecutor();
         private final AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
         private final PersistentTopic topic = mock(PersistentTopic.class);
         private final ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
@@ -160,6 +194,29 @@ public class TopicTransactionBufferCloseTest {
             transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
+
+    private static final class TrackingExecutor extends ThreadPoolExecutor {
+        private final AtomicReference<Future<?>> submittedTask = new AtomicReference<>();
+
+        private TrackingExecutor() {
+            super(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        }
+
+        @Override
+        public Future<?> submit(Runnable task) {
+            Future<?> future = super.submit(task);
+            submittedTask.set(future);
+            return future;
+        }
+
+        private Future<?> submittedTask() {
+            return submittedTask.get();
+        }
+
+        private void clearSubmittedTask() {
+            submittedTask.set(null);
         }
     }
 
