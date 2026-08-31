@@ -49,7 +49,7 @@ val includeBuildInfo = providers.gradleProperty("pulsarIncludeBuildInfo")
 val buildInfoFile = providers.gradleProperty("pulsarBuildInfoFile")
     .map { rootDir.resolve(it) }
 
-val generatePulsarBuildInfo by tasks.registering {
+val generatePulsarBuildInfo = tasks.register("generatePulsarBuildInfo") {
     description = "Generates pulsar-version.properties with version and (optionally) git/build metadata."
     val outputFile = layout.buildDirectory.file("generated-resources/buildinfo/org/apache/pulsar/pulsar-version.properties")
     val projectVersion = project.version.toString()
@@ -145,6 +145,11 @@ sourceSets["main"].resources.srcDir(generatePulsarBuildInfo.map {
 
 dependencies {
     implementation(libs.slog)
+    // PIP-478: the purpose-driven TLS factory SPI (org.apache.pulsar.tls) lives in the focused
+    // pulsar-tls-factory-api module; the default FileBasedTlsFactory impl (org.apache.pulsar.common.tls.impl)
+    // and the hostname-verification helpers (org.apache.pulsar.common.tls) live here. Exposed as `api` so
+    // consumers that reference the SPI through pulsar-common keep compiling unchanged.
+    api(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-client-api"))
     api(project(":pulsar-client-admin-api"))
 
@@ -196,16 +201,30 @@ dependencies {
 
     compileOnly(libs.swagger.annotations)
     compileOnly(libs.spotbugs.annotations)
+    // PIP-478: FileBasedTlsFactory emits the pulsar.tls.* reload instruments via the OpenTelemetry handle
+    // exposed on TlsFactoryInitContext. No declaration is needed here — pulsar-tls-factory-api declares
+    // opentelemetry-api as `api` (the SPI exposes OpenTelemetry on its surface), so it reaches this
+    // module's compile AND runtime classpaths through the api(project(":pulsar-tls-factory-api")) above.
 
-    // Non-FIPS BouncyCastle provider for tests that exercise SecurityUtility (which loads
-    // org.bouncycastle.jce.provider.BouncyCastleProvider in a static initializer). This matches
+    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which resolves
+    // org.bouncycastle.jce.provider.BouncyCastleProvider reflectively, on first use). This matches
     // the provider used in production. FIPS is covered separately by the bcfips-include-test
     // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
     // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.
     testImplementation(libs.bcprov.jdk18on)
+    // Same reflective-loading rationale for the BouncyCastle JSSE provider (BCJSSE): JcaProviders
+    // registers it from the classpath on demand, so it is a test-only dependency here. bctls ships no
+    // META-INF/services entry, which is why on-demand registration exists at all.
+    testImplementation(libs.bctls.jdk18on)
     testImplementation(libs.lz4.java)
     testImplementation(libs.zstd.jni)
     testImplementation(libs.snappy.java)
     testImplementation(libs.awaitility)
     testImplementation(libs.jsonassert)
+    // PIP-478: the TLS factory tests implement TlsFactoryInitContext, whose openTelemetry() accessor
+    // exposes the (compileOnly) OpenTelemetry API from pulsar-tls-factory-api.
+    testImplementation(libs.opentelemetry.api)
+    // PIP-478: the TLS-reload metrics test reads pulsar.tls.* instruments via an in-memory SDK reader.
+    testImplementation(libs.opentelemetry.sdk)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }

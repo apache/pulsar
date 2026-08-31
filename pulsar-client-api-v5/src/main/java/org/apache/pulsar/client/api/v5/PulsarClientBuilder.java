@@ -23,8 +23,10 @@ import java.time.Duration;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
-import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 
 /**
  * Builder for configuring and creating a {@link PulsarClient}.
@@ -32,11 +34,18 @@ import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 public interface PulsarClientBuilder {
 
     /**
-     * Build and return the configured client.
+     * Build and return the configured client. A builder may be reused to build further clients; each one
+     * takes its own copy of the configuration.
      *
      * @return the configured {@link PulsarClient} instance
      * @throws PulsarClientException if the client cannot be created (e.g., invalid configuration
      *         or connection failure)
+     * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
+     *         taken by an earlier {@code build()} — taking it is what initializes it, so it is spent whether
+     *         or not that build went on to produce a client, and it cannot be handed over a second time.
+     *         Deliberately unchecked: it reports a programming error in how the builder is used, not a
+     *         failure to reach or configure a cluster, so it is not something a caller catching
+     *         {@link PulsarClientException} should be made to handle
      */
     PulsarClient build() throws PulsarClientException;
 
@@ -55,9 +64,17 @@ public interface PulsarClientBuilder {
     PulsarClientBuilder serviceUrl(String serviceUrl);
 
     /**
-     * Set the authentication provider.
+     * Set the authentication provider from an instance supplied programmatically.
      *
-     * @param authentication the authentication provider to use for connecting to the broker
+     * <p><b>Programmatic-path contract.</b> The instance is presumed already configured — the framework
+     * does NOT call {@link Authentication#configure(java.util.Map)} on it (that step runs only for the
+     * reflective {@link #authentication(String, String)} path). The built client <em>adopts</em> the
+     * instance: it drives {@code initializeAsync(...)} before first use and {@link Authentication#close()}
+     * when the client is closed, so callers must not close the instance themselves or share one instance
+     * across clients with differing lifetimes.
+     *
+     * @param authentication the authentication provider to use for connecting to the broker; must already
+     *                       be configured
      * @return this builder instance for chaining
      */
     PulsarClientBuilder authentication(Authentication authentication);
@@ -100,15 +117,57 @@ public interface PulsarClientBuilder {
     PulsarClientBuilder transactionPolicy(TransactionPolicy policy);
 
     /**
-     * Configure TLS for the client connection.
+     * Configure TLS for the client connection (PIP-478), using the neutral
+     * {@link org.apache.pulsar.tls.TlsPolicy} value shared by the client builder and the
+     * server components. The policy is bound to the default client purposes.
      *
      * @param policy the TLS policy to apply to broker connections
      * @return this builder instance for chaining
-     * @see TlsPolicy#of(String)
-     * @see TlsPolicy#ofMutualTls(String, String, String)
-     * @see TlsPolicy#ofInsecure()
+     * @see TlsPolicy#pem(String, String, String)
+     * @see TlsPolicy#keyStore(String, String, String, String, String)
+     * @see TlsPolicy#insecure()
      */
     PulsarClientBuilder tlsPolicy(TlsPolicy policy);
+
+    /**
+     * Configure TLS for a specific {@link TlsPurpose} (PIP-478). Most users call
+     * {@link #tlsPolicy(TlsPolicy)}, which binds the policy to {@link TlsPurpose#CLIENT_DEFAULT}; this
+     * overload additionally lets a user configure a distinct trust domain — for example
+     * {@link TlsPurpose#CLIENT_OAUTH2} for the identity provider — with its own material.
+     *
+     * @param purpose the client TLS purpose the policy applies to
+     * @param policy  the TLS policy to apply
+     * @return this builder instance for chaining
+     */
+    PulsarClientBuilder tlsPolicy(TlsPurpose purpose, TlsPolicy policy);
+
+    /**
+     * Provide a custom {@link PulsarTlsFactory} implementation (PIP-478), for advanced deployments that
+     * source TLS material from something other than files (a KMS, an HSM-backed key manager, a
+     * per-destination workload identity). The supplied factory is <em>adopted</em>: the client
+     * initializes it and closes it when the client closes.
+     *
+     * <p>Adoption is a hand-over rather than a share, so an instance passed here belongs to one build.
+     * A builder otherwise builds as many clients as you like, but {@link #build()} rejects a second one
+     * while this slot still holds a factory an earlier build already took — pass a fresh instance to build
+     * again.
+     *
+     * <p>What matters for a retry is whether the build got as far as the factory, not whether it succeeded.
+     * A build that failed <em>before</em> that — a missing {@link #serviceUrl(String)}, say — has not touched
+     * the instance, and the same one can be used to build again. Once the client has taken it the instance is
+     * spent, whether the build then succeeded or not: taking it is what initializes it, and the SPI calls
+     * {@code initialize} exactly once. A build that took it and <em>then</em> failed closes it on the way
+     * out, so that factory is released rather than left half-open — but it still cannot be offered to a
+     * second client. (One that succeeded keeps it, and closes it with the client, as above.)
+     *
+     * <p>Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is a value, and
+     * each client composes its own factory from it.
+     *
+     * @param factory the TLS factory to adopt
+     * @return this builder instance for chaining
+     * @throws IllegalArgumentException if {@code factory} is null
+     */
+    PulsarClientBuilder tlsFactory(PulsarTlsFactory factory);
 
     /**
      * Provide a custom {@link OpenTelemetry} instance for metrics and tracing.

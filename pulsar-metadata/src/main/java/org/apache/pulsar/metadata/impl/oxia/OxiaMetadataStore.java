@@ -86,10 +86,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry(),
                 metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
 
-        var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
-        if (!metadataStoreConfig.isBatchingEnabled()) {
-            linger = 0;
-        }
         synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
         OxiaClientBuilder oxiaClientBuilder = OxiaClientBuilder
@@ -97,7 +93,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                 .clientIdentifier(identity)
                 .namespace(namespace)
                 .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
-                .batchLinger(Duration.ofMillis(linger))
                 .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
         if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());

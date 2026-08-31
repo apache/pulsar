@@ -338,6 +338,18 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
 
     void setListener(AssignmentChangeListener listener) {
         this.listener = listener;
+        // Replay the current assignment: an update that raced listener registration (delivered
+        // after registerConsumer returned but before the caller finished applying its initial
+        // assignment) would otherwise be lost — there is no periodic refresh to recover it.
+        // Appliers are idempotent, so a redundant replay of the initial assignment is a no-op.
+        List<ActiveSegment> current = currentAssignment.get();
+        if (current != null) {
+            try {
+                listener.onAssignmentChange(current, current);
+            } catch (Exception e) {
+                log.error().exception(e).log("Error in assignment change listener");
+            }
+        }
     }
 
     long consumerId() {

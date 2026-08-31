@@ -42,8 +42,10 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
@@ -54,6 +56,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -267,6 +272,8 @@ public final class WorkerUtils {
                 adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerification);
             }
 
+            applyBrokerClientProviders(adminBuilder, workerConfig);
+            applyBrokerClientTlsFactoryToAdmin(adminBuilder, workerConfig);
             return adminBuilder.build();
         } catch (PulsarClientException e) {
             log.error().exception(e).log("Error creating pulsar admin client");
@@ -317,11 +324,97 @@ public final class WorkerUtils {
             if (enableTlsHostnameVerificationEnable != null) {
                 clientBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
             }
+            applyBrokerClientProviders(clientBuilder, workerConfig);
+            applyBrokerClientTlsFactory(clientBuilder, workerConfig);
             return clientBuilder.build();
         } catch (PulsarClientException e) {
             log.error().exception(e).log("Error creating pulsar client");
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * PIP-478: route the functions worker's own outbound (worker-to-broker) Pulsar client onto the new TLS
+     * SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}. Mirrors
+     * the broker's {@code PulsarService.maybeApplyBrokerClientTlsFactory}: the broker-client {@code tls*}
+     * material is already on the client configuration, so this only attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} (default file-based, or the named custom factory) that
+     * the transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate
+     * is off, when the client is not TLS, or when it is already on the new path.
+     */
+    /**
+     * PIP-478: pin the worker's own outbound (worker-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe how
+     * TLS is built, not which factory builds it — mirroring what the broker
+     * ({@code PulsarService}/{@code BrokerService}) and the proxy ({@code ProxyConnection}) already do for
+     * their outbound legs. The listener-side {@code tlsProvider}/{@code jsseProvider} govern the worker's own
+     * web server and must not leak onto this leg.
+     */
+    private static void applyBrokerClientProviders(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        applyBrokerClientProviders(builderImpl.getClientConfigurationData(), workerConfig);
+    }
+
+    /** The {@code PulsarAdmin} counterpart of {@link #applyBrokerClientProviders(ClientBuilder, WorkerConfig)}. */
+    private static void applyBrokerClientProviders(PulsarAdminBuilder adminBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !(adminBuilder instanceof PulsarAdminBuilderImpl builderImpl)) {
+            return;
+        }
+        applyBrokerClientProviders(builderImpl.getConf(), workerConfig);
+    }
+
+    private static void applyBrokerClientProviders(ClientConfigurationData conf, WorkerConfig workerConfig) {
+        if (isNotBlank(workerConfig.getBrokerClientSslProvider())) {
+            conf.setSslProvider(workerConfig.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(workerConfig.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(workerConfig.getBrokerClientJsseProvider());
+        }
+        if (isNotBlank(workerConfig.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(workerConfig.getBrokerClientJcaProvider());
+        }
+    }
+
+    private static void applyBrokerClientTlsFactory(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !isNotBlank(workerConfig.getBrokerClientTlsFactoryClassName())
+                || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(
+                conf, workerConfig.getBrokerClientTlsFactoryClassName()));
+        conf.setTlsFactoryParams(
+                TlsFactorySupport.parseFactoryConfig(workerConfig.getBrokerClientTlsFactoryConfig()));
+    }
+
+    /**
+     * PIP-478: route the functions worker's own outbound (worker-to-broker) {@code PulsarAdmin} onto the new
+     * TLS SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}.
+     * Mirrors the broker's {@code PulsarService.applyBrokerClientTlsFactoryToAdmin}: admin traffic is HTTP, so
+     * TLS is selected by an {@code https} service URL rather than a {@code useTls} flag.
+     */
+    private static void applyBrokerClientTlsFactoryToAdmin(PulsarAdminBuilder adminBuilder,
+                                                           WorkerConfig workerConfig) {
+        if (workerConfig == null || !isNotBlank(workerConfig.getBrokerClientTlsFactoryClassName())
+                || !(adminBuilder instanceof PulsarAdminBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getConf();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null) {
+            return;
+        }
+        if (conf.getServiceUrl() == null || !conf.getServiceUrl().startsWith("https")) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(
+                conf, workerConfig.getBrokerClientTlsFactoryClassName()));
+        conf.setTlsFactoryParams(
+                TlsFactorySupport.parseFactoryConfig(workerConfig.getBrokerClientTlsFactoryConfig()));
     }
 
     public static FunctionInstanceStatsImpl getFunctionInstanceStats(String fullyQualifiedInstanceName,

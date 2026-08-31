@@ -37,27 +37,35 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -121,7 +129,10 @@ public class ClientCnx extends PulsarHandler {
     // Derived instance logger with channel context, set in channelActive().
     private Logger log = LOG;
 
-    protected final Authentication authentication;
+    // PIP-478: the authentication the client drives. The client resolves exactly one v5 Authentication and
+    // wraps it in this per-client driver, from which every connection attempt opens its own exchange; there
+    // is no synchronous plugin path left on the connect/challenge routes.
+    protected final BinaryAuthenticationDriver authDriver;
     protected State state;
 
     @VisibleForTesting
@@ -134,6 +145,11 @@ public class ClientCnx extends PulsarHandler {
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
+    // pendingRequests stores all pending request futures but does not preserve the command type,
+    // so there is no way to distinguish lookup requests from other requests (e.g. producer/consumer creation,
+    // getTopics, getLastMessageId). This set tracks which requestIds belong to lookup requests,
+    // so that removePendingRequest can release the lookup semaphore correctly.
+    private final Set<Long> pendingLookupRequestIds = ConcurrentHashMap.newKeySet();
     // LookupRequests that waiting in client side.
     private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
 
@@ -207,6 +223,11 @@ public class ClientCnx extends PulsarHandler {
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
+
+    // PIP-478: hard cap on broker challenge rounds within a single binary authentication exchange, mirroring
+    // HttpAuthenticationDriver.MAX_CHALLENGE_ROUNDS. A broker or plugin that keeps issuing challenges past this
+    // fails the connection instead of looping forever.
+    static final int MAX_AUTH_CHALLENGE_ROUNDS = 10;
     @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
 
@@ -233,6 +254,22 @@ public class ClientCnx extends PulsarHandler {
     // Added for mutual authentication.
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
+    // PIP-478: the authentication exchange for the current connection attempt. Non-null only while a
+    // connect driven through a BinaryAuthenticationDriver is in progress; a fresh exchange is created per
+    // connect attempt and whenever the broker pushes the REFRESH sentinel.
+    private AuthenticationExchange authenticationExchange;
+    // PIP-478: guards for the async auth carve-out. Both are touched only on the channel's event loop
+    // (connect resolution, handleAuthChallenge, and every continuation run there), so they need no
+    // synchronization. authRoundGeneration is bumped when a round starts; a continuation whose generation
+    // is no longer current (superseded by a newer REFRESH/challenge round) or whose channel has closed
+    // no-ops instead of clobbering the published credential or writing to a dead channel.
+    private int authRoundGeneration;
+    private boolean authRoundInProgress;
+    // PIP-478: number of broker challenge rounds serviced since the current authentication exchange began
+    // (reset at connect and on each broker-pushed REFRESH, which opens a fresh exchange). Bounds a broker or
+    // plugin that ping-pongs challenges forever; touched only on the event loop, so it needs no
+    // synchronization. Mirrors the HTTP driver's per-request MAX_CHALLENGE_ROUNDS cap.
+    private int authChallengeRounds;
     private TransactionBufferHandler transactionBufferHandler;
     @Getter
     private boolean supportsTopicWatchers;
@@ -312,7 +349,7 @@ public class ClientCnx extends PulsarHandler {
         this.maxLookupRequestSemaphore =
                 new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
-        this.authentication = conf.getAuthentication();
+        this.authDriver = resolveAuthDriver(conf);
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
@@ -349,26 +386,131 @@ public class ClientCnx extends PulsarHandler {
             log.info().attr("proxyToTargetBrokerAddress", proxyToTargetBrokerAddress)
                     .log("Connected through proxy to target broker");
         }
-        // Send CONNECT command
-        ctx.writeAndFlush(newConnectCommand())
+        // Send CONNECT command. Sync and async plugins share a single state machine (PIP-478): the initial
+        // credential is resolved as a CompletableFuture — already-completed for a plain v4 plugin (computed
+        // inline, preserving today's behaviour verbatim) or pending for a BinaryAuthenticationDriver — and
+        // fed to one continuation that assigns the data provider, builds the command, transitions state and
+        // writes. The continuation runs inline when the future is already done and hops to the channel's
+        // event executor only when it was pending.
+        // PIP-478: reset the challenge-round counter — this is the start of a fresh exchange for the attempt.
+        authChallengeRounds = 0;
+        AuthRound round = startAuthRound();
+        driveAuthResolution(round, resolveConnectAuthData(), this::completeConnect);
+    }
+
+    /**
+     * Resolve the initial credential for {@code CommandConnect}. For a plain v4 plugin this is computed
+     * inline (exactly as the previous synchronous connect path did) into an already-completed future so
+     * the continuation runs synchronously on this thread; for an {@link BinaryAuthenticationDriver} it is a
+     * fresh exchange's {@link AuthenticationExchange#getAuthDataAsync()}. The resolution carries the
+     * {@link AuthenticationDataProvider} to publish — the real v4 provider for the sync path (so subsequent
+     * synchronous challenge rounds keep working), or a minimal command-data adapter for the async path.
+     */
+    private CompletableFuture<ResolvedAuthData> resolveConnectAuthData() {
+        // A single try/catch keeps the whole resolution off-throwing: any synchronous failure (a sync
+        // plugin's getAuthData, or an async driver that throws instead of returning a failed future) is
+        // funnelled into a failed future so the continuation always handles it — never a synchronous throw
+        // on the event loop.
+        try {
+            authenticationExchange = authDriver.newAuthenticationExchange(remoteHostName);
+            return authenticationExchange.getAuthDataAsync()
+                    .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    /**
+     * Continuation for the connect path: publish the resolved data provider (the single assignment site for
+     * connect), build {@code CommandConnect} and write it. On credential failure the channel is closed,
+     * matching today's synchronous path where a throw from the connect-command build ends in
+     * {@code exceptionCaught} → {@code ctx.close()}.
+     */
+    private void completeConnect(ResolvedAuthData resolution, Throwable throwable) {
+        if (throwable != null) {
+            Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+            log.warn().exception(cause).log("Error during handshake");
+            // PIP-478: surface the real (v4-mapped) credential failure to callers waiting on the
+            // connection future before ctx.close() triggers channelInactive, whose generic "Connection
+            // already closed" message would otherwise be all the caller ever sees.
+            connectionFuture.completeExceptionally(cause);
+            ctx.close();
+            return;
+        }
+        final ByteBuf request;
+        try {
+            authenticationDataProvider = resolution.providerToPublish();
+            request = buildConnectCommand(resolution.authData());
+        } catch (Throwable t) {
+            log.warn().exception(t).log("Error during handshake");
+            connectionFuture.completeExceptionally(t);
+            ctx.close();
+            return;
+        }
+        ctx.writeAndFlush(request)
                 .addListener(future -> {
                     if (future.isSuccess()) {
                             log.debug().attr("success", future.isSuccess()).log("Complete");
                         state = State.SentConnectFrame;
                     } else {
                         log.warn().exception(future.cause()).log("Error during handshake");
+                        // PIP-478: a terminal connect-write failure must likewise fail the connection
+                        // future with its cause rather than defer to channelInactive's generic message.
+                        connectionFuture.completeExceptionally(future.cause());
                         ctx.close();
                     }
                 });
     }
 
-    protected ByteBuf newConnectCommand() throws Exception {
-        // mutual authentication is to auth between `remoteHostName` and this client for this channel.
-        // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
-        // and return authData to server.
-        authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
+    /**
+     * The authentication driver for this connection's configuration.
+     *
+     * <p>{@code PulsarClientImpl} resolves one per client, so that its initialization runs once and every
+     * connection shares it. Not every {@code ClientCnx} comes from a {@code PulsarClient} though — the proxy
+     * builds broker connections straight from a configuration — so resolve and memoize one here for those,
+     * keyed on the configuration so connections sharing it still share a driver.
+     *
+     * @param conf the client configuration this connection is built from
+     * @return the driver to open authentication exchanges against
+     */
+    private static BinaryAuthenticationDriver resolveAuthDriver(ClientConfigurationData conf) {
+        BinaryAuthenticationDriver resolved = conf.getV5AuthenticationDriver();
+        if (resolved != null) {
+            return resolved;
+        }
+        synchronized (conf) {
+            resolved = conf.getV5AuthenticationDriver();
+            if (resolved == null) {
+                resolved = new V5BinaryAuthenticationDriver(
+                        V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication()));
+                conf.setV5AuthenticationDriver(resolved);
+            }
+            return resolved;
+        }
+    }
+
+    /**
+     * The auth method name to declare on the wire, taken from the exchange that produced the credential
+     * being sent. It is not resolved at construction: a bridged legacy plugin only learns which capabilities
+     * it can serve once its initialization has run, which happens on the first connection attempt.
+     *
+     * @return the auth method name for the current exchange
+     */
+    protected String authMethodName() {
+        return authenticationExchange.authMethodName();
+    }
+
+    /**
+     * Build the {@code CommandConnect} frame from an already-resolved credential. Overridable so subclasses
+     * (e.g. the proxy's broker client) can customise the frame — the resolved {@link AuthData} is passed in
+     * rather than re-fetched, so an override never has to know how the credential was obtained.
+     *
+     * @param authData the credential resolved for this connection attempt
+     * @return the encoded {@code CommandConnect} frame
+     * @throws Exception if the frame cannot be built
+     */
+    protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
+        return Commands.newConnect(authMethodName(), authData, this.protocolVersion,
                 clientVersion, proxyToTargetBrokerAddress, originalPrincipal, null, null);
     }
 
@@ -385,13 +527,16 @@ public class ClientCnx extends PulsarHandler {
         ConnectException e = new ConnectException(
                 "Disconnected from server at " + ctx.channel().remoteAddress());
 
+        // Fail out all waiting lookup requests first, and clear the queue so that
+        // releasePermitAndDriveWaitingQueue won't dispatch requests on a dead connection.
+        waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
+        waitingLookupRequests.clear();
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> {
-            if (pendingRequests.remove(key, future) && !future.isDone()) {
+            if (removePendingRequest(key, future) && !future.isDone()) {
                 future.completeExceptionally(e);
             }
         });
-        waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this, Optional.empty(), Optional.empty()));
@@ -402,8 +547,6 @@ public class ClientCnx extends PulsarHandler {
         scalableConsumerSessions.forEach((__, session) -> session.connectionClosed());
         scalableTopicsWatchers.forEach((__, session) -> session.connectionClosed());
         tcAssignmentsWatchers.forEach((__, session) -> session.connectionClosed());
-
-        waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
@@ -482,31 +625,94 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(authChallenge.hasChallenge());
         checkArgument(authChallenge.getChallenge().hasAuthData());
 
-        if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
-            try {
-                authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            } catch (PulsarClientException e) {
-                log.error()
-                        .exception(e)
-                        .log("Error when refreshing authentication data provider");
-                connectionFuture.completeExceptionally(e);
-                return;
-            }
-        }
-
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
+        // Sync and async plugins share a single state machine (PIP-478): the response credential is resolved
+        // as a CompletableFuture and fed to one continuation. This is generic across the broker-pushed
+        // REFRESH sentinel, SASL multi-round and any custom challenge/response.
+        AuthData challenge = AuthData.of(authChallenge.getChallenge().getAuthData());
+        boolean refresh = Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
+        // PIP-478 (serialize-or-drop): the broker never pipelines challenges — it waits for each
+        // CommandAuthResponse before sending the next — so a non-refresh challenge arriving while a round
+        // is still in flight is anomalous, and servicing it would re-enter the same single-round,
+        // non-thread-safe exchange concurrently. Drop it. A REFRESH is different: it deliberately restarts
+        // authentication with a fresh exchange, so it may supersede an in-flight round — the superseded
+        // round's continuation detects the newer generation (see driveAuthResolution) and no-ops.
+        if (authRoundInProgress && !refresh) {
+            log.debug().log("Dropping a broker auth challenge received while an auth round is in progress");
+            return;
+        }
+        // PIP-478: bound the exchange. A REFRESH opens a fresh exchange, so it resets the counter; any other
+        // challenge counts towards the cap. A broker or plugin that ping-pongs challenges past the cap fails the
+        // connection rather than looping forever (mirrors the HTTP driver's MAX_CHALLENGE_ROUNDS).
+        if (refresh) {
+            authChallengeRounds = 0;
+        } else if (++authChallengeRounds > MAX_AUTH_CHALLENGE_ROUNDS) {
+            log.error().attr("maxChallengeRounds", MAX_AUTH_CHALLENGE_ROUNDS)
+                    .log("Binary authentication exceeded the maximum challenge rounds; failing the connection");
+            connectionFuture.completeExceptionally(new PulsarClientException.AuthenticationException(
+                    "Binary authentication exchange exceeded the maximum of " + MAX_AUTH_CHALLENGE_ROUNDS
+                            + " challenge rounds"));
+            ctx.close();
+            return;
+        }
+        AuthRound round = startAuthRound();
+        driveAuthResolution(round, resolveChallengeAuthData(challenge, refresh), this::completeAuthChallenge);
+    }
+
+    /**
+     * Resolve the response to a {@code CommandAuthChallenge}. The broker's REFRESH sentinel restarts
+     * authentication: the sync path re-fetches the data provider, and the async path opens a fresh exchange
+     * whose {@link AuthenticationExchange#getAuthDataAsync()} re-produces the current credential — both
+     * mirror each other. Any other challenge is answered by the existing provider / current exchange, whose
+     * state slot carries conversation state across rounds. The resolution only carries a provider to publish
+     * on the REFRESH path (a non-refresh round keeps the current provider, exactly as before).
+     */
+    private CompletableFuture<ResolvedAuthData> resolveChallengeAuthData(AuthData challenge, boolean refresh) {
+        // As in resolveConnectAuthData, one try/catch guarantees a failed future rather than a synchronous
+        // throw on the event loop, for both the sync and the async plugin paths.
         try {
-            AuthData authData = authenticationDataProvider
-                .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
+            if (refresh) {
+                authenticationExchange = authDriver.newAuthenticationExchange(remoteHostName);
+                return authenticationExchange.getAuthDataAsync()
+                        .thenApply(authData -> new ResolvedAuthData(commandDataProvider(authData), authData));
+            }
+            return authenticationExchange.authenticateAsync(challenge)
+                    .thenApply(authData -> new ResolvedAuthData(null, authData));
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    /**
+     * Continuation for the challenge path: on a REFRESH round publish the freshly-resolved data provider
+     * (the single assignment site for refresh), then send {@code CommandAuthResponse} and transition state.
+     */
+    private void completeAuthChallenge(ResolvedAuthData resolution, Throwable throwable) {
+        if (throwable != null) {
+            Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+            log.error().exception(cause).log("Error mutual verify");
+            connectionFuture.completeExceptionally(cause);
+            // Close the channel too, as the challenge-round cap above does. On a post-connect REFRESH the
+            // connection future is already completed, so failing it is a no-op: without this the broker gets
+            // no auth response, the channel stays open, and the client neither reauthenticates nor reconnects
+            // until the broker times it out. Closing triggers channelInactive and the normal reconnect.
+            ctx.close();
+            return;
+        }
+        try {
+            if (resolution.providerToPublish() != null) {
+                authenticationDataProvider = resolution.providerToPublish();
+            }
+            AuthData authData = resolution.authData();
 
             checkState(!authData.isComplete());
 
-            ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
+            ByteBuf request = Commands.newAuthResponse(authMethodName(),
                     authData,
                     this.protocolVersion,
                     clientVersion);
                 log.debug()
-                        .attr("auth", authentication.getAuthMethodName())
+                        .attr("auth", authMethodName())
                         .log("Mutual auth");
 
             ctx.writeAndFlush(request).addListener(writeFuture -> {
@@ -515,6 +721,7 @@ public class ClientCnx extends PulsarHandler {
                             .exceptionMessage(writeFuture.cause())
                             .log("Failed to send request for mutual auth to broker");
                     connectionFuture.completeExceptionally(writeFuture.cause());
+                    ctx.close();
                 }
             });
 
@@ -524,8 +731,113 @@ public class ClientCnx extends PulsarHandler {
         } catch (Exception e) {
             log.error().exception(e).log("Error mutual verify");
             connectionFuture.completeExceptionally(e);
-            return;
+            ctx.close();
         }
+    }
+
+    /**
+     * Drive an authentication continuation. To preserve the synchronous path verbatim (and never touch
+     * {@code ctx.executor()} for a plain v4 plugin), the continuation runs inline when the resolution future
+     * is already complete; it hops onto the channel's event executor only when the resolution was pending
+     * (an {@link BinaryAuthenticationDriver} performing off-event-loop credential I/O).
+     */
+    private void driveAuthResolution(AuthRound round, CompletableFuture<ResolvedAuthData> resolution,
+            BiConsumer<ResolvedAuthData, Throwable> continuation) {
+        BiConsumer<ResolvedAuthData, Throwable> guarded = (resolved, throwable) -> {
+            // The current round owns the in-progress flag; clear it as its continuation lands. A stale
+            // continuation (superseded by a newer round) leaves the flag to the round that now owns it.
+            if (round.generation() == authRoundGeneration) {
+                authRoundInProgress = false;
+            }
+            if (!isAuthRoundCurrent(round)) {
+                // PIP-478: a continuation that is stale (a newer REFRESH/challenge round has started) or
+                // whose channel has closed must not clobber the published credential or write to a dead
+                // channel. The connection future is already handled — by the superseding round, or by
+                // channelInactive when the channel closed.
+                log.debug().log("Ignoring a stale or post-close auth continuation");
+                return;
+            }
+            continuation.accept(resolved, throwable);
+        };
+        if (resolution.isDone()) {
+            // Synchronous v4 path: already resolved (inline), so there is nothing to time out; preserve the
+            // verbatim inline continuation.
+            resolution.whenComplete(guarded);
+        } else {
+            // PIP-478: a BinaryAuthenticationDriver resolved this credential off the event loop; a hung
+            // driver (getAuthDataAsync / authenticateAsync never completing) would otherwise wedge the connect
+            // handshake. Bound it with the client's operation-timeout budget: on expiry the resolution is
+            // completed with a mapped v4 auth exception, and the guarded continuation (still hopped to
+            // ctx.executor(), so the thread-affinity and generation/liveness guards are preserved) fails the
+            // connection future rather than leaving it pending forever.
+            if (operationTimeoutMs > 0) {
+                FutureUtil.addTimeoutHandling(resolution, Duration.ofMillis(operationTimeoutMs), ctx.executor(),
+                        () -> new PulsarClientException.AuthenticationException(
+                                "Authentication did not complete within " + operationTimeoutMs + " ms"));
+            }
+            resolution.whenCompleteAsync(guarded, ctx.executor());
+        }
+    }
+
+    /**
+     * Begin a new async auth round: mark a round in progress and bump the generation, capturing the
+     * channel identity so the continuation can detect a superseded round or a closed/reused channel.
+     * Called on the event loop at the start of connect, the REFRESH sentinel and every challenge round.
+     *
+     * @return the identity of the round just started
+     */
+    private AuthRound startAuthRound() {
+        authRoundInProgress = true;
+        return new AuthRound(++authRoundGeneration, ctx.channel());
+    }
+
+    /**
+     * Whether {@code round} is still the authoritative in-flight round on a live channel — i.e. no newer
+     * round has superseded it and its channel is unchanged and active.
+     *
+     * @param round the round captured when the continuation was scheduled
+     * @return {@code true} if the round's continuation may still perform its side effects
+     */
+    private boolean isAuthRoundCurrent(AuthRound round) {
+        return round.generation() == authRoundGeneration
+                && round.channel() == ctx.channel()
+                && round.channel().isActive();
+    }
+
+    /**
+     * Identity of one async auth round — the generation at which it started and the channel it was issued
+     * on — so a continuation landing after the round was superseded, or after the channel closed, no-ops.
+     */
+    private record AuthRound(int generation, Channel channel) {
+    }
+
+    /**
+     * Adapt an already-resolved {@link AuthData} into a minimal {@link AuthenticationDataProvider} exposing
+     * only the command credential. Used on the async path so {@link #getAuthenticationDataProvider()} reflects
+     * the freshly-resolved credential ({@code getCommandData()} is an observable contract — see
+     * {@code TokenOauth2AuthenticatedProducerConsumerTest}) without re-invoking the plugin.
+     */
+    private static AuthenticationDataProvider commandDataProvider(AuthData authData) {
+        byte[] bytes = authData == null ? null : authData.getBytes();
+        return new AuthenticationDataProvider() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return bytes != null;
+            }
+
+            @Override
+            public String getCommandData() {
+                return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
+            }
+        };
+    }
+
+    /**
+     * The outcome of resolving one credential round: the {@link AuthData} to send on the wire, and the
+     * {@link AuthenticationDataProvider} to publish as {@link #authenticationDataProvider} — or {@code null}
+     * to keep the current provider (a non-refresh challenge round).
+     */
+    private record ResolvedAuthData(AuthenticationDataProvider providerToPublish, AuthData authData) {
     }
 
     @Override
@@ -576,8 +888,9 @@ public class ClientCnx extends PulsarHandler {
     protected void handleAckResponse(CommandAckResponse ackResponse) {
         checkArgument(state == State.Ready);
         checkArgument(ackResponse.getRequestId() >= 0);
-        CompletableFuture<?> completableFuture = pendingRequests.remove(ackResponse.getRequestId());
-        if (completableFuture != null && !completableFuture.isDone()) {
+        long requestId = ackResponse.getRequestId();
+        CompletableFuture<?> completableFuture = pendingRequests.get(requestId);
+        if (completableFuture != null && removePendingRequest(requestId, completableFuture)) {
             if (!ackResponse.hasError()) {
                 completableFuture.complete(null);
             } else {
@@ -622,8 +935,8 @@ public class ClientCnx extends PulsarHandler {
             log.debug().attr("requestId", success.getRequestId())
                     .log("Received success response from server");
         long requestId = success.getRequestId();
-        CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+        CompletableFuture<?> requestFuture = pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             requestFuture.complete(null);
         } else {
             duplicatedResponseCounter.incrementAndGet();
@@ -639,8 +952,8 @@ public class ClientCnx extends PulsarHandler {
                     .log("Received success GetLastMessageId response from server");
         long requestId = success.getRequestId();
         CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
-                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             requestFuture.complete(new CommandGetLastMessageIdResponse().copyFrom(success));
         } else {
             duplicatedResponseCounter.incrementAndGet();
@@ -672,8 +985,8 @@ public class ClientCnx extends PulsarHandler {
         }
 
         CompletableFuture<ProducerResponse> requestFuture =
-                (CompletableFuture<ProducerResponse>) pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+                (CompletableFuture<ProducerResponse>) pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             ProducerResponse pr = new ProducerResponse(success.getProducerName(),
                     success.getLastSequenceId(),
                     success.getSchemaVersion(),
@@ -696,9 +1009,10 @@ public class ClientCnx extends PulsarHandler {
         });
 
         long requestId = lookupResult.getRequestId();
-        CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
+        CompletableFuture<LookupDataResult> requestFuture =
+                (CompletableFuture<LookupDataResult>) pendingRequests.get(requestId);
 
-        if (requestFuture != null) {
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             if (requestFuture.isCompletedExceptionally()) {
                 log.debug()
                         .attr("requestId", lookupResult.getRequestId())
@@ -723,6 +1037,7 @@ public class ClientCnx extends PulsarHandler {
                 requestFuture.complete(new LookupDataResult(lookupResult));
             }
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn().attr("requestId", lookupResult.getRequestId())
                     .log("Received unknown request id from server");
         }
@@ -739,9 +1054,10 @@ public class ClientCnx extends PulsarHandler {
         });
 
         long requestId = lookupResult.getRequestId();
-        CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
+        CompletableFuture<LookupDataResult> requestFuture =
+                (CompletableFuture<LookupDataResult>) pendingRequests.get(requestId);
 
-        if (requestFuture != null) {
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             if (requestFuture.isCompletedExceptionally()) {
                 log.debug()
                         .attr("requestId", lookupResult.getRequestId())
@@ -766,6 +1082,7 @@ public class ClientCnx extends PulsarHandler {
                 requestFuture.complete(new LookupDataResult(lookupResult.getPartitions()));
             }
         } else {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn().attr("requestId", lookupResult.getRequestId())
                     .log("Received unknown request id from server");
         }
@@ -814,41 +1131,63 @@ public class ClientCnx extends PulsarHandler {
 
     // caller of this method needs to be protected under pendingLookupRequestSemaphore
     private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
+        pendingLookupRequestIds.add(requestId);
         pendingRequests.put(requestId, future);
         requestTimeoutQueue.add(new RequestTime(requestId, RequestType.Lookup));
     }
 
-    private CompletableFuture<LookupDataResult> getAndRemovePendingLookupRequest(long requestId) {
-        CompletableFuture<LookupDataResult> result =
-                (CompletableFuture<LookupDataResult>) pendingRequests.remove(requestId);
-        if (result != null) {
-            Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>> firstOneWaiting =
-                    waitingLookupRequests.poll();
-            if (firstOneWaiting != null) {
-                maxLookupRequestSemaphore.release();
-                // schedule a new lookup in.
-                eventLoopGroup.execute(() -> {
-                    long newId = firstOneWaiting.getLeft();
-                    TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
-                    addPendingLookupRequests(newId, newFuture);
-                    ctx.writeAndFlush(firstOneWaiting.getRight().getLeft()).addListener(writeFuture -> {
-                        if (!writeFuture.isSuccess()) {
-                            log.warn()
-                                    .attr("requestId", newId)
-                                    .exceptionMessage(writeFuture.cause())
-                                    .log("Failed to send request to broker");
-                            getAndRemovePendingLookupRequest(newId);
+    /**
+     * Release the lookup semaphore permit and drive the waiting queue.
+     * This is the single centralized primitive for permit release/transfer.
+     */
+    private void releasePermitAndDriveWaitingQueue() {
+        Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>> firstOneWaiting =
+                waitingLookupRequests.poll();
+        if (firstOneWaiting != null) {
+            maxLookupRequestSemaphore.release();
+            // schedule a new lookup in.
+            eventLoopGroup.execute(() -> {
+                long newId = firstOneWaiting.getLeft();
+                TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
+                addPendingLookupRequests(newId, newFuture);
+                ctx.writeAndFlush(firstOneWaiting.getRight().getLeft()).addListener(writeFuture -> {
+                    if (!writeFuture.isSuccess()) {
+                        log.warn()
+                                .attr("requestId", newId)
+                                .exceptionMessage(writeFuture.cause())
+                                .log("Failed to send request to broker");
+                        if (removePendingRequest(newId, newFuture)) {
                             newFuture.completeExceptionally(writeFuture.cause());
                         }
-                    });
+                    }
                 });
-            } else {
-                pendingLookupRequestSemaphore.release();
-            }
+            });
         } else {
-            duplicatedResponseCounter.incrementAndGet();
+            pendingLookupRequestSemaphore.release();
         }
-        return result;
+    }
+
+    /**
+     * Unified cleanup primitive for all pending requests.
+     * Uses pendingRequests.remove(requestId, expectedFuture) as the single CAS contention point.
+     * Only the thread that successfully removes the entry from pendingRequests owns the cleanup
+     * responsibility (including permit release for lookup requests).
+     *
+     * @param requestId the request ID to remove
+     * @param expectedFuture the expected future value for CAS comparison
+     * @return true if this call successfully obtained ownership and performed cleanup
+     */
+    private boolean removePendingRequest(long requestId, CompletableFuture<?> expectedFuture) {
+        // CAS: only one thread can successfully remove from pendingRequests
+        if (!pendingRequests.remove(requestId, expectedFuture)) {
+            return false;
+        }
+        // Won the CAS. If it's a lookup request, release the permit and drive waiting queue.
+        if (pendingLookupRequestIds.contains(requestId)) {
+            releasePermitAndDriveWaitingQueue();
+            pendingLookupRequestIds.remove(requestId);
+        }
+        return true;
     }
 
     @Override
@@ -901,8 +1240,8 @@ public class ClientCnx extends PulsarHandler {
             log.error().attr("message", error.getMessage()).log("Get not allowed error");
             connectionFuture.completeExceptionally(new PulsarClientException.NotAllowedException(error.getMessage()));
         }
-        CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+        CompletableFuture<?> requestFuture = pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             requestFuture.completeExceptionally(
                     getPulsarClientException(error.getError(),
                                              buildError(error.getRequestId(), error.getMessage())));
@@ -1006,13 +1345,6 @@ public class ClientCnx extends PulsarHandler {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
-            future.whenComplete((lookupDataResult, throwable) -> {
-                if (throwable instanceof ConnectException
-                        || throwable instanceof PulsarClientException.LookupException
-                        || FutureUtil.unwrapCompletionException(throwable) instanceof TimeoutException) {
-                    pendingLookupRequestSemaphore.release();
-                }
-            });
             addPendingLookupRequests(requestId, future);
             ctx.writeAndFlush(request).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
@@ -1020,8 +1352,9 @@ public class ClientCnx extends PulsarHandler {
                             .attr("requestId", requestId)
                             .exceptionMessage(writeFuture.cause())
                             .log("Failed to send request to broker");
-                    getAndRemovePendingLookupRequest(requestId);
-                    future.completeExceptionally(writeFuture.cause());
+                    if (removePendingRequest(requestId, future)) {
+                        future.completeExceptionally(writeFuture.cause());
+                    }
                 }
             });
         } else {
@@ -1069,8 +1402,8 @@ public class ClientCnx extends PulsarHandler {
                 .log("Received get topics of namespace success response from server");
 
         CompletableFuture<GetTopicsResult> requestFuture =
-                (CompletableFuture<GetTopicsResult>) pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+                (CompletableFuture<GetTopicsResult>) pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             requestFuture.complete(new GetTopicsResult(topics,
                     success.hasTopicsHash() ? success.getTopicsHash() : null,
                     success.isFiltered(),
@@ -1089,8 +1422,8 @@ public class ClientCnx extends PulsarHandler {
         long requestId = commandGetSchemaResponse.getRequestId();
 
         CompletableFuture<CommandGetSchemaResponse> future =
-                (CompletableFuture<CommandGetSchemaResponse>) pendingRequests.remove(requestId);
-        if (future == null) {
+                (CompletableFuture<CommandGetSchemaResponse>) pendingRequests.get(requestId);
+        if (future == null || !removePendingRequest(requestId, future)) {
             duplicatedResponseCounter.incrementAndGet();
             log.warn().attr("requestId", requestId)
                     .log("Received unknown request id from server");
@@ -1104,10 +1437,10 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(state == State.Ready);
         long requestId = commandGetOrCreateSchemaResponse.getRequestId();
         CompletableFuture<CommandGetOrCreateSchemaResponse> future =
-                (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests.remove(requestId);
-        if (future == null) {
+                (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests.get(requestId);
+        if (future == null || !removePendingRequest(requestId, future)) {
             duplicatedResponseCounter.incrementAndGet();
-            log.warn().attr("requestId", requestId)
+            log.warn().attr("requestId", commandGetOrCreateSchemaResponse.getRequestId())
                     .log("Received unknown request id from server");
             return;
         }
@@ -1141,7 +1474,7 @@ public class ClientCnx extends PulsarHandler {
         pendingRequests.put(requestId, future);
         (flush ? ctx.writeAndFlush(requestMessage) : ctx.write(requestMessage)).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
-                if (pendingRequests.remove(requestId, future) && !future.isDone()) {
+                if (removePendingRequest(requestId, future)) {
                     log.warn()
                             .attr("send", requestType.getDescription())
                             .exceptionMessage(writeFuture.cause())
@@ -1262,9 +1595,8 @@ public class ClientCnx extends PulsarHandler {
                 .attr("requestId", response.getRequestId())
                 .log("Received tc client connect response from server");
         long requestId = response.getRequestId();
-        CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
-
-        if (requestFuture != null && !requestFuture.isDone()) {
+        CompletableFuture<?> requestFuture = pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             if (!response.hasError()) {
                 requestFuture.complete(null);
             } else {
@@ -1335,8 +1667,8 @@ public class ClientCnx extends PulsarHandler {
                 .log("Received watchTopicListSuccess response from server");
         long requestId = commandWatchTopicListSuccess.getRequestId();
         CompletableFuture<CommandWatchTopicListSuccess> requestFuture =
-                (CompletableFuture<CommandWatchTopicListSuccess>) pendingRequests.remove(requestId);
-        if (requestFuture != null) {
+                (CompletableFuture<CommandWatchTopicListSuccess>) pendingRequests.get(requestId);
+        if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
             requestFuture.complete(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
         } else {
             duplicatedResponseCounter.incrementAndGet();
@@ -1409,8 +1741,8 @@ public class ClientCnx extends PulsarHandler {
         log.debug().attr("requestId", requestId).log("Received scalableTopicSubscribeResponse");
 
         if (cmd.hasError()) {
-            CompletableFuture<? extends Object> requestFuture = pendingRequests.remove(requestId);
-            if (requestFuture != null && !requestFuture.isDone()) {
+            CompletableFuture<? extends Object> requestFuture = pendingRequests.get(requestId);
+            if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
                 requestFuture.completeExceptionally(new PulsarClientException(
                         "Scalable topic subscribe failed: " + cmd.getError()
                                 + (cmd.hasMessage() ? " - " + cmd.getMessage() : "")));
@@ -1421,8 +1753,9 @@ public class ClientCnx extends PulsarHandler {
         @SuppressWarnings("unchecked")
         TimedCompletableFuture<org.apache.pulsar.common.api.proto.ScalableConsumerAssignment>
                 requestFuture = (TimedCompletableFuture<
-                org.apache.pulsar.common.api.proto.ScalableConsumerAssignment>) pendingRequests.remove(requestId);
-        if (requestFuture == null || requestFuture.isDone()) {
+                org.apache.pulsar.common.api.proto.ScalableConsumerAssignment>) pendingRequests.get(requestId);
+        if (requestFuture == null || !removePendingRequest(requestId, requestFuture)) {
+            duplicatedResponseCounter.incrementAndGet();
             log.warn().attr("requestId", requestId)
                     .log("Received scalable topic subscribe response for unknown / completed request");
             return;
@@ -1794,10 +2127,9 @@ public class ClientCnx extends PulsarHandler {
                 continue;
             }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
-            if (requestFuture != null
-                    && !requestFuture.hasGotResponse()) {
-                pendingRequests.remove(request.requestId, requestFuture);
-                if (!requestFuture.isDone()) {
+            if (requestFuture != null && !requestFuture.hasGotResponse()) {
+                boolean removed = removePendingRequest(request.requestId, requestFuture);
+                if (removed) {
                     String timeoutMessage = request.requestType.getDescription() + " timeout";
                     if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
                         if (request.requestType == RequestType.Lookup) {

@@ -41,11 +41,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
@@ -53,11 +53,12 @@ import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
-import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.apache.pulsar.jetty.tls.JettyTlsFactory;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -103,11 +104,23 @@ public class WebServer {
     private ServerConnector connectorTls;
 
     private ScheduledExecutorService sslRefreshScheduledExecutor;
-    private PulsarSslFactory sslFactory;
+    // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
+    private PulsarTlsFactory tlsFactory;
+    private JettyTlsFactory.ReloadableServerTls reloadableServerTls;
 
     private final FilterInitializer filterInitializer;
 
+    // PIP-478: the OpenTelemetry root threaded into the WEB-purpose TlsFactoryInitContext (so
+    // pulsar.tls.reload emits for the proxy web listener); OpenTelemetry.noop() when unset.
+    private final OpenTelemetry openTelemetry;
+
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
+        this(config, authenticationService, OpenTelemetry.noop());
+    }
+
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService,
+                     OpenTelemetry openTelemetry) {
+        this.openTelemetry = openTelemetry;
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web",
                 config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(webServiceExecutor);
@@ -126,6 +139,7 @@ public class WebServer {
         }
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
         httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
+        httpConfig.setResponseHeaderSize(config.getHttpMaxResponseHeaderSize());
         httpConfig.setIdleTimeout(config.getHttpServerIdleTimeout());
 
         HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
@@ -143,22 +157,7 @@ public class WebServer {
         }
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                this.sslRefreshScheduledExecutor = Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorProvider.ExtendedThreadFactory("pulsar-proxy-web-server-tls-refresh"));
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
-                this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
-                        .getConstructor().newInstance();
-                this.sslFactory.initialize(sslConfiguration);
-                this.sslFactory.createInternalSslContext();
-                if (config.getTlsCertRefreshCheckDurationSec() > 0) {
-                    sslRefreshScheduledExecutor.scheduleWithFixedDelay(this::refreshSslContext,
-                            config.getTlsCertRefreshCheckDurationSec(),
-                            config.getTlsCertRefreshCheckDurationSec(), TimeUnit.SECONDS);
-                }
-                SslContextFactory.Server sslCtxFactory =
-                        JettySslContextFactory.createSslContextFactory(config.getTlsProvider(),
-                                sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
-                                config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols());
+                SslContextFactory.Server sslCtxFactory = createTlsFactoryWebServer(config);
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -414,9 +413,8 @@ public class WebServer {
     }
 
     public void stop() throws Exception {
-        if (this.sslRefreshScheduledExecutor != null) {
-            this.sslRefreshScheduledExecutor.shutdownNow();
-        }
+        // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
+        releaseTlsResources();
         server.stop();
         webServiceExecutor.stop();
         log.info("Server stopped successfully");
@@ -442,35 +440,58 @@ public class WebServer {
         }
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config) {
-        return PulsarSslConfiguration.builder()
-                .tlsProvider(config.getTlsProvider())
-                .tlsKeyStoreType(config.getTlsKeyStoreType())
-                .tlsKeyStorePath(config.getTlsKeyStore())
-                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getTlsTrustStoreType())
-                .tlsTrustStorePath(config.getTlsTrustStore())
-                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
-                .tlsCiphers(config.getTlsCiphers())
-                .tlsProtocols(config.getTlsProtocols())
-                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
-                .tlsKeyFilePath(config.getTlsKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
-                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
-                .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(null)
-                .serverMode(true)
-                .isHttps(true)
-                .build();
+    // PIP-478: build the PulsarTlsFactory for the WEB purpose and drive a vanilla Jetty
+    // SslContextFactory.Server via the SSLContext subscription (no cert refresh task).
+    private SslContextFactory.Server createTlsFactoryWebServer(ProxyConfiguration config) throws Exception {
+        this.sslRefreshScheduledExecutor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-proxy-web-server-tls-refresh"));
+        // The refresh thread exists from here on, and once the factory is created it owns live resources of
+        // its own (cert watchers, HSM sessions, reload work). A failure in any subsequent step rethrows out of
+        // the constructor without returning a WebServer, so stop() is never reachable — release the partial
+        // state here rather than strand it. Mirrors WebService (broker).
+        try {
+            this.tlsFactory = TlsFactorySupport.createFactory(config.getTlsFactoryClassName(), null,
+                    () -> ProxyTlsFactories.serverFactory(config, TlsPurpose.WEB,
+                            config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols()));
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(config.getTlsFactoryConfig()),
+                    sslRefreshScheduledExecutor, sslRefreshScheduledExecutor, openTelemetry);
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
+                    sslRefreshScheduledExecutor,
+                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
+                    config.getWebServiceTlsProtocols());
+            return this.reloadableServerTls.sslContextFactory();
+        } catch (Exception e) {
+            releaseTlsResources();
+            throw e;
+        }
     }
 
-    protected void refreshSslContext() {
-        try {
-            this.sslFactory.update();
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
+    /**
+     * Release the HTTPS listener's TLS resources: the reload subscription, the factory, and the scheduler that
+     * drives their refresh — in that order, so the factory can cancel its refresh work while its executor is
+     * still alive. Idempotent, and safe on a partially built server, which is what the constructor's failure
+     * path needs. A failure to close the factory is logged rather than thrown so it cannot mask the original
+     * exception on that path.
+     */
+    private void releaseTlsResources() {
+        if (this.reloadableServerTls != null) {
+            this.reloadableServerTls.subscription().dispose();
+            this.reloadableServerTls = null;
+        }
+        if (this.tlsFactory != null) {
+            try {
+                this.tlsFactory.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close the web TLS factory");
+            }
+            this.tlsFactory = null;
+        }
+        if (this.sslRefreshScheduledExecutor != null) {
+            this.sslRefreshScheduledExecutor.shutdownNow();
+            this.sslRefreshScheduledExecutor = null;
         }
     }
 

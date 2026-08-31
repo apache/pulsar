@@ -1969,9 +1969,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed + 1 : lh.getLastAddConfirmed() + 1;
         log.debug().attr("ledgerId", lh.getId()).attr("entries", entriesInLedger).log("Ledger has been closed");
         if (entriesInLedger > 0) {
-            LedgerInfo info = new LedgerInfo().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(clock.millis());
-            ledgers.put(lh.getId(), info);
+            ledgers.compute(lh.getId(), (ledgerId, oldInfo) -> {
+                LedgerInfo info = new LedgerInfo();
+                if (oldInfo != null) {
+                    info.copyFrom(oldInfo);
+                } else {
+                    info.setLedgerId(ledgerId);
+                }
+                return info.setEntries(entriesInLedger).setSize(lh.getLength()).setTimestamp(clock.millis());
+            });
         } else {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
@@ -2414,10 +2420,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
 
-            // If all messages in [firstEntry...lastEntry] are filter out,
-            // then manual call internalReadEntriesComplete to advance read position.
+            // If all positions in [firstEntry...lastEntry] are filtered out, advance the read position
+            // without issuing a ledger read.
             if (firstValidEntry == -1L) {
-                final var nextReadPosition = PositionFactory.create(ledger.getId(), lastEntry).getNext();
+                final Position lastScannedPosition = PositionFactory.create(ledger.getId(), lastEntry);
+                // The whole scan window was skipped. If the last scanned position is individually deleted,
+                // hop over its deleted range instead of advancing one window at a time.
+                final Position nextReadPosition = opReadEntry.cursor.getNextAvailablePosition(lastScannedPosition);
                 opReadEntry.updateReadPosition(nextReadPosition);
                 opReadEntry.checkReadCompletion();
                 return;
@@ -3878,11 +3887,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         final HashMap<Long, LedgerInfo> newLedgers = new HashMap<>(ledgers);
                         newLedgers.put(ledgerId, newInfo);
                         store.asyncUpdateLedgerIds(name, buildManagedLedgerInfo(newLedgers), ledgersStat,
-                                new MetaStoreCallback<Void>() {
+                                new MetaStoreCallback<>() {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
-                                        ledgers.put(ledgerId, newInfo);
+                                        ledgers.computeIfPresent(ledgerId, (id, existing) -> {
+                                            LedgerInfo merged = new LedgerInfo();
+                                            merged.copyFrom(newInfo);
+                                            merged.clearEntries().clearSize().clearTimestamp();
+                                            if (existing.hasEntries()) {
+                                                merged.setEntries(existing.getEntries());
+                                            }
+                                            if (existing.hasSize()) {
+                                                merged.setSize(existing.getSize());
+                                            }
+                                            if (existing.hasTimestamp()) {
+                                                merged.setTimestamp(existing.getTimestamp());
+                                            }
+                                            return merged;
+                                        });
                                         unlockingPromise.complete(null);
                                     }
 

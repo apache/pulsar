@@ -99,7 +99,7 @@ public interface PulsarClientProvider {
 
     Authentication authenticationToken(Supplier<String> tokenSupplier);
 
-    Authentication authenticationTls(String certFilePath, String keyFilePath);
+    Authentication authenticationTls();
 
     Authentication createAuthentication(String className, String params) throws PulsarClientException;
 
