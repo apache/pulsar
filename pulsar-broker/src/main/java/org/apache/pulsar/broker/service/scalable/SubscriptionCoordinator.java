@@ -214,19 +214,25 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Explicit unregister (consumer asked to leave the subscription). Cancels any pending
-     * grace timer, deletes the persisted registration, and rebalances.
+     * Explicit unregister (consumer asked to leave the subscription). Deletes the persisted
+     * registration first, and only on success removes the in-memory session, cancels its
+     * grace timer, and rebalances. A failed delete therefore changes nothing: the session
+     * stays registered and connected, so the channelInactive → grace-period fallback still
+     * works, and a retried unregister actually retries the deletion instead of short-
+     * circuiting on an already-removed session.
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> unregisterConsumer(
             String consumerName) {
-        ConsumerSession removed = sessions.remove(consumerName);
-        if (removed == null) {
+        if (!sessions.containsKey(consumerName)) {
             return CompletableFuture.completedFuture(snapshotAssignments());
         }
-        removed.cancelGraceTimer();
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        ConsumerSession removed = sessions.remove(consumerName);
+                        if (removed != null) {
+                            removed.cancelGraceTimer();
+                        }
                         if (sessions.isEmpty()) {
                             segmentAssignments.clear();
                             return Map.of();

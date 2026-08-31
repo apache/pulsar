@@ -1591,6 +1591,65 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    /**
+     * PIP-486 clean leave: unsubscribe for an unknown consumer id is an idempotent success; a
+     * failed unregister answers an error and keeps the per-connection registration ref (so the
+     * grace fallback and a retry both still work); a successful retry then removes it, and a
+     * repeat unsubscribe is again an idempotent success.
+     */
+    @Test(timeOut = 30000)
+    public void testScalableTopicUnsubscribeIdempotencyAndErrorPath() throws Exception {
+        var scalableTopicService =
+                mock(org.apache.pulsar.broker.service.scalable.ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(scalableTopicService);
+
+        resetChannel();
+        ByteBuf connect = Commands.newConnect("none", "", null);
+        channel.writeInbound(connect);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        // Unknown consumer id: idempotent success.
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(300L, 999L));
+        Object response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        assertEquals(((CommandSuccess) response).getRequestId(), 300L);
+
+        // Register a consumer so the connection records its registration ref.
+        when(scalableTopicService.registerConsumer(any(), anyString(), anyString(), anyLong(),
+                any(), any())).thenReturn(CompletableFuture.completedFuture(
+                        new org.apache.pulsar.broker.service.scalable.ConsumerAssignment(
+                                1L, Collections.emptyList())));
+        channel.writeInbound(Commands.newScalableTopicSubscribe(301L,
+                "persistent://public/default/scalable-unsub", "sub", "c1", 5L,
+                ScalableConsumerType.STREAM));
+        assertTrue(getResponse() instanceof CommandScalableTopicSubscribeResponse);
+
+        // Failing unregister: error response, ref retained.
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("store down")));
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(302L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandError, String.valueOf(response));
+        assertEquals(((CommandError) response).getRequestId(), 302L);
+
+        // Retry after the failure actually retries the unregister (the ref survived).
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(303L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        assertEquals(((CommandSuccess) response).getRequestId(), 303L);
+        verify(scalableTopicService, times(2)).unregisterConsumer(any(), anyString(), anyString());
+
+        // The ref is gone now: one more unsubscribe is an idempotent success with no new call.
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(304L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        verify(scalableTopicService, times(2)).unregisterConsumer(any(), anyString(), anyString());
+
+        channel.finish();
+    }
+
     @Test
     public void testRefreshOriginalPrincipalWithAuthDataForwardedFromProxy() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);

@@ -487,11 +487,11 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         // unsubscribe (the pooled controller connection stays open, so without it the
         // registration would linger for the full disconnect grace period and the segment
         // would never be handed back within this test's window).
-        StreamConsumer<String> b1 = v5Client.newStreamConsumer(Schema.string())
+        StreamConsumer<String> b1 = track(v5Client.newStreamConsumer(Schema.string())
                 .topic(topic)
                 .subscriptionName(subscription)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
-                .subscribeAsync().get(30, TimeUnit.SECONDS);
+                .subscribeAsync().get(30, TimeUnit.SECONDS));
         sendPhase(producer, keys, sent, perKey, perKey * 2);
         Map<String, List<String>> b1Got = new ConcurrentHashMap<>();
         Thread ta1 = drainOrdered(a, aGot);
@@ -542,6 +542,46 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
             }
             assertEquals(union, expected.size(), "loss or duplicates across handoffs for key=" + k);
         }
+    }
+
+    @Test
+    public void testRapidSubscribeCloseChurnLeavesGroupClean() throws Exception {
+        // PIP-486 clean leave under churn: consumers joining and closing in quick succession —
+        // including closes racing the registration and rebalance machinery — must leave no
+        // ghost group members behind. A single ghost would make the controller keep the
+        // segment fanned out (Key_Shared) instead of returning it to the survivor Exclusive.
+        String topic = newScalableTopic(1);
+        admin.scalableTopics().setAutoScalePolicy(topic,
+                AutoScalePolicyOverride.builder().enabled(false).build());
+        String subscription = "leave-churn";
+
+        @Cleanup
+        StreamConsumer<String> survivor = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        for (int i = 0; i < 5; i++) {
+            v5Client.newStreamConsumer(Schema.string())
+                    .topic(topic)
+                    .subscriptionName(subscription)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                    .subscribeAsync().get(30, TimeUnit.SECONDS)
+                    .close();
+        }
+
+        // Every churned consumer unregistered cleanly: the survivor converges back to sole
+        // Exclusive ownership. With the default 60s grace, any missed unregistration would
+        // hold the group fanned out well past this window.
+        String segmentTopic = admin.scalableTopics().getStats(topic)
+                .getSegments().values().iterator().next().name();
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            var sub = getTopicReference(segmentTopic).orElseThrow().getSubscription(subscription);
+            assertNotNull(sub, "segment subscription missing");
+            assertEquals(sub.getType(), CommandSubscribe.SubType.Exclusive,
+                    "a churned consumer left a ghost registration behind");
+            assertEquals(sub.getConsumers().size(), 1);
+        });
     }
 
     private void sendPhase(Producer<String> producer, List<String> keys,
