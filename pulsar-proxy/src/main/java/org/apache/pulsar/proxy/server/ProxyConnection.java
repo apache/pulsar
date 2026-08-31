@@ -797,6 +797,8 @@ public class ProxyConnection extends PulsarHandler {
                 clientConf.setTlsCertificateFilePath(proxyConfig.getBrokerClientCertificateFilePath());
             }
             clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+            clientConf.setTlsCiphers(proxyConfig.getBrokerClientTlsCiphers());
+            clientConf.setTlsProtocols(proxyConfig.getBrokerClientTlsProtocols());
         }
         return clientConf;
     }
