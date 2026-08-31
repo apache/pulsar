@@ -3490,6 +3490,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testCompletedReadEntryTimeoutsAreRemovedFromSharedTracker() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(60);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completed_read_timeout_tracker_test", config);
+        Position position = ledger.addEntry("entry-1".getBytes());
+
+        CompletableFuture<Void> readComplete = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+                readComplete.complete(null);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                readComplete.completeExceptionally(exception);
+            }
+        }, null);
+
+        readComplete.get(5, TimeUnit.SECONDS);
+        factory.getReadEntryTimeoutTracker().checkTimeouts();
+        assertEquals(factory.getReadEntryTimeoutTracker().pendingTimeoutCount(), 0);
+
+        ledger.close();
+    }
+
+    @Test
     public void testAddEntryResponseTimeout() throws Exception {
         // Create ML with feature Add Entry Timeout Check.
         final ManagedLedgerConfig config =

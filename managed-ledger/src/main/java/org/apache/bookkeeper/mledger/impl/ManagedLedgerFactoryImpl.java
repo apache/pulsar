@@ -133,6 +133,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
     private final ScheduledFuture<?> flushCursorsTask;
+    private final ReadEntryTimeoutTracker readEntryTimeoutTracker;
 
     private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
@@ -245,6 +246,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
+        this.readEntryTimeoutTracker = new ReadEntryTimeoutTracker(scheduledExecutor);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -322,6 +324,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @VisibleForTesting
     public synchronized void doCacheEviction() {
         entryCacheManager.doCacheEviction();
+    }
+
+    ReadEntryTimeoutTracker getReadEntryTimeoutTracker() {
+        return readEntryTimeoutTracker;
     }
 
     /**
@@ -662,6 +668,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
+        readEntryTimeoutTracker.close();
         cacheEvictionExecutor.shutdownNow();
 
         List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
