@@ -301,7 +301,7 @@ flexible messaging model and an intuitive client API.</description>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
-    <thrift.version>0.23.0</thrift.version>
+    <thrift.version>0.24.0</thrift.version>
 
     <!-- zstd-jni is only used for testcase,
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
@@ -1357,7 +1357,7 @@ flexible messaging model and an intuitive client API.</description>
         </exclusions>
       </dependency>
       <!-- libthrift is a transitive dependency of distributedlog-core.
-      libthrift 0.23.0 upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
+      libthrift 0.23.0 and later upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
       transports, which distributedlog-core does not use (only TJSON/TMemory serialization is needed). !-->
       <dependency>
         <groupId>org.apache.thrift</groupId>
