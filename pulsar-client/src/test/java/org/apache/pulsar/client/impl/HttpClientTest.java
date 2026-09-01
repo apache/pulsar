@@ -33,9 +33,18 @@ import io.netty.resolver.NameResolver;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -145,6 +154,75 @@ public class HttpClientTest {
             // Lock the invariant: the final hop on serverB must carry the Authorization header.
             serverB.verify(getRequestedFor(urlPathMatching(LOOKUP_PATH))
                     .withHeader("Authorization", equalTo("Bearer test-token")));
+        }
+    }
+
+    /**
+     * The v4 auth hooks may block ({@code AuthenticationOAuth2.getAuthData} refreshes its token with a
+     * synchronous HTTP exchange served by this client's own event-loop group), and the redirect continuation
+     * invokes them from an AHC completion callback on a Netty IO thread — a self-deadlock unless the client
+     * offloads the v4 composition to its blocking auth executor (PIP-478). Locks the offload: every
+     * {@code getAuthData} call, including the redirect hop's, must run on the supplied executor thread.
+     */
+    @Test
+    public void v4AuthHeadersAreComputedOnTheBlockingAuthExecutor() throws Exception {
+        serverA.stubFor(get(urlPathMatching(LOOKUP_PATH))
+                .willReturn(aResponse()
+                        .withStatus(307)
+                        .withHeader("Location",
+                                "http://127.0.0.1:" + serverB.port() + LOOKUP_PATH)));
+        serverB.stubFor(get(urlPathMatching(LOOKUP_PATH))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(EXPECTED_BODY)));
+
+        Authentication token = AuthenticationFactory.token("test-token");
+        Queue<String> authDataThreads = new ConcurrentLinkedQueue<>();
+        Authentication recording = new Authentication() {
+            @Override
+            public String getAuthMethodName() {
+                return token.getAuthMethodName();
+            }
+
+            @Override
+            public AuthenticationDataProvider getAuthData(String brokerHostName) throws PulsarClientException {
+                authDataThreads.add(Thread.currentThread().getName());
+                return token.getAuthData(brokerHostName);
+            }
+
+            @Override
+            public void configure(Map<String, String> authParams) {
+            }
+
+            @Override
+            public void start() throws PulsarClientException {
+                token.start();
+            }
+
+            @Override
+            public void close() throws IOException {
+                token.close();
+            }
+        };
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://127.0.0.1:" + serverA.port());
+        conf.setAuthentication(recording);
+
+        ExecutorService offload = Executors.newSingleThreadExecutor(r -> new Thread(r, "auth-offload-test"));
+        try (HttpClient httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver, offload)) {
+            LookupData result = httpClient.get(LOOKUP_PATH, LookupData.class)
+                    .get(30, TimeUnit.SECONDS);
+            assertNotNull(result);
+        } finally {
+            offload.shutdownNow();
+        }
+
+        assertNotNull(authDataThreads.peek(), "expected at least one getAuthData call");
+        for (String thread : authDataThreads) {
+            assertEquals(thread, "auth-offload-test",
+                    "getAuthData must run on the blocking auth executor, never the calling/event-loop thread");
         }
     }
 }

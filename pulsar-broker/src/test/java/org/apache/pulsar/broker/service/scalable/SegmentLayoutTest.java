@@ -34,7 +34,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testInitialLayout() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         assertEquals(layout.getEpoch(), 0);
@@ -54,7 +54,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testSingleSegmentInitialLayout() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         assertEquals(layout.getActiveSegments().size(), 1);
@@ -64,7 +64,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testFourSegmentInitialLayout() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         assertEquals(layout.getActiveSegments().size(), 4);
@@ -81,7 +81,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testFindActiveSegment() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         SegmentInfo found = layout.findActiveSegment(0x1000);
@@ -93,7 +93,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testSplitSegment() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
@@ -122,7 +122,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testSplitNonActiveSegment() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -133,7 +133,7 @@ public class SegmentLayoutTest {
     @Test
     public void testMergeSegments() {
         // Start with 2 segments, split seg-0, then merge the children back
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L); // seg-2 [0000-3fff], seg-3 [4000-7fff]
 
@@ -155,7 +155,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testSplitRecordsWallClockTimestamps() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         long splitAt = 1_700_000_000_000L;
@@ -179,7 +179,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testMergeRecordsWallClockTimestamps() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         long splitAt = 1_700_000_000_000L;
@@ -199,7 +199,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testMergeNonAdjacentSegments() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         // Segments 0 and 2 are not adjacent
@@ -208,7 +208,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testPruneSegment() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -223,7 +223,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testCannotPruneActiveSegment() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
 
         assertThrows(IllegalArgumentException.class, () -> layout.pruneSegment(0));
@@ -231,7 +231,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testGetChildren() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -243,7 +243,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testGetParents() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -257,7 +257,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testGetLineage() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -268,7 +268,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testToMetadata() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of("key", "value"));
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of("key", "value"));
         // A layout mutation must round-trip every non-layout field, not just properties.
         metadata.setAutoScalePolicy(org.apache.pulsar.common.policies.data.AutoScalePolicyOverride
                 .builder().enabled(false).maxSegments(8).build());
@@ -286,7 +286,7 @@ public class SegmentLayoutTest {
 
     @Test
     public void testNextSegmentIdAdvances() {
-        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, Map.of());
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(2, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         assertEquals(layout.getNextSegmentId(), 2);
 
@@ -300,7 +300,7 @@ public class SegmentLayoutTest {
     @Test
     public void testMergeDepthZeroForNeverMergedSegments() {
         SegmentLayout layout = SegmentLayout.fromMetadata(
-                ScalableTopicController.createInitialMetadata(2, Map.of()));
+                ScalableTopicController.createInitialMetadata(2, 4, Map.of()));
         assertEquals(layout.mergeDepth(0), 0);
         assertEquals(layout.mergeDepth(1), 0);
 
@@ -314,7 +314,7 @@ public class SegmentLayoutTest {
     public void testMergeDepthCountsMergesInLineage() {
         // split(0) → {1,2}; merge(1,2) → {3}; split(3) → {4,5}.
         SegmentLayout layout = SegmentLayout
-                .fromMetadata(ScalableTopicController.createInitialMetadata(1, Map.of()))
+                .fromMetadata(ScalableTopicController.createInitialMetadata(1, 4, Map.of()))
                 .splitSegment(0, 0L)
                 .mergeSegments(1, 2, 0L)
                 .splitSegment(3, 0L);

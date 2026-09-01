@@ -182,6 +182,15 @@ public class PulsarCluster {
                             "/pulsar/certificate-authority/client-keys/admin.cert.pem",
                             "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
                     .withEnv("tlsEnabledWithBroker", "true")
+                    // The proxy discovers brokers through the metadata store and connects to each broker's
+                    // advertised address, which in this docker topology is the broker container's network
+                    // alias (e.g. "pulsar-broker-<cluster>"). That alias is not — and cannot statically be —
+                    // in the shared test broker certificate's SubjectAltName. TLS hostname verification is on
+                    // by default since Pulsar 5.0 (PIP-478), so verify the internal proxy->broker hop against
+                    // the alias would fail with "No name matching ... found". This relaxes verification only
+                    // for that internal, not-under-test hop; the client-under-test connections (client/admin
+                    // -> proxy and -> broker over loopback) still verify against the localhost SAN.
+                    .withEnv("tlsHostnameVerificationEnabled", "false")
                     .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
                     .withEnv("brokerClientCertificateFilePath",
                             "/pulsar/certificate-authority/server-keys/proxy.cert.pem")

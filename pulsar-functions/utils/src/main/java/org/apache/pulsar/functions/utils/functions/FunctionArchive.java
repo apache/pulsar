@@ -27,8 +27,8 @@ import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
 public class FunctionArchive implements AutoCloseable {
     private final Path archivePath;
-    /** MD5 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
-    private final String archiveMd5Hex;
+    /** SHA-256 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
+    private final String archiveChecksumHex;
     private final FunctionDefinition functionDefinition;
     private final String narExtractionDirectory;
     private final boolean enableClassloading;
@@ -41,25 +41,25 @@ public class FunctionArchive implements AutoCloseable {
     }
 
     /**
-     * @param precomputedArchiveMd5Hex MD5 hex of {@code archivePath} contents; if null and path is non-null,
+     * @param precomputedArchiveChecksumHex SHA-256 hex of {@code archivePath} contents; if null and path is non-null,
      *                                   the hash is computed once at construction time.
      */
     public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
-                           boolean enableClassloading, String precomputedArchiveMd5Hex) {
+                           boolean enableClassloading, String precomputedArchiveChecksumHex) {
         this.archivePath = archivePath;
         this.functionDefinition = functionDefinition;
         this.narExtractionDirectory = narExtractionDirectory;
         this.enableClassloading = enableClassloading;
         if (archivePath != null) {
             try {
-                this.archiveMd5Hex = precomputedArchiveMd5Hex != null
-                        ? precomputedArchiveMd5Hex
-                        : FunctionUtils.computeArchiveMd5Hex(archivePath);
+                this.archiveChecksumHex = precomputedArchiveChecksumHex != null
+                        ? precomputedArchiveChecksumHex
+                        : FunctionUtils.computeArchiveChecksumHex(archivePath);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         } else {
-            this.archiveMd5Hex = "";
+            this.archiveChecksumHex = "";
         }
     }
 
@@ -67,8 +67,8 @@ public class FunctionArchive implements AutoCloseable {
         return archivePath;
     }
 
-    public String getArchiveMd5Hex() {
-        return archiveMd5Hex;
+    public String getArchiveChecksumHex() {
+        return archiveChecksumHex;
     }
 
     public synchronized ValidatableFunctionPackage getFunctionPackage() {

@@ -31,6 +31,9 @@ dependencies {
     api(project(":pulsar-broker-common"))
     api(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
+    // PIP-478: PulsarChannelInitializer / WebService use the TLS factory SPI directly (private tlsFactory
+    // fields); it is not exposed on the broker's ABI, so `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-websocket"))
     implementation(project(":pulsar-cli-utils"))
     implementation(project(":pulsar-transaction:pulsar-transaction-common"))
@@ -49,6 +52,7 @@ dependencies {
     api(libs.commons.lang3)
     api(libs.netty.transport)
     implementation(libs.protobuf.java)
+    implementation(libs.fastutil)
     implementation(libs.curator.recipes)
     implementation(libs.bookkeeper.stream.storage.server) {
         exclude(group = "org.apache.bookkeeper")
@@ -125,7 +129,6 @@ dependencies {
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.commons.math3)
     testImplementation(libs.okhttp3)
-    testImplementation(libs.spring.core)
     testImplementation(libs.vertx.core)
     testImplementation(libs.wiremock)
     testImplementation(libs.consolecaptor)
@@ -149,14 +152,14 @@ evaluationDependsOn(":pulsar-functions")
 
 // NAR/JAR files needed by broker tests (mirrors Maven's maven-dependency-plugin config).
 // Resolve through dependency configurations instead of cross-project task references.
-val testNars by configurations.creating {
+val testNars = configurations.create("testNars") {
     isCanBeResolved = true
     isCanBeConsumed = false
     attributes {
         attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
     }
 }
-val testExamplesJar by configurations.creating {
+val testExamplesJar = configurations.create("testExamplesJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
@@ -195,6 +198,18 @@ protobuf {
         val protocVersion = providers.gradleProperty("protobufVersion").getOrElse(libs.versions.protobuf.get())
         artifact = "com.google.protobuf:protoc:$protocVersion"
     }
+}
+
+// Align the protobuf plugin's resolvable proto-path classpaths with the enforced version platform.
+// The protobuf-gradle-plugin creates `<sourceSet>ProtoPath` configurations that resolve the proto
+// closure of the project's dependencies. They are build-time only and never published, but the
+// GitHub dependency-submission resolves every resolvable configuration, and without the alignment
+// bucket these report transitive versions that diverge from the version catalog (e.g.
+// netty-codec-http2, commons-configuration2), which Dependabot then flags. Extending the
+// non-consumable `internalPlatform` bucket (see pulsar.java-conventions) keeps them consistent
+// with the catalog without affecting any published metadata.
+configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
+    extendsFrom(configurations["internalPlatform"])
 }
 
 // All main proto files now use lightproto. Only test protos use standard protobuf.

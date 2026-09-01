@@ -73,7 +73,7 @@ dependencies {
 }
 
 // Copy certificate-authority resources to test output
-val copyCertificateAuthority by tasks.registering(Copy::class) {
+val copyCertificateAuthority = tasks.register<Copy>("copyCertificateAuthority") {
     from("${rootDir}/tests/certificate-authority")
     into(layout.buildDirectory.dir("resources/test/certificate-authority"))
 }
@@ -100,7 +100,7 @@ val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.
 val hasCliTestsFilter = gradle.startParameter.taskRequests
     .flatMap { it.args }
     .any { it == "--tests" }
-val integrationTest by tasks.registering(Test::class) {
+val integrationTest = tasks.register<Test>("integrationTest") {
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
 

@@ -71,6 +71,9 @@ include("buildtools")
 include("pulsar-config-validation")
 include("pulsar-client-api")
 include("pulsar-client-api-v5")
+// Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
+include("pulsar-tls-factory-api")
+include("pulsar-http-client-api")
 
 // Tier 1
 include("pulsar-client-admin-api")
@@ -190,6 +193,10 @@ include("pulsar-client-tools-customcommand-example")
 include("pulsar-broker-auth-oidc")
 include("pulsar-broker-auth-sasl")
 include("pulsar-client-auth-sasl")
+
+// Tier 9 — shaded utility modules (in core-modules)
+include("pulsar-client-fastutil-minimized")
+include("pulsar-broker-fastutil-minimized")
 
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
