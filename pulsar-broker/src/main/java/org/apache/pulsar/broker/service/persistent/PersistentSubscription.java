@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -995,14 +996,16 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .exception(throwable)
                                 .log("Failed to disconnect consumer from subscription");
 
-                        return CompletableFuture.<Void>failedFuture(
+                        throw new CompletionException(
                                 new SubscriptionBusyException(
                                         "Failed to disconnect consumers from subscription"));
                     }
 
                     log.info()
                             .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
-
+                    return null;
+                })
+                .thenCompose(__ -> {
                     if (dispatcher != null) {
                         return dispatcher.clearDelayedMessages();
                     }
