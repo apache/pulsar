@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -984,13 +985,34 @@ public class PersistentSubscription extends AbstractSubscription {
         }
 
         disconnectFuture
-                .thenCompose(__ -> {
-                    log.info()
-                            .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
+                .handle((ignore, throwable) -> {
                     if (dispatcher != null) {
                         dispatcher.resetCloseFuture();
+                    }
+
+                    if (throwable != null) {
+                        log.error()
+                                .exception(throwable)
+                                .log("Failed to disconnect consumer from subscription");
+
+                        return CompletableFuture.<Void>failedFuture(
+                                new SubscriptionBusyException(
+                                        "Failed to disconnect consumers from subscription"));
+                    }
+
+                    log.info()
+                            .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
+
+                    if (dispatcher != null) {
                         return dispatcher.clearDelayedMessages();
                     }
+
+                    if (topic.isDelayedDeliveryEnabled()
+                            && topic.getBrokerService().getDelayedDeliveryTrackerFactory()
+                            instanceof BucketDelayedDeliveryTrackerFactory bucketDelayedDeliveryTrackerFactory) {
+                        return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor);
+                    }
+
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> {
@@ -1057,7 +1079,9 @@ public class PersistentSubscription extends AbstractSubscription {
                             .log("Error while resetting cursor");
                     IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                     inProgressResetCursorFuture = null;
-                    future.completeExceptionally(new BrokerServiceException(e));
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    future.completeExceptionally(cause instanceof BrokerServiceException exception
+                            ? exception : new BrokerServiceException(cause));
                     return null;
                 });
         return future;
