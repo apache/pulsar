@@ -158,12 +158,15 @@ jakarta-activation = "2.1.4"
 angus-activation = "2.0.3"
 jakarta-xml-bind = "4.0.5"
 jakarta-validation = "3.0.2"
-# javax-servlet (Servlet 4.0, ee8) is retained alongside jakarta-servlet (Servlet 6.0, ee10)
-# so that the AdditionalServlet plugin SPI keeps supporting legacy javax.servlet handlers (PIP-472).
-# Each is kept at the Servlet level its Jetty 12.1 environment implements: Jetty ee8 ships
-# jetty-servlet-api 4.0.x and Jetty ee10 pins jakarta.servlet-api 6.0.0.
+# Pulsar's web tier runs a single Jetty environment (ee10 / jakarta.servlet 6.0). javax-servlet is
+# retained only as the compile/runtime API of the legacy javax.servlet handlers that the
+# AdditionalServlet plugin SPI still accepts; those are adapted to jakarta.servlet by
+# felix-http-wrappers and registered in the ee10 environment like any other servlet (PIP-472).
+# Servlet 4.0 is a floor, not a preference: the wrappers reference Servlet 4.0 types such as
+# javax.servlet.http.PushBuilder, so a downgrade to 3.1 fails with NoClassDefFoundError on first use.
 javax-servlet = "4.0.1"
 jakarta-servlet = "6.0.0"
+felix-http-wrappers = "1.1.10"
 # Oxia / etcd
 oxia = "0.9.4"
 oxia-testcontainers = "0.7.4"
@@ -297,13 +300,12 @@ jetty-alpn-conscrypt-server = { module = "org.eclipse.jetty:jetty-alpn-conscrypt
 jetty-compression-server = { module = "org.eclipse.jetty.compression:jetty-compression-server", version.ref = "jetty" }
 jetty-compression-gzip = { module = "org.eclipse.jetty.compression:jetty-compression-gzip", version.ref = "jetty" }
 jetty-client = { module = "org.eclipse.jetty:jetty-client", version.ref = "jetty" }
-# jetty-ee8-* is retained for the AdditionalServlet legacy javax.servlet environment (PIP-472)
+# jetty-ee8-servlet is used only by the patched ZooKeeper admin server under jetty-upgrade/, which
+# implements ZooKeeper's own javax.servlet-based APIs and runs its own Jetty server. Pulsar's broker,
+# proxy and websocket Jetty wiring is ee10-only (PIP-472).
 jetty-ee8-servlet = { module = "org.eclipse.jetty.ee8:jetty-ee8-servlet", version.ref = "jetty" }
-jetty-ee8-servlets = { module = "org.eclipse.jetty.ee8:jetty-ee8-servlets", version.ref = "jetty" }
-jetty-ee8-proxy = { module = "org.eclipse.jetty.ee8:jetty-ee8-proxy", version.ref = "jetty" }
 jetty-websocket-jetty-api = { module = "org.eclipse.jetty.websocket:jetty-websocket-jetty-api", version.ref = "jetty" }
 jetty-websocket-jetty-client = { module = "org.eclipse.jetty.websocket:jetty-websocket-jetty-client", version.ref = "jetty" }
-jetty-ee8-websocket-jetty-server = { module = "org.eclipse.jetty.ee8.websocket:jetty-ee8-websocket-jetty-server", version.ref = "jetty" }
 # jetty-ee10-* is used by Pulsar's own broker/proxy/websocket Jetty wiring (jakarta.servlet, PIP-472)
 jetty-ee10-servlet = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlet", version.ref = "jetty" }
 jetty-ee10-servlets = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlets", version.ref = "jetty" }
@@ -421,6 +423,9 @@ angus-activation = { module = "org.eclipse.angus:angus-activation", version.ref 
 jakarta-xml-bind-api = { module = "jakarta.xml.bind:jakarta.xml.bind-api", version.ref = "jakarta-xml-bind" }
 javax-servlet-api = { module = "javax.servlet:javax.servlet-api", version.ref = "javax-servlet" }
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta-servlet" }
+# Adapters between javax.servlet and jakarta.servlet, used to run legacy javax.servlet
+# AdditionalServlet plugins inside Pulsar's jakarta.servlet Jetty environment (PIP-472)
+felix-http-wrappers = { module = "org.apache.felix:org.apache.felix.http.wrappers", version.ref = "felix-http-wrappers" }
 # javax.xml.bind:jaxb-api is required at runtime by third-party libraries that still reference the
 # legacy javax.xml.bind API (jclouds and Hadoop in the tiered-storage offloaders); Pulsar's own code
 # uses jakarta.xml.bind (PIP-472)
