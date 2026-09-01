@@ -49,10 +49,13 @@ A producer that implements entry-bucketing MUST:
 
 - Batch such that **every stored entry (batch) belongs to a single bucket** — i.e. group messages by
   bucket within each destination segment, using the segment's advertised boundary list.
-- Stamp, in the entry's **cleartext outer metadata**, the bucket's hash range: `MessageMetadata`
-  `entry_hash_min` / `entry_hash_max` (the bucket's inclusive 16-bit range). A non-batched message is
-  stamped the same way with its own bucket's range.
-- Stamp **always** — including on a single-bucket segment (`N = 1`, where the stamp is the whole ring).
+- Stamp, in the entry's **cleartext outer metadata**, the entry's **effective** bucket-hash range:
+  `MessageMetadata` `entry_hash_min` / `entry_hash_max` — the smallest and largest bucket hash actually
+  present among the entry's messages, both inclusive (16-bit). Because the entry is single-bucket this
+  range necessarily lies within one bucket; it is the *tightest* bound, not the bucket's nominal
+  boundaries. A single-message entry stamps `min = max =` that message's bucket hash.
+- Stamp **always** — including on a single-bucket segment (`N = 1`); the stamp is still the entry's
+  effective min/max, never a synthetic whole-ring range.
   The stamp records the entry's *effective* hash range at publish time, so it stays meaningful when the
   entry is later re-examined under a different layout (geo-replication into a cluster with different
   segment or bucket boundaries, or a rebucketed successor): if the stamped range falls entirely inside
@@ -77,8 +80,8 @@ Entry-bucketing extends the Stream consumer's controller assignment ([Wire Proto
   per-message pending-ack tracking, cumulative acks).
 - **Non-empty `bucket_ranges`** — the segment is **shared by bucket**. The list is the segment's **full
   boundary list** (§2) — *not* a per-consumer slice — and is **identical for every sharer**. The
-  consumer subscribes `Key_Shared` STICKY with the `entry_bucket_dispatch` flag, declaring exactly this
-  boundary list in the subscribe's `KeySharedMeta.hash_ranges`.
+  consumer subscribes `Key_Shared` STICKY with the `KeySharedMeta.entryBucketDispatch` flag, declaring
+  exactly this boundary list in the subscribe's `KeySharedMeta.hashRanges`.
 
 The controller only decides **which consumers share a segment**; the bucket→consumer spread is computed
 **broker-side** from the live membership of the subscription, deterministically (every sharer declares
@@ -143,8 +146,9 @@ Entry-bucketing adds no commands; it adds fields to existing structures (see
   inert on classic topics, and ignored by brokers without the feature.
 - `SegmentInfoProto.entry_bucket_splits` — the segment's boundary list in the topic layout (§2), so
   producers can bucket and the broker can validate.
-- `KeySharedMeta.entry_bucket_dispatch` — the subscribe flag selecting bucket dispatch, with the
-  boundary list carried in the existing `KeySharedMeta.hash_ranges` (§4).
+- `KeySharedMeta.entryBucketDispatch` — the subscribe flag selecting bucket dispatch, with the
+  boundary list carried in the existing `KeySharedMeta.hashRanges` (§4). (These two fields use the
+  proto's camelCase naming, unlike the snake_case fields above.)
 - `ScalableAssignedSegment.bucket_ranges` — the controller's per-segment mode signal in the Stream
   assignment (§4).
 

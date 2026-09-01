@@ -57,6 +57,8 @@ SegmentInfoProto {
   uint64 created_at_epoch [, sealed_at_epoch]     // DAG generation numbers
   uint64 created_at_ms    [, sealed_at_ms]        // wall clock (retention GC, timestamp seek)
   string legacy_topic_name?             // set => wraps an external persistent:// topic (migration)
+  repeated uint32 entry_bucket_splits   // PIP-486 (field 12): ascending inclusive start hashes of
+                                        // buckets 1..N-1; empty => one bucket spanning the ring
 }
 ```
 
@@ -207,8 +209,8 @@ ScalableAssignedSegment    { uint64 segment_id; uint32 hash_start, hash_end; str
 - `bucket_ranges` selects the Stream consumer's attach mode per segment (entry-bucketing,
   [Key-Shared](key-shared.md) §4): **empty** ⇒ sole owner, subscribe **Exclusive**; **non-empty** ⇒ the
   segment is shared by entry-bucket, and the list is the segment's full bucket-boundary list — the
-  consumer subscribes `Key_Shared` STICKY with `KeySharedMeta.entry_bucket_dispatch = true` and exactly
-  this list in `KeySharedMeta.hash_ranges`. The controller may share a segment whenever consumers
+  consumer subscribes `Key_Shared` STICKY with `KeySharedMeta.entryBucketDispatch = true` and exactly
+  this list in `KeySharedMeta.hashRanges`. The controller may share a segment whenever consumers
   outnumber segments, so a Stream client MUST implement this handling. Before applying a mode flip (or
   dropping a segment) the client MUST drain the segment — see [Key-Shared](key-shared.md) §4.
 - `layout_epoch` lets the client **reject stale** assignments (apply only if epoch ≥ last applied).
