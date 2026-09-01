@@ -193,6 +193,7 @@ public class ScalableTopics extends AdminResource {
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                             numInitialSegments,
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                             props);
                     return resources().createScalableTopicAsync(tn, metadata)
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
@@ -941,9 +942,9 @@ public class ScalableTopics extends AdminResource {
             + "entry-bucket count.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Segment rebucketed successfully"),
-            @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
-            @ApiResponse(responseCode = "412",
-                    description = "Segment is not active or the bucket count is invalid"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Segment is unknown, not active, "
+                    + "or the bucket count is invalid or unchanged"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void rebucketSegment(
             @Suspended final AsyncResponse asyncResponse,
@@ -971,6 +972,17 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof IllegalArgumentException) {
+                        // Segment-level validation (unknown, sealed, bad or unchanged bucket
+                        // count): a client error, not a server one.
+                        log.info().attr("clientAppId", clientAppId())
+                                .attr("segmentId", segmentId).attr("topic", tn)
+                                .attr("reason", cause.getMessage()).log("Rebucket rejected");
+                        asyncResponse.resume(new RestException(
+                                Response.Status.PRECONDITION_FAILED, cause.getMessage()));
+                        return null;
+                    }
                     log.error().attr("clientAppId", clientAppId())
                             .attr("segmentId", segmentId).attr("topic", tn)
                             .exception(ex).log("Failed to rebucket segment");

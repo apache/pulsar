@@ -20,16 +20,20 @@ package org.apache.pulsar.client.api.v5;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.ScalableTopicHashing;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -91,10 +95,10 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
         Producer<String> producer = v5Client.newProducer(Schema.string())
                 .topic(topic)
                 .create();
-        List<String> keys = new ArrayList<>();
-        for (int i = 0; i < 16; i++) {
-            keys.add("key-" + i);
-        }
+        // Deterministic key set covering every one of the successor's 8 buckets (at least two
+        // keys each), so every consumer — each owns at least one bucket — must receive traffic
+        // and the delivery assertion below can demand all five, not "some".
+        List<String> keys = bucketCoveringKeys(8, 2);
         int perKey = 5;
         Map<String, List<String>> sent = new HashMap<>();
         for (String k : keys) {
@@ -110,6 +114,7 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
 
         List<Map<String, List<String>>> got = new ArrayList<>();
         List<Thread> drainers = new ArrayList<>();
+        List<Throwable> drainerFailures = new CopyOnWriteArrayList<>();
         for (StreamConsumer<String> consumer : consumers) {
             Map<String, List<String>> into = new ConcurrentHashMap<>();
             got.add(into);
@@ -124,7 +129,8 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
                         into.computeIfAbsent(key, __ -> new ArrayList<>()).add(msg.value());
                         consumer.acknowledgeCumulative(msg.id());
                     }
-                } catch (Exception ignored) {
+                } catch (Throwable t2) {
+                    drainerFailures.add(t2);
                 }
             });
             t.start();
@@ -133,6 +139,7 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
         for (Thread t : drainers) {
             t.join();
         }
+        assertTrue(drainerFailures.isEmpty(), "drainer failed: " + drainerFailures);
 
         int receiving = 0;
         for (String k : keys) {
@@ -152,7 +159,35 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
                 receiving++;
             }
         }
-        assertTrue(receiving >= 2, "expected the bucket fan-out to feed several consumers, got "
-                + receiving);
+        assertEquals(receiving, consumers.size(),
+                "the key set covers every bucket, so every consumer must receive traffic");
+    }
+
+    /**
+     * Deterministic keys such that every one of {@code buckets} equal-width entry-buckets holds
+     * at least {@code minPerBucket} keys — computed with the same hashing the producer uses.
+     */
+    private static List<String> bucketCoveringKeys(int buckets, int minPerBucket) {
+        int bucketWidth = (HashRange.MAX_HASH + 1) / buckets;
+        int[] counts = new int[buckets];
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; keys.size() < 64; i++) {
+            String key = "key-" + i;
+            int hash = ScalableTopicHashing.entryBucketHash(
+                    ScalableTopicHashing.murmur(key.getBytes(StandardCharsets.UTF_8)));
+            int bucket = Math.min(hash / bucketWidth, buckets - 1);
+            if (counts[bucket] < minPerBucket) {
+                counts[bucket]++;
+                keys.add(key);
+            }
+            boolean covered = true;
+            for (int c : counts) {
+                covered &= c >= minPerBucket;
+            }
+            if (covered) {
+                break;
+            }
+        }
+        return keys;
     }
 }

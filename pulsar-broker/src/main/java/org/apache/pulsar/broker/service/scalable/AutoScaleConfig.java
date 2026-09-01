@@ -211,6 +211,7 @@ public record AutoScaleConfig(
         check(maxSegments >= minSegments, "maxSegments must be >= minSegments");
         check(maxDagDepth >= 0, "maxDagDepth must be >= 0");
         check(!splitCooldown.isNegative(), "splitCooldown must not be negative");
+        check(!rebucketCooldown.isNegative(), "rebucketCooldown must not be negative");
         check(!mergeCooldown.isNegative(), "mergeCooldown must not be negative");
         check(!mergeWindow.isNegative(), "mergeWindow must not be negative");
         check(splitMsgRateIn > 0, "splitMsgRateInThreshold must be > 0");
@@ -221,6 +222,12 @@ public record AutoScaleConfig(
         check(mergeBytesRateIn >= 0, "mergeBytesRateInThreshold must be >= 0");
         check(mergeMsgRateOut >= 0, "mergeMsgRateOutThreshold must be >= 0");
         check(mergeBytesRateOut >= 0, "mergeBytesRateOutThreshold must be >= 0");
+        // Written as >= so a NaN (reachable via the JSON override) fails the check too.
+        check(splitVsRebucketMinMsgRateIn >= 0,
+                "splitVsRebucketMinMsgRateInThreshold must be >= 0");
+        check(maxEntryBucketsPerSegment >= 1 && maxEntryBucketsPerSegment
+                        <= EntryBucketSplits.MAX_BUCKETS,
+                "maxEntryBucketsPerSegment must be in [1, " + EntryBucketSplits.MAX_BUCKETS + "]");
         check(splitMsgRateIn > mergeMsgRateIn,
                 "splitMsgRateInThreshold must be > mergeMsgRateInThreshold (hysteresis)");
         check(splitBytesRateIn > mergeBytesRateIn,

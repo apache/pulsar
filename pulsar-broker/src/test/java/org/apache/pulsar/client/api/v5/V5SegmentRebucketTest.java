@@ -132,21 +132,26 @@ public class V5SegmentRebucketTest extends V5ClientBaseTest {
         String topic = newScalableTopic(1);
         long segmentId = soleActiveSegmentId(topic);
 
+        // All segment-level rejections are client errors: HTTP 412, never 500.
         // Out-of-range bucket counts.
-        expectThrows(PulsarAdminException.class,
-                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 0));
+        assertEquals(expectThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 0))
+                .getStatusCode(), 412);
         // Unchanged bucketing (the initial segment already has the budget-derived N=4).
-        expectThrows(PulsarAdminException.class,
-                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 4));
+        assertEquals(expectThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 4))
+                .getStatusCode(), 412);
         // Unknown segment.
-        expectThrows(PulsarAdminException.class,
-                () -> admin.scalableTopics().rebucketSegment(topic, 12345, 8));
+        assertEquals(expectThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().rebucketSegment(topic, 12345, 8))
+                .getStatusCode(), 412);
 
         // A valid rollover still works after the rejections, and the parent (now sealed)
         // cannot be rolled over again.
         admin.scalableTopics().rebucketSegment(topic, segmentId, 8);
-        expectThrows(PulsarAdminException.class,
-                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 16));
+        assertEquals(expectThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().rebucketSegment(topic, segmentId, 16))
+                .getStatusCode(), 412);
     }
 
     private long soleActiveSegmentId(String topic) throws Exception {

@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.testng.annotations.Test;
 
 /**
@@ -141,5 +142,25 @@ public class EntryBucketSplitsTest {
         assertEquals(EntryBucketSplits.ranges(List.of(0x4000, 0x8000, 0xC000)),
                 List.of(HashRange.of(0, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
                         HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
+    }
+
+    @Test
+    public void testEqualWidthClampsToRingSize() {
+        // Beyond one bucket per hash the split points would collide and produce zero-width
+        // ranges; equalWidth clamps so ranges(...) always materializes.
+        var splits = EntryBucketSplits.equalWidth(EntryBucketSplits.MAX_BUCKETS * 4);
+        assertEquals(splits.size() + 1, EntryBucketSplits.MAX_BUCKETS);
+        var ranges = EntryBucketSplits.ranges(splits);
+        assertEquals(ranges.size(), EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    @Test
+    public void testMergeClampsToBucketCeiling() {
+        // Merging recovers the parents' buckets but never past the configured per-segment
+        // ceiling.
+        var md = ScalableTopicController.createInitialMetadata(2, 8, Map.of()); // 2 × N=4
+        SegmentLayout merged = SegmentLayout.fromMetadata(md).mergeSegments(0, 1, 0L, 6);
+        SegmentInfo child = merged.getAllSegments().get(2L);
+        assertEquals(child.bucketCount(), 6, "sum 8 clamped to the ceiling 6");
     }
 }

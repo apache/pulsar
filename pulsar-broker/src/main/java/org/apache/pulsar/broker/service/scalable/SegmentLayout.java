@@ -204,6 +204,16 @@ public class SegmentLayout {
      * @return a new SegmentLayout with the merge applied
      */
     public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs) {
+        return mergeSegments(segmentId1, segmentId2, nowMs, EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    /**
+     * As {@link #mergeSegments(long, long, long)}, clamping the merged segment's entry-bucket
+     * count to {@code maxBucketsPerSegment} (the configured per-segment ceiling): the merged
+     * segment recovers the parents' buckets, but never past the hard ceiling.
+     */
+    public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs,
+                                       int maxBucketsPerSegment) {
         SegmentInfo seg1 = allSegments.get(segmentId1);
         SegmentInfo seg2 = allSegments.get(segmentId2);
         if (seg1 == null || seg2 == null) {
@@ -223,8 +233,8 @@ public class SegmentLayout {
 
         // PIP-486: a merge is the inverse of a split — the merged segment recovers both parents' buckets
         // (N1 + N2), so the topic's total entry-bucket count stays ≈ the budget as segments coalesce.
-        List<Integer> mergedEntryBucketSplits =
-                EntryBucketSplits.equalWidth(seg1.bucketCount() + seg2.bucketCount());
+        List<Integer> mergedEntryBucketSplits = EntryBucketSplits.equalWidth(
+                Math.min(seg1.bucketCount() + seg2.bucketCount(), maxBucketsPerSegment));
         SegmentInfo sealed1 = seg1.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo sealed2 = seg2.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo merged = SegmentInfo.active(mergedId, mergedRange,
