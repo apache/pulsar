@@ -534,7 +534,6 @@ public class FunctionConfigUtilsTest {
         );
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void testPythonFunctionAcceptsMessageRetriesAndDeadLetterTopic() {
         FunctionConfig functionConfig = createPythonFunctionConfig();
@@ -593,6 +592,7 @@ public class FunctionConfigUtilsTest {
         return functionConfig;
     }
 
+    @SuppressWarnings("deprecation")
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");

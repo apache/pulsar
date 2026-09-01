@@ -32,7 +32,6 @@ sys.modules['bookkeeper.proto.stream_pb2'] = Mock()
 
 from contextimpl import ContextImpl
 from python_instance import PythonInstance, InstanceConfig
-import pulsar
 from pulsar import Message
 
 import Function_pb2
@@ -398,6 +397,77 @@ class TestNegativeAckRedeliveryDelay(unittest.TestCase):
     self.assertIsInstance(args, dict)
     self.assertEqual(["negative_ack_redelivery_delay_ms"], list(args.keys()))
 
+class TestConsumerSubscribeArgs(unittest.TestCase):
+  """The dead letter policy must actually reach Client.subscribe().
+
+  get_dead_letter_policy() returning the right object is only half of it: setup_consumers()
+  subscribes on two paths - source.topicsToSerDeClassName and source.inputSpecs, the latter also
+  covering the regex variant - and the policy has to reach the client on each. Without this, the
+  policy could be dropped from one call site, or passed under a keyword the client does not accept,
+  and the rest of the suite would stay green.
+  """
+
+  def _subscribe_kwargs(self, max_message_retries=None, dead_letter_topic=None,
+                        via_input_specs=False, regex=False):
+    function_details = Function_pb2.FunctionDetails()
+    function_details.sink.topic = "test_sink_topic"
+    if max_message_retries is not None:
+      function_details.retryDetails.maxMessageRetries = max_message_retries
+    if dead_letter_topic is not None:
+      function_details.retryDetails.deadLetterTopic = dead_letter_topic
+
+    topic = "persistent://public/default/.*" if regex else "persistent://public/default/in"
+    if via_input_specs:
+      consumer_conf = function_details.source.inputSpecs[topic]
+      consumer_conf.isRegexPattern = regex
+    else:
+      function_details.source.topicsToSerDeClassName[topic] = ""
+
+    mock_pulsar_client = Mock()
+    instance = PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
+                              'user_code', mock_pulsar_client, Mock(), 'test_cluster', 'test_url',
+                              None)
+    instance.get_schema = Mock(return_value="DEFAULT_SCHEMA")
+    instance.get_crypto_reader = Mock(return_value=None)
+    instance.setup_consumers()
+
+    self.assertEqual(1, mock_pulsar_client.subscribe.call_count)
+    _, kwargs = mock_pulsar_client.subscribe.call_args
+    return kwargs
+
+  def test_policy_reaches_the_topics_to_serde_path(self):
+    kwargs = self._subscribe_kwargs(max_message_retries=3,
+                                    dead_letter_topic="persistent://public/default/my-dlq")
+
+    policy = kwargs["dead_letter_policy"]
+    self.assertEqual(3, policy.max_redeliver_count)
+    self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
+
+  def test_policy_reaches_the_input_specs_path(self):
+    kwargs = self._subscribe_kwargs(max_message_retries=3,
+                                    dead_letter_topic="persistent://public/default/my-dlq",
+                                    via_input_specs=True)
+
+    policy = kwargs["dead_letter_policy"]
+    self.assertEqual(3, policy.max_redeliver_count)
+    self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
+
+  def test_policy_reaches_the_regex_path(self):
+    kwargs = self._subscribe_kwargs(max_message_retries=3,
+                                    dead_letter_topic="persistent://public/default/my-dlq",
+                                    via_input_specs=True, regex=True)
+
+    self.assertEqual(3, kwargs["dead_letter_policy"].max_redeliver_count)
+
+  def test_keyword_is_passed_as_none_without_retry_details(self):
+    # The keyword is always passed, so the runtime requires pulsar-client-python 3.3.0 or newer -
+    # see README.md. Client.subscribe() guards with "if dead_letter_policy:", so None is a no-op
+    # there. Both paths must agree on this; one of them dropping the keyword would be the kind of
+    # drift this class exists to catch.
+    self.assertIsNone(self._subscribe_kwargs()["dead_letter_policy"])
+    self.assertIsNone(self._subscribe_kwargs(via_input_specs=True)["dead_letter_policy"])
+
+
 class TestDeadLetterPolicy(unittest.TestCase):
   """Covers FunctionDetails.retryDetails -> ConsumerDeadLetterPolicy.
 
@@ -411,13 +481,15 @@ class TestDeadLetterPolicy(unittest.TestCase):
   gate on it.
   """
 
-  def _instance(self, max_message_retries=None, dead_letter_topic=None):
+  def _instance(self, max_message_retries=None, dead_letter_topic=None, configure=None):
     function_details = Function_pb2.FunctionDetails()
     function_details.sink.topic = "test_sink_topic"
     if max_message_retries is not None:
       function_details.retryDetails.maxMessageRetries = max_message_retries
     if dead_letter_topic is not None:
       function_details.retryDetails.deadLetterTopic = dead_letter_topic
+    if configure is not None:
+      configure(function_details)
 
     return PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
                           'user_code', Mock(), Mock(), 'test_cluster', 'test_url', None)
@@ -436,13 +508,21 @@ class TestDeadLetterPolicy(unittest.TestCase):
     self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
 
   def test_empty_dead_letter_topic_defers_to_client_default(self):
-    # The Java runtime only sets the topic when non-empty, leaving the client to derive
-    # "<topic>-<subscription>-DLQ". Passing "" through would override that with an invalid name.
+    # An unset deadLetterTopic reads as "" from the proto and is forwarded as configured. The
+    # client treats an empty topic as unset: ConsumerDeadLetterPolicy skips the builder call only
+    # for None, and DeadLetterPolicyBuilder.deadLetterTopic("") leaves getDeadLetterTopic() == "",
+    # which is exactly what an unset policy reports. Either way the client derives
+    # "<topic>-<subscription>-DLQ".
+    #
+    # So what is pinned here is the runtime's half of that: retryDetails without a topic still
+    # produces a policy carrying the redelivery count, and the runtime does not invent a DLQ name
+    # of its own.
     instance = self._instance(max_message_retries=2)
     policy = instance.get_dead_letter_policy()
 
     self.assertIsNotNone(policy)
     self.assertEqual(2, policy.max_redeliver_count)
+    self.assertEqual("", policy.dead_letter_topic)
 
   def test_zero_retries_fails_fast(self):
     # Java does not start with this value either: PulsarSource forwards 0 and
@@ -462,10 +542,35 @@ class TestDeadLetterPolicy(unittest.TestCase):
   def test_policy_is_not_gated_on_subscription_type(self):
     # Subscription-type support is a client concern; the Java runtime always forwards a configured
     # policy. Gating here would add a second support matrix that can drift from the client.
-    instance = self._instance(max_message_retries=3,
-                              dead_letter_topic="persistent://public/default/my-dlq")
-    policy = instance.get_dead_letter_policy()
+    #
+    # Each case below is one the earlier revision's gate suppressed the policy for. run() derives
+    # the consumer type from FunctionDetails - retainOrdering, EFFECTIVELY_ONCE and a FAILOVER
+    # subscriptionType each select Failover, and retainKeyOrdering selects KeyShared - so a gate
+    # reintroduced here would have to read one of these, and would fail this test. A default
+    # instance selects Shared, which the gate allowed, so it cannot pin this on its own.
+    def retain_ordering(details):
+      details.retainOrdering = True
 
-    self.assertIsNotNone(policy)
-    self.assertEqual(3, policy.max_redeliver_count)
+    def effectively_once(details):
+      details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE")
+
+    def failover_subscription(details):
+      details.source.subscriptionType = Function_pb2.SubscriptionType.Value("FAILOVER")
+
+    def retain_key_ordering(details):
+      details.retainKeyOrdering = True
+
+    for label, configure in (("retainOrdering", retain_ordering),
+                             ("EFFECTIVELY_ONCE", effectively_once),
+                             ("FAILOVER subscriptionType", failover_subscription),
+                             ("retainKeyOrdering", retain_key_ordering)):
+      with self.subTest(selects_consumer_type_via=label):
+        instance = self._instance(max_message_retries=3,
+                                  dead_letter_topic="persistent://public/default/my-dlq",
+                                  configure=configure)
+        policy = instance.get_dead_letter_policy()
+
+        self.assertIsNotNone(policy)
+        self.assertEqual(3, policy.max_redeliver_count)
+        self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
 
