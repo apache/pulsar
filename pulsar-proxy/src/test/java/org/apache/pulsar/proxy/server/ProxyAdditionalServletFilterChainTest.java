@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.JakartaAdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -45,20 +46,22 @@ import org.testng.annotations.Test;
 
 /**
  * Verifies that {@code AdditionalServlet} plugins are served by the proxy's filter chain, whichever servlet API
- * they are written against. A legacy {@code javax.servlet} plugin is adapted to {@code jakarta.servlet} and
+ * they are written against. Legacy {@code javax.servlet} plugins are adapted to {@code jakarta.servlet} and
  * registered in the same Jetty environment as every other servlet, so the {@code AuthenticationFilter} the
- * proxy installs when authentication is enabled applies to it too (PIP-472).
+ * proxy installs when authentication is enabled applies to them too (PIP-472).
  */
 @CustomLog
 public class ProxyAdditionalServletFilterChainTest extends MockedPulsarServiceBaseTest {
 
     private static final String JAVAX_BASE_PATH = "/metrics/javax";
+    private static final String JAKARTA_BASE_PATH = "/metrics/jakarta";
     private static final String PARAM_VALUE = "hello";
 
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private Authentication proxyClientAuthentication;
+    private OkHttpClient httpClient;
 
     @Override
     @BeforeClass
@@ -91,6 +94,8 @@ public class ProxyAdditionalServletFilterChainTest extends MockedPulsarServiceBa
         Map<String, AdditionalServletWithClassLoader> servlets = new HashMap<>();
         servlets.put("javax-proxy-servlet", new AdditionalServletWithClassLoader(
                 new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
+        servlets.put("jakarta-proxy-servlet", new AdditionalServletWithClassLoader(
+                new JakartaAdditionalServlet(JAKARTA_BASE_PATH), null));
         Mockito.when(additionalServlets.getServlets()).thenReturn(servlets);
         Mockito.when(proxyService.getProxyAdditionalServlets()).thenReturn(additionalServlets);
 
@@ -99,11 +104,18 @@ public class ProxyAdditionalServletFilterChainTest extends MockedPulsarServiceBa
         ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
                 proxyClientAuthentication);
         proxyWebServer.start();
+
+        httpClient = new OkHttpClient();
     }
 
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
+        if (httpClient != null) {
+            httpClient.dispatcher().executorService().shutdown();
+            httpClient.connectionPool().evictAll();
+            httpClient = null;
+        }
         internalCleanup();
         if (proxyService != null) {
             proxyService.close();
@@ -118,28 +130,46 @@ public class ProxyAdditionalServletFilterChainTest extends MockedPulsarServiceBa
 
     @Test
     public void testJavaxAdditionalServletGoesThroughTheFilterChain() throws Exception {
-        try (Response unauthenticated = get(false)) {
-            assertThat(unauthenticated.code())
-                    .as("unauthenticated request to a javax.servlet additional servlet")
-                    .isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
-        }
+        assertThat(statusOf(JAVAX_BASE_PATH, false))
+                .as("unauthenticated request to a javax.servlet additional servlet")
+                .isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
 
-        try (Response authenticated = get(true)) {
-            assertThat(authenticated.code()).isEqualTo(HttpServletResponse.SC_OK);
-            assertThat(authenticated.body().string().trim())
-                    .isEqualTo(LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, PARAM_VALUE));
+        assertThat(bodyOf(JAVAX_BASE_PATH))
+                .isEqualTo(LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, PARAM_VALUE));
+    }
+
+    @Test
+    public void testJakartaAdditionalServletGoesThroughTheFilterChain() throws Exception {
+        assertThat(statusOf(JAKARTA_BASE_PATH, false))
+                .as("unauthenticated request to a jakarta.servlet additional servlet")
+                .isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+
+        assertThat(bodyOf(JAKARTA_BASE_PATH))
+                .isEqualTo(JakartaAdditionalServlet.expectedResponse(JAKARTA_BASE_PATH, PARAM_VALUE));
+    }
+
+    private int statusOf(String basePath, boolean authenticated) throws IOException {
+        try (Response response = get(basePath, authenticated)) {
+            return response.code();
         }
     }
 
-    private Response get(boolean authenticated) throws IOException {
+    private String bodyOf(String basePath) throws IOException {
+        try (Response response = get(basePath, true)) {
+            assertThat(response.code()).isEqualTo(HttpServletResponse.SC_OK);
+            return response.body().string().trim();
+        }
+    }
+
+    private Response get(String basePath, boolean authenticated) throws IOException {
         okhttp3.Request.Builder request = new okhttp3.Request.Builder()
                 .get()
-                .url("http://localhost:" + proxyWebServer.getListenPortHTTP().get() + JAVAX_BASE_PATH
+                .url("http://localhost:" + proxyWebServer.getListenPortHTTP().get() + basePath
                         + "?" + LegacyJavaxAdditionalServlet.QUERY_PARAM + "=" + PARAM_VALUE);
         if (authenticated) {
             // MockAuthenticationProvider accepts a "<result>.<result>" principal in the mockuser header
             request.header("mockuser", "pass.pass");
         }
-        return new OkHttpClient().newCall(request.build()).execute();
+        return httpClient.newCall(request.build()).execute();
     }
 }

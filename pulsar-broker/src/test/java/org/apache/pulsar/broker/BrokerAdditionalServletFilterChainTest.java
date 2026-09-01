@@ -20,21 +20,17 @@ package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Sets;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.JakartaAdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
-import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -53,6 +49,8 @@ public class BrokerAdditionalServletFilterChainTest extends MockedPulsarServiceB
     private static final String JAKARTA_BASE_PATH = "/additional/servlet/jakarta";
     private static final String PARAM_VALUE = "hello";
 
+    private OkHttpClient httpClient;
+
     @Override
     @BeforeClass
     protected void setup() throws Exception {
@@ -60,11 +58,17 @@ public class BrokerAdditionalServletFilterChainTest extends MockedPulsarServiceB
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         internalSetup();
+        httpClient = new OkHttpClient();
     }
 
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
+        if (httpClient != null) {
+            httpClient.dispatcher().executorService().shutdown();
+            httpClient.connectionPool().evictAll();
+            httpClient = null;
+        }
         internalCleanup();
     }
 
@@ -74,7 +78,7 @@ public class BrokerAdditionalServletFilterChainTest extends MockedPulsarServiceB
         servlets.put("javax-servlet", new AdditionalServletWithClassLoader(
                 new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         servlets.put("jakarta-servlet", new AdditionalServletWithClassLoader(
-                new JakartaAdditionalServlet(), null));
+                new JakartaAdditionalServlet(JAKARTA_BASE_PATH), null));
 
         AdditionalServlets additionalServlets = Mockito.mock(AdditionalServlets.class);
         Mockito.when(additionalServlets.getServlets()).thenReturn(servlets);
@@ -97,7 +101,8 @@ public class BrokerAdditionalServletFilterChainTest extends MockedPulsarServiceB
                 .as("unauthenticated request to a jakarta.servlet additional servlet")
                 .isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
 
-        assertThat(bodyOf(JAKARTA_BASE_PATH)).isEqualTo(PARAM_VALUE);
+        assertThat(bodyOf(JAKARTA_BASE_PATH))
+                .isEqualTo(JakartaAdditionalServlet.expectedResponse(JAKARTA_BASE_PATH, PARAM_VALUE));
     }
 
     private int statusOf(String basePath, boolean authenticated) throws IOException {
@@ -122,47 +127,6 @@ public class BrokerAdditionalServletFilterChainTest extends MockedPulsarServiceB
             // MockAuthenticationProvider accepts a "<result>.<result>" principal in the mockuser header
             request.header("mockuser", "pass.pass");
         }
-        return new OkHttpClient().newCall(request.build()).execute();
-    }
-
-    /**
-     * An additional servlet written against the {@code jakarta.servlet} API, echoing back the query parameter.
-     */
-    private static class JakartaAdditionalServlet extends HttpServlet implements AdditionalServlet {
-
-        @Override
-        public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-            // No config to load
-        }
-
-        @Override
-        public String getBasePath() {
-            return JAKARTA_BASE_PATH;
-        }
-
-        @Override
-        public AdditionalServletType getServletType() {
-            return AdditionalServletType.JAKARTA_SERVLET;
-        }
-
-        @Override
-        public Object getServletInstance() {
-            return this;
-        }
-
-        @Override
-        public void close() {
-            // Nothing to close
-        }
-
-        @Override
-        protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-            byte[] body = request.getParameter(LegacyJavaxAdditionalServlet.QUERY_PARAM)
-                    .getBytes(StandardCharsets.UTF_8);
-            response.setContentType("text/plain");
-            response.setContentLength(body.length);
-            response.getOutputStream().write(body);
-            response.getOutputStream().flush();
-        }
+        return httpClient.newCall(request.build()).execute();
     }
 }
