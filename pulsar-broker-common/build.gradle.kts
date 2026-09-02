@@ -38,6 +38,10 @@ dependencies {
     api(libs.simpleclient)
     implementation(libs.caffeine)
     api(libs.jakarta.servlet.api)
+    // Legacy javax.servlet AdditionalServlet plugins are adapted to jakarta.servlet by the Apache Felix
+    // wrappers so that they run in Pulsar's single jakarta.servlet Jetty environment (PIP-472)
+    implementation(libs.javax.servlet.api)
+    implementation(libs.felix.http.wrappers)
     api(libs.jakarta.ws.rs.api)
     implementation(libs.jjwt.impl)
     implementation(libs.jjwt.jackson)
