@@ -60,12 +60,40 @@ public class StatsBuckets {
         sumCounter.add(value);
     }
 
+    /**
+     * Snapshots the current values into {@link #getBuckets()}, {@link #getCount()}, and
+     * {@link #getSum()}, then resets the internal counters to zero.
+     *
+     * <p>Use this for periodic aggregation where the consumer reads values on a fixed
+     * schedule (e.g. {@code ManagedLedgerMBeanImpl} refreshes every
+     * {@code managedLedgerStatsPeriodSeconds}). Do <b>not</b> use this for metrics that
+     * are scraped on demand (e.g. Prometheus {@code /metrics}), because data recorded
+     * between scrapes is lost after each call — use {@link #snapshot()} instead.
+     */
     public void refresh() {
         long count = 0;
         sum = sumCounter.sumThenReset();
 
         for (int i = 0; i < buckets.length; i++) {
             long value = buckets[i].sumThenReset();
+            count += value;
+            values[i] = value;
+        }
+
+        this.count = count;
+    }
+
+    /**
+     * Snapshots the current cumulative values without resetting the internal counters.
+     * Use this instead of {@link #refresh()} when the data should survive across reads
+     * (e.g. Prometheus metrics that are scraped multiple times).
+     */
+    public void snapshot() {
+        long count = 0;
+        sum = sumCounter.sum();
+
+        for (int i = 0; i < buckets.length; i++) {
+            long value = buckets[i].sum();
             count += value;
             values[i] = value;
         }

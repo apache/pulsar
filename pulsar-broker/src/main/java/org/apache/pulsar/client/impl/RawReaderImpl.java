@@ -42,6 +42,7 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 @CustomLog
@@ -158,6 +159,25 @@ public class RawReaderImpl implements RawReader {
                 return true;
             }
             return super.isUnrecoverableError(t);
+        }
+
+        @Override
+        public boolean connectionFailed(PulsarClientException exception) {
+            // A compaction reader is created with retryOnRecoverableErrors=false. When the topic is fenced or
+            // deleted, a reconnect can fail at the lookup/connection stage with a retriable error such as
+            // ServiceNotReadyException. The base ConsumerImpl.connectionFailed only consults isUnrecoverableError
+            // for non-retriable errors (or after the lookup deadline has passed), so for such a retriable error it
+            // would keep reconnecting and never fail the in-flight read, leaving the compaction future pending.
+            // Honor isUnrecoverableError here too so the reader is closed promptly and pending reads are failed,
+            // mirroring the subscribe-stage handling in ConsumerImpl.connectionOpened(). This matters for
+            // compaction: a never-failing read keeps the compaction future pending, which blocks forced
+            // topic/namespace deletion (issue #24148).
+            Throwable actError = FutureUtil.unwrapCompletionException(exception);
+            if (isUnrecoverableError(actError)) {
+                closeWhenReceivedUnrecoverableError(actError, null);
+                return false;
+            }
+            return super.connectionFailed(exception);
         }
 
         void tryCompletePending() {

@@ -251,6 +251,73 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(topic1.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
     }
 
+    @Test
+    public void testNonPersistentTopicAppliesTopicPolicyOnLoad() throws Exception {
+        // Non-persistent topics now load and apply their own topic policies on load (like persistent topics), so a
+        // freshly loaded non-persistent topic must already reflect its topic-level policy without waiting for a
+        // namespace-wide broadcast. Before this change a non-persistent topic never applied its policies on load.
+        TopicName topicName = TopicName.get(
+                TopicDomain.non_persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-np-" + UUID.randomUUID()
+        );
+        String topic = topicName.toString();
+
+        SystemTopicBasedTopicPoliciesService policyService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setMaxSubscriptionsPerTopicAsync(topic, 10).get();
+
+        //wait until topic loaded with right policy value.
+        Awaitility.await().untilAsserted(() -> {
+            AbstractTopic loaded = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
+            assertEquals(loaded.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
+        });
+
+        //unload the topic
+        pulsar.getNamespaceService().unloadNamespaceBundle(pulsar.getNamespaceService().getBundle(topicName)).get();
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
+
+        //re-own the namespace bundle without loading the topic
+        log.info().attr("lookup", admin.lookups().lookupTopic(topic)).log("lookup");
+        assertTrue(pulsar.getBrokerService().isTopicNsOwnedByBrokerAsync(topicName).join());
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
+        //make sure namespace policy reader is fully started.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()).isDone()));
+
+        //load the topic: it must already reflect the topic policy, proving it was applied on load, not via a
+        //later broadcast.
+        AbstractTopic loaded = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
+        assertEquals(loaded.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
+    }
+
+    @Test
+    public void testGlobalPolicyUpdateDoesNotClearLocalSubscriptionPolicy() throws Exception {
+        // A global topic policy carries no subscription-level overrides by default (an empty subscriptionPolicies
+        // map). Because AbstractTopic keeps the local and global per-subscription policies separately and merges them
+        // with local precedence, applying such a global policy must not clear the local per-subscription dispatch-rate
+        // policy -- which the previous direct assignment would do under the local-before-global ordering.
+        final String topic = "persistent://" + myNamespace + "/test-sub-policy-merge-" + UUID.randomUUID();
+        final String subName = "sub-1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subName, MessageId.earliest);
+
+        DispatchRate localRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(100).dispatchThrottlingRateInByte(2048).ratePeriodInSecond(1).build();
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, subName, localRate);
+
+        AbstractTopic topicRef = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, false).get().orElseThrow();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(topicRef.getSubscriptionDispatchRate(subName).getDispatchThrottlingRateInMsg(), 100));
+
+        // Simulate a global topic-policy update that carries no subscription-level overrides.
+        topicRef.onUpdate(TopicPolicies.builder().isGlobal(true).build());
+
+        assertEquals(topicRef.getSubscriptionDispatchRate(subName).getDispatchThrottlingRateInMsg(), 100);
+    }
+
 
     @Test
     public void testSetSizeBasedBacklogQuota() throws Exception {

@@ -68,7 +68,7 @@ public class AutoScalePolicyEvaluatorTest {
 
     private static SegmentLayout initialLayout(int segments) {
         return SegmentLayout.fromMetadata(
-                ScalableTopicController.createInitialMetadata(segments, Map.of()));
+                ScalableTopicController.createInitialMetadata(segments, 4, Map.of()));
     }
 
     /** A load sample with the given rates, last modified {@code ageMs} ago. */

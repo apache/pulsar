@@ -24,8 +24,11 @@ plugins {
 dependencies {
     implementation(libs.slog)
     api(project(":pulsar-broker-common"))
-    implementation(project(":pulsar-common"))
+    api(project(":pulsar-common"))
     implementation(project(":pulsar-client-original"))
+    // PIP-478: ProxyServer uses the TLS factory SPI directly (private tlsFactory field); it is not exposed on
+    // this module's ABI, so `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
     implementation(project(":pulsar-docs-tools"))
     implementation(libs.commons.lang3)
     // guava was previously leaked onto the compile classpath via compileOnly(swagger-core 1.x)
@@ -39,10 +42,10 @@ dependencies {
     // ee10 + jakarta.servlet for the REST/admin tier (Jersey 3) and the WebSocket endpoint layer
     implementation(libs.jetty.ee10.servlet)
     implementation(libs.jetty.ee10.servlets)
-    implementation(libs.jakarta.servlet.api)
+    api(libs.jakarta.servlet.api)
     // Modern Jetty 12 WebSocket API on the ee10 stack (PIP-472)
-    implementation(libs.jetty.ee10.websocket.jetty.server)
-    implementation(libs.jetty.websocket.jetty.api)
+    api(libs.jetty.ee10.websocket.jetty.server)
+    api(libs.jetty.websocket.jetty.api)
     implementation(libs.jetty.websocket.jetty.client)
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)

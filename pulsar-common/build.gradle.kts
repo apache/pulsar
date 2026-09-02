@@ -49,7 +49,7 @@ val includeBuildInfo = providers.gradleProperty("pulsarIncludeBuildInfo")
 val buildInfoFile = providers.gradleProperty("pulsarBuildInfoFile")
     .map { rootDir.resolve(it) }
 
-val generatePulsarBuildInfo by tasks.registering {
+val generatePulsarBuildInfo = tasks.register("generatePulsarBuildInfo") {
     description = "Generates pulsar-version.properties with version and (optionally) git/build metadata."
     val outputFile = layout.buildDirectory.file("generated-resources/buildinfo/org/apache/pulsar/pulsar-version.properties")
     val projectVersion = project.version.toString()
@@ -145,20 +145,26 @@ sourceSets["main"].resources.srcDir(generatePulsarBuildInfo.map {
 
 dependencies {
     implementation(libs.slog)
+    // PIP-478: the purpose-driven TLS factory SPI (org.apache.pulsar.tls) lives in the focused
+    // pulsar-tls-factory-api module; the default FileBasedTlsFactory impl (org.apache.pulsar.common.tls.impl)
+    // and the hostname-verification helpers (org.apache.pulsar.common.tls) live here. Exposed as `api` so
+    // consumers that reference the SPI through pulsar-common keep compiling unchanged.
+    api(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-client-api"))
     api(project(":pulsar-client-admin-api"))
 
-    implementation(libs.jackson.databind)
+    api(libs.jackson.databind)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jackson.datatype.jdk8)
     implementation(libs.jackson.dataformat.yaml)
-    implementation(libs.guava)
-    implementation(libs.simpleclient.caffeine)
-    implementation(libs.jspecify)
-    implementation(libs.netty.handler)
-    implementation(libs.netty.buffer)
-    implementation(libs.netty.resolver.dns)
+    api(libs.guava)
+    api(libs.simpleclient.caffeine)
+    api(libs.jspecify)
+    api(libs.netty.handler)
+    api(libs.netty.buffer)
+    api(libs.netty.resolver.dns)
+    implementation(libs.roaringbitmap)
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
     implementation(libs.netty.transport.native.unix.common)
@@ -170,7 +176,7 @@ dependencies {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
     }
-    implementation(libs.aircompressor)
+    api(libs.aircompressor)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
         exclude(group = "commons-configuration", module = "commons-configuration2")
@@ -181,24 +187,44 @@ dependencies {
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-aarch_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-x86_64") })
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("osx-aarch_64") })
+    implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("windows-x86_64") })
     implementation(libs.netty.transport.classes.io.uring)
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.io.uring) { classifier("linux-aarch_64") })
-    implementation(libs.netty.codec.haproxy)
+    api(libs.netty.codec.haproxy)
     implementation(libs.commons.lang3)
-    implementation(libs.jakarta.ws.rs.api)
+    api(libs.jakarta.ws.rs.api)
     implementation(libs.commons.io)
     implementation(libs.re2j)
     implementation(libs.completable.futures)
-    implementation(libs.gson)
+    api(libs.gson)
 
     compileOnly(libs.swagger.annotations)
     compileOnly(libs.spotbugs.annotations)
+    // PIP-478: FileBasedTlsFactory emits the pulsar.tls.* reload instruments via the OpenTelemetry handle
+    // exposed on TlsFactoryInitContext. No declaration is needed here — pulsar-tls-factory-api declares
+    // opentelemetry-api as `api` (the SPI exposes OpenTelemetry on its surface), so it reaches this
+    // module's compile AND runtime classpaths through the api(project(":pulsar-tls-factory-api")) above.
 
-    testImplementation(libs.bc.fips)
+    // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which resolves
+    // org.bouncycastle.jce.provider.BouncyCastleProvider reflectively, on first use). This matches
+    // the provider used in production. FIPS is covered separately by the bcfips-include-test
+    // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
+    // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.
+    testImplementation(libs.bcprov.jdk18on)
+    // Same reflective-loading rationale for the BouncyCastle JSSE provider (BCJSSE): JcaProviders
+    // registers it from the classpath on demand, so it is a test-only dependency here. bctls ships no
+    // META-INF/services entry, which is why on-demand registration exists at all.
+    testImplementation(libs.bctls.jdk18on)
     testImplementation(libs.lz4.java)
     testImplementation(libs.zstd.jni)
     testImplementation(libs.snappy.java)
     testImplementation(libs.awaitility)
     testImplementation(libs.jsonassert)
+    // PIP-478: the TLS factory tests implement TlsFactoryInitContext, whose openTelemetry() accessor
+    // exposes the (compileOnly) OpenTelemetry API from pulsar-tls-factory-api.
+    testImplementation(libs.opentelemetry.api)
+    // PIP-478: the TLS-reload metrics test reads pulsar.tls.* instruments via an in-memory SDK reader.
+    testImplementation(libs.opentelemetry.sdk)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }

@@ -381,6 +381,16 @@ public class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public boolean isTxnOngoing(TxnID txnID) {
+        TxnBuffer txnBuffer = buffers.get(txnID);
+        if (txnBuffer == null) {
+            return false;
+        }
+        TxnStatus status = txnBuffer.status();
+        return status == TxnStatus.OPEN || status == TxnStatus.COMMITTING || status == TxnStatus.ABORTING;
+    }
+
+    @Override
     public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
         if (!isMarkerMessage) {
             updateLastDispatchablePosition(position);

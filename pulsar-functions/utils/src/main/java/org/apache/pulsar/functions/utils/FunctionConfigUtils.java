@@ -431,6 +431,9 @@ public class FunctionConfigUtils {
             Map<String, String> schemaProps = new HashMap<>();
             input.forEachSchemaProperties(schemaProps::put);
             consumerConfig.setSchemaProperties(schemaProps);
+            Map<String, String> consumerProps = new HashMap<>();
+            input.forEachConsumerProperties(consumerProps::put);
+            consumerConfig.setConsumerProperties(consumerProps);
             consumerConfig.setPoolMessages(input.isPoolMessages());
             consumerConfigMap.put(topicName, consumerConfig);
         });
@@ -770,10 +773,6 @@ public class FunctionConfigUtils {
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in Go function");
-        }
-
-        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            throw new IllegalArgumentException("Retain Key Orderering not yet supported in Go function");
         }
     }
 
