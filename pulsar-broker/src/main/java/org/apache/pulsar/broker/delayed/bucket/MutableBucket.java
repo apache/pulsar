@@ -50,27 +50,41 @@ class MutableBucket implements AutoCloseable {
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
-    Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
-            long timeStepPerBucketSnapshotSegment,
-            int maxIndexesPerBucketSnapshotSegment,
-            TripleLongPriorityQueue sharedQueue) {
-        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment,
-                maxIndexesPerBucketSnapshotSegment, sharedQueue,
-                TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
-    }
-
     Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
             final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
-            log.debug()
-                    .attr("dispatcher", ctx.dispatcherName())
-                    .attr("startLedgerId", startLedgerId)
-                    .attr("endLedgerId", endLedgerId)
-                    .log("Creating bucket snapshot");
-                if (delayedIndexQueue.isEmpty()) {
+        SnapshotBuildResult result = buildSnapshot(timeStepPerBucketSnapshotSegment,
+                maxIndexesPerBucketSnapshotSegment, delayedIndexQueue, startLedgerId, endLedgerId);
+        if (result == null) {
             return null;
         }
+
+        result.addFirstSegmentTo(sharedQueue);
+        CompletableFuture<Long> future = result.bucket().asyncSaveBucketSnapshot(
+                result.snapshotMetadata(), result.snapshotSegments());
+        result.bucket().setSnapshotCreateFuture(future);
+        return Pair.of(result.bucket(), result.firstSegmentLastIndex());
+    }
+
+    SnapshotBuildResult buildSnapshot(long timeStepPerBucketSnapshotSegment,
+                                      int maxIndexesPerBucketSnapshotSegment) {
+        return buildSnapshot(timeStepPerBucketSnapshotSegment, maxIndexesPerBucketSnapshotSegment,
+                TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
+    }
+
+    private SnapshotBuildResult buildSnapshot(
+            final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
+            DelayedIndexQueue delayedIndexQueue, final long startLedgerId, final long endLedgerId) {
+        log.debug()
+                .attr("dispatcher", ctx.dispatcherName())
+                .attr("startLedgerId", startLedgerId)
+                .attr("endLedgerId", endLedgerId)
+                .log("Building bucket snapshot");
+        if (delayedIndexQueue.isEmpty()) {
+            return null;
+        }
+
         long numMessages = 0;
 
         List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
@@ -84,91 +98,86 @@ class MutableBucket implements AutoCloseable {
         List<Long> firstScheduleTimestamps = new ArrayList<>();
         long currentTimestampUpperLimit = 0;
         long currentFirstTimestamp = 0L;
-        while (!delayedIndexQueue.isEmpty()) {
-            final long timestamp = delayedIndexQueue.peekTimestamp();
-            if (currentTimestampUpperLimit == 0) {
-                currentFirstTimestamp = timestamp;
-                firstScheduleTimestamps.add(currentFirstTimestamp);
-                currentTimestampUpperLimit = timestamp + timeStepPerBucketSnapshotSegment - 1;
-            }
-
-            DelayedIndex delayedIndex = snapshotSegment.addIndexe();
-            delayedIndexQueue.popToObject(delayedIndex);
-
-            final long ledgerId = delayedIndex.getLedgerId();
-            final long entryId = delayedIndex.getEntryId();
-
-            checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
-
-            // Move first segment of bucket snapshot to sharedBucketPriorityQueue
-            if (segmentMetadataList.size() == 0) {
-                sharedQueue.add(timestamp, ledgerId, entryId);
-            }
-
-            bitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId);
-
-            numMessages++;
-
-            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peekTimestamp() > currentTimestampUpperLimit
-                    || (maxIndexesPerBucketSnapshotSegment != -1
-                    && snapshotSegment.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
-                segmentMetadata.setMaxScheduleTimestamp(timestamp);
-                segmentMetadata.setMinScheduleTimestamp(currentFirstTimestamp);
-                currentTimestampUpperLimit = 0;
-
-                Iterator<Map.Entry<Long, LongBitmap>> iterator = bitMap.entrySet().iterator();
-                while (iterator.hasNext()) {
-                    final var entry = iterator.next();
-                    final var lId = entry.getKey();
-                    final var bm = entry.getValue();
-                    segmentMetadata.putDelayedIndexBitMap(lId, bm.serialize());
-                    immutableBucketBitMap.compute(lId, (__, bm0) -> {
-                        if (bm0 == null) {
-                            return bm;
-                        }
-                        bm0.or(bm);
-                        return bm0;
-                    });
-                    iterator.remove();
+        try {
+            while (!delayedIndexQueue.isEmpty()) {
+                final long timestamp = delayedIndexQueue.peekTimestamp();
+                if (currentTimestampUpperLimit == 0) {
+                    currentFirstTimestamp = timestamp;
+                    firstScheduleTimestamps.add(currentFirstTimestamp);
+                    currentTimestampUpperLimit = timestamp + timeStepPerBucketSnapshotSegment - 1;
                 }
 
-                segmentMetadataList.add(segmentMetadata);
-                segmentMetadata = new SnapshotSegmentMetadata();
+                DelayedIndex delayedIndex = snapshotSegment.addIndexe();
+                delayedIndexQueue.popToObject(delayedIndex);
 
-                bucketSnapshotSegments.add(snapshotSegment);
-                snapshotSegment = new SnapshotSegment();
+                final long ledgerId = delayedIndex.getLedgerId();
+                final long entryId = delayedIndex.getEntryId();
+
+                checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
+
+                bitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId);
+
+                numMessages++;
+
+                if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peekTimestamp() > currentTimestampUpperLimit
+                        || (maxIndexesPerBucketSnapshotSegment != -1
+                        && snapshotSegment.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
+                    segmentMetadata.setMaxScheduleTimestamp(timestamp);
+                    segmentMetadata.setMinScheduleTimestamp(currentFirstTimestamp);
+                    currentTimestampUpperLimit = 0;
+
+                    Iterator<Map.Entry<Long, LongBitmap>> iterator = bitMap.entrySet().iterator();
+                    while (iterator.hasNext()) {
+                        final var entry = iterator.next();
+                        final var lId = entry.getKey();
+                        final var bm = entry.getValue();
+                        segmentMetadata.putDelayedIndexBitMap(lId, bm.serialize());
+                        immutableBucketBitMap.compute(lId, (__, bm0) -> {
+                            if (bm0 == null) {
+                                return bm;
+                            }
+                            bm0.or(bm);
+                            return bm0;
+                        });
+                        iterator.remove();
+                    }
+
+                    segmentMetadataList.add(segmentMetadata);
+                    segmentMetadata = new SnapshotSegmentMetadata();
+
+                    bucketSnapshotSegments.add(snapshotSegment);
+                    snapshotSegment = new SnapshotSegment();
+                }
             }
+
+            SnapshotMetadata bucketSnapshotMetadata = new SnapshotMetadata();
+            for (SnapshotSegmentMetadata sm : segmentMetadataList) {
+                bucketSnapshotMetadata.addMetadata().copyFrom(sm);
+            }
+
+            final int lastSegmentEntryId = segmentMetadataList.size();
+
+            ImmutableBucket bucket = new ImmutableBucket(ctx, startLedgerId, endLedgerId);
+            bucket.setCurrentSegmentEntryId(1);
+            bucket.setNumberBucketDelayedMessages(numMessages);
+            bucket.setLastSegmentEntryId(lastSegmentEntryId);
+            bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
+            bucket.setDelayedIndexBitMap(immutableBucketBitMap);
+
+            // Skip the first segment because the tracker loads it into the shared queue before committing the bucket.
+            bucket.setSnapshotSegments(new ArrayList<>(
+                    bucketSnapshotSegments.subList(1, bucketSnapshotSegments.size())));
+
+            checkArgument(!bucketSnapshotSegments.isEmpty());
+            SnapshotSegment firstSnapshotSegment = bucketSnapshotSegments.get(0);
+            DelayedIndex lastDelayedIndex =
+                    firstSnapshotSegment.getIndexeAt(firstSnapshotSegment.getIndexesCount() - 1);
+
+            return new SnapshotBuildResult(bucket, bucketSnapshotMetadata,
+                    bucketSnapshotSegments, lastDelayedIndex);
+        } catch (Throwable t) {
+            throw new SnapshotBuildException(t, bucketSnapshotSegments, snapshotSegment, delayedIndexQueue);
         }
-
-        SnapshotMetadata bucketSnapshotMetadata = new SnapshotMetadata();
-        for (SnapshotSegmentMetadata sm : segmentMetadataList) {
-            bucketSnapshotMetadata.addMetadata().copyFrom(sm);
-        }
-
-        final int lastSegmentEntryId = segmentMetadataList.size();
-
-        ImmutableBucket bucket = new ImmutableBucket(ctx, startLedgerId, endLedgerId);
-        bucket.setCurrentSegmentEntryId(1);
-        bucket.setNumberBucketDelayedMessages(numMessages);
-        bucket.setLastSegmentEntryId(lastSegmentEntryId);
-        bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
-        bucket.setDelayedIndexBitMap(immutableBucketBitMap);
-
-        // Skip first segment, because it has already been loaded
-        List<SnapshotSegment> snapshotSegments = bucketSnapshotSegments.subList(1, bucketSnapshotSegments.size());
-        bucket.setSnapshotSegments(snapshotSegments);
-
-        // Add the first snapshot segment last message to snapshotSegmentLastMessageTable
-        checkArgument(!bucketSnapshotSegments.isEmpty());
-        SnapshotSegment firstSnapshotSegment = bucketSnapshotSegments.get(0);
-        DelayedIndex lastDelayedIndex = firstSnapshotSegment.getIndexeAt(firstSnapshotSegment.getIndexesCount() - 1);
-        Pair<ImmutableBucket, DelayedIndex> result = Pair.of(bucket, lastDelayedIndex);
-
-        CompletableFuture<Long> future = bucket.asyncSaveBucketSnapshot(
-                bucketSnapshotMetadata, bucketSnapshotSegments);
-        bucket.setSnapshotCreateFuture(future);
-
-        return result;
     }
 
     void moveScheduledMessageToSharedQueue(long cutoffTime, TripleLongPriorityQueue sharedBucketPriorityQueue) {
@@ -182,6 +191,13 @@ class MutableBucket implements AutoCloseable {
             long entryId = priorityQueue.peekN3();
             sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
 
+            priorityQueue.pop();
+        }
+    }
+
+    void moveAllMessagesToSharedQueue(TripleLongPriorityQueue sharedBucketPriorityQueue) {
+        while (!priorityQueue.isEmpty()) {
+            sharedBucketPriorityQueue.add(priorityQueue.peekN1(), priorityQueue.peekN2(), priorityQueue.peekN3());
             priorityQueue.pop();
         }
     }
@@ -222,5 +238,59 @@ class MutableBucket implements AutoCloseable {
             this.startLedgerId = ledgerId;
         }
         this.endLedgerId = ledgerId;
+    }
+
+    static record SnapshotBuildResult(ImmutableBucket bucket,
+                                      SnapshotMetadata snapshotMetadata,
+                                      List<SnapshotSegment> snapshotSegments,
+                                      DelayedIndex firstSegmentLastIndex) {
+
+        void addFirstSegmentTo(TripleLongPriorityQueue sharedQueue) {
+            for (DelayedIndex delayedIndex : snapshotSegments.get(0).getIndexesList()) {
+                sharedQueue.add(delayedIndex.getTimestamp(), delayedIndex.getLedgerId(), delayedIndex.getEntryId());
+            }
+        }
+
+        void addAllSegmentsTo(TripleLongPriorityQueue sharedQueue) {
+            for (SnapshotSegment segment : snapshotSegments) {
+                for (DelayedIndex delayedIndex : segment.getIndexesList()) {
+                    sharedQueue.add(delayedIndex.getTimestamp(), delayedIndex.getLedgerId(), delayedIndex.getEntryId());
+                }
+            }
+        }
+    }
+
+    static final class SnapshotBuildException extends RuntimeException {
+        private final List<SnapshotSegment> completedSegments;
+        private final SnapshotSegment currentSegment;
+        private final DelayedIndexQueue remainingIndexes;
+
+        SnapshotBuildException(Throwable cause, List<SnapshotSegment> completedSegments,
+                               SnapshotSegment currentSegment, DelayedIndexQueue remainingIndexes) {
+            super(cause);
+            this.completedSegments = completedSegments;
+            this.currentSegment = currentSegment;
+            this.remainingIndexes = remainingIndexes;
+        }
+
+        void restoreTo(TripleLongPriorityQueue sharedQueue) {
+            for (SnapshotSegment segment : completedSegments) {
+                restoreSegment(segment, sharedQueue);
+            }
+            if (completedSegments.isEmpty()
+                    || completedSegments.get(completedSegments.size() - 1) != currentSegment) {
+                restoreSegment(currentSegment, sharedQueue);
+            }
+            while (!remainingIndexes.isEmpty()) {
+                DelayedIndex delayedIndex = remainingIndexes.pop();
+                sharedQueue.add(delayedIndex.getTimestamp(), delayedIndex.getLedgerId(), delayedIndex.getEntryId());
+            }
+        }
+
+        private static void restoreSegment(SnapshotSegment segment, TripleLongPriorityQueue sharedQueue) {
+            for (DelayedIndex delayedIndex : segment.getIndexesList()) {
+                sharedQueue.add(delayedIndex.getTimestamp(), delayedIndex.getLedgerId(), delayedIndex.getEntryId());
+            }
+        }
     }
 }
