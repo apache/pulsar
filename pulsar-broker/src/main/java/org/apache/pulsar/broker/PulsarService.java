@@ -32,6 +32,7 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -144,6 +145,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.broker.web.RestProducerContext;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
@@ -1302,80 +1304,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 if (additionalServlet instanceof AdditionalServletWithPulsarService) {
                     ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
                 }
-                switch (servletWithClassLoader.getServletType()) {
-                    case JAVAX_SERVLET -> {
-                        // Legacy javax.servlet handlers are routed to Jetty's ee8 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .attr("type", servletInstance.getClass().getName())
-                                    .attr("match", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid servlet instance type which"
-                                            + " doesn't match . Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servlet", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet .");
-                            }
-                            continue;
-                        }
-                        org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder =
-                                new org.eclipse.jetty.ee8.servlet.ServletHolder(
-                                        (javax.servlet.Servlet) servletInstance);
-                        webService.addServletEe8(servletWithClassLoader.getBasePath(), servletHolder,
-                                config.isAuthenticationEnabled(), attributeMap);
-                        log.info()
-                                .attr("basePath", servletWithClassLoader.getBasePath())
-                                .log("Broker add additional servlet basePath");
-                    }
-                    case JAKARTA_SERVLET -> {
-                        // jakarta.servlet handlers are routed to Jetty's ee10 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof jakarta.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .attr("type", servletInstance.getClass().getName())
-                                    .attr("match", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid servlet instance type which"
-                                            + " doesn't match . Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servlet", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet .");
-                            }
-                            continue;
-                        }
-                        ServletHolder servletHolder =
-                                new ServletHolder((jakarta.servlet.Servlet) servletInstance);
-                        webService.addServlet(servletWithClassLoader.getBasePath(), servletHolder,
-                                config.isAuthenticationEnabled(), attributeMap);
-                        log.info()
-                                .attr("basePath", servletWithClassLoader.getBasePath())
-                                .log("Broker add additional servlet basePath");
-                    }
-                    default -> {
+                // Legacy javax.servlet handlers are adapted to jakarta.servlet so that every additional servlet
+                // is registered in the same Jetty environment and goes through the broker filter chain (PIP-472).
+                Servlet servlet;
+                try {
+                    servlet = AdditionalServletUtils.toJakartaServlet(servletWithClassLoader);
+                } catch (IllegalArgumentException e) {
+                    log.error()
+                            .attr("servlet", servletWithClassLoader)
+                            .exception(e)
+                            .log("AdditionalServletWithClassLoader has an unusable servlet instance. Skipping.");
+                    try {
+                        servletWithClassLoader.close();
+                    } catch (Exception closeException) {
                         log.error()
                                 .attr("servlet", servletWithClassLoader)
-                                .attr("type", servletWithClassLoader.getServletType())
-                                .log("AdditionalServletWithClassLoader has unsupported servlet type . Skipping.");
-                        try {
-                            servletWithClassLoader.close();
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .exception(e)
-                                    .log("Failed to close servlet .");
-                        }
-                        continue;
+                                .exception(closeException)
+                                .log("Failed to close servlet .");
                     }
+                    continue;
                 }
+                webService.addServlet(servletWithClassLoader.getBasePath(), new ServletHolder(servlet),
+                        config.isAuthenticationEnabled(), attributeMap);
+                log.info()
+                        .attr("basePath", servletWithClassLoader.getBasePath())
+                        .log("Broker add additional servlet basePath");
             }
         }
     }
