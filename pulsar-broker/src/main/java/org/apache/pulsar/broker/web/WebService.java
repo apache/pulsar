@@ -413,28 +413,6 @@ public class WebService implements AutoCloseable {
         handlers.add(servletContextHandler);
     }
 
-    /**
-     * Registers a legacy {@code javax.servlet}-based servlet in Jetty's ee8 environment. This path exists
-     * solely to keep existing {@code AdditionalServlet} plugins that report
-     * {@link org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet.AdditionalServletType#JAVAX_SERVLET}
-     * working without recompilation (PIP-472). Pulsar's own servlets and {@code jakarta.servlet} additional
-     * servlets use {@link #addServlet} (ee10). The broker filter chain is jakarta-typed (ee10) and is therefore
-     * not applied to the ee8 environment; legacy javax additional servlets run without the broker filter chain.
-     */
-    public void addServletEe8(String path, org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder,
-                              boolean requiresAuthentication, Map<String, Object> attributeMap) {
-        org.eclipse.jetty.ee8.servlet.ServletContextHandler servletContextHandler =
-                new org.eclipse.jetty.ee8.servlet.ServletContextHandler(
-                        org.eclipse.jetty.ee8.servlet.ServletContextHandler.SESSIONS);
-        servletContextHandler.setContextPath(path);
-        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
-        if (attributeMap != null) {
-            attributeMap.forEach(servletContextHandler::setAttribute);
-        }
-        // The ee8 ServletContextHandler.get() bridges the ee8 context to a core org.eclipse.jetty.server.Handler
-        handlers.add(servletContextHandler.get());
-    }
-
     public void addWebSocketServlet(String path, JettyWebSocketServlet webSocketServlet,
                                     Map<String, Object> attributeMap) {
         ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);

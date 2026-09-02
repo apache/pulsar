@@ -43,9 +43,6 @@ dependencies {
     implementation(libs.jetty.ee10.servlets)
     implementation(libs.jetty.ee10.proxy)
     implementation(libs.jetty.ee10.websocket.jetty.server)
-    // ee8 + javax.servlet retained for the legacy AdditionalServlet javax.servlet path (PIP-472)
-    api(libs.jetty.ee8.servlet)
-    implementation(libs.javax.servlet.api)
     implementation(libs.jersey.server)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.container.servlet)
@@ -87,6 +84,8 @@ dependencies {
     testImplementation(libs.jetty.websocket.jetty.client)
     testImplementation(libs.jjwt.api)
     testImplementation(libs.jjwt.impl)
+    // Tests register AdditionalServlet plugins written against the legacy javax.servlet API
+    testImplementation(libs.javax.servlet.api)
     testImplementation(libs.okhttp3)
     testImplementation(libs.testcontainers)
     // PIP-478: assert the proxy's TLS factory emits pulsar.tls.reload through the wired OpenTelemetry root.

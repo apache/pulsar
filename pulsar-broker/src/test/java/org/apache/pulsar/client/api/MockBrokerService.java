@@ -28,13 +28,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
@@ -71,9 +71,8 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.eclipse.jetty.ee8.nested.AbstractHandler;
-import org.eclipse.jetty.ee8.nested.ContextHandler;
-import org.eclipse.jetty.ee8.nested.Request;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 
 /**
@@ -83,7 +82,7 @@ import org.eclipse.jetty.server.Server;
 public class MockBrokerService {
     private LookupData lookupData;
 
-    private class GenericResponseHandler extends AbstractHandler {
+    private class GenericResponseServlet extends HttpServlet {
         private final ObjectMapper objectMapper = new ObjectMapper();
         private final String lookupURI = "/lookup/v2/topic/persistent";
         private final String partitionMetadataURI = "/admin/v2/persistent";
@@ -95,20 +94,20 @@ public class MockBrokerService {
         private final Pattern multiPartPattern = Pattern.compile(".*/multi-part-.*");
 
         @Override
-        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
-                throws IOException, ServletException {
+        protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
             String responseString;
-            log.info().attr("httpRequest", baseRequest.getRequestURI()).log("Received HTTP request");
-            if (baseRequest.getRequestURI().startsWith(lookupURI)) {
+            String requestURI = request.getRequestURI();
+            log.info().attr("httpRequest", requestURI).log("Received HTTP request");
+            if (requestURI.startsWith(lookupURI)) {
                 response.setContentType("application/json;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 responseString = objectMapper.writeValueAsString(lookupData);
-            } else if (baseRequest.getRequestURI().startsWith(partitionMetadataURI)) {
+            } else if (requestURI.startsWith(partitionMetadataURI)) {
                 response.setContentType("application/json;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
-                if (singlePartPattern.matcher(baseRequest.getRequestURI()).matches()) {
+                if (singlePartPattern.matcher(requestURI).matches()) {
                     responseString = objectMapper.writeValueAsString(singlePartitionedTopicMetadata);
-                } else if (multiPartPattern.matcher(baseRequest.getRequestURI()).matches()) {
+                } else if (multiPartPattern.matcher(requestURI).matches()) {
                     responseString = objectMapper.writeValueAsString(multiPartitionedTopicMetadata);
                 } else {
                     responseString = objectMapper.writeValueAsString(nonPartitionedTopicMetadata);
@@ -118,7 +117,6 @@ public class MockBrokerService {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 responseString = "URI NOT DEFINED";
             }
-            baseRequest.setHandled(true);
             response.getWriter().println(responseString);
             log.info().attr("sentResponse", responseString).log("Sent response");
         }
@@ -296,7 +294,10 @@ public class MockBrokerService {
 
     public MockBrokerService() {
         server = new Server(0);
-        server.setHandler(new ContextHandler("/", new GenericResponseHandler()));
+        ServletContextHandler context = new ServletContextHandler();
+        context.setContextPath("/");
+        context.addServlet(new ServletHolder(new GenericResponseServlet()), "/*");
+        server.setHandler(context);
     }
 
     public void start() {
