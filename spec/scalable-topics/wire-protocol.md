@@ -148,12 +148,12 @@ sequenceDiagram
     participant P as Producer (client)
     participant S0 as Broker for seg-0
     participant S1 as Broker for seg-1 (successor)
-    Note over P: layout known (§4); seg-0 ACTIVE covers key K
+    Note over P: layout known (§4) — seg-0 ACTIVE covers key K
     P->>S0: CommandProducer{ segment://…/0000-ffff-0 }
     P->>S0: CommandSend{ msg(key=K) }
     S0-->>P: SendReceipt(msgId) — MessageId encodes segment-0
     Note over P: pushed CommandScalableTopicUpdate: seg-0 SEALED, seg-1 ACTIVE
-    P->>P: close seg-0 producer; re-route K → seg-1
+    P->>P: close seg-0 producer, re-route K → seg-1
     P->>S1: CommandProducer{ segment://…/0000-ffff-1 }
     P->>S1: CommandSend{ msg(key=K) }
     S1-->>P: SendReceipt(msgId)
@@ -291,7 +291,7 @@ sequenceDiagram
         B-->>N: CommandWatchScalableTopicsUpdate{ snapshot=[t1, t2] }
         N->>T: subscribe t1, t2 (each: §4 DAG watch + §6.2 assignment)
         B-->>N: CommandWatchScalableTopicsUpdate{ diff: added=[t3], removed=[t1] }
-        N->>T: subscribe t3; detach t1 (no ack)
+        N->>T: subscribe t3, detach t1 (no ack)
     else error
         B-->>N: CommandWatchScalableTopicsUpdate{ error, message }
         Note over N: fail subscribe()
