@@ -220,15 +220,39 @@ public class SubscriptionCoordinator {
      * stays registered and connected, so the channelInactive → grace-period fallback still
      * works, and a retried unregister actually retries the deletion instead of short-
      * circuiting on an already-removed session.
+     *
+     * <p>{@code expectedConsumerId} guards the removal against a same-name rejoin racing the
+     * in-flight delete: a re-register attaches a new consumer id to the session, so if the
+     * id no longer matches when the delete completes, the departed consumer's leave must not
+     * take the rejoined consumer down with it — the session is kept and the persisted
+     * registration the delete just erased is restored.
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> unregisterConsumer(
-            String consumerName) {
-        if (!sessions.containsKey(consumerName)) {
+            String consumerName, long expectedConsumerId) {
+        ConsumerSession session = sessions.get(consumerName);
+        if (session == null || session.getConsumerId() != expectedConsumerId) {
             return CompletableFuture.completedFuture(snapshotAssignments());
         }
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        ConsumerSession current = sessions.get(consumerName);
+                        if (current != null && current.getConsumerId() != expectedConsumerId) {
+                            // A same-name consumer rejoined while the delete was in flight
+                            // (the reconnect branch attached a new id). Keep it, and restore
+                            // the persisted registration the delete just erased so a
+                            // controller failover still knows this member.
+                            resources.registerConsumerAsync(topicName, subscriptionName,
+                                            consumerName)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("consumer", consumerName)
+                                                .exceptionMessage(ex)
+                                                .log("Failed to restore the rejoined consumer's "
+                                                        + "persisted registration");
+                                        return null;
+                                    });
+                            return snapshotAssignments();
+                        }
                         ConsumerSession removed = sessions.remove(consumerName);
                         if (removed != null) {
                             removed.cancelGraceTimer();

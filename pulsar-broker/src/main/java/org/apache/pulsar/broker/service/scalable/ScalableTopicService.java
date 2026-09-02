@@ -325,12 +325,12 @@ public class ScalableTopicService {
      * instead, which preserves the caller's registration ref and grace fallback.)
      */
     public CompletableFuture<Void> unregisterConsumer(TopicName topic, String subscription,
-                                                      String consumerName) {
+                                                      String consumerName, long consumerId) {
         CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
         if (future == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return future.thenCompose(c -> c.unregisterConsumer(subscription, consumerName));
+        return future.thenCompose(c -> c.unregisterConsumer(subscription, consumerName, consumerId));
     }
 
     // --- Internal helpers ---

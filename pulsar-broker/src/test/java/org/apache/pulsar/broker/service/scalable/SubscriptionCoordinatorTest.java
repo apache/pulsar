@@ -129,7 +129,7 @@ public class SubscriptionCoordinatorTest {
         coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-2").get();
+                coordinator.unregisterConsumer("consumer-2", 2L).get();
 
         assertEquals(result.size(), 1);
         assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 4);
@@ -332,7 +332,7 @@ public class SubscriptionCoordinatorTest {
     public void testEmptyAfterAllConsumersRemoved() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-1").get();
+                coordinator.unregisterConsumer("consumer-1", 1L).get();
 
         assertTrue(result.isEmpty());
         assertTrue(coordinator.getConsumers().isEmpty());
@@ -515,6 +515,27 @@ public class SubscriptionCoordinatorTest {
     }
 
     // --- Helpers ---
+
+    /**
+     * PIP-486 review: the identity guard on explicit unregister. A same-name rejoin attaches
+     * a new consumer id to the session; a leave carrying the OLD id (the departed consumer's)
+     * must not remove the rejoined session, while a leave with the current id must.
+     */
+    @Test
+    public void testUnregisterWithStaleConsumerIdKeepsRejoinedSession() throws Exception {
+        coordinator.registerConsumer("c1", 1L, mock(TransportCnx.class)).get();
+        // Same-name rejoin: the reconnect branch attaches the new id to the existing session.
+        coordinator.registerConsumer("c1", 2L, mock(TransportCnx.class)).get();
+
+        // The departed consumer's leave (id 1) arrives after the rejoin: no-op.
+        coordinator.unregisterConsumer("c1", 1L).get();
+        assertEquals(coordinator.getConsumers().size(), 1,
+                "a stale-id leave must not remove the rejoined session");
+
+        // A leave with the live id removes it.
+        coordinator.unregisterConsumer("c1", 2L).get();
+        assertEquals(coordinator.getConsumers().size(), 0);
+    }
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {
         return m.entrySet().stream()

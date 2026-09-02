@@ -569,6 +569,18 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
                     .subscribeAsync().get(30, TimeUnit.SECONDS)
                     .close();
         }
+        // Same-name churn: close-then-resubscribe under one explicit consumerName races the
+        // leave's delete against the rejoin's reconnect attach — the identity guard must keep
+        // the rejoined member alive, and the final close must still remove it.
+        for (int i = 0; i < 3; i++) {
+            v5Client.newStreamConsumer(Schema.string())
+                    .topic(topic)
+                    .subscriptionName(subscription)
+                    .consumerName("same-name-churner")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                    .subscribeAsync().get(30, TimeUnit.SECONDS)
+                    .close();
+        }
 
         // Every churned consumer unregistered cleanly: the survivor converges back to sole
         // Exclusive ownership. With the default 60s grace, any missed unregistration would
