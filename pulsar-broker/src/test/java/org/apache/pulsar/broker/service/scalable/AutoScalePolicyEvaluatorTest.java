@@ -319,6 +319,48 @@ public class AutoScalePolicyEvaluatorTest {
     }
 
     @Test
+    public void testMergeSkippedWhenClampWouldCutLiveParallelism() {
+        // Two at-ceiling segments (N=8 each, ceiling 8): a merge clamps 16 buckets down to
+        // 8, and the rebucket lane cannot grow past the ceiling to win them back. With 12
+        // live consumers that is a real parallelism cut (12 → 8), so the pair must not merge.
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(2, 16, Map.of()));
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
+        AutoScaleDecision d = decide(layout, load, Map.of("sub", 12),
+                baseConfig().maxEntryBucketsPerSegment(8).build());
+        assertTrue(d instanceof AutoScaleDecision.NoAction, d.toString());
+    }
+
+    @Test
+    public void testMergeProceedsWhenClampStillCoversConsumers() {
+        // Same at-ceiling pair, but only 8 consumers: the merged segment's 8 buckets keep
+        // every live consumer owning a bucket, so the cold pair may still consolidate.
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(2, 16, Map.of()));
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
+        AutoScaleDecision d = decide(layout, load, Map.of("sub", 8),
+                baseConfig().maxEntryBucketsPerSegment(8).build());
+        assertTrue(d instanceof AutoScaleDecision.Merge, d.toString());
+    }
+
+    @Test
+    public void testCapacityPreservingMergeAllowedWhenOverSubscribed() {
+        // [N=4][N=4] with ceiling 8: the merged segment keeps all 8 buckets, so even a
+        // topic whose 20 consumers already over-subscribe the capacity loses nothing — the
+        // guard vetoes reductions of the parallelism consumers actually get, not every
+        // "capacity < consumers" state. (A recent rebucket keeps the consumer-scale lane
+        // quiet so the merge pass is reached at all.)
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(2, 8, Map.of()));
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
+        long recentRebucket = NOW - Duration.ofSeconds(30).toMillis(); // < 1m rebucketCooldown
+        AutoScaleDecision d = AutoScalePolicyEvaluator.decide(layout, load, Map.of("sub", 20),
+                baseConfig().maxEntryBucketsPerSegment(8).build(), NOW, NO_PRIOR, NO_PRIOR,
+                recentRebucket);
+        assertTrue(d instanceof AutoScaleDecision.Merge, d.toString());
+    }
+
+    @Test
     public void testMergeRespectsMinSegments() {
         SegmentLayout layout = initialLayout(2);
         Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));

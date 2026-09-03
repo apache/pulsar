@@ -37,7 +37,11 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
  *   <li><b>Split</b> (fast, lightly coalesced by {@code splitCooldown}): consumer-count
  *       scale-up first, then traffic-driven scale-up.</li>
  *   <li><b>Merge</b> (lazy, gated by {@code mergeCooldown} + {@code mergeWindow} +
- *       {@code maxDagDepth}): only if no split fired.</li>
+ *       {@code maxDagDepth}): only if no split fired. A merge whose clamped bucket count
+ *       ({@code maxEntryBucketsPerSegment}) would drop total consumer capacity below the
+ *       parallelism live consumers currently get is skipped — merging must never idle a
+ *       consumer that owns a bucket today, since the rebucket lane cannot grow past the
+ *       ceiling to win the capacity back.</li>
  * </ol>
  */
 public final class AutoScalePolicyEvaluator {
@@ -88,7 +92,8 @@ public final class AutoScalePolicyEvaluator {
             return split;
         }
 
-        return tryMerge(active, layout, loadBySegment, config, nowMs, lastMergeAtMs);
+        return tryMerge(active, layout, loadBySegment, streamConsumerCount, config, nowMs,
+                lastMergeAtMs);
     }
 
     // --- Consumer-driven scale-up: segments vs entry-buckets (PIP-486) ---
@@ -229,6 +234,7 @@ public final class AutoScalePolicyEvaluator {
             List<SegmentInfo> active,
             SegmentLayout layout,
             Map<Long, SegmentLoadSample> loadBySegment,
+            Map<String, Integer> streamConsumerCount,
             AutoScaleConfig config,
             long nowMs,
             long lastMergeAtMs) {
@@ -242,6 +248,20 @@ public final class AutoScalePolicyEvaluator {
 
         long mergeWindowMs = config.mergeWindow().toMillis();
 
+        // A merged segment's bucket count is the clamped sum of the pair's (the same clamp
+        // mergeSegments applies), so an at-ceiling merge shrinks total consumer capacity —
+        // and the rebucket lane cannot grow past the ceiling to recover it. Skip any pair
+        // whose merge would leave less capacity than the parallelism consumers get today:
+        // min(consumers, capacity), so an already over-subscribed topic can still take a
+        // capacity-preserving merge, and an idle one can always consolidate.
+        int consumers = streamConsumerCount.values().stream()
+                .mapToInt(Integer::intValue).max().orElse(0);
+        long totalCapacity = 0;
+        for (SegmentInfo segment : active) {
+            totalCapacity += segment.bucketCount();
+        }
+        long usedParallelism = Math.min(consumers, totalCapacity);
+
         AutoScaleDecision.Merge coldest = null;
         double coldestCombined = Double.MAX_VALUE;
         for (int i = 0; i < active.size(); i++) {
@@ -253,6 +273,11 @@ public final class AutoScalePolicyEvaluator {
                 }
                 if (layout.mergeDepth(a.segmentId()) >= config.maxDagDepth()
                         || layout.mergeDepth(b.segmentId()) >= config.maxDagDepth()) {
+                    continue;
+                }
+                long pairCapacity = (long) a.bucketCount() + b.bucketCount();
+                long mergedCapacity = Math.min(pairCapacity, config.maxEntryBucketsPerSegment());
+                if (totalCapacity - pairCapacity + mergedCapacity < usedParallelism) {
                     continue;
                 }
                 if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
