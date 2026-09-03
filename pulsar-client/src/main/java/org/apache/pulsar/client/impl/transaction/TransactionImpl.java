@@ -34,6 +34,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -62,7 +63,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
-    private final TransactionCoordinatorClientImpl tcClient;
+    private final TransactionCoordinatorClient tcClient;
 
     private CompletableFuture<Void> opFuture;
 
@@ -96,7 +97,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
-        this.tcClient = client.getTcClient();
+        this.tcClient = client.getTransactionCoordinatorClient();
         this.opFuture = CompletableFuture.completedFuture(null);
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 

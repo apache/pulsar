@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
@@ -76,7 +77,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionAddSubscriptionToTxnAsyncReconnect() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClient transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTransactionCoordinatorClient();
         Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient
                 .addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test");
         tryCommandReconnect(callable, callable);
@@ -108,7 +109,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionAbortToTxnAsyncReconnect() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClient transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTransactionCoordinatorClient();
         Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
                 0));
         Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
@@ -118,7 +119,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionCommitToTxnAsyncReconnect() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClient transactionCoordinatorClient = pulsarClient.getTransactionCoordinatorClient();
         Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
                 0));
         Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
@@ -128,7 +129,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionAddPublishPartitionToTxnReconnect() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClient transactionCoordinatorClient = pulsarClient.getTransactionCoordinatorClient();
         Callable<CompletableFuture<?>> callable =
                 () -> transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
                 Collections.singletonList("test"));
@@ -137,7 +138,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testPulsarClientCloseThenCloseTcClient() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClientImpl transactionCoordinatorClient = (TransactionCoordinatorClientImpl)
+                                                                            pulsarClient.getTransactionCoordinatorClient();
         java.util.Collection<TransactionMetaStoreHandler> handlers = transactionCoordinatorClient.getHandlers();
 
         for (TransactionMetaStoreHandler handler : handlers) {
@@ -163,8 +165,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testHandlerStateChangeToReady() throws Exception {
-        TransactionCoordinatorClientImpl transactionCoordinatorClient =
-                ((PulsarClientImpl) pulsarClient).getTcClient();
+        TransactionCoordinatorClientImpl transactionCoordinatorClient = (TransactionCoordinatorClientImpl)
+                                                                            pulsarClient.getTransactionCoordinatorClient();
         TransactionMetaStoreHandler transactionMetaStoreHandler =
                 transactionCoordinatorClient.getHandlers().iterator().next();
         Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);

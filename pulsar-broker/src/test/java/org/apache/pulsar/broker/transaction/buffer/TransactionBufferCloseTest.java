@@ -46,7 +46,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
     protected void setup() throws Exception {
         setUpBase(1, 16, null, 0);
         Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+                                           .getTransactionCoordinatorClient().getState() == TransactionCoordinatorClient.State.READY);
     }
 
     @AfterMethod(alwaysRun = true)

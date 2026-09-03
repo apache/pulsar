@@ -77,12 +77,14 @@ import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.DefaultClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.v5.FrameworkHttpClientFactory;
+import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -218,7 +220,6 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final InstrumentProvider instrumentProvider;
 
-    @Getter
     private TransactionCoordinatorClientImpl tcClient;
 
     private final Runnable memoryLimitTrigger = this::reduceConsumerReceiverQueueSize;
@@ -2103,5 +2104,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     NameResolver<InetAddress> getNameResolver() {
         return DnsResolverUtil.adaptToNameResolver(addressResolver);
+    }
+
+    @Override
+    public TransactionCoordinatorClient getTransactionCoordinatorClient() {
+        return tcClient;
     }
 }

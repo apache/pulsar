@@ -209,7 +209,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         }
 
         final Throwable ex = syncGetException((
-                (PulsarClientImpl) pulsarClientOther).getTcClient().commitAsync(transaction.getTxnID())
+                (PulsarClientImpl) pulsarClientOther).getTransactionCoordinatorClient().commitAsync(transaction.getTxnID())
         );
         if (actor.equals("client") || actor.equals("admin")) {
             Assert.assertNull(ex);
@@ -247,7 +247,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         }
 
         final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                .getTcClient().addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
+                                                  .getTransactionCoordinatorClient().addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .getTxnMeta(transaction.getTxnID()).get();
@@ -285,7 +285,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         }
 
         final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                .getTcClient().addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
+                                                  .getTransactionCoordinatorClient().addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .getTxnMeta(transaction.getTxnID()).get();

@@ -30,7 +30,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.testng.annotations.Test;
@@ -138,7 +137,7 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
 
         // Routing assertion: a v4 SDK client must NOT use metadata-store discovery even though the
         // cluster has the v5 coordinator enabled — it stays on the legacy assign-topic coordinator.
-        TransactionCoordinatorClientImpl tcClient = ((PulsarClientImpl) client).getTcClient();
+        TransactionCoordinatorClientImpl tcClient = (TransactionCoordinatorClientImpl) client.getTransactionCoordinatorClient();
         assertFalse(tcClient.isUsingMetadataDiscovery(),
                 "v4 SDK client must use the legacy coordinator, not metadata-store discovery");
 

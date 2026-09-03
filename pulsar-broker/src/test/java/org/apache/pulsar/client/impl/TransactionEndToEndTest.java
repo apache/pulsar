@@ -970,7 +970,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
 
-        TransactionCoordinatorClient tcClient = recoverPulsarClient.getTcClient();
+        TransactionCoordinatorClient tcClient = recoverPulsarClient.getTransactionCoordinatorClient();
         for (TxnID txnID : txnIDList) {
             tcClient.commit(txnID);
         }
