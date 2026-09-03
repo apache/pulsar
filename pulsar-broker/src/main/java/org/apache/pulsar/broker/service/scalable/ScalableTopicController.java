@@ -108,6 +108,7 @@ public class ScalableTopicController {
     private volatile long lastSplitAtMs = Long.MIN_VALUE;
     /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
     private volatile long lastMergeAtMs = Long.MIN_VALUE;
+    private volatile long lastRebucketAtMs = Long.MIN_VALUE;
 
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
@@ -197,26 +198,35 @@ public class ScalableTopicController {
     }
 
     /**
-     * Recover the auto split/merge cooldown clocks after winning leadership. The timestamps
-     * are in-memory only, but the layout itself records when each segment was created — a
-     * split's children have exactly one parent, a merge's child has two — so the most recent
-     * creation time of each class is exactly when the last split / merge happened. Without
-     * this, every leader failover would reset both cooldowns and e.g. allow an auto merge
-     * seconds after one just ran on the previous leader.
+     * Recover the auto split/merge/rebucket cooldown clocks after winning leadership. The
+     * timestamps are in-memory only, but the layout itself records when each segment was
+     * created — a merge's child has two parents, and a single-parent child is a split child
+     * (strictly narrower hash range than its parent) or a rebucket successor (the same hash
+     * range as its parent) — so the most recent creation time of each class is exactly when
+     * the last operation of that kind happened. Without this, every leader failover would
+     * reset the cooldowns and e.g. allow an auto merge or rollover seconds after one just
+     * ran on the previous leader.
      */
     private void seedAutoScaleCooldownsFromLayout() {
         long split = Long.MIN_VALUE;
         long merge = Long.MIN_VALUE;
+        long rebucket = Long.MIN_VALUE;
         for (SegmentInfo segment : currentLayout.getAllSegments().values()) {
             int parents = segment.parentIds().size();
             if (parents == 1) {
-                split = Math.max(split, segment.createdAtMs());
+                SegmentInfo parent = currentLayout.getAllSegments().get(segment.parentIds().get(0));
+                if (parent != null && parent.hashRange().equals(segment.hashRange())) {
+                    rebucket = Math.max(rebucket, segment.createdAtMs());
+                } else {
+                    split = Math.max(split, segment.createdAtMs());
+                }
             } else if (parents >= 2) {
                 merge = Math.max(merge, segment.createdAtMs());
             }
         }
         lastSplitAtMs = split;
         lastMergeAtMs = merge;
+        lastRebucketAtMs = rebucket;
     }
 
     /**
@@ -378,7 +388,7 @@ public class ScalableTopicController {
                                 .thenCombine(collectLoadSamples(), (consumers, load) ->
                                         AutoScalePolicyEvaluator.decide(currentLayout, load,
                                                 consumers, config, clock.millis(),
-                                                lastSplitAtMs, lastMergeAtMs))
+                                                lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
                                 .thenCompose(decision -> dispatch(decision, config, trigger));
                     })
                     .whenComplete((__, ex) -> {
@@ -430,8 +440,11 @@ public class ScalableTopicController {
                         .log("Resolved auto split/merge policy is invalid; treating auto "
                                 + "split/merge as disabled for this topic until the namespace "
                                 + "or topic override is fixed");
-                return AutoScaleConfig.fromBrokerConfig(brokerConfig)
-                        .toBuilder().enabled(false).build();
+                // Built from the UNVALIDATED broker defaults: if the broker config itself is
+                // the invalid part, re-validating here would just rethrow on every tick
+                // instead of the documented "treated as disabled". Only `enabled` is ever
+                // consulted on this object.
+                return AutoScaleConfig.disabledFallback(brokerConfig);
             }
         });
     }
@@ -446,6 +459,28 @@ public class ScalableTopicController {
                         scheduleFollowUpEvaluation(config);
                         return null;
                     });
+        }
+        if (decision instanceof AutoScaleDecision.Rebucket rebucket) {
+            log.info().attr("segmentIds", rebucket.segmentIds())
+                    .attr("bucketCount", rebucket.newBucketCount()).attr("reason", rebucket.reason())
+                    .attr("trigger", trigger).log("Auto rebucket");
+            // Roll the whole batch sequentially (each rollover is its own seal → successor →
+            // CAS → notify). A mid-batch failure aborts the rest; the follow-up evaluation —
+            // scheduled from whenComplete so it survives that failure — retries the remainder
+            // once the rebucket cooldown expires.
+            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+            for (long segmentId : rebucket.segmentIds()) {
+                chain = chain.thenCompose(__ ->
+                        rebucketSegment(segmentId, rebucket.newBucketCount()))
+                        .thenApply(__ -> null);
+            }
+            return chain.whenComplete((__, ___) ->
+                    // Like post-split: a consumer burst may need another rollover once the
+                    // cooldown expires (e.g. when the target was clamped by the per-segment
+                    // bucket ceiling); the chain stops at the first NoAction. Delayed by the
+                    // REBUCKET cooldown — the two cooldowns are configured independently.
+                    scheduleFollowUpEvaluation(config.rebucketCooldown().toMillis() + 1,
+                            "post-rebucket"));
         }
         if (decision instanceof AutoScaleDecision.Merge merge) {
             log.info().attr("segmentId1", merge.segmentId1()).attr("segmentId2", merge.segmentId2())
@@ -463,11 +498,14 @@ public class ScalableTopicController {
      * stops naturally at the first evaluation that decides {@code NoAction}.
      */
     private void scheduleFollowUpEvaluation(AutoScaleConfig config) {
+        scheduleFollowUpEvaluation(config.splitCooldown().toMillis() + 1, "post-split");
+    }
+
+    private void scheduleFollowUpEvaluation(long delayMs, String trigger) {
         if (closed || !isLeader()) {
             return;
         }
-        long delayMs = config.splitCooldown().toMillis() + 1;
-        scheduler().schedule(() -> runAutoScaleSafely("post-split"),
+        scheduler().schedule(() -> runAutoScaleSafely(trigger),
                 delayMs, TimeUnit.MILLISECONDS);
     }
 
@@ -715,6 +753,64 @@ public class ScalableTopicController {
     }
 
     /**
+     * Rebucket an active segment (PIP-486 rollover): seal it and roll over to a single
+     * <b>same-range</b> successor with {@code newBucketCount} entry-buckets. A segment's
+     * bucketing is immutable for its life, so changing it rides the ordinary seal →
+     * successor flow — producers redirect through the standard segment-gone retry and
+     * per-key order is preserved by the existing machinery.
+     *
+     * <p>Same ordering invariant as split: the successor topic and subscription cursors are
+     * created before the parent is terminated, and the metadata CAS lands last.
+     */
+    public CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount) {
+        checkLeader();
+        int maxBuckets = maxEntryBucketsPerSegment();
+        if (newBucketCount < 1 || newBucketCount > maxBuckets) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    "bucketCount must be in [1, " + maxBuckets + "]: " + newBucketCount));
+        }
+        final long nowMs = clock.millis();
+        final List<Integer> newSplits = EntryBucketSplits.equalWidth(newBucketCount);
+
+        // Compute the new layout locally to derive the successor's info (this also validates:
+        // segment exists, is active, and the splits actually change). Argument failures come
+        // back through the returned future, never as a synchronous throw.
+        SegmentLayout newLayout;
+        try {
+            newLayout = currentLayout.rebucketSegment(segmentId, newSplits, nowMs);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        SegmentInfo successor = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
+        SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
+        String parentTopicName = toSegmentPersistentName(parent);
+
+        return resources.listSubscriptionsAsync(topicName)
+          .thenCompose(parentSubs ->
+                  createSegmentTopic(successor, new java.util.ArrayList<>(parentSubs)))
+          .thenCompose(__ -> terminateSegmentTopic(parentTopicName))
+          .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
+              SegmentLayout latest = SegmentLayout.fromMetadata(md);
+              SegmentLayout updated = latest.rebucketSegment(segmentId, newSplits, nowMs);
+              return updated.toMetadata(md);
+          }))
+          .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              // Start the rebucket cooldown only once the rollover actually happened
+              // (a failed attempt doesn't burn the cooldown).
+              lastRebucketAtMs = nowMs;
+              return notifySubscriptions(currentLayout);
+          }).thenApply(__ -> currentLayout);
+    }
+
+    private int maxEntryBucketsPerSegment() {
+        // Defensive: PulsarService.getConfig() is null in some unit-test mocks.
+        var config = brokerService.getPulsar().getConfig();
+        return config != null ? config.getScalableTopicEntryBucketMaxPerSegment() : 1024;
+    }
+
+    /**
      * Merge two adjacent active segments.
      *
      * <p>Same ordering invariant as split: merged segment topic and subscription cursors
@@ -728,7 +824,8 @@ public class ScalableTopicController {
         final long nowMs = clock.millis();
 
         // Compute the new layout locally to derive merged segment info
-        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs);
+        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs,
+                maxEntryBucketsPerSegment());
         SegmentInfo merged = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
         SegmentInfo parent1 = currentLayout.getAllSegments().get(segmentId1);
         SegmentInfo parent2 = currentLayout.getAllSegments().get(segmentId2);
@@ -748,7 +845,8 @@ public class ScalableTopicController {
           // Step 3: Atomic metadata update (only after topic + cursors are ready + parents terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
-              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs);
+              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs,
+                      maxEntryBucketsPerSegment());
               return updated.toMetadata(md);
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
@@ -1440,6 +1538,19 @@ public class ScalableTopicController {
     public static ScalableTopicMetadata createInitialMetadata(int numInitialSegments,
                                                         int entryBucketBudget,
                                                         Map<String, String> properties) {
+        return createInitialMetadata(numInitialSegments, entryBucketBudget,
+                EntryBucketSplits.MAX_BUCKETS, properties);
+    }
+
+    /**
+     * As {@link #createInitialMetadata(int, int, Map)}, clamping each initial segment's
+     * budget-derived entry-bucket count to {@code maxBucketsPerSegment} (the configured
+     * per-segment ceiling — the budget is a dynamic setting and must not exceed it).
+     */
+    public static ScalableTopicMetadata createInitialMetadata(int numInitialSegments,
+                                                        int entryBucketBudget,
+                                                        int maxBucketsPerSegment,
+                                                        Map<String, String> properties) {
         if (numInitialSegments < 1) {
             throw new IllegalArgumentException("Must have at least 1 segment");
         }
@@ -1449,7 +1560,8 @@ public class ScalableTopicController {
 
         // PIP-486: share the topic's entry-bucket budget equally across the initial segments.
         List<Integer> entryBucketSplits = EntryBucketSplits.equalWidth(
-                EntryBucketSplits.bucketsForBudget(entryBucketBudget, numInitialSegments));
+                Math.min(EntryBucketSplits.bucketsForBudget(entryBucketBudget, numInitialSegments),
+                        maxBucketsPerSegment));
 
         long nowMs = System.currentTimeMillis();
         for (int i = 0; i < numInitialSegments; i++) {
@@ -1494,6 +1606,21 @@ public class ScalableTopicController {
     public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
                                                                int partitions,
                                                                int entryBucketBudget) {
+        return createMigratedMetadata(persistentBase, partitions, entryBucketBudget,
+                EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    /**
+     * As {@link #createMigratedMetadata(TopicName, int, int)}, clamping each child's
+     * budget-derived entry-bucket count to {@code maxBucketsPerSegment} (the configured
+     * per-segment ceiling — the migration path must honour it like creation and merge do,
+     * since the evaluator only ever grows a segment's buckets and would never correct an
+     * over-ceiling migration).
+     */
+    public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
+                                                               int partitions,
+                                                               int entryBucketBudget,
+                                                               int maxBucketsPerSegment) {
         int n = Math.max(partitions, 1);
         long nowMs = System.currentTimeMillis();
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
@@ -1501,7 +1628,8 @@ public class ScalableTopicController {
         // PIP-486: the active children share the topic's entry-bucket budget. The sealed legacy parents
         // take no new writes, so they keep a single bucket (no splits).
         List<Integer> childEntryBucketSplits = EntryBucketSplits.equalWidth(
-                EntryBucketSplits.bucketsForBudget(entryBucketBudget, n));
+                Math.min(EntryBucketSplits.bucketsForBudget(entryBucketBudget, n),
+                        maxBucketsPerSegment));
 
         // Child IDs are N..2N-1; every child lists every parent (full fan-in).
         List<Long> childIds = new ArrayList<>(n);

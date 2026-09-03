@@ -38,6 +38,14 @@ import org.apache.pulsar.common.scalable.HashRange;
  */
 final class EntryBucketSplits {
 
+    /**
+     * Absolute ceiling on a segment's entry-bucket count: one bucket per hash on the 16-bit
+     * ring. Beyond it {@link #equalWidth} would produce duplicate split points, whose
+     * zero-width ranges fail {@code HashRange} construction — at assignment time, after the
+     * layout was already persisted.
+     */
+    static final int MAX_BUCKETS = HashRange.MAX_HASH + 1;
+
     private EntryBucketSplits() {
     }
 
@@ -46,7 +54,7 @@ final class EntryBucketSplits {
      * {@code floor(budget / segmentCount)}, but at least 1.
      */
     static int bucketsForBudget(int budget, int segmentCount) {
-        return Math.max(1, budget / segmentCount);
+        return Math.min(Math.max(1, budget / segmentCount), MAX_BUCKETS);
     }
 
     /**
@@ -70,6 +78,7 @@ final class EntryBucketSplits {
 
     /** Equal-width split points for {@code bucketCount} buckets; empty when {@code bucketCount <= 1}. */
     static List<Integer> equalWidth(int bucketCount) {
+        bucketCount = Math.min(bucketCount, MAX_BUCKETS);
         if (bucketCount <= 1) {
             return List.of();
         }
