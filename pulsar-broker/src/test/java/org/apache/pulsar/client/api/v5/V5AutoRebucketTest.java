@@ -171,7 +171,8 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
         int bucketWidth = (HashRange.MAX_HASH + 1) / buckets;
         int[] counts = new int[buckets];
         List<String> keys = new ArrayList<>();
-        for (int i = 0; keys.size() < 64; i++) {
+        boolean covered = false;
+        for (int i = 0; !covered && i < 10_000; i++) {
             String key = "key-" + i;
             int hash = ScalableTopicHashing.entryBucketHash(
                     ScalableTopicHashing.murmur(key.getBytes(StandardCharsets.UTF_8)));
@@ -180,14 +181,12 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
                 counts[bucket]++;
                 keys.add(key);
             }
-            boolean covered = true;
+            covered = true;
             for (int c : counts) {
                 covered &= c >= minPerBucket;
             }
-            if (covered) {
-                break;
-            }
         }
+        assertTrue(covered, "no key set covering all " + buckets + " buckets found");
         return keys;
     }
 }

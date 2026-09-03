@@ -440,8 +440,11 @@ public class ScalableTopicController {
                         .log("Resolved auto split/merge policy is invalid; treating auto "
                                 + "split/merge as disabled for this topic until the namespace "
                                 + "or topic override is fixed");
-                return AutoScaleConfig.fromBrokerConfig(brokerConfig)
-                        .toBuilder().enabled(false).build();
+                // Built from the UNVALIDATED broker defaults: if the broker config itself is
+                // the invalid part, re-validating here would just rethrow on every tick
+                // instead of the documented "treated as disabled". Only `enabled` is ever
+                // consulted on this object.
+                return AutoScaleConfig.disabledFallback(brokerConfig);
             }
         });
     }
@@ -1601,6 +1604,21 @@ public class ScalableTopicController {
     public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
                                                                int partitions,
                                                                int entryBucketBudget) {
+        return createMigratedMetadata(persistentBase, partitions, entryBucketBudget,
+                EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    /**
+     * As {@link #createMigratedMetadata(TopicName, int, int)}, clamping each child's
+     * budget-derived entry-bucket count to {@code maxBucketsPerSegment} (the configured
+     * per-segment ceiling — the migration path must honour it like creation and merge do,
+     * since the evaluator only ever grows a segment's buckets and would never correct an
+     * over-ceiling migration).
+     */
+    public static ScalableTopicMetadata createMigratedMetadata(TopicName persistentBase,
+                                                               int partitions,
+                                                               int entryBucketBudget,
+                                                               int maxBucketsPerSegment) {
         int n = Math.max(partitions, 1);
         long nowMs = System.currentTimeMillis();
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
@@ -1608,7 +1626,8 @@ public class ScalableTopicController {
         // PIP-486: the active children share the topic's entry-bucket budget. The sealed legacy parents
         // take no new writes, so they keep a single bucket (no splits).
         List<Integer> childEntryBucketSplits = EntryBucketSplits.equalWidth(
-                EntryBucketSplits.bucketsForBudget(entryBucketBudget, n));
+                Math.min(EntryBucketSplits.bucketsForBudget(entryBucketBudget, n),
+                        maxBucketsPerSegment));
 
         // Child IDs are N..2N-1; every child lists every parent (full fan-in).
         List<Long> childIds = new ArrayList<>(n);

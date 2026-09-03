@@ -338,7 +338,8 @@ public class ScalableTopics extends AdminResource {
         }).thenCompose(partitions -> {
             ScalableTopicMetadata metadata =
                     ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
-                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget());
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment());
             return createMigratedChildTopicsAsync(scalableName, metadata)
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));

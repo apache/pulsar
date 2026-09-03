@@ -332,6 +332,26 @@ public class ScalableTopicControllerAutoScaleTest {
                 "invalid override combination must disable auto split/merge, not split");
     }
 
+    /**
+     * PIP-486 review: an invalid BROKER-level policy value (no override involved) must also
+     * degrade to "auto scaling disabled" — the fallback is built from the unvalidated broker
+     * defaults, so re-validating the same bad config cannot rethrow on every evaluation.
+     */
+    @Test
+    public void testInvalidBrokerLevelPolicyDisablesAutoScale() throws Exception {
+        config.setScalableTopicEntryBucketMaxPerSegment(0); // violates [1, ring] — broker-level
+        startController(1);
+        controller.registerConsumer("sub", "c1", 1L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub", "c2", 2L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        // Must complete normally and take no action (a 2-consumer surplus would otherwise
+        // split or rebucket the cold single segment).
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 1,
+                "invalid broker-level policy must disable auto scaling, not fail or act");
+    }
+
     @Test
     public void testConsumerBurstConvergesWithoutTicks() throws Exception {
         // A group of consumers joining in quick succession must converge to one segment

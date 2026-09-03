@@ -155,6 +155,17 @@ public class EntryBucketSplitsTest {
     }
 
     @Test
+    public void testMigratedMetadataClampsToBucketCeiling() {
+        // The PIP-475 migration path honours the per-segment ceiling like creation and merge:
+        // budget 8 over 1 partition would give the child N=8, clamped here to 4.
+        var md = ScalableTopicController.createMigratedMetadata(
+                TopicName.get("persistent://public/default/legacy"), 1, 8, 4);
+        var child = md.getSegments().values().stream()
+                .filter(SegmentInfo::isActive).findFirst().orElseThrow();
+        assertEquals(child.bucketCount(), 4, "budget-derived N=8 clamped to the ceiling 4");
+    }
+
+    @Test
     public void testMergeClampsToBucketCeiling() {
         // Merging recovers the parents' buckets but never past the configured per-segment
         // ceiling.

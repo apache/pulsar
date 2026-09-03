@@ -112,6 +112,17 @@ public record AutoScaleConfig(
         return config.validated();
     }
 
+    /**
+     * A disabled policy built from the broker configuration <b>without validation</b>: the
+     * fallback for an invalid resolved policy. Deliberately unvalidated — when the broker
+     * config itself violates an invariant, validating here would rethrow and fail every
+     * evaluation instead of disabling auto scaling as documented. Only {@code enabled} is
+     * consulted on the returned object.
+     */
+    static AutoScaleConfig disabledFallback(ServiceConfiguration conf) {
+        return brokerDefaults(conf).toBuilder().enabled(false).build();
+    }
+
     private static AutoScaleConfig brokerDefaults(ServiceConfiguration conf) {
         return AutoScaleConfig.builder()
                 .enabled(conf.isScalableTopicAutoScaleEnabled())
