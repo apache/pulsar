@@ -25,15 +25,17 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.ScalableConsumerSession;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
-import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.ScalableAssignedSegment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
@@ -83,6 +85,15 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private volatile AssignmentChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
+    /**
+     * Every subscribe attempt still in flight; close() awaits <em>all</em> of them before
+     * unsubscribing (a single last-attempt slot can be overwritten when two reconnect
+     * attempts overlap, letting the older one register after the unsubscribe was sent).
+     */
+    private final Set<CompletableFuture<ScalableConsumerAssignment>> inFlightSubscribes =
+            ConcurrentHashMap.newKeySet();
+    /** Collapses concurrent reconnect triggers (request failure + connectionClosed) into one. */
+    private final AtomicBoolean reconnectPending = new AtomicBoolean(false);
 
     ScalableConsumerClient(PulsarClientImpl v4Client,
                            TopicName topicName,
@@ -136,6 +147,14 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
      */
     private CompletableFuture<ScalableConsumerAssignment> connectAndSubscribe() {
         CompletableFuture<ScalableConsumerAssignment> result = new CompletableFuture<>();
+        // Registered before the closed-flag check below: close() chains its clean unsubscribe
+        // on every attempt in this set, so either an attempt observes closed and never
+        // subscribes, or close() observes the attempt and waits for its outcome — never an
+        // unsubscribe that overtakes an in-flight registration (which would no-op and leave a
+        // ghost registration behind). Settled attempts drop out; their registrations, if any,
+        // already exist and are covered by the unsubscribe that follows.
+        inFlightSubscribes.add(result);
+        result.whenComplete((__, ___) -> inFlightSubscribes.remove(result));
 
         DagWatchClient watch = new DagWatchClient(v4Client, topicName);
         watch.start()
@@ -186,32 +205,26 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                     cnx.registerScalableConsumerSession(consumerId, this);
 
                     long requestId = v4Client.newRequestId();
-                    var responseFuture = new TimedCompletableFuture<ScalableConsumerAssignment>();
-                    cnx.getPendingRequests().put(requestId, responseFuture);
-
-                    cnx.ctx().writeAndFlush(Commands.newScalableTopicSubscribe(
-                                    requestId,
-                                    topicName.toString(),
-                                    subscription,
-                                    consumerName,
-                                    consumerId,
-                                    consumerType))
-                            .addListener(writeFuture -> {
-                                if (!writeFuture.isSuccess()) {
-                                    cnx.getPendingRequests().remove(requestId);
+                    cnx.<ScalableConsumerAssignment>sendScalableSessionRequest(
+                                    Commands.newScalableTopicSubscribe(
+                                            requestId,
+                                            topicName.toString(),
+                                            subscription,
+                                            consumerName,
+                                            consumerId,
+                                            consumerType),
+                                    requestId)
+                            .whenComplete((assignment, ex) -> {
+                                if (ex != null) {
+                                    // Write failure, error response, or request timeout: the
+                                    // broker holds no push route for us, so drop the local
+                                    // session registration too (retries re-register).
                                     cnx.removeScalableConsumerSession(consumerId);
-                                    result.completeExceptionally(
-                                            new PulsarClientException(writeFuture.cause()));
+                                    result.completeExceptionally(ex);
+                                } else {
+                                    result.complete(assignment);
                                 }
                             });
-
-                    responseFuture.whenComplete((assignment, ex) -> {
-                        if (ex != null) {
-                            result.completeExceptionally(ex);
-                        } else {
-                            result.complete(assignment);
-                        }
-                    });
                 })
                 .exceptionally(ex -> {
                     result.completeExceptionally(ex);
@@ -280,6 +293,12 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         if (closed) {
             return;
         }
+        // A connection drop triggers this twice (the failed pending request and the
+        // connectionClosed callback); collapse to a single scheduled attempt so two
+        // overlapping connectAndSubscribe() calls never run.
+        if (!reconnectPending.compareAndSet(false, true)) {
+            return;
+        }
         long delayMs = reconnectBackoff.next().toMillis();
         log.info().attr("delayMs", delayMs).log("Scheduling reconnect");
         v4Client.timer().newTimeout(timeout -> reconnect(),
@@ -287,6 +306,7 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     }
 
     private void reconnect() {
+        reconnectPending.set(false);
         if (closed) {
             return;
         }
@@ -374,11 +394,50 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
             return;
         }
         closed = true;
+        // Deregister the local session immediately and unconditionally (as before the clean
+        // leave existed): the subscribe response routes through pendingRequests, not through
+        // the session registry, so nothing here needs to wait — and waiting on a subscribe
+        // that is never answered would retain the closed session (and pin the pooled
+        // connection non-idle) for the connection's lifetime.
         ClientCnx c = cnx;
         if (c != null) {
             c.removeScalableConsumerSession(consumerId);
-            // No close command for now — broker reaps registrations via grace timer on
-            // disconnect. A future refactor can add an explicit unsubscribe.
+        }
+        // Clean leave: tell the controller to unregister this consumer and rebalance the group
+        // immediately, instead of holding the registration for the disconnect grace period (the
+        // controller connection is pooled, so closing this consumer does not close the channel
+        // and the broker would otherwise never notice the departure while the client lives).
+        // Chained on every in-flight subscribe attempt so the unsubscribe can never overtake a
+        // registration (the broker records it before sending the subscribe response). Sent even
+        // when a subscribe failed — the command is idempotent, and skipping on a razor-edge
+        // failure would risk leaving a registration behind. Best-effort throughout: on any
+        // failure the grace period remains the fallback for the eventual real disconnect.
+        CompletableFuture<?>[] pending = inFlightSubscribes.toArray(CompletableFuture[]::new);
+        if (pending.length == 0) {
+            sendUnsubscribe();
+        } else {
+            CompletableFuture.allOf(pending).whenComplete((__, ___) -> sendUnsubscribe());
+        }
+    }
+
+    private void sendUnsubscribe() {
+        ClientCnx c = cnx;
+        if (c == null) {
+            return;
+        }
+        c.removeScalableConsumerSession(consumerId);
+        try {
+            long requestId = v4Client.newRequestId();
+            c.<Void>sendScalableSessionRequest(
+                            Commands.newScalableTopicUnsubscribe(requestId, consumerId), requestId)
+                    .exceptionally(ex -> {
+                        log.debug().exceptionMessage(ex)
+                                .log("Clean unsubscribe failed; relying on the grace period");
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.debug().exceptionMessage(e)
+                    .log("Clean unsubscribe failed; relying on the grace period");
         }
     }
 
