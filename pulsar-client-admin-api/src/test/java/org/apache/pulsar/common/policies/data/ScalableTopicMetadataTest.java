@@ -122,7 +122,7 @@ public class ScalableTopicMetadataTest {
     @Test
     public void testSegmentInfoHelpersForUnknownStateAreFalse() {
         ScalableTopicMetadata.SegmentInfo seg = new ScalableTopicMetadata.SegmentInfo(
-                0L, hashRange(0, 0xFFFF), "UNKNOWN", List.of(), List.of(), 0L, -1L, null);
+                0L, hashRange(0, 0xFFFF), "UNKNOWN", List.of(), List.of(), 0L, -1L, null, null);
         assertFalse(seg.isActive());
         assertFalse(seg.isSealed());
     }
@@ -131,14 +131,14 @@ public class ScalableTopicMetadataTest {
     public void testSegmentInfoLegacyFlag() {
         // A null/empty legacyTopicName is a regular controller-managed segment.
         ScalableTopicMetadata.SegmentInfo regular = new ScalableTopicMetadata.SegmentInfo(
-                1L, hashRange(0, 0xFFFF), "ACTIVE", List.of(), List.of(), 0L, -1L, null);
+                1L, hashRange(0, 0xFFFF), "ACTIVE", List.of(), List.of(), 0L, -1L, null, null);
         assertFalse(regular.isLegacy());
         assertNull(regular.getLegacyTopicName());
 
         // A non-empty legacyTopicName marks a legacy segment wrapping a persistent:// topic.
         ScalableTopicMetadata.SegmentInfo legacy = new ScalableTopicMetadata.SegmentInfo(
                 0L, hashRange(0, 0xFFFF), "SEALED", List.of(), List.of(2L), 0L, 0L,
-                "persistent://tenant/ns/x-partition-0");
+                "persistent://tenant/ns/x-partition-0", null);
         assertTrue(legacy.isLegacy());
         assertEquals(legacy.getLegacyTopicName(), "persistent://tenant/ns/x-partition-0");
     }
@@ -186,7 +186,7 @@ public class ScalableTopicMetadataTest {
                                                                     long createdAtEpoch) {
         return new ScalableTopicMetadata.SegmentInfo(
                 id, hashRange(start, end), "ACTIVE",
-                List.of(), List.of(), createdAtEpoch, -1L, null);
+                List.of(), List.of(), createdAtEpoch, -1L, null, null);
     }
 
     private static ScalableTopicMetadata.SegmentInfo sealedSegment(long id, int start, int end,
@@ -196,7 +196,7 @@ public class ScalableTopicMetadataTest {
                                                                     long sealedAtEpoch) {
         return new ScalableTopicMetadata.SegmentInfo(
                 id, hashRange(start, end), "SEALED",
-                parents, children, createdAtEpoch, sealedAtEpoch, null);
+                parents, children, createdAtEpoch, sealedAtEpoch, null, null);
     }
 
     private static ScalableTopicMetadata.HashRange hashRange(int start, int end) {
