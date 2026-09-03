@@ -384,6 +384,8 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper-native-io-4.18.0.jar
     - org.apache.bookkeeper-native-library-common-4.18.0.jar
     - at.yawk.lz4-lz4-java-1.11.2.jar
+  * Apache Felix HTTP Wrappers
+    - org.apache.felix-org.apache.felix.http.wrappers-1.1.10.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.14.jar
     - org.apache.httpcomponents-httpcore-4.4.16.jar
