@@ -81,7 +81,14 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
             return session.start()
                     .thenCompose(initialAssignment -> ScalableCheckpointConsumer.createManagedAsync(
                             client, v5Schema, topic.toString(), session, initialAssignment,
-                            startPosition, name));
+                            startPosition, name))
+                    .whenComplete((consumer, ex) -> {
+                        if (ex != null) {
+                            // See StreamConsumerBuilderV5: a failed subscribe must still send
+                            // its clean unsubscribe once the in-flight attempt settles.
+                            session.close();
+                        }
+                    });
         }
 
         // Unmanaged: read every active segment, no broker-side state.
