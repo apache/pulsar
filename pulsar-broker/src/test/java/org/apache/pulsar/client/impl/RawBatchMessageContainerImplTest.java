@@ -21,6 +21,12 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
@@ -307,5 +313,40 @@ public class RawBatchMessageContainerImplTest {
         Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
         Assert.assertEquals(container.getNumMessagesInBatch(), 0);
         Assert.assertEquals(container.batchedMessageMetadataAndPayload, null);
+    }
+
+    /**
+     * A crypto provider that fails with an unexpected (non-{@link PulsarClientException}) error after the batch
+     * payload was built must not orphan the compressed payload or the partially built encrypted buffer.
+     */
+    @Test
+    public void testToByteBufReleasesPayloadWhenEncryptionFailsUnexpectedly() throws Exception {
+        setEncryptionAndCompression(true, false);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
+        container.setCryptoKeyReader(cryptoKeyReader);
+        container.add(createMessage("my-topic", "hi-1", 0), null);
+
+        // Replace the real crypto with one whose encrypt() throws an unexpected RuntimeException, so the batch
+        // payload is built (getCompressedBatchMetadataAndPayload) and then encryption fails outside the
+        // PulsarClientException contract.
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
+        doThrow(new RuntimeException("mocked crypto failure"))
+                .when(crypto).encrypt(anySet(), any(), any(), any(), any());
+        container.setMsgCryptoForTesting(crypto);
+
+        Throwable e = null;
+        try {
+            container.toByteBuf();
+        } catch (Throwable ex) {
+            e = ex;
+        }
+        Assert.assertEquals(e.getClass(), RuntimeException.class);
+        Assert.assertTrue(e.getMessage().contains("mocked crypto failure"));
+        // The compressed batch payload must have been released instead of leaked; the container keeps its
+        // (now released) buffer reference until the caller recovers, mirroring the producer path.
+        Assert.assertEquals(container.batchedMessageMetadataAndPayload.refCnt(), 0);
+
+        container.discard(null);
     }
 }

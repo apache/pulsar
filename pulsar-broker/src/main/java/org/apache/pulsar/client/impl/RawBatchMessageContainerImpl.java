@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import java.nio.ByteBuffer;
 import java.util.Set;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -60,22 +62,32 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         if (msgCrypto == null) {
             return compressedPayload;
         }
-        int maxSize = msgCrypto.getMaxOutputSize(compressedPayload.readableBytes());
-        ByteBuf encryptedPayload = allocator.buffer(maxSize);
-        ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
-
+        ByteBuf encryptedPayload = null;
         try {
+            int maxSize = msgCrypto.getMaxOutputSize(compressedPayload.readableBytes());
+            encryptedPayload = allocator.buffer(maxSize);
+            ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
             msgCrypto.encrypt(encryptionKeys, cryptoKeyReader, () -> messageMetadata,
                     compressedPayload.nioBuffer(), targetBuffer);
-        } catch (PulsarClientException e) {
-            encryptedPayload.release();
+            encryptedPayload.writerIndex(targetBuffer.remaining());
             compressedPayload.release();
+            return encryptedPayload;
+        } catch (PulsarClientException e) {
+            // Release the compressed payload and any partially built encrypted buffer before failing the batch.
+            ReferenceCountUtil.safeRelease(encryptedPayload);
+            ReferenceCountUtil.safeRelease(compressedPayload);
             discard(e);
             throw new RuntimeException("Failed to encrypt payload", e);
+        } catch (Throwable t) {
+            // Never orphan the compressed payload or a partially built encrypted buffer when encryption fails,
+            // whatever the failure is (e.g. an OOM while allocating the encrypted buffer or an unexpected
+            // runtime exception from the crypto provider). Unlike the PulsarClientException branch, the batch is
+            // deliberately not discarded here: the caller owns recovery (StrategicTwoPhaseCompactor discards the
+            // container on any Throwable from toByteBuf()), so the batch is failed exactly once at the call site.
+            ReferenceCountUtil.safeRelease(encryptedPayload);
+            ReferenceCountUtil.safeRelease(compressedPayload);
+            throw t;
         }
-        encryptedPayload.writerIndex(targetBuffer.remaining());
-        compressedPayload.release();
-        return encryptedPayload;
     }
 
     @Override
@@ -89,6 +101,11 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
      */
     public void setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         this.cryptoKeyReader = cryptoKeyReader;
+    }
+
+    @VisibleForTesting
+    void setMsgCryptoForTesting(MessageCrypto<MessageMetadata, MessageMetadata> msgCrypto) {
+        this.msgCrypto = msgCrypto;
     }
 
     @Override
@@ -168,29 +185,35 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         }
 
         ByteBuf encryptedPayload = encrypt(getCompressedBatchMetadataAndPayload(false));
-        updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
-        ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                messageMetadata, encryptedPayload);
+        ByteBuf metadataAndPayload = null;
+        try {
+            updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
+            metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
+                    messageMetadata, encryptedPayload);
 
-        MessageIdData idData = new MessageIdData();
-        idData.setLedgerId(lastMessageId.getLedgerId());
-        idData.setEntryId(lastMessageId.getEntryId());
-        idData.setPartition(lastMessageId.getPartitionIndex());
+            MessageIdData idData = new MessageIdData();
+            idData.setLedgerId(lastMessageId.getLedgerId());
+            idData.setEntryId(lastMessageId.getEntryId());
+            idData.setPartition(lastMessageId.getPartitionIndex());
 
-        // Format: [IdSize][Id][metadataAndPayloadSize][metadataAndPayload]
-        // Following RawMessage.serialize() format as the compacted messages will be parsed as RawMessage in broker
-        int idSize = idData.getSerializedSize();
-        int headerSize = 4 /* IdSize */ + idSize + 4 /* metadataAndPayloadSize */;
-        int totalSize = headerSize + metadataAndPayload.readableBytes();
-        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(totalSize);
-        buf.writeInt(idSize);
-        idData.writeTo(buf);
-        buf.writeInt(metadataAndPayload.readableBytes());
-        buf.writeBytes(metadataAndPayload);
-        metadataAndPayload.release();
-        encryptedPayload.release();
-        clear();
-        return buf;
+            // Format: [IdSize][Id][metadataAndPayloadSize][metadataAndPayload]
+            // Following RawMessage.serialize() format as the compacted messages will be parsed as RawMessage in broker
+            int idSize = idData.getSerializedSize();
+            int headerSize = 4 /* IdSize */ + idSize + 4 /* metadataAndPayloadSize */;
+            int totalSize = headerSize + metadataAndPayload.readableBytes();
+            ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(totalSize);
+            buf.writeInt(idSize);
+            idData.writeTo(buf);
+            buf.writeInt(metadataAndPayload.readableBytes());
+            buf.writeBytes(metadataAndPayload);
+            return buf;
+        } finally {
+            // Release everything allocated for this serialization on both success and failure, so a failure after
+            // the batch buffer was built (e.g. an OOM) cannot orphan it.
+            ReferenceCountUtil.safeRelease(metadataAndPayload);
+            ReferenceCountUtil.safeRelease(encryptedPayload);
+            clear();
+        }
     }
 
     @Override
