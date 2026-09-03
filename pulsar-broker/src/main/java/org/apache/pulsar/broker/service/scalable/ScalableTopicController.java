@@ -811,13 +811,14 @@ public class ScalableTopicController {
      * Explicit unregister: the consumer is leaving the subscription for good. Deletes the
      * persisted session entry and rebalances remaining consumers.
      */
-    public CompletableFuture<Void> unregisterConsumer(String subscription, String consumerName) {
+    public CompletableFuture<Void> unregisterConsumer(String subscription, String consumerName,
+                                                      long consumerId) {
         checkLeader();
         SubscriptionCoordinator coordinator = subscriptions.get(subscription);
         if (coordinator == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return coordinator.unregisterConsumer(consumerName)
+        return coordinator.unregisterConsumer(consumerName, consumerId)
                 .thenAccept(__ -> {
                     if (coordinator.getConsumers().isEmpty()) {
                         subscriptions.remove(subscription);
@@ -882,7 +883,8 @@ public class ScalableTopicController {
 
     private CompletableFuture<Void> dropAllConsumers(SubscriptionCoordinator coordinator) {
         CompletableFuture<?>[] futures = coordinator.getConsumers().stream()
-                .map(session -> coordinator.unregisterConsumer(session.getConsumerName()))
+                .map(session -> coordinator.unregisterConsumer(
+                        session.getConsumerName(), session.getConsumerId()))
                 .toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures);
     }

@@ -142,6 +142,7 @@ import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages
 import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribe;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -516,15 +517,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!scalableConsumerRegistrations.isEmpty()) {
             var scalableTopicService = service.getScalableTopicService();
             if (scalableTopicService != null) {
-                scalableConsumerRegistrations.values().forEach(ref -> {
-                    try {
-                        scalableTopicService.onConsumerDisconnect(
-                                ref.topicName(), ref.subscription(), ref.consumerName());
-                    } catch (Exception e) {
-                        log.warn().attr("consumerName", ref.consumerName()).exceptionMessage(e)
-                                .log("Error notifying scalable controller of consumer disconnect");
-                    }
-                });
+                scalableConsumerRegistrations.values().forEach(ref ->
+                        // Chained on the registration outcome: a registration still in flight
+                        // when the connection dies creates its session only afterwards, and
+                        // the disconnect report must not race ahead of it (it would no-op on
+                        // a not-yet-existing session and never arm the grace timer).
+                        ref.registration().whenComplete((__, ___) -> {
+                            try {
+                                scalableTopicService.onConsumerDisconnect(
+                                        ref.topicName(), ref.subscription(), ref.consumerName());
+                            } catch (Exception e) {
+                                log.warn().attr("consumerName", ref.consumerName())
+                                        .exceptionMessage(e)
+                                        .log("Error notifying scalable controller of consumer "
+                                                + "disconnect");
+                            }
+                        }));
             }
             scalableConsumerRegistrations.clear();
         }
@@ -1093,7 +1101,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private record ScalableConsumerRegistrationRef(
             TopicName topicName,
             String subscription,
-            String consumerName) {}
+            String consumerName,
+            CompletableFuture<?> registration) {}
 
     @Override
     protected void handleCommandScalableTopicSubscribe(
@@ -1148,24 +1157,32 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg);
                         return;
                     }
-                    scalableTopicService.registerConsumer(topicName, subscription, consumerName,
-                                    consumerId, consumerType, this)
-                            .whenCompleteAsync((assignment, ex) -> {
-                                if (ex != null) {
-                                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                                    log.warn().attr("topic", topicName).attr("subscription", subscription)
-                                            .attr("consumerName", consumerName).exception(cause)
-                                            .log("ScalableTopicSubscribe failed");
-                                    getCommandSender().sendScalableTopicSubscribeError(requestId,
-                                            ServerError.UnknownError, cause.getMessage());
-                                    return;
-                                }
-                                // Record the registration so we can call onConsumerDisconnect on channelInactive.
-                                scalableConsumerRegistrations.put(consumerId,
-                                        new ScalableConsumerRegistrationRef(topicName, subscription, consumerName));
-                                getCommandSender().sendScalableTopicSubscribeResponse(requestId,
-                                        ConsumerSession.toProto(assignment));
-                            }, ctx.executor());
+                    // Record the registration BEFORE it resolves, carrying its future: an
+                    // unsubscribe (or the channelInactive sweep) arriving mid-registration
+                    // chains behind it instead of silently missing it. The client's subscribe
+                    // can time out while the broker-side registration is still in flight, so
+                    // this ordering must not depend on how long the client was able to wait.
+                    var registration = scalableTopicService.registerConsumer(topicName,
+                            subscription, consumerName, consumerId, consumerType, this);
+                    var ref = new ScalableConsumerRegistrationRef(
+                            topicName, subscription, consumerName, registration);
+                    scalableConsumerRegistrations.put(consumerId, ref);
+                    registration.whenCompleteAsync((assignment, ex) -> {
+                        if (ex != null) {
+                            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                            log.warn().attr("topic", topicName).attr("subscription", subscription)
+                                    .attr("consumerName", consumerName).exception(cause)
+                                    .log("ScalableTopicSubscribe failed");
+                            // Nothing was registered: drop the ref so unsubscribes and the
+                            // disconnect sweep have nothing to report for it.
+                            scalableConsumerRegistrations.remove(consumerId, ref);
+                            getCommandSender().sendScalableTopicSubscribeError(requestId,
+                                    ServerError.UnknownError, cause.getMessage());
+                            return;
+                        }
+                        getCommandSender().sendScalableTopicSubscribeResponse(requestId,
+                                ConsumerSession.toProto(assignment));
+                    }, ctx.executor());
                 })
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-subscribe", getPrincipal(),
@@ -1175,6 +1192,49 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             "Exception occurred while trying to authorize ScalableTopicSubscribe");
                     return null;
                 });
+    }
+
+    @Override
+    protected void handleCommandScalableTopicUnsubscribe(
+            CommandScalableTopicUnsubscribe commandScalableTopicUnsubscribe) {
+        checkArgument(state == State.Connected);
+        final long requestId = commandScalableTopicUnsubscribe.getRequestId();
+        final long consumerId = commandScalableTopicUnsubscribe.getConsumerId();
+
+        // The lookup is scoped to this connection's own registrations, so a client can only
+        // unregister sessions it created here — no further authorization is needed.
+        ScalableConsumerRegistrationRef ref = scalableConsumerRegistrations.get(consumerId);
+        var scalableTopicService = service.getScalableTopicService();
+        if (ref == null || scalableTopicService == null) {
+            // Unknown or already swept by a disconnect: idempotent success.
+            getCommandSender().sendSuccessResponse(requestId);
+            return;
+        }
+        log.debug().attr("topic", ref.topicName()).attr("subscription", ref.subscription())
+                .attr("consumerName", ref.consumerName()).attr("requestId", requestId)
+                .log("Received ScalableTopicUnsubscribe");
+        // Ordered behind the (possibly still in-flight) registration; a failed registration
+        // has nothing to unregister and the idempotent unregister below tolerates that.
+        ref.registration().handle((__, ___) -> (Void) null)
+                .thenCompose(__ -> scalableTopicService.unregisterConsumer(
+                        ref.topicName(), ref.subscription(), ref.consumerName(), consumerId))
+                .whenCompleteAsync((__, ex) -> {
+                    if (ex != null) {
+                        // Keep the ref: the channelInactive sweep can still report the
+                        // disconnect, so the grace-period fallback stays alive for a
+                        // registration the explicit unregister failed to delete.
+                        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                        log.warn().attr("consumerName", ref.consumerName()).exceptionMessage(cause)
+                                .log("ScalableTopicUnsubscribe failed");
+                        getCommandSender().sendErrorResponse(requestId, ServerError.UnknownError,
+                                cause.getMessage());
+                        return;
+                    }
+                    // Removed only on success; a channelInactive racing the unregister just
+                    // re-reports an already-removed session, which the coordinator ignores.
+                    scalableConsumerRegistrations.remove(consumerId, ref);
+                    getCommandSender().sendSuccessResponse(requestId);
+                }, ctx.executor());
     }
 
     @Override

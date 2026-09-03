@@ -1805,6 +1805,19 @@ public class Commands {
     }
 
     /**
+     * Client -> Broker: a scalable consumer is cleanly leaving its subscription; the
+     * controller unregisters it and rebalances immediately instead of waiting out the
+     * disconnect grace period. Acknowledged with {@code CommandSuccess}.
+     */
+    public static ByteBuf newScalableTopicUnsubscribe(long requestId, long consumerId) {
+        BaseCommand cmd = localCmd(Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        cmd.setScalableTopicUnsubscribe()
+                .setRequestId(requestId)
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
      * Broker -> Client: response to a scalable-topic subscribe request. On success the
      * caller must populate the nested {@link ScalableConsumerAssignment} via
      * {@code response.setAssignment()} before serializing; on failure the error and
