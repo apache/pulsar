@@ -47,7 +47,6 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     private final Tracer tracer;
     private final TextMapPropagator propagator;
-    private String topic;
 
     public OpenTelemetryProducerInterceptor(InstrumentProvider instrumentProvider) {
         this.tracer = instrumentProvider.getTracer();
@@ -72,9 +71,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
         }
 
         try {
-            if (topic == null) {
-                topic = producer.getTopic();
-            }
+            String topic = producer.getTopic();
 
             // Create a span for this message publication
             // The span will be linked to the current context, which may have been set by:
