@@ -62,10 +62,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import picocli.CommandLine.Spec;
 
 @Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
 public class PerformanceClient extends CmdBase {
@@ -138,12 +136,8 @@ public class PerformanceClient extends CmdBase {
         super("websocket-producer");
     }
 
-
-    @Spec
-    CommandSpec spec;
-
     public void loadArguments() {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
             this.authPluginClassName = this.deprecatedAuthPluginClassName;
