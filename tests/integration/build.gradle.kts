@@ -214,7 +214,12 @@ val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
         "echo 1 > /proc/sys/kernel/perf_event_paranoid "
             + "&& echo 0 > /proc/sys/kernel/kptr_restrict "
             + "&& echo 1024 > /proc/sys/kernel/perf_event_max_stack "
-            + "&& echo 2048 > /proc/sys/kernel/perf_event_mlock_kb"
+            + "&& echo 2048 > /proc/sys/kernel/perf_event_mlock_kb "
+            // also optimize for -XX:+UseTransparentHugePages
+            + "&& echo madvise > /sys/kernel/mm/transparent_hugepage/enabled "
+            + "&& echo advise > /sys/kernel/mm/transparent_hugepage/shmem_enabled "
+            + "&& echo defer > /sys/kernel/mm/transparent_hugepage/defrag "
+            + "&& echo 1 > /sys/kernel/mm/transparent_hugepage/khugepaged/defrag"
     )
     // Best effort: profiling still works without it, only with less accurate native stacks, so a
     // Docker setup that refuses privileged containers must not fail the whole profiling run.
