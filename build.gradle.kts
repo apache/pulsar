@@ -180,8 +180,9 @@ tasks.register<JfrFlamegraphsTask>("jfrFlamegraphs") {
         .getOrElse(layout.buildDirectory.dir("test-profiles").get().asFile)
     // A directory is wired in as a file tree rather than listed here: the listing has to happen when
     // the task runs, or a reused configuration cache entry would convert the recordings of the
-    // previous profiling run and miss the one just made.
-    jfrFiles.from(if (jfrInput.isFile) jfrInput else fileTree(jfrInput) { include("*.jfr") })
+    // previous profiling run and miss the one just made. The tree is searched recursively because
+    // JMH's async-profiler integration writes its recording into a directory per benchmark.
+    jfrFiles.from(if (jfrInput.isFile) jfrInput else fileTree(jfrInput) { include("**/*.jfr") })
 
     // async-profiler's converter, looked up the same way as the profiler library itself:
     // -Pjfrconv wins, then the bin/ directory of the async-profiler install that

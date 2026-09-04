@@ -112,3 +112,30 @@ It's possible to add options to the async-profiler that aren't supported by the 
 ```shell
 java -jar microbench/build/libs/microbench-*-benchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,jfrsync,cstack=vmx ".*BenchmarkName.*"
 ```
+
+Outside Linux this particular command needs `\;event=itimer` as well. `all` turns on wall clock
+profiling, and where the `cpu` engine falls back to the wall clock engine the profiler refuses to
+start with `Cannot start wall clock with the selected event`, which shows up as a `<failure>` on the
+first warmup iteration and an empty result directory.
+
+### Turning a JFR recording into flame graphs
+
+`output=jfr` writes one recording per benchmark, into a directory named after the benchmark under
+`dir=`. The `jfrFlamegraphs` Gradle task renders each recording into every view at once — point it at
+the whole output directory and it finds the recordings inside:
+
+```shell
+./gradlew jfrFlamegraphs -Pjfr=profile-results
+```
+
+Each recording gets a directory beside it named after the file without its extension plus a
+`-flamegraphs` suffix, holding `cpu`, `wall`, `alloc` and `lock`, each rendered merged
+(`cpu.html`), split per thread (`cpu_threads.html`) and grouped into async-profiler's categories
+(`cpu_classify.html`). A view whose event the recording does not contain is skipped. See
+[Analyzing a JFR file](../CONTRIBUTING.md#analyzing-a-jfr-file) for the options it takes.
+
+The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
+IDEA, or handed to an AI agent through the
+[Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md), which lets the
+agent query the recording directly with tools such as `jfr_diagnose` and `jfr_stackprofile` — see
+[Agent-assisted analysis](../CONTRIBUTING.md#agent-assisted-analysis-with-the-jafar-mcp-server).
