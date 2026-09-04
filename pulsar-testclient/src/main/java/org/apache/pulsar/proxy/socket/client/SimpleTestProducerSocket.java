@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static java.util.Base64.getEncoder;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -43,17 +42,20 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 @CustomLog
 public class SimpleTestProducerSocket {
     // Latencies are recorded in microseconds; values above this ceiling are clamped rather than
-    // rejected, since HdrHistogram throws on an out-of-range value.
-    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+    // rejected, since HdrHistogram throws on an out-of-range value. Package-private so that
+    // PerformanceClient, which owns the shared Recorder, can size it consistently.
+    static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    public static Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    // Shared by every socket of one PerformanceClient run so that latencies aggregate.
+    private final Recorder recorder;
 
     private final CountDownLatch closeLatch;
     private volatile Session session;
     private ConcurrentHashMap<String, Long> startTimeMap = new ConcurrentHashMap<>();
     private static final String CONTEXT = "context";
 
-    public SimpleTestProducerSocket() {
+    public SimpleTestProducerSocket(Recorder recorder) {
+        this.recorder = recorder;
         this.closeLatch = new CountDownLatch(2);
     }
 

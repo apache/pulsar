@@ -70,17 +70,17 @@ import picocli.CommandLine.Spec;
 @CustomLog
 public class ManagedLedgerWriter extends CmdBase{
 
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
 
     // Latencies are recorded in microseconds. A managed-ledger write slower than this means the
     // benchmark is broken rather than slow, so values are clamped instead of widening the range.
     private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
-    private static Recorder cumulativeRecorder =
+    private final Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
 
@@ -412,7 +412,7 @@ public class ManagedLedgerWriter extends CmdBase{
         return map;
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
@@ -423,7 +423,7 @@ public class ManagedLedgerWriter extends CmdBase{
                 .log("Aggregated throughput stats --- records sent --- msg/s --- Mbit/s");
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info()

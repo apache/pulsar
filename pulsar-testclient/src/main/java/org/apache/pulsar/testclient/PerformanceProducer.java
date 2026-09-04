@@ -90,28 +90,28 @@ import picocli.CommandLine.TypeConversionException;
 @Command(name = "produce", description = "Test pulsar producer performance.")
 @CustomLog
 public class PerformanceProducer extends PerformanceTopicListArguments{
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder messagesFailed = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder messagesFailed = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
 
-    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
 
     // Publish latencies are recorded in microseconds. A send slower than this means the benchmark is
     // broken rather than slow, so values are clamped to keep HdrHistogram in range.
     private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static final Recorder recorder =
+    private final Recorder recorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
-    private static final Recorder cumulativeRecorder =
+    private final Recorder cumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
-    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
+    private final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
 
@@ -263,19 +263,6 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
     @Override
     public void run() throws Exception {
-        // Reset static counters to avoid stale state from previous runs in the same JVM
-        messagesSent.reset();
-        messagesFailed.reset();
-        bytesSent.reset();
-        totalNumTxnOpenTxnFail.reset();
-        totalNumTxnOpenTxnSuccess.reset();
-        totalMessagesSent.reset();
-        totalBytesSent.reset();
-        totalEndTxnOpSuccessNum.reset();
-        totalEndTxnOpFailNum.reset();
-        numTxnOpSuccess.reset();
-        recorder.reset();
-        cumulativeRecorder.reset();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -822,7 +809,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                 totalMessagesSent.sum(), rate, throughput);
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.infof("Aggregated latency stats --- Latency: mean: %7.3f ms"

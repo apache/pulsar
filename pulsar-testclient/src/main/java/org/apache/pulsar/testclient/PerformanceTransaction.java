@@ -78,29 +78,29 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     }
 
 
-    private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
-    private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
+    private final LongAdder totalNumEndTxnOpFailed = new LongAdder();
+    private final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
+    private final LongAdder numTxnOpSuccess = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
-    private static final LongAdder numMessagesAckFailed = new LongAdder();
-    private static final LongAdder numMessagesAckSuccess = new LongAdder();
-    private static final LongAdder numMessagesSendFailed = new LongAdder();
-    private static final LongAdder numMessagesSendSuccess = new LongAdder();
+    private final LongAdder numMessagesAckFailed = new LongAdder();
+    private final LongAdder numMessagesAckSuccess = new LongAdder();
+    private final LongAdder numMessagesSendFailed = new LongAdder();
+    private final LongAdder numMessagesSendSuccess = new LongAdder();
 
     // Send and ack latencies are recorded in microseconds. Anything slower than this means the
     // benchmark is broken rather than slow, so values are clamped to keep HdrHistogram in range.
     private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static final Recorder messageAckRecorder =
+    private final Recorder messageAckRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
-    private static final Recorder messageAckCumulativeRecorder =
+    private final Recorder messageAckCumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
-    private static final Recorder messageSendRecorder =
+    private final Recorder messageSendRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
-    private static final Recorder messageSendRCumulativeRecorder =
+    private final Recorder messageSendRCumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
@@ -196,20 +196,6 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     public void run() throws Exception {
         super.parseCLI();
 
-        // Reset static counters to avoid stale state from previous runs in the same JVM
-        totalNumEndTxnOpFailed.reset();
-        totalNumEndTxnOpSuccess.reset();
-        numTxnOpSuccess.reset();
-        totalNumTxnOpenTxnFail.reset();
-        totalNumTxnOpenTxnSuccess.reset();
-        numMessagesAckFailed.reset();
-        numMessagesAckSuccess.reset();
-        numMessagesSendFailed.reset();
-        numMessagesSendSuccess.reset();
-        messageAckRecorder.reset();
-        messageAckCumulativeRecorder.reset();
-        messageSendRecorder.reset();
-        messageSendRCumulativeRecorder.reset();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -589,7 +575,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     }
 
 
-    private static void printTxnAggregatedThroughput(long start) {
+    private void printTxnAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         long numTransactionEndFailed = totalNumEndTxnOpFailed.sum();
         long numTransactionEndSuccess = totalNumEndTxnOpSuccess.sum();
@@ -615,7 +601,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         long total = totalNumEndTxnOpFailed.sum() + totalNumEndTxnOpSuccess.sum();
         double rate = total / elapsed;
@@ -631,7 +617,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                 numMessageAckSuccess, numMessageSendSuccess);
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportAckHistogram = messageAckCumulativeRecorder.getIntervalHistogram();
         Histogram reportSendHistogram = messageSendRCumulativeRecorder.getIntervalHistogram();
         log.infof("Messages ack aggregated latency stats --- Latency: mean: %7.3f ms"
