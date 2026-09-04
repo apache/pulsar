@@ -32,6 +32,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -68,18 +70,23 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         return generateTopicName("default", topicPrefix, isPersistent);
     }
 
+    protected static String generateTopicName(String topicPrefix, TopicDomain topicDomain) {
+        return generateTopicName("default", topicPrefix, topicDomain);
+    }
+
     protected static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
+        return generateTopicName(namespace, topicPrefix,
+                isPersistent ? TopicDomain.persistent : TopicDomain.non_persistent);
+    }
+
+    protected static String generateTopicName(String namespace, String topicPrefix, TopicDomain topicDomain) {
         String topicName = new StringBuilder(topicPrefix)
                 .append("-")
                 .append(randomName(8))
                 .append("-")
                 .append(System.currentTimeMillis())
                 .toString();
-        if (isPersistent) {
-            return "persistent://public/" + namespace + "/" + topicName;
-        } else {
-            return "non-persistent://public/" + namespace + "/" + topicName;
-        }
+        return TopicName.get(topicDomain.toString(), "public", namespace, topicName).toString();
     }
 
     protected void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
