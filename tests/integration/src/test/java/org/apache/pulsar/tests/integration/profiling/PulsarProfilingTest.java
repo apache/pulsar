@@ -86,7 +86,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                 createContainerCmd.withHostName(hostname);
                 createContainerCmd.withName(clusterName + "-" + hostname);
             });
-            withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM);
+            withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM + " -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/testoutput");
             withEnv("PULSAR_GC", "-XX:+UseZGC -XX:+ZGenerational");
             setCommand("sleep 1000000");
             File testOutputDir = new File("build");
