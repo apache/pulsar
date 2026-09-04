@@ -29,6 +29,7 @@ import json
 import log
 
 import pulsar
+from pulsar import schema
 import util
 
 from prometheus_client import Summary
@@ -164,7 +165,7 @@ class ContextImpl(pulsar.Context):
     if callback:
       callback(result, msg)
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, message_conf=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None, callback=None, message_conf=None, schema=None):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
@@ -177,6 +178,7 @@ class ContextImpl(pulsar.Context):
       producer_config = util.producer_config_from_function_details(self.instance_config.function_details)
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
+        schema=schema if schema is not None else schema.BytesSchema(),
         block_if_queue_full=True,
         compression_type=pulsar_compression_type,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
