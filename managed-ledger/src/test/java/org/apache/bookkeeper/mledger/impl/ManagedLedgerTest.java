@@ -3490,6 +3490,67 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testReadEntryTimeoutCallbackRunsOnManagedLedgerExecutor() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_executor_test", config);
+        Position position = ledger.addEntry("entry-1".getBytes());
+
+        factory.getEntryCacheManager().clear();
+
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry, long lastEntry,
+                                                                       LedgerEntries entries) {
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS));
+            }
+        });
+
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> responseException = new AtomicReference<>();
+        try {
+            ledger.getExecutor().execute(() -> {
+                executorBlocked.countDown();
+                try {
+                    releaseExecutor.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue(executorBlocked.await(5, TimeUnit.SECONDS));
+
+            ledger.asyncReadEntry(position, new ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    entry.release();
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    responseException.set(exception);
+                }
+            }, null);
+
+            Awaitility.await().untilAsserted(() -> {
+                factory.getReadEntryTimeoutTracker().checkTimeouts();
+                assertEquals(factory.getReadEntryTimeoutTracker().pendingTimeoutCount(), 0);
+            });
+            assertNull(responseException.get());
+
+            releaseExecutor.countDown();
+            Awaitility.await().untilAsserted(() -> {
+                assertNotNull(responseException.get());
+                assertTrue(responseException.get().getMessage()
+                        .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+            });
+        } finally {
+            releaseExecutor.countDown();
+            ledger.close();
+        }
+    }
+
+    @Test
     public void testCompletedReadEntryTimeoutsAreRemovedFromSharedTracker() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(60);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completed_read_timeout_tracker_test", config);
@@ -3514,6 +3575,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(factory.getReadEntryTimeoutTracker().pendingTimeoutCount(), 0);
 
         ledger.close();
+    }
+
+    @Test
+    public void testCompletedReadEntryIsNotRegisteredForReadTimeout() throws Exception {
+        Object expectedCtx = new Object();
+        CompletableFuture<Object> callbackContext = new CompletableFuture<>();
+        ReadEntryCallback callback = new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                callbackContext.complete(ctx);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                callbackContext.complete(ctx);
+            }
+        };
+        ManagedLedgerImpl.ReadEntryCallbackWrapper readCallback = ManagedLedgerImpl.ReadEntryCallbackWrapper.create(
+                mock(ManagedLedgerImpl.class), 1L, 2L, callback, expectedCtx,
+                System.nanoTime() + TimeUnit.SECONDS.toNanos(60));
+
+        readCallback.readEntryFailed(new ManagedLedgerException("completed"), null);
+
+        assertSame(callbackContext.get(5, TimeUnit.SECONDS), expectedCtx);
+        assertTrue(readCallback.isCompleted());
+        assertFalse(readCallback.registerTimeout());
+        assertFalse(readCallback.triggerReadTimeout(new ManagedLedgerException("timeout")));
     }
 
     @Test

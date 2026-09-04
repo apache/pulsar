@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -35,8 +34,8 @@ class ReadEntryTimeoutTracker implements AutoCloseable {
     private static final int READ_TIMEOUT_QUEUE_CHUNK_SIZE = 128 * 1024;
     private static final int CHECK_INTERVAL_SECONDS = 1;
 
-    private final MpscUnboundedArrayQueue<ReadTimeoutWrapper> timeoutQueue = new MpscUnboundedArrayQueue<>(
-            READ_TIMEOUT_QUEUE_CHUNK_SIZE);
+    private final MpscUnboundedArrayQueue<ManagedLedgerImpl.ReadEntryCallbackWrapper> timeoutQueue =
+            new MpscUnboundedArrayQueue<>(READ_TIMEOUT_QUEUE_CHUNK_SIZE);
     private final AtomicInteger timeoutQueueSize = new AtomicInteger();
     private final ScheduledFuture<?> timeoutTask;
 
@@ -45,49 +44,47 @@ class ReadEntryTimeoutTracker implements AutoCloseable {
                 CHECK_INTERVAL_SECONDS, CHECK_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
-    ReadTimeoutWrapper add(ManagedLedgerImpl.ReadEntryCallbackWrapper callback, long readOpCount,
-                           long timeoutAtNanos) {
-        ReadTimeoutWrapper timeout = new ReadTimeoutWrapper(readOpCount, timeoutAtNanos, callback);
-        timeoutQueue.offer(timeout);
+    void add(ManagedLedgerImpl.ReadEntryCallbackWrapper callback) {
+        timeoutQueue.offer(callback);
         timeoutQueueSize.incrementAndGet();
-        return timeout;
     }
 
     @VisibleForTesting
     synchronized void checkTimeouts() {
         long now = System.nanoTime();
+        // This is intentionally O(all tracked reads). Read-entry timeout is disabled by default, the
+        // tracker runs once per second, and the MPSC queue keeps this maintenance path cheap while
+        // avoiding per-ledger timeout tasks. The assumption is that deployments enabling this feature
+        // prefer one lightweight broker-level scan over creating a scheduled task per ManagedLedger or
+        // per read. Expired callbacks are handed back to the owning ledger's executor, so this shared
+        // scan does not serialize completion callbacks across unrelated ledgers.
         int entriesToProcess = timeoutQueueSize.get();
         for (int i = 0; i < entriesToProcess; i++) {
-            ReadTimeoutWrapper timeout = timeoutQueue.poll();
-            if (timeout == null) {
+            ManagedLedgerImpl.ReadEntryCallbackWrapper callback = timeoutQueue.poll();
+            if (callback == null) {
                 return;
             }
             timeoutQueueSize.decrementAndGet();
-            ManagedLedgerImpl.ReadEntryCallbackWrapper callback = timeout.getCallback();
-            if (callback == null) {
+            if (callback.isCompleted()) {
                 continue;
             }
-            if (!callback.shouldTriggerReadTimeout()) {
-                timeout.clearCallback(callback);
+            if (callback.timeoutAtNanos > now) {
+                requeue(callback);
                 continue;
             }
-            if (timeout.timeoutAtNanos > now) {
-                requeue(timeout);
-                continue;
-            }
-            callback = timeout.clearCallback();
-            if (callback != null) {
+            if (callback.triggerReadTimeout(createManagedLedgerException(BKException.Code.TimeoutException))) {
                 log.warn()
-                        .attr("overdueNanos", now - timeout.timeoutAtNanos)
+                        .attr("ledgerName", callback.managedLedgerName)
+                        .attr("ledgerId", callback.ledgerId)
+                        .attr("entryId", callback.entryId)
+                        .attr("overdueNanos", now - callback.timeoutAtNanos)
                         .log("Read entry timeout");
-                callback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException),
-                        timeout.readOpCount);
             }
         }
     }
 
-    private void requeue(ReadTimeoutWrapper timeout) {
-        timeoutQueue.offer(timeout);
+    private void requeue(ManagedLedgerImpl.ReadEntryCallbackWrapper callback) {
+        timeoutQueue.offer(callback);
         timeoutQueueSize.incrementAndGet();
     }
 
@@ -99,34 +96,5 @@ class ReadEntryTimeoutTracker implements AutoCloseable {
     @VisibleForTesting
     int pendingTimeoutCount() {
         return timeoutQueueSize.get();
-    }
-
-    static final class ReadTimeoutWrapper {
-        private static final AtomicReferenceFieldUpdater<ReadTimeoutWrapper,
-                ManagedLedgerImpl.ReadEntryCallbackWrapper> CALLBACK_UPDATER = AtomicReferenceFieldUpdater
-                .newUpdater(ReadTimeoutWrapper.class, ManagedLedgerImpl.ReadEntryCallbackWrapper.class, "callback");
-
-        final long readOpCount;
-        final long timeoutAtNanos;
-        volatile ManagedLedgerImpl.ReadEntryCallbackWrapper callback;
-
-        ReadTimeoutWrapper(long readOpCount, long timeoutAtNanos,
-                           ManagedLedgerImpl.ReadEntryCallbackWrapper callback) {
-            this.readOpCount = readOpCount;
-            this.timeoutAtNanos = timeoutAtNanos;
-            this.callback = callback;
-        }
-
-        ManagedLedgerImpl.ReadEntryCallbackWrapper getCallback() {
-            return callback;
-        }
-
-        ManagedLedgerImpl.ReadEntryCallbackWrapper clearCallback() {
-            return CALLBACK_UPDATER.getAndSet(this, null);
-        }
-
-        void clearCallback(ManagedLedgerImpl.ReadEntryCallbackWrapper callback) {
-            CALLBACK_UPDATER.compareAndSet(this, callback, null);
-        }
     }
 }
