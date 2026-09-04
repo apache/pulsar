@@ -430,6 +430,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     boolean shouldCacheAddedEntry() {
+        // Shadow ledgers intentionally do not seed mirrored writes. Random reads still use the read-through cache.
         return false;
     }
 }
