@@ -27,9 +27,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.Spec;
 
 @CustomLog
 @Command(name = "gen-doc", description = "Generate documentation automatically.")
@@ -42,12 +40,9 @@ public class CmdGenerateDocumentation extends CmdBase{
         super("gen-doc");
     }
 
-    @Spec
-    CommandSpec spec;
-
     @Override
     public void run() throws Exception {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
         cmdClassMap.put("produce", PerformanceProducer.class);

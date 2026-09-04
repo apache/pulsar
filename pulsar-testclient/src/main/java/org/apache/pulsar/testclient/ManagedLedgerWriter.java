@@ -61,9 +61,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.Spec;
 
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 @CustomLog
@@ -134,13 +132,9 @@ public class ManagedLedgerWriter extends CmdBase{
         super("managed-ledger");
     }
 
-
-    @Spec
-    CommandSpec spec;
-
     @Override
     public void run() throws Exception {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         if (this.metadataStoreUrl == null && this.zookeeperServers == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");
