@@ -90,14 +90,18 @@ public class TopicResources {
     }
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
-        String path = MANAGED_LEDGER_PATH + "/" + ns;
-        log.info().attr("namespace", ns).attr("path", path).log("Clearing namespace persistence for namespace: , path");
-        return store.deleteIfExists(path, Optional.empty());
+        return clearManagedLedgerPathIfExistsAsync(ns, MANAGED_LEDGER_PATH + "/" + ns,
+                "Clearing namespace persistence for namespace: , path");
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
-        String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        log.info().attr("namespace", ns).attr("path", path).log("Clearing domain persistence for namespace: , path");
+        return clearManagedLedgerPathIfExistsAsync(ns, MANAGED_LEDGER_PATH + "/" + ns + "/persistent",
+                "Clearing domain persistence for namespace: , path");
+    }
+
+    private CompletableFuture<Void> clearManagedLedgerPathIfExistsAsync(
+            NamespaceName ns, String path, String logMessage) {
+        log.info().attr("namespace", ns).attr("path", path).log(logMessage);
         return store.deleteIfExists(path, Optional.empty());
     }
 
