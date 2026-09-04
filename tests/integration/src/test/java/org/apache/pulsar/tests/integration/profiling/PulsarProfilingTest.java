@@ -89,7 +89,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
             withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM);
             withEnv("PULSAR_GC", "-XX:+UseZGC -XX:+ZGenerational");
             setCommand("sleep 1000000");
-            File testOutputDir = new File("target");
+            File testOutputDir = new File("build");
             if (!testOutputDir.exists()) {
                 if (!testOutputDir.mkdirs()) {
                     throw new IllegalArgumentException("Test output directory + '" + testOutputDir.getAbsolutePath()

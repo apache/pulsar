@@ -316,7 +316,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         if (System.getProperty("integrationtest.coverage.dir") != null) {
             coverageDirectory = new File(System.getProperty("integrationtest.coverage.dir"));
         } else {
-            coverageDirectory = new File("target");
+            coverageDirectory = new File("build");
         }
 
         if (!coverageDirectory.isDirectory()) {
@@ -371,7 +371,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         if (isNotBlank(System.getProperty("inttest.asyncprofiler.dir"))) {
             asyncProfilerDir = new File(System.getProperty("inttest.asyncprofiler.dir"));
         } else {
-            asyncProfilerDir = new File("target");
+            asyncProfilerDir = new File("build");
         }
         if (!asyncProfilerDir.exists()) {
             if (!asyncProfilerDir.mkdirs()) {
