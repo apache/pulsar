@@ -93,6 +93,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     private final String httpPath;
     @Setter
     private boolean enableAsyncProfiler = false;
+    /**
+     * Directory the profiler writes into, letting a test keep its recordings apart from every other
+     * test's. Unset means the {@code inttest.asyncprofiler.dir} system property the build passes in,
+     * and failing that the working directory's {@code build}.
+     */
+    @Setter
+    private String profileDirectory;
 
     public PulsarContainer(String clusterName,
                            String hostname,
@@ -367,22 +374,16 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                     .withPrivileged(true);
         });
 
-        File asyncProfilerDir;
-        if (isNotBlank(System.getProperty("inttest.asyncprofiler.dir"))) {
-            asyncProfilerDir = new File(System.getProperty("inttest.asyncprofiler.dir"));
-        } else {
-            asyncProfilerDir = new File("build");
-        }
+        File asyncProfilerDir = new File(resolveProfileDirectory());
         if (!asyncProfilerDir.exists()) {
             if (!asyncProfilerDir.mkdirs()) {
-                throw new IllegalArgumentException(
-                        "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath()
-                                + "' doesn't exist and cannot be created.");
+                throw new IllegalArgumentException("Profiler directory '" + asyncProfilerDir.getAbsolutePath()
+                        + "' doesn't exist and cannot be created.");
             }
         }
         if (!asyncProfilerDir.isDirectory()) {
             throw new IllegalArgumentException(
-                    "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath() + "' isn't a directory.");
+                    "Profiler directory '" + asyncProfilerDir.getAbsolutePath() + "' isn't a directory.");
         }
         // change access to asyncProfilerDir to allow all access so the the container user can write to it
         // This matters only on Linux
@@ -410,6 +411,21 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         sb.append(",file=/profiles/").append(fileName);
         initializePulsarExtraOpts();
         appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + sb);
+    }
+
+    /**
+     * Where the profiler writes, most specific first: the directory the test asked for through
+     * {@code PulsarClusterSpec.profileDirectory}, then the {@code inttest.asyncprofiler.dir} system
+     * property the build passes in, and finally {@code build} in the working directory.
+     *
+     * @return the directory to bind as /profiles in the container
+     */
+    private String resolveProfileDirectory() {
+        if (isNotBlank(profileDirectory)) {
+            return profileDirectory;
+        }
+        String fromBuild = System.getProperty("inttest.asyncprofiler.dir");
+        return isNotBlank(fromBuild) ? fromBuild : "build";
     }
 
     @Override

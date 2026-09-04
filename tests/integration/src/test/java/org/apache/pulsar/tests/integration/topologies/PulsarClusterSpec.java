@@ -221,6 +221,14 @@ public class PulsarClusterSpec {
     boolean profileZookeeper = isProfilingEnabledFor("zookeeper");
 
     /**
+     * Directory the profiler writes its recordings into, so that a test can keep them apart from
+     * every other test's rather than having them all land in one place. Unset means the
+     * {@code inttest.asyncprofiler.dir} system property the build passes in, and failing that
+     * {@code build} in the working directory.
+     */
+    String profileDirectory;
+
+    /**
      * Whether the given cluster component should be profiled with async-profiler, according to the
      * {@code inttest.asyncprofiler.components} system property. The property holds a comma separated
      * list of {@code broker}, {@code proxy}, {@code functionworker}, {@code bookie} and
