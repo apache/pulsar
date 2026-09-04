@@ -104,7 +104,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     private CounterBrokerInterceptor getCounterBrokerInterceptor() {
         BrokerInterceptor brokerInterceptor = pulsar.getBrokerInterceptor();
         BrokerInterceptorWithClassLoader brokerInterceptorWithClassLoader =
-                ((BrokerInterceptors) brokerInterceptor).getInterceptors().get(CounterBrokerInterceptor.NAME);
+                ((BrokerInterceptors) brokerInterceptor).getInterceptors().get(0);
         return (CounterBrokerInterceptor) brokerInterceptorWithClassLoader.getInterceptor();
     }
 
