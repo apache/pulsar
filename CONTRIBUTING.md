@@ -29,7 +29,7 @@ workflow (build, test, PR, CI). For the big-picture module map and the Gradle bu
 
 ## Building
 
-**JDK 21 or 25** is required to build `master` (bytecode targets Java 17; `-PskipJavaVersionCheck`
+**JDK 21, 25 or 26** is required to build `master` (bytecode targets Java 17; `-PskipJavaVersionCheck`
 bypasses the check); `zip` is also needed. Use the bundled wrapper `./gradlew` (Linux/macOS) or
 `gradlew.bat` (Windows) — no separate Gradle install. See the
 [build-tooling setup guide](https://pulsar.apache.org/contribute/setup-buildtools/) and the

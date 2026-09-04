@@ -92,7 +92,7 @@ concurrency model.
 ## Build infrastructure
 
 Apache Pulsar uses a **Gradle** build (migrated from Maven via PIP-463; some older tooling and docs
-elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21 or 25** (bytecode targets
+elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21, 25 or 26** (bytecode targets
 Java 17). See [`CONTRIBUTING.md` → Building](CONTRIBUTING.md#building) for the build and lint commands.
 
 - `settings.gradle.kts` — all modules, organized in dependency tiers (Tier 0 has no internal deps,
