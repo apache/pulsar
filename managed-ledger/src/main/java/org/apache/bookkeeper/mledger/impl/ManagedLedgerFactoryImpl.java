@@ -707,9 +707,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 ? bookkeeperFactory.get()
                 : CompletableFuture.completedFuture(null);
         return bookkeeperFuture
-                .thenRun(() -> {
+                .thenCompose(__ -> {
                     log.info().attr("numLedgers", ledgers.size()).log("Closing ledgers");
                     //make sure all callbacks is called.
+                    List<CompletableFuture<Void>> remainingFutures = new ArrayList<>();
                     ledgers.forEach(((ledgerName, ledgerFuture) -> {
                         if (!ledgerFuture.isDone()) {
                             ledgerFuture.completeExceptionally(
@@ -719,14 +720,26 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             if (managedLedger == null) {
                                 return;
                             }
-                            try {
-                                managedLedger.close();
-                            } catch (Throwable throwable) {
-                                log.warn().attr("managedLedger", managedLedger.getName()).exception(throwable)
-                                        .log("Got exception when closing managed ledger");
-                            }
+                            // Close asynchronously so a slow close cannot block, serially, the thread
+                            // that completes the shutdown future.
+                            CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+                            remainingFutures.add(closeFuture);
+                            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                                @Override
+                                public void closeComplete(Object ctx) {
+                                    closeFuture.complete(null);
+                                }
+
+                                @Override
+                                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                                    log.warn().attr("managedLedger", managedLedger.getName()).exception(exception)
+                                            .log("Got exception when closing managed ledger");
+                                    closeFuture.complete(null);
+                                }
+                            }, null);
                         }
                     }));
+                    return Futures.waitForAll(remainingFutures);
                 }).whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
                     openTelemetryManagedCursorStats.close();
