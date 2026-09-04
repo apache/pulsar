@@ -78,7 +78,7 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
 
         BrokerInterceptors listener = (BrokerInterceptors) pulsar.getBrokerInterceptor();
         assertNotNull(listener);
-        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(interceptorName);
+        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(0);
         assertNotNull(brokerInterceptor);
         BrokerInterceptor interceptor = brokerInterceptor.getInterceptor();
         assertTrue(interceptor instanceof ExceptionsBrokerInterceptor);
