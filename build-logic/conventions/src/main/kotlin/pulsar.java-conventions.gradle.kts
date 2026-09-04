@@ -357,6 +357,10 @@ if (asyncProfilerEnabled) {
         // Logging to the console distorts the profile, so send log4j2 output to a file next to it.
         systemProperty("pulsar.test.logging.appender", "FILE")
         systemProperty("pulsar.test.logging.file", logFile.absolutePath)
+        // The tests worth profiling are often the manual ones — long-running, load-generating cases
+        // that ManualTestUtil skips unless this is set. Profiling one is exactly the situation it
+        // exists for, so asking for a profile enables them.
+        environment("ENABLE_MANUAL_TEST", "true")
         // One test JVM at a time and no retries, so that a run produces a single comparable profile.
         maxParallelForks = 1
         systemProperty("testRetryCount", "0")

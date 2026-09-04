@@ -166,7 +166,9 @@ export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)
 
 Enabling it runs the tests in a single JVM with retries off and a pre-touched fixed-size heap, and
 sends log4j output to a file, so that one run produces one profile that isn't distorted by console
-logging or by heap resizing. The task always re-runs and is never cached. Recordings are written to
+logging or by heap resizing. The task always re-runs and is never cached. It also sets
+`ENABLE_MANUAL_TEST`, because the long-running, load-generating tests that are normally skipped are
+often exactly the ones worth profiling. Recordings are written to
 `build/test-profiles/` in the repository root, named after the test task and stamped with the start
 time and the pid — for example `test_profile_pulsar-broker-test_20260904-114040_23420.jfr`, next to
 `test_profile_pulsar-broker-test.log`. See [Analyzing a JFR file](#analyzing-a-jfr-file) below.
