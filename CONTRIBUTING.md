@@ -166,9 +166,9 @@ export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)
 
 Enabling it runs the tests in a single JVM with retries off and a pre-touched fixed-size heap, and
 sends log4j output to a file, so that one run produces one profile that isn't distorted by console
-logging or by heap resizing. The task always re-runs and is never cached. It also sets
-`ENABLE_MANUAL_TEST`, because the long-running, load-generating tests that are normally skipped are
-often exactly the ones worth profiling. Recordings are written to
+logging or by heap resizing. The task always re-runs and is never cached. **Manual tests are enabled
+automatically** whenever profiling is on — the long-running, load-generating tests that are otherwise
+skipped are usually the ones worth profiling — so `ENABLE_MANUAL_TEST` does not have to be exported. Recordings are written to
 `build/test-profiles/` in the repository root, named after the test task and stamped with the start
 time and the pid — for example `test_profile_pulsar-broker-test_20260904-114040_23420.jfr`, next to
 `test_profile_pulsar-broker-test.log`. See [Analyzing a JFR file](#analyzing-a-jfr-file) below.
@@ -219,7 +219,9 @@ naming the cluster components to attach the profiler to:
 to `broker` for this task. It is what `PulsarClusterSpec.profileBroker` and its siblings fall back to,
 so it has no effect on a test that sets those flags itself — `PulsarProfilingTest` does, which is why
 it profiles the broker whatever you pass. Every other test leaves them at their default of off, so
-without this property nothing would be profiled.
+without this property nothing would be profiled. Setting it also enables manual tests, so
+`-Pinttest.asyncprofiler.components=<...>` profiles a cluster through the plain `integrationTest`
+task too.
 
 Recordings land in `tests/integration/build/`, named `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`
 — the commit id comes from `git rev-parse --short HEAD` so profiles taken before and after a change

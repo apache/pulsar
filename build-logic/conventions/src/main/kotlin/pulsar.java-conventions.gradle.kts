@@ -358,9 +358,9 @@ if (asyncProfilerEnabled) {
         systemProperty("pulsar.test.logging.appender", "FILE")
         systemProperty("pulsar.test.logging.file", logFile.absolutePath)
         // The tests worth profiling are often the manual ones — long-running, load-generating cases
-        // that ManualTestUtil skips unless this is set. Profiling one is exactly the situation it
-        // exists for, so asking for a profile enables them.
-        environment("ENABLE_MANUAL_TEST", "true")
+        // that ManualTestUtil skips unless this is set. Profiling one is exactly the situation they
+        // exist for, so asking for a profile enables them. See ManualTestUtil.
+        systemProperty("pulsar.test.enableManualTest", "true")
         // One test JVM at a time and no retries, so that a run produces a single comparable profile.
         maxParallelForks = 1
         systemProperty("testRetryCount", "0")

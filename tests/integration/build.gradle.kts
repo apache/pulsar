@@ -120,7 +120,9 @@ val hasCliTestsFilter = gradle.startParameter.taskRequests
     .any { it == "--tests" }
 // Shared by `integrationTest` and `profilingIntegrationTest`: everything that is a property of
 // running this module's tests at all, rather than of how a particular task selects them.
-fun Test.configureIntegrationTestDefaults() {
+// `defaultProfiledComponents` is what the task profiles unless -Pinttest.asyncprofiler.components
+// says otherwise: nothing for `integrationTest`, the broker for the task that exists to profile.
+fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = "") {
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
 
@@ -133,11 +135,20 @@ fun Test.configureIntegrationTestDefaults() {
     providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
         systemProperty("inttest.asyncprofiler.outputformat", it)
     }
-    // Cluster components to attach async-profiler to. Empty here: `integrationTest` only profiles
-    // when asked to, and a test that drives profiling itself sets the spec flags directly.
-    systemProperty("inttest.asyncprofiler.components",
-        providers.gradleProperty("inttest.asyncprofiler.components").getOrElse(""))
     systemProperty("git.commit.id.abbrev", gitCommitIdAbbrev)
+
+    // Cluster components to attach async-profiler to, which is also what decides whether this run
+    // counts as a profiling run.
+    val profiledComponents = providers.gradleProperty("inttest.asyncprofiler.components")
+        .getOrElse(defaultProfiledComponents)
+    systemProperty("inttest.asyncprofiler.components", profiledComponents)
+    if (profiledComponents.isNotEmpty()) {
+        // Profiling a cluster is exactly what the manual tests exist for, and asking for a profile
+        // only to have the test skip itself is a poor way to discover the flag. This is keyed on
+        // profiling rather than on the task, so it also covers `integrationTest` run with
+        // -Pinttest.asyncprofiler.components. See ManualTestUtil.
+        systemProperty("pulsar.test.enableManualTest", "true")
+    }
 
     jvmArgs(
         "-XX:+ExitOnOutOfMemoryError",
@@ -223,7 +234,10 @@ tasks.register<Test>("profilingIntegrationTest") {
     description = "Run $profilingTestClass with async-profiler enabled in the cluster containers. " +
         "Pass --tests to profile a different integration test."
 
-    configureIntegrationTestDefaults()
+    // Unlike `integrationTest`, this task exists to profile, so it profiles the broker unless
+    // -Pinttest.asyncprofiler.components says otherwise. PulsarProfilingTest sets the spec flags
+    // itself and does not depend on this; every other integration test does, since they default off.
+    configureIntegrationTestDefaults(defaultProfiledComponents = "broker")
 
     // Build the test image that carries the profiler, and prepare the kernel for it.
     dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)
@@ -240,14 +254,7 @@ tasks.register<Test>("profilingIntegrationTest") {
         "${dockerOrganization}/java-test-image:${dockerTag}-asyncprofiler")
     // Leak detection is paranoid by default and would distort the allocation profile.
     environment("NETTY_LEAK_DETECTION", "off")
-    // PulsarProfilingTest is a manual test: it skips itself unless this is set.
-    environment("ENABLE_MANUAL_TEST", "true")
 
-    // Unlike `integrationTest`, this task exists to profile, so it profiles the broker unless told
-    // otherwise. PulsarProfilingTest sets the spec flags itself and does not depend on this; every
-    // other integration test does, since the flags default to off.
-    systemProperty("inttest.asyncprofiler.components",
-        providers.gradleProperty("inttest.asyncprofiler.components").getOrElse("broker"))
     // A retried test would profile the cluster twice into the same run.
     systemProperty("testRetryCount", "0")
     systemProperty("testFailFast", "true")
