@@ -65,7 +65,8 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*"
 Running specific benchmarks with machine-readable output and saving the output to a file:
 
 ```shell
-java -jar microbench/build/libs/microbench-*-benchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
+ts=$(date +%s)
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -rf json -rff jmh-result-$ts.json ".*BenchmarkName.*" | tee jmh-result-$ts.txt
 ```
 
 The `jmh-result-*.json` file can be used to visualize the results using [JMH Visualizer](https://jmh.morethan.io/).
@@ -105,7 +106,7 @@ Then run the benchmarks with the `-prof` argument:
 java -jar microbench/build/libs/microbench-*-benchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
 ```
 
-When profiling on Mac OS, you might need to add `\;event=itimer` to the `-prof` argument since it's the only [async profiler CPU sampling engine that supports Mac OS](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md#summary). The default value for `event` is `cpu`.
+The default value for `event` is `cpu`, which is a request for the best available [CPU sampling engine](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md#summary) rather than a specific one, so what it resolves to depends on the platform. If the profiler fails to start, add `\;event=itimer` to the `-prof` argument: `itimer` is available everywhere.
 
 It's possible to add options to the async-profiler that aren't supported by the JMH async-profiler plugin. This can be done by adding `rawCommand` option to the `-prof` argument. This example shows how to add `all` (new in Async Profiler 4.1), `jfrsync` (record JFR events such as garbage collection) and `cstack=vmx` options.
 

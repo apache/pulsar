@@ -133,8 +133,9 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar \
   -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*<Name>.*"
 ```
 
-See [`microbench/README.md`](microbench/README.md) for the rest: JSON result files for
-[JMH Visualizer](https://jmh.morethan.io/) and the `rawCommand` escape hatch for async-profiler
+See [`microbench/README.md`](microbench/README.md) for the rest: the async-profiler setup when the
+JDK does not ship one, recording a benchmark to JFR and rendering it, JSON result files for
+[JMH Visualizer](https://jmh.morethan.io/), and the `rawCommand` escape hatch for async-profiler
 options the JMH plugin does not expose.
 
 ### Profiling tests with async-profiler
