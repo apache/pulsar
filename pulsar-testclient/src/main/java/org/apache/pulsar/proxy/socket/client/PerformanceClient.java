@@ -59,10 +59,8 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import picocli.CommandLine.Spec;
 
 @Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
 @CustomLog
@@ -136,12 +134,8 @@ public class PerformanceClient extends CmdBase {
         super("websocket-producer");
     }
 
-
-    @Spec
-    CommandSpec spec;
-
     public void loadArguments() {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
             this.authPluginClassName = this.deprecatedAuthPluginClassName;
