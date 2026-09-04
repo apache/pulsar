@@ -23,6 +23,13 @@
 
 This module contains microbenchmarks for Apache Pulsar.
 
+> **Run benchmarks on Linux x86_64 when the numbers matter.** That is Pulsar's most common deployment
+> target, and results from elsewhere do not carry over. `System.nanoTime()` is far more expensive on
+> macOS than on Linux, which skews the results in some cases — JMH's own measurement loop pays that
+> cost on every invocation. async-profiler also supports only some of its sampling engines on macOS,
+> so `-prof async` is less reliable there. Benchmarking on macOS or arm64 is fine while iterating —
+> just confirm the result on Linux x86_64 before drawing a conclusion from it.
+
 ## Running the benchmarks
 
 The benchmarks are written using [JMH](http://openjdk.java.net/projects/code-tools/jmh/). To compile & run the benchmarks, use the following command:

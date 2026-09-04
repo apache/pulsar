@@ -43,29 +43,19 @@ import org.testng.annotations.Test;
 /**
  * Sample test that profiles the broker side with Async Profiler.
  *
- * Example usage:
- * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
- * # compile integration test dependencies
- * ./gradlew assemble
- * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
- * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
- * # set environment variables
- * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
- * export NETTY_LEAK_DETECTION=off
- * export ENABLE_MANUAL_TEST=true
- * # enable perf events for profiling and tune it
- * docker run --rm -it --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
- *   alpine sh -c "echo 1 > /proc/sys/kernel/perf_event_paranoid \
- *   && echo 0 > /proc/sys/kernel/kptr_restrict \
- *   && echo 1024 > /proc/sys/kernel/perf_event_max_stack \
- *   && echo 2048 > /proc/sys/kernel/perf_event_mlock_kb"
- * # translated to sysctl settings (for persistent configuration on Linux hosts)
+ * Example usage (this has been tested on Mac with Orbstack (https://orbstack.dev/) docker):
+ * ./gradlew :tests:integration:profilingIntegrationTest
+ * That single task builds the test image with async-profiler in it, relaxes the kernel perf_event
+ * limits that the cpu sampling engine needs, and runs this test against the result. See
+ * CONTRIBUTING.md for the properties that tune it.
+ * On a Linux host the perf_event limits can also be set persistently with sysctl, in which case
+ * -Pinttest.asyncprofiler.skipPerfEventTuning skips the container that sets them:
  * kernel.perf_event_paranoid=1
  * kernel.kptr_restrict=0
  * kernel.perf_event_max_stack=1024
  * kernel.perf_event_mlock_kb=2048
- * # run the test
- * ./gradlew :tests:integration:integrationTest -PintegrationTestSuiteFile=pulsar-profiling.xml -PtestRetryCount=0
+ * Add -Pdocker.wolfi to build the base image from Wolfi, which is what makes the GLIBC_TUNABLES
+ * below take effect.
  * By default, the .jfr files will go into tests/integration/build
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
@@ -226,7 +216,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
         pulsarCluster.forEachContainer(
-                // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
+                // This is effective only when -Pdocker.wolfi has been passed when building java-test-image
                 // setting mmap_threshold explicitly will avoid it's dynamic increase
                 // https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html
                 c -> c.withEnv("GLIBC_TUNABLES",

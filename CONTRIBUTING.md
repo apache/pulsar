@@ -109,6 +109,141 @@ Failed tests are retried once by default (`testRetryCount=1`; `0` when running i
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
 instead of having retries mask them.
 
+### Profiling tests with async-profiler
+
+For a **micro**-level question — what a single method, data structure or codec costs — write a
+**JMH benchmark** under `microbench/` instead. That is the preferred tool for micro benchmarks, and
+[`microbench/README.md`](microbench/README.md) also covers profiling a benchmark with async-profiler
+through JMH's `-prof async`. Profiling a *test run*, described below, is the right tool for the other
+question: where a broker actually spends its time end to end.
+
+> **When the numbers matter, profile and benchmark on Linux x86_64.** That is Pulsar's most common
+> deployment target, and results from elsewhere do not carry over. Two differences bite in
+> particular: async-profiler supports only some of its sampling engines on macOS, so a profile taken
+> there is less reliable; and `System.nanoTime()` is far more expensive on macOS than on Linux, which
+> skews the results in some cases — code that times itself, and JMH's own measurement loop, both pay
+> that cost. Working on macOS or arm64 is fine for finding your way around the code — just treat what
+> it tells you as provisional until it is confirmed on Linux x86_64.
+
+#### Profiling a module's tests
+
+Pass **`-PtestAsyncProfiler`** to run a test task under
+[async-profiler](https://github.com/async-profiler/async-profiler). The build finds the profiler
+library in `LIBASYNCPROFILER_PATH`, and falls back to the copy that Amazon Corretto ships inside the
+JDK that runs the tests, so on Corretto no setup is needed at all:
+
+```bash
+# only needed when the JDK does not ship async-profiler
+export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)
+./gradlew :pulsar-broker:test -PtestAsyncProfiler --tests "<SomeTest>"
+```
+
+Enabling it runs the tests in a single JVM with retries off and a pre-touched fixed-size heap, and
+sends log4j output to a file, so that one run produces one profile that isn't distorted by console
+logging or by heap resizing. The task always re-runs and is never cached. Recordings are written to
+`build/test-profiles/` in the repository root, named after the test task and stamped with the start
+time and the pid — for example `test_profile_pulsar-broker-test_20260904-114040_23420.jfr`, next to
+`test_profile_pulsar-broker-test.log`. See [Analyzing a JFR file](#analyzing-a-jfr-file) below.
+
+The defaults can be tuned with `-Ptest.asyncprofiler.event=<event>` (the CPU sampling engine:
+`cpu` on Linux, `itimer` elsewhere — see
+[CPU sampling engines](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md)),
+`-Ptest.asyncprofiler.opts=<agent options>` (default `event=<event>,all,alloc=2m,jfrsync=profile`),
+`-Ptest.asyncprofiler.outputformat=jfr|html|collapsed`, `-Ptest.asyncprofiler.dir=<dir>` (use it to
+keep the profiles of an A/B comparison apart) and `-Ptest.asyncprofiler.libpath=<path>`.
+
+`outputformat` only sets the file extension; the format itself comes from the agent options, and the
+default `jfrsync=profile` forces a JFR recording. To get something other than JFR, override both — to
+profile exception creation, for example (Linux only):
+
+```bash
+./gradlew :pulsar-broker:test -PtestAsyncProfiler --tests "<SomeTest>" \
+  "-Ptest.asyncprofiler.opts=event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse" \
+  -Ptest.asyncprofiler.outputformat=html
+```
+
+#### Profiling an integration-test cluster
+
+The module tests above profile the JVM the tests run in. To profile the **broker, bookies and
+ZooKeeper inside the containers** of a real cluster, run:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest
+```
+
+That one task does everything the profiling run needs: it builds
+`apachepulsar/java-test-image:latest-asyncprofiler` (the test image with async-profiler installed —
+kept under its own tag so it never replaces the image the other integration tests use), relaxes the
+kernel `perf_event` limits that the `cpu` sampling engine needs by way of a privileged throwaway
+container, and runs
+[`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
+against it with retries off. That test drives `pulsar-perf` against a single broker; adapt it, or
+pass `--tests` to point the task at a different integration test. Which components are profiled is a
+property of the test itself (`PulsarClusterSpec.profileBroker` and friends).
+
+Recordings land in `tests/integration/build/`, named `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`
+— the commit id comes from `git rev-parse --short HEAD` so profiles taken before and after a change
+can be told apart. Tune the run with `-Pinttest.asyncprofiler.opts=<agent options>` (default
+`event=cpu,lock=1ms,alloc=2m,jfrsync=profile`), `-Pinttest.asyncprofiler.outputformat=<ext>`,
+`-Pinttest.asyncprofiler.dir=<dir>` and `-Pgit.commit.id.abbrev=<id>`.
+
+Two flags worth knowing: `-Pinttest.asyncprofiler.skipPerfEventTuning` skips the privileged
+container, for a host where the `perf_event` values are already set through `sysctl` or where Docker
+disallows privileged containers (the run continues either way, with less accurate native stacks).
+`-Pdocker.wolfi` builds the base image from Wolfi, which is what makes the `GLIBC_TUNABLES` the test
+sets take effect.
+
+#### Analyzing a JFR file
+
+A recording collects several events at once, and each of them is worth looking at from more than one
+angle, so **`jfrFlamegraphs`** renders the lot in one go:
+
+```bash
+./gradlew jfrFlamegraphs                              # every .jfr in build/test-profiles
+./gradlew jfrFlamegraphs -Pjfr=tests/integration/build # the integration-test recordings
+./gradlew jfrFlamegraphs -Pjfr=<some-file>.jfr         # just one recording
+```
+
+Each recording gets a directory beside it named after the file without its extension plus a
+`-flamegraphs` suffix — `profile.jfr` produces `profile-flamegraphs/` — holding one flame graph per
+view: `cpu`, `wall`, `alloc` and `lock`, each rendered merged (`cpu.html`), split per thread
+(`cpu_threads.html`) and grouped into async-profiler's categories (`cpu_classify.html`). A view whose
+event the recording does not contain is skipped rather than failing the run. Pass
+`-Pjfr.types=cpu,nativemem` to render a different set of events, and `-Pjfrconv=<path>` when
+async-profiler's `jfrconv` is neither next to the library `LIBASYNCPROFILER_PATH` points at nor in
+the JDK that runs Gradle (Amazon Corretto ships it).
+
+For anything the flame graphs don't answer, open the `.jfr` itself in
+[Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ IDEA, or run `jfrconv` by hand.
+
+> Do not judge a recording by `jfr summary` (the JDK's own tool). The default options record through
+> `jfrsync`, and `jfr summary` reports only a handful of `jdk.ExecutionSample` events for a recording
+> that `jfrconv` reads hundreds of profiler samples from — it looks empty when it is not.
+
+#### Agent-assisted analysis with the Jafar MCP server
+
+The [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) lets an AI
+coding agent read a JFR recording directly, which turns a flame graph into something you can ask
+questions about. Register it once (it needs [JBang](https://www.jbang.dev/) and JDK 25+):
+
+```bash
+claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
+```
+
+It exposes `jfr_diagnose` (automated diagnosis of a recording), `jfr_stackprofile` (structured stack
+profiling with a time-series and per-thread breakdown), `jfr_hotmethods`, `jfr_flamegraph`,
+`jfr_callgraph`, `jfr_exceptions`, `jfr_tsa` (thread-state analysis), `jfr_use` (USE method) and
+`jfr_query` for [JfrPath](https://github.com/btraceio/jafar) queries. A prompt that works well as a
+starting point:
+
+> use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
+> report on the console, write the analysis in a markdown file with the jfr file as prefix and the
+> suffix as ".analysis.md"
+
+Treat the result as a lead to verify, not a conclusion: the
+[agent guardrails](AGENTS.md) apply here as much as anywhere, and a performance claim still needs a
+benchmark or a second profile behind it.
+
 ### Integration tests
 
 Integration tests live in `tests/` (see `tests/README.md`). They use

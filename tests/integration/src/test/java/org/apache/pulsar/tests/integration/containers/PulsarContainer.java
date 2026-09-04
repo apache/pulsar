@@ -397,10 +397,17 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         StringBuilder sb = new StringBuilder();
         sb.append("-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start,");
         sb.append(System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile"));
-        sb.append(",file=/profiles/inttest_profile_").append(System.getProperty("git.commit.id.abbrev", ""));
-        sb.append("_").append(System.getProperty("build.timestamp", "").replace(' ', '_'));
-        sb.append("_").append(getContainerName());
-        sb.append("_").append("%p.").append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
+        StringBuilder fileName = new StringBuilder("inttest_profile");
+        // Set by the build; left out of the name when the revision could not be determined
+        String commitId = System.getProperty("git.commit.id.abbrev", "");
+        if (isNotBlank(commitId)) {
+            fileName.append('_').append(commitId);
+        }
+        // async-profiler expands %t (the time profiling started) and %p (the pid inside the
+        // container) itself, which is what keeps the profiles of separate runs apart
+        fileName.append("_%t_").append(getContainerName()).append("_%p.")
+                .append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
+        sb.append(",file=/profiles/").append(fileName);
         initializePulsarExtraOpts();
         appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + sb);
     }
