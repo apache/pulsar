@@ -109,13 +109,38 @@ Failed tests are retried once by default (`testRetryCount=1`; `0` when running i
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
 instead of having retries mask them.
 
-### Profiling tests with async-profiler
+### Micro benchmarks (JMH)
 
 For a **micro**-level question — what a single method, data structure or codec costs — write a
-**JMH benchmark** under `microbench/` instead. That is the preferred tool for micro benchmarks, and
-[`microbench/README.md`](microbench/README.md) also covers profiling a benchmark with async-profiler
-through JMH's `-prof async`. Profiling a *test run*, described below, is the right tool for the other
-question: where a broker actually spends its time end to end.
+[JMH](https://openjdk.org/projects/code-tools/jmh/) benchmark under `microbench/`. That is the
+preferred tool for micro benchmarks: JMH handles warm-up, dead-code elimination and measurement, none
+of which hand-written timing code gets right. [`CODING.md`](CODING.md#performance) asks for
+optimizations to be backed by evidence, and for a small self-contained change a benchmark is the
+strongest kind.
+
+```bash
+./gradlew :microbench:shadowJar                                          # build the runnable jar
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -l           # list the benchmarks
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*<Name>.*" # run the ones that match
+```
+
+A benchmark can be profiled directly through JMH's async-profiler integration, which writes forward
+and reverse flame graphs per benchmark under `dir=`:
+
+```bash
+export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)   # Corretto ships one
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*<Name>.*"
+```
+
+See [`microbench/README.md`](microbench/README.md) for the rest: JSON result files for
+[JMH Visualizer](https://jmh.morethan.io/) and the `rawCommand` escape hatch for async-profiler
+options the JMH plugin does not expose.
+
+### Profiling tests with async-profiler
+
+Profiling a *test run* answers the question a micro benchmark cannot: not what one method costs, but
+where a broker actually spends its time end to end.
 
 > **When the numbers matter, profile and benchmark on Linux x86_64.** That is Pulsar's most common
 > deployment target, and results from elsewhere do not carry over. Two differences bite in
@@ -177,13 +202,26 @@ kept under its own tag so it never replaces the image the other integration test
 kernel `perf_event` limits that the `cpu` sampling engine needs by way of a privileged throwaway
 container, and runs
 [`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
-against it with retries off. That test drives `pulsar-perf` against a single broker; adapt it, or
-pass `--tests` to point the task at a different integration test. Which components are profiled is a
-property of the test itself (`PulsarClusterSpec.profileBroker` and friends).
+against it with retries off. That test drives `pulsar-perf` against a single broker.
+
+**Any other integration test can be profiled without being modified**, by pointing the task at it and
+naming the cluster components to attach the profiler to:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest --tests "<SomeIntegrationTest>" \
+  -Pinttest.asyncprofiler.components=broker,bookie
+```
+
+`components` takes `broker`, `proxy`, `functionworker`, `bookie`, `zookeeper`, or `all`, and defaults
+to `broker` for this task. It is what `PulsarClusterSpec.profileBroker` and its siblings fall back to,
+so it has no effect on a test that sets those flags itself — `PulsarProfilingTest` does, which is why
+it profiles the broker whatever you pass. Every other test leaves them at their default of off, so
+without this property nothing would be profiled.
 
 Recordings land in `tests/integration/build/`, named `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`
 — the commit id comes from `git rev-parse --short HEAD` so profiles taken before and after a change
-can be told apart. Tune the run with `-Pinttest.asyncprofiler.opts=<agent options>` (default
+can be told apart — one file per profiled container. Tune the run with
+`-Pinttest.asyncprofiler.opts=<agent options>` (default
 `event=cpu,lock=1ms,alloc=2m,jfrsync=profile`), `-Pinttest.asyncprofiler.outputformat=<ext>`,
 `-Pinttest.asyncprofiler.dir=<dir>` and `-Pgit.commit.id.abbrev=<id>`.
 

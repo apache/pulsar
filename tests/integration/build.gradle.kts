@@ -133,6 +133,10 @@ fun Test.configureIntegrationTestDefaults() {
     providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
         systemProperty("inttest.asyncprofiler.outputformat", it)
     }
+    // Cluster components to attach async-profiler to. Empty here: `integrationTest` only profiles
+    // when asked to, and a test that drives profiling itself sets the spec flags directly.
+    systemProperty("inttest.asyncprofiler.components",
+        providers.gradleProperty("inttest.asyncprofiler.components").getOrElse(""))
     systemProperty("git.commit.id.abbrev", gitCommitIdAbbrev)
 
     jvmArgs(
@@ -239,6 +243,11 @@ tasks.register<Test>("profilingIntegrationTest") {
     // PulsarProfilingTest is a manual test: it skips itself unless this is set.
     environment("ENABLE_MANUAL_TEST", "true")
 
+    // Unlike `integrationTest`, this task exists to profile, so it profiles the broker unless told
+    // otherwise. PulsarProfilingTest sets the spec flags itself and does not depend on this; every
+    // other integration test does, since the flags default to off.
+    systemProperty("inttest.asyncprofiler.components",
+        providers.gradleProperty("inttest.asyncprofiler.components").getOrElse("broker"))
     // A retried test would profile the cluster twice into the same run.
     systemProperty("testRetryCount", "0")
     systemProperty("testFailFast", "true")

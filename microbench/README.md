@@ -97,8 +97,7 @@ LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
 Linux example:
 
 ```shell
-# macos example
-LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
+LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.so
 ```
 
 Then run the benchmarks with the `-prof` argument:
