@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static java.util.Base64.getEncoder;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -41,7 +42,11 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 @WebSocket
 @CustomLog
 public class SimpleTestProducerSocket {
-    public static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    // Latencies are recorded in microseconds; values above this ceiling are clamped rather than
+    // rejected, since HdrHistogram throws on an out-of-range value.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
+    public static Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     private final CountDownLatch closeLatch;
     private volatile Session session;
@@ -78,7 +83,7 @@ public class SimpleTestProducerSocket {
             startTime = startTimeMap.get(json.get(CONTEXT).getAsString());
         }
         long latencyNs = endTimeNs - startTime;
-        recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
+        recorder.recordValue(Math.min(NANOSECONDS.toMicros(latencyNs), MAX_LATENCY_MICROS));
     }
 
     public Session getSession() {

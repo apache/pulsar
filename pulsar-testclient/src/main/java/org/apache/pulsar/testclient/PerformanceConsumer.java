@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -107,9 +108,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
-    private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
-    private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
-    private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
+    private static final long MAX_LATENCY_MILLIS = TimeUnit.DAYS.toMillis(10);
+    private static final Recorder recorder = new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private static final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
             + "one consumer is allowed when subscriptionType is Exclusive",
@@ -515,8 +517,8 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
 
             long latencyMillis = System.currentTimeMillis() - msg.publishTime().toEpochMilli();
             if (latencyMillis >= 0) {
-                if (latencyMillis >= MAX_LATENCY) {
-                    latencyMillis = MAX_LATENCY;
+                if (latencyMillis >= MAX_LATENCY_MILLIS) {
+                    latencyMillis = MAX_LATENCY_MILLIS;
                 }
                 recorder.recordValue(latencyMillis);
                 cumulativeRecorder.recordValue(latencyMillis);

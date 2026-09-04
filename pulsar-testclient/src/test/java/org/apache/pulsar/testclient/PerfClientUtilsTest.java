@@ -25,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.HdrHistogram.Histogram;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -228,6 +230,26 @@ public class PerfClientUtilsTest {
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);
+        }
+    }
+
+    /**
+     * The perf clients hold their latency recorders in static fields, so every subcommand allocates them on
+     * startup rather than only the one being run. HdrHistogram grows the counts array by roughly 10x per
+     * significant digit, and at 5 digits these same ranges cost 11-22 MB each. Pin the bound so raising the
+     * precision again fails here instead of silently costing hundreds of megabytes.
+     */
+    @Test
+    public void latencyHistogramsStaySmallAtTheConfiguredPrecision() {
+        long[] rangesUsedByPerfClients = {
+                TimeUnit.HOURS.toMicros(1), // publish / ack / managed-ledger write latency, in microseconds
+                TimeUnit.DAYS.toMillis(10), // end-to-end consume / read latency, in milliseconds
+        };
+        for (long range : rangesUsedByPerfClients) {
+            Histogram histogram = new Histogram(range, PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+            assertThat(histogram.getEstimatedFootprintInBytes())
+                    .as("histogram footprint for range %d", range)
+                    .isLessThan(512 * 1024);
         }
     }
 }

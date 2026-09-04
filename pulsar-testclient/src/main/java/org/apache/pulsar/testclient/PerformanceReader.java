@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -56,8 +57,11 @@ public class PerformanceReader extends PerformanceTopicListArguments {
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final long MAX_LATENCY_MILLIS = TimeUnit.DAYS.toMillis(10);
+
+    private static Recorder recorder = new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private static Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
     public double rate = 0;
@@ -256,8 +260,10 @@ public class PerformanceReader extends PerformanceTopicListArguments {
 
             long latencyMillis = System.currentTimeMillis() - msg.publishTime().toEpochMilli();
             if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
+                // Reading a backlog older than the histogram range must not blow up the read loop.
+                long clampedLatencyMillis = Math.min(latencyMillis, MAX_LATENCY_MILLIS);
+                recorder.recordValue(clampedLatencyMillis);
+                cumulativeRecorder.recordValue(clampedLatencyMillis);
             }
         }
     }

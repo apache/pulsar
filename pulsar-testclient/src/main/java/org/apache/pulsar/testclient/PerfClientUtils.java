@@ -51,6 +51,23 @@ import org.apache.pulsar.tls.TlsPolicy;
 @UtilityClass
 public class PerfClientUtils {
 
+    /**
+     * Number of significant decimal digits kept by the perf clients' latency histograms.
+     *
+     * <p>HdrHistogram sizes a fixed-range histogram's counts array proportionally to
+     * {@code 2^ceil(log2(2 * 10^digits))}, so every extra digit multiplies the allocation by
+     * roughly 10. At 5 digits (HdrHistogram's maximum) a single {@code Recorder} over the
+     * ranges used here costs 11-22 MB, and since these recorders are static fields the JVM
+     * pays for every perf subcommand, not just the one being run.
+     *
+     * <p>3 digits bounds the error of a reported percentile at 0.1%. That is far below the
+     * run-to-run variance of a benchmark, and finer than the reports resolve anyway: the
+     * microsecond-based tools print milliseconds with {@code %.3f}, and the millisecond-based
+     * ones print whole milliseconds with {@code %d}. It is also HdrHistogram's own recommended
+     * default.
+     */
+    public static final int LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS = 3;
+
     private static volatile  Consumer<Integer> exitProcedure = System::exit;
 
     public static void setExitProcedure(Consumer<Integer> exitProcedure) {

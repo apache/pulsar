@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -88,15 +89,19 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     private static final LongAdder numMessagesSendFailed = new LongAdder();
     private static final LongAdder numMessagesSendSuccess = new LongAdder();
 
+    // Send and ack latencies are recorded in microseconds. Anything slower than this means the
+    // benchmark is broken rather than slow, so values are clamped to keep HdrHistogram in range.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
     private static final Recorder messageAckRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
     private static final Recorder messageAckCumulativeRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     private static final Recorder messageSendRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
     private static final Recorder messageSendRCumulativeRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
             true)
@@ -377,8 +382,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                         } else {
                                             consumer.acknowledge(message.id());
                                         }
-                                        long latencyMicros = NANOSECONDS.toMicros(
-                                                System.nanoTime() - receiveTime);
+                                        long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                System.nanoTime() - receiveTime), MAX_LATENCY_MICROS);
                                         messageAckRecorder.recordValue(latencyMicros);
                                         messageAckCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesAckSuccess.increment();
@@ -413,8 +418,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                 }
                                 pendingSends.add(msg.send().whenComplete((id, ex) -> {
                                     if (ex == null) {
-                                        long latencyMicros = NANOSECONDS.toMicros(
-                                                System.nanoTime() - sendTime);
+                                        long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                System.nanoTime() - sendTime), MAX_LATENCY_MICROS);
                                         messageSendRecorder.recordValue(latencyMicros);
                                         messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesSendSuccess.increment();
