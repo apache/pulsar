@@ -1587,11 +1587,13 @@ public class PersistentTopicsBase extends AdminResource {
 
             FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
                 CompletableFuture<TopicStats> statFuture = null;
+                int successCount = 0;
                 for (int i = 0; i < topicStatsFutureList.size(); i++) {
                     statFuture = topicStatsFutureList.get(i);
                     if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
                         try {
                             stats.add(statFuture.get());
+                            successCount++;
                             if (perPartition) {
                                 stats.getPartitions().put(topicName.getPartition(i).toString(), statFuture.get());
                             }
@@ -1601,22 +1603,15 @@ public class PersistentTopicsBase extends AdminResource {
                         }
                     }
                 }
-                if (perPartition && stats.partitions.isEmpty()) {
-                    namespaceResources().getPartitionedTopicResources()
-                            .partitionedTopicExistsAsync(topicName)
-                            .thenAccept(exists -> {
-                                if (exists) {
-                                    stats.partitions.put(topicName.toString(), new TopicStatsImpl());
-                                    asyncResponse.resume(stats);
-                                } else {
-                                    asyncResponse.resume(
-                                            new RestException(Status.NOT_FOUND,
-                                                    "Internal topics have not been generated yet"));
-                                }
-                            });
-                } else {
-                    asyncResponse.resume(stats);
+                // If no partition returned stats successfully (e.g. none of the partitions has a
+                // managed-ledger znode yet), behave the same as getStats and return 404 instead of
+                // an empty stats object.
+                if (successCount == 0) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            getPartitionedTopicNotFoundErrorMessage(topicName.toString())));
+                    return null;
                 }
+                asyncResponse.resume(stats);
                 return null;
             });
         }).exceptionally(ex -> {
