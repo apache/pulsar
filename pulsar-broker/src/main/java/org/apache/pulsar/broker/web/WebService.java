@@ -285,7 +285,7 @@ public class WebService implements AutoCloseable {
                 // hold all interceptors, instead we need to create a `ProcessHandlerFilter` for each `interceptor`.
                 if (pulsarService.getBrokerInterceptor() instanceof BrokerInterceptors) {
                     for (BrokerInterceptor interceptor: ((BrokerInterceptors) pulsarService.getBrokerInterceptor())
-                            .getInterceptors().values()) {
+                            .getInterceptors()) {
                         filterHolders.add(new FilterHolder(new ProcessHandlerFilter(interceptor)));
                     }
                 } else {
