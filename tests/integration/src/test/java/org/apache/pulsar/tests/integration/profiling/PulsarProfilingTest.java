@@ -43,30 +43,20 @@ import org.testng.annotations.Test;
 /**
  * Sample test that profiles the broker side with Async Profiler.
  *
- * Example usage:
- * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
- * # compile integration test dependencies
- * ./gradlew assemble
- * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
- * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
- * # set environment variables
- * export PULSAR_TEST_IMAGE_NAME=apachepulsar/java-test-image:latest
- * export NETTY_LEAK_DETECTION=off
- * export ENABLE_MANUAL_TEST=true
- * # enable perf events for profiling and tune it
- * docker run --rm -it --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
- *   alpine sh -c "echo 1 > /proc/sys/kernel/perf_event_paranoid \
- *   && echo 0 > /proc/sys/kernel/kptr_restrict \
- *   && echo 1024 > /proc/sys/kernel/perf_event_max_stack \
- *   && echo 2048 > /proc/sys/kernel/perf_event_mlock_kb"
- * # translated to sysctl settings (for persistent configuration on Linux hosts)
+ * Example usage (this has been tested on Mac with Orbstack (https://orbstack.dev/) docker):
+ * ./gradlew :tests:integration:profilingIntegrationTest
+ * That single task builds the test image with async-profiler in it, relaxes the kernel perf_event
+ * limits that the cpu sampling engine needs, and runs this test against the result. See
+ * CONTRIBUTING.md for the properties that tune it.
+ * On a Linux host the perf_event limits can also be set persistently with sysctl, in which case
+ * -Pinttest.asyncprofiler.skipPerfEventTuning skips the container that sets them:
  * kernel.perf_event_paranoid=1
  * kernel.kptr_restrict=0
  * kernel.perf_event_max_stack=1024
  * kernel.perf_event_mlock_kb=2048
- * # run the test
- * ./gradlew :tests:integration:integrationTest -PintegrationTestSuiteFile=pulsar-profiling.xml -PtestRetryCount=0
- * By default, the .jfr files will go into tests/integration/build
+ * Add -Pdocker.wolfi to build the base image from Wolfi, which is what makes the GLIBC_TUNABLES
+ * below take effect.
+ * By default, the .jfr files and logs will go into tests/integration/build/pulsar-profiling
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
  */
@@ -87,7 +77,8 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         private final String brokerHostname;
         private final long numberOfMessages = 100_000_000;
 
-        public PulsarPerfContainer(String clusterName,
+        public PulsarPerfContainer(File testOutputDir,
+                                   String clusterName,
                                    String brokerHostname,
                                    String hostname) {
             super(PulsarContainer.DEFAULT_IMAGE_NAME);
@@ -96,27 +87,9 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                 createContainerCmd.withHostName(hostname);
                 createContainerCmd.withName(clusterName + "-" + hostname);
             });
-            withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM);
+            withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM + " -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/testoutput");
             withEnv("PULSAR_GC", "-XX:+UseZGC -XX:+ZGenerational");
             setCommand("sleep 1000000");
-            File testOutputDir = new File("target");
-            if (!testOutputDir.exists()) {
-                if (!testOutputDir.mkdirs()) {
-                    throw new IllegalArgumentException("Test output directory + '" + testOutputDir.getAbsolutePath()
-                                    + "' doesn't exist and cannot be created.");
-                }
-            }
-            if (!testOutputDir.isDirectory()) {
-                throw new IllegalArgumentException(
-                        "Test output directory '" + testOutputDir.getAbsolutePath() + "' isn't a directory.");
-            }
-            // change access to testOutputDir to allow all access so the the container user can write to it
-            // This matters only on Linux
-            try {
-                Files.setPosixFilePermissions(testOutputDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
-            } catch (IOException e) {
-                throw new UncheckedIOException("Cannot change access to test output directory", e);
-            }
             withFileSystemBind(testOutputDir.getAbsolutePath(), "/testoutput", BindMode.READ_WRITE);
         }
 
@@ -189,11 +162,34 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     private PulsarPerfContainer perfConsume;
     private PulsarPerfContainer perfProduce;
     private PulsarPerfContainer printStats;
+    private File testOutputDir;
 
     @Override
     public void setupCluster() throws Exception {
         ManualTestUtil.skipManualTestIfNotEnabled();
+        createTestOutputDir();
         super.setupCluster();
+    }
+
+    private void createTestOutputDir() {
+        testOutputDir = new File("build/pulsar-profiling");
+        if (!testOutputDir.exists()) {
+            if (!testOutputDir.mkdirs()) {
+                throw new IllegalArgumentException("Test output directory + '" + testOutputDir.getAbsolutePath()
+                        + "' doesn't exist and cannot be created.");
+            }
+        }
+        if (!testOutputDir.isDirectory()) {
+            throw new IllegalArgumentException(
+                    "Test output directory '" + testOutputDir.getAbsolutePath() + "' isn't a directory.");
+        }
+        // change access to testOutputDir to allow all access so the the container user can write to it
+        // This matters only on Linux
+        try {
+            Files.setPosixFilePermissions(testOutputDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot change access to test output directory", e);
+        }
     }
 
     @Override
@@ -226,7 +222,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
         pulsarCluster.forEachContainer(
-                // This is effective only when -Pdocker-wolfi has been passed when building java-test-image
+                // This is effective only when -Pdocker.wolfi has been passed when building java-test-image
                 // setting mmap_threshold explicitly will avoid it's dynamic increase
                 // https://sourceware.org/glibc/manual/latest/html_node/Memory-Allocation-Tunables.html
                 c -> c.withEnv("GLIBC_TUNABLES",
@@ -239,6 +235,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
 
         // Enable profiling on the broker
         specBuilder.profileBroker(true);
+        specBuilder.profileDirectory(testOutputDir.getAbsolutePath());
 
         // Only run one broker so that all load goes to a single broker
         specBuilder.numBrokers(1);
@@ -286,9 +283,9 @@ public class PulsarProfilingTest extends PulsarTestSuite {
 
         // Create pulsar-perf containers
         String brokerHostname = clusterName + "-pulsar-broker-0";
-        perfProduce = new PulsarPerfContainer(clusterName, brokerHostname, "perf-produce");
-        perfConsume = new PulsarPerfContainer(clusterName, brokerHostname, "perf-consume");
-        printStats = new PulsarPerfContainer(clusterName, brokerHostname, "print-stats");
+        perfProduce = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-produce");
+        perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume");
+        printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats");
         specBuilder.externalServices(Map.of(
                 "pulsar-produce", perfProduce,
                 "pulsar-consume", perfConsume,

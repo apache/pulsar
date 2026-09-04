@@ -407,12 +407,12 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
         // { cat pulsar-broker/target/rolling_restarts_result_header.txt; \
         //   cat pulsar-broker/target/rolling_restarts_result_*.csv } \
         //   | duckdb -c "select * from read_csv('/dev/stdin')" | cat
-        File resultHeaderFile = new File("target/rolling_restarts_result_header.txt");
+        File resultHeaderFile = new File("build/rolling_restarts_result_header.txt");
         String resultHeader =
                 "description\tproduced\tconsumed\tconsumers\tbk_reads\tbk_read_entries\thits\tmisses\trestarts\tts\n";
         FileUtils.write(resultHeaderFile, resultHeader, StandardCharsets.UTF_8);
         long ts = System.currentTimeMillis();
-        File resultFile = new File("target/rolling_restarts_result_" + ts + ".csv");
+        File resultFile = new File("build/rolling_restarts_result_" + ts + ".csv");
         List<String> csvColumns = new ArrayList<>();
         Arrays.stream(msgArgs).map(Object::toString).forEach(csvColumns::add);
         csvColumns.add(formatTimestampForCsv(ts));

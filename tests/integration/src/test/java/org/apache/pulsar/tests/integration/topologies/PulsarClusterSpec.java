@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -200,18 +201,47 @@ public class PulsarClusterSpec {
     @Default
     boolean enableOxia = false;
 
+    // Which components async-profiler is attached to. A test that drives profiling itself, such as
+    // PulsarProfilingTest, sets these on the builder. Any other test can be profiled without being
+    // modified by naming the components on the command line instead — see
+    // inttest.asyncprofiler.components below.
     @Default
-    boolean profileBroker = false;
+    boolean profileBroker = isProfilingEnabledFor("broker");
 
     @Default
-    boolean profileProxy = false;
+    boolean profileProxy = isProfilingEnabledFor("proxy");
 
     @Default
-    boolean profileFunctionWorker = false;
+    boolean profileFunctionWorker = isProfilingEnabledFor("functionworker");
 
     @Default
-    boolean profileBookie = false;
+    boolean profileBookie = isProfilingEnabledFor("bookie");
 
     @Default
-    boolean profileZookeeper = false;
+    boolean profileZookeeper = isProfilingEnabledFor("zookeeper");
+
+    /**
+     * Directory the profiler writes its recordings into, so that a test can keep them apart from
+     * every other test's rather than having them all land in one place. Unset means the
+     * {@code inttest.asyncprofiler.dir} system property the build passes in, and failing that
+     * {@code build} in the working directory.
+     */
+    String profileDirectory;
+
+    /**
+     * Whether the given cluster component should be profiled with async-profiler, according to the
+     * {@code inttest.asyncprofiler.components} system property. The property holds a comma separated
+     * list of {@code broker}, {@code proxy}, {@code functionworker}, {@code bookie} and
+     * {@code zookeeper}, or {@code all} for every component. It is empty by default, so profiling
+     * stays off unless it is asked for.
+     *
+     * @param component the component name to look for
+     * @return true when the component is listed
+     */
+    private static boolean isProfilingEnabledFor(String component) {
+        String components = System.getProperty("inttest.asyncprofiler.components", "");
+        return Arrays.stream(components.split(","))
+                .map(String::trim)
+                .anyMatch(listed -> listed.equalsIgnoreCase(component) || listed.equalsIgnoreCase("all"));
+    }
 }
