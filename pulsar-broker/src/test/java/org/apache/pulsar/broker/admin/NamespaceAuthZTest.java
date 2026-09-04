@@ -242,24 +242,38 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.namespaces().clearProperties(namespace);
 
         // test nobody
+        AtomicBoolean execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.UPDATE_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setProperties(namespace, properties));
+        Assert.assertTrue(execFlag.get());
 
+        execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.UPDATE_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().setProperty(namespace, "key2", "value2"));
+        Assert.assertTrue(execFlag.get());
 
+        execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.GET_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getProperties(namespace));
+        Assert.assertTrue(execFlag.get());
 
+        execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.GET_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getProperty(namespace, "key2"));
+        Assert.assertTrue(execFlag.get());
 
 
+        execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.DELETE_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().removeProperty(namespace, "key2"));
+        Assert.assertTrue(execFlag.get());
 
+        execFlag = setAuthorizationOperationChecker(subject, NamespaceOperation.DELETE_PROPERTIES);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().clearProperties(namespace));
+        Assert.assertTrue(execFlag.get());
+
+        clearAuthorizationOperationChecker();
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(action));
