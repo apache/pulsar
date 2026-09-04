@@ -38,6 +38,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -70,6 +71,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Lombok;
 import org.apache.bookkeeper.common.util.Bytes;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -1620,7 +1622,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
         final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<>();
         // Create Executor
-        ScheduledExecutorService executorServiceRecover = mock(ScheduledExecutorService.class);
+        ListeningScheduledExecutorService executorServiceRecover = mock(ListeningScheduledExecutorService.class);
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
         when(serviceConfiguration.isEnableReplicatedSubscriptions()).thenReturn(false);
@@ -1674,6 +1676,9 @@ public class TransactionTest extends TransactionTestBase {
         when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
         when(pulsar.getConfig()).thenReturn(serviceConfiguration);
         when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
+        OrderedScheduler snapshotRecoverExecutorProvider = mock(OrderedScheduler.class);
+        when(snapshotRecoverExecutorProvider.chooseThread(any(Object.class))).thenReturn(executorServiceRecover);
+        when(pulsar.getTransactionSnapshotRecoverExecutorProvider()).thenReturn(snapshotRecoverExecutorProvider);
         when(pulsar.getTransactionBufferSnapshotServiceFactory()).thenReturn(transactionBufferSnapshotServiceFactory);
         TopicTransactionBufferProvider topicTransactionBufferProvider = new TopicTransactionBufferProvider();
         when(pulsar.getTransactionBufferProvider()).thenReturn(topicTransactionBufferProvider);

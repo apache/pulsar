@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
-import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -40,7 +39,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
 @CustomLog
-public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcessor {
+public class SingleSnapshotAbortedTxnProcessorImpl extends AbstractSnapshotAbortedTxnProcessor {
     private final PersistentTopic topic;
     private final ReferenceCountedWriter<TransactionBufferSnapshot> takeSnapshotWriter;
     /**
@@ -51,11 +50,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     private volatile long lastSnapshotTimestamps;
 
-    private volatile boolean isClosed = false;
-
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
+        super(topic.getBrokerService().getPulsar().getTransactionSnapshotRecoverExecutorProvider()
+                .chooseThread(TopicName.get(topic.getName()).getNamespace()));
         this.topic = topic;
-        this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
+        this.takeSnapshotWriter = topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
         this.takeSnapshotWriter.getFuture().exceptionally((ex) -> {
@@ -90,29 +89,18 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Position> recoverFromSnapshot() {
-        final var future = new CompletableFuture<Position>();
+    Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
         final var pulsar = topic.getBrokerService().getPulsar();
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = pulsar.getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
-        scheduledExecutor.execute(() -> {
-            try {
-                final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
-                        .getTableView(scheduledExecutor).readLatest(topic.getName());
-                if (snapshot != null) {
-                    handleSnapshot(snapshot);
-                    final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),
-                            snapshot.getMaxReadPositionEntryId());
-                    future.complete(startReadCursorPosition);
-                } else {
-                    future.complete(null);
-                }
-            } catch (Throwable e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
+        final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
+                .getTableView(executor).readLatest(topic.getName());
+        if (isClosed()) {
+            return null;
+        }
+        if (snapshot == null) {
+            return null;
+        }
+        handleSnapshot(snapshot);
+        return PositionFactory.create(snapshot.getMaxReadPositionLedgerId(), snapshot.getMaxReadPositionEntryId());
     }
 
     @Override
@@ -177,11 +165,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public synchronized CompletableFuture<Void> closeAsync() {
-        if (!isClosed) {
-            isClosed = true;
-            takeSnapshotWriter.release();
-        }
+    CompletableFuture<Void> closeResources() {
+        takeSnapshotWriter.release();
         return CompletableFuture.completedFuture(null);
     }
 
