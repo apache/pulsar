@@ -20,6 +20,7 @@ package org.apache.pulsar.common.protocol;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
@@ -152,16 +153,25 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     @SuppressWarnings("checkstyle:JavadocType")
     public static class Encoder extends ChannelOutboundHandlerAdapter {
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             if (msg instanceof ByteBufPair) {
                 ByteBufPair b = (ByteBufPair) msg;
-
-                // Write each buffer individually on the socket. The retain() here is needed to preserve the fact that
-                // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
-                // gets written multiple times, the individual buffers refcount should be reflected as well.
+                CompositeByteBuf frame = null;
                 try {
-                    ctx.write(b.getFirst().retainedDuplicate(), ctx.voidPromise());
-                    ctx.write(b.getSecond().retainedDuplicate(), promise);
+                    ByteBuf first = b.getFirst();
+                    ByteBuf second = b.getSecond();
+                    // Commit the whole frame as a single pipeline entry: two separate writes allowed
+                    // a failure in between to enqueue only the header half and desynchronize the peer's
+                    // frame parser. The retain() gives the composite independent component claims, so
+                    // writing a pair the caller has retained again (resend) keeps working.
+                    frame = Unpooled.compositeBuffer(2);
+                    frame.addComponent(true, first.retain());
+                    frame.addComponent(true, second.retain());
+                    ctx.write(frame, promise);
+                    frame = null;
+                } catch (Throwable t) {
+                    ReferenceCountUtil.safeRelease(frame);
+                    promise.tryFailure(t);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
@@ -175,16 +185,21 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     @SuppressWarnings("checkstyle:JavadocType")
     public static class CopyingEncoder extends ChannelOutboundHandlerAdapter {
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             if (msg instanceof ByteBufPair) {
                 ByteBufPair b = (ByteBufPair) msg;
-
-                // Some handlers in the pipeline will modify the bytebufs passed in to them (i.e. SslHandler).
-                // For these handlers, we need to pass a copy of the buffers as the source buffers may be cached
-                // for multiple requests.
+                CompositeByteBuf frame = null;
                 try {
-                    ctx.write(b.getFirst().copy(), ctx.voidPromise());
-                    ctx.write(b.getSecond().copy(), promise);
+                    ByteBuf first = b.getFirst();
+                    ByteBuf second = b.getSecond();
+                    frame = Unpooled.compositeBuffer(2);
+                    frame.addComponent(true, first.copy());
+                    frame.addComponent(true, second.copy());
+                    ctx.write(frame, promise);
+                    frame = null;
+                } catch (Throwable t) {
+                    ReferenceCountUtil.safeRelease(frame);
+                    promise.tryFailure(t);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
