@@ -83,6 +83,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -6325,6 +6326,157 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }).toList(), IntStream.range(0, 10).mapToObj(i -> "msg-" + i).toList());
     }
 
+    /**
+     * Reproduces the silent-success reset drop from issue #26304 through the exact check-then-act race that
+     * maintainer review flagged, and asserts the concurrent delete is rejected with the reset-in-progress error.
+     *
+     * <p>A durable cursor reset stages its whole state mutation in a MarkDeleteEntry runnable, and
+     * internalFlushPendingMarkDeletes only persists and runs the runnable of pendingMarkDeleteOps.getLast(). If an
+     * individual delete is queued behind the reset entry while a read holds the mark-delete queue open, the delete
+     * becomes getLast() and displaces the reset: the delete's position is persisted, the reset's runnable is
+     * dropped, yet the reset callback still fires and reports success.
+     *
+     * <p>The old guard read RESET_CURSOR_IN_PROGRESS at the top of asyncDelete, before enqueuing - a check-then-act
+     * that a delete can pass while the flag is still FALSE, only for a reset to arm the flag and enqueue its entry
+     * before the delete reaches the queue. This test drives precisely that interleaving deterministically: it parks
+     * the delete on the cursor's write lock immediately after the point where the old check ran (the delete has
+     * therefore already "passed" the old check with the flag FALSE), then lets the reset arm the flag and enqueue,
+     * then releases the delete so it reaches the enqueue only afterwards. It fails on the pre-fix code (the delete
+     * is enqueued behind the reset and clobbers it, and the delete reports success) and passes once the check is
+     * decided atomically with the enqueue under the pendingMarkDeleteOps monitor.
+     */
+    @Test(timeOut = 30000)
+    public void testResetCursorNotDroppedByConcurrentDelete() throws Exception {
+        // Hold the first data read open so PENDING_READ_OPS stays > 0 and mark-delete ops queue instead of
+        // being applied immediately.
+        AtomicBoolean armed = new AtomicBoolean(false);
+        AtomicReference<CompletableFuture<LedgerEntries>> heldRead = new AtomicReference<>();
+        AtomicReference<LedgerEntries> heldReadEntries = new AtomicReference<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            if (armed.compareAndSet(true, false)) {
+                CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
+                heldReadEntries.set(entries);
+                heldRead.set(future);
+                return future;
+            }
+            return CompletableFuture.completedFuture(entries);
+        });
+
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testResetCursorNotDroppedByConcurrentDelete");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // disable caching so reads hit the mock bookie interceptor
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("p-" + i).getBytes(Encoding)));
+        }
+        Position p0 = positions.get(0);
+        Position p5 = positions.get(5);
+        cursor.markDelete(positions.get(4)); // markDeletePosition = p4, readPosition = p5
+
+        // 1) Start a read and hold it so PENDING_READ_OPS > 0.
+        armed.set(true);
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                entries.forEach(Entry::release);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.LATEST);
+        Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1 && heldRead.get() != null);
+
+        // 2) Park the concurrent delete right after the point where the old reset-in-progress check ran. Holding
+        //    the cursor's write lock blocks asyncDelete at its lock.writeLock().lock() (the first blocking point
+        //    after the removed early check), so on the pre-fix code the delete has already passed that check with
+        //    the flag still FALSE - exactly the check-then-act window under test.
+        ReentrantReadWriteLock cursorLock = (ReentrantReadWriteLock) cursor.lock;
+        CountDownLatch deleteCallReturned = new CountDownLatch(1);
+        CountDownLatch deleteCallbackFired = new CountDownLatch(1);
+        AtomicBoolean deleteCompleted = new AtomicBoolean(false);
+        AtomicReference<ManagedLedgerException> deleteFailure = new AtomicReference<>();
+        DeleteCallback deleteCallback = new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                deleteCompleted.set(true);
+                deleteCallbackFired.countDown();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                deleteFailure.set(exception);
+                deleteCallbackFired.countDown();
+            }
+        };
+
+        CountDownLatch resetCompleted = new CountDownLatch(1);
+        AtomicBoolean resetSucceeded = new AtomicBoolean(false);
+
+        cursorLock.writeLock().lock();
+        Thread deleteThread;
+        try {
+            deleteThread = new Thread(() -> {
+                cursor.asyncDelete(p5, deleteCallback, null);
+                deleteCallReturned.countDown();
+            }, "concurrent-delete");
+            deleteThread.start();
+            // Wait until the delete thread is blocked acquiring the write lock (it has passed the old check).
+            Awaitility.await().until(cursorLock::hasQueuedThreads);
+
+            // 3) With the delete parked, reset the cursor back to p0. asyncResetCursor hops to the ledger executor
+            //    and, because a read is pending, arms RESET_CURSOR_IN_PROGRESS and queues its reset entry. The
+            //    reset never needs the write lock before enqueuing, so it completes this while the delete is parked.
+            cursor.asyncResetCursor(p0, false, new AsyncCallbacks.ResetCursorCallback() {
+                @Override
+                public void resetComplete(Object ctx) {
+                    resetSucceeded.set(true);
+                    resetCompleted.countDown();
+                }
+
+                @Override
+                public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                    resetCompleted.countDown();
+                }
+            });
+            Awaitility.await().untilAsserted(() -> {
+                synchronized (cursor.pendingMarkDeleteOps) {
+                    assertEquals(cursor.pendingMarkDeleteOps.size(), 1);
+                    assertEquals(cursor.pendingMarkDeleteOps.getLast().newPosition, ledger.getPreviousPosition(p0));
+                }
+            });
+        } finally {
+            // 4) Release the delete: it now reaches the enqueue only after the reset armed the flag and queued its
+            //    entry. On the pre-fix code it is appended behind the reset (becoming getLast()); with the fix the
+            //    atomic check under the pendingMarkDeleteOps monitor rejects it.
+            cursorLock.writeLock().unlock();
+        }
+        assertTrue(deleteCallReturned.await(15, TimeUnit.SECONDS));
+
+        // 5) Release the held read. readOperationCompleted flushes the pending mark-delete queue and the reset
+        //    persists and completes.
+        heldRead.get().complete(heldReadEntries.get());
+        assertTrue(resetCompleted.await(15, TimeUnit.SECONDS));
+        assertTrue(deleteCallbackFired.await(15, TimeUnit.SECONDS));
+        deleteThread.join(TimeUnit.SECONDS.toMillis(15));
+
+        // The reset reported completion and must also have actually taken effect.
+        assertTrue(resetSucceeded.get(), "reset should have completed");
+        assertEquals(cursor.getReadPosition(), p0, "reset readPosition was silently dropped");
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getPreviousPosition(p0),
+                "reset markDeletePosition was silently dropped");
+        assertFalse(cursor.isMessageDeleted(p5), "concurrent delete displaced the reset and persisted instead");
+
+        // The concurrent delete must be rejected with the reset-in-progress error, not silently reported complete
+        // (a shared latch that counts down on either outcome would hide this).
+        assertFalse(deleteCompleted.get(), "concurrent delete must not report success while a reset is in progress");
+        assertNotNull(deleteFailure.get(), "concurrent delete should have failed with reset-in-progress");
+        assertTrue(deleteFailure.get().getMessage().contains("Reset cursor in progress"),
+                "unexpected delete failure: " + deleteFailure.get().getMessage());
+    }
+
     @Test
     public void testSkipOpenLedgerFullyAcked() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
@@ -6706,8 +6858,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
 
             return invocation.callRealMethod();
+            // Stub the 6-arg overload that both paths funnel through: the compaction mark-delete reaches it via the
+            // 5-arg overload's delegation (isCursorReset=false) and the reset calls it directly (isCursorReset=true).
         }).when(spyCursor).internalAsyncMarkDelete(any(Position.class), nullable(Map.class),
-                any(MarkDeleteCallback.class), nullable(Object.class), nullable(Runnable.class));
+                any(MarkDeleteCallback.class), nullable(Object.class), nullable(Runnable.class), anyBoolean());
 
         // Start compaction mark-delete from another thread because the spy intentionally blocks it.
         CompletableFuture.runAsync(() -> spyCursor.asyncMarkDelete(
