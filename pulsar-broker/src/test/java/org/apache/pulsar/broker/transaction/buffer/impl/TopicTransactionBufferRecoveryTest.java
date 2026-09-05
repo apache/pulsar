@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -28,17 +34,22 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -68,6 +79,50 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
     @DataProvider(name = "snapshotExists")
     public Object[][] snapshotExists() {
         return new Object[][] { { false }, { true } };
+    }
+
+    @Test(dataProvider = "snapshotExists", timeOut = 30_000)
+    public void testRecoveryCompletesAfterDeletionFails(boolean snapshotExists) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-delete-failure");
+        TopicName parsedTopicName = TopicName.get(topicName);
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        CompletableFuture<SchemaVersion> schemaDeleteFuture = new CompletableFuture<>();
+        SchemaRegistryService schemaRegistryService = spy(pulsar.getSchemaRegistryService());
+        doReturn(schemaDeleteFuture).when(schemaRegistryService).deleteSchemaStorage(parsedTopicName.getSchemaName());
+        AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+        when(processor.recoverFromSnapshot()).thenReturn(recoveryFuture);
+        when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(topic -> new TopicTransactionBuffer(
+                (PersistentTopic) topic, processor, AbortedTxnProcessor.SnapshotType.Single));
+        doReturn(schemaRegistryService).when(pulsar).getSchemaRegistryService();
+        try {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, true).get(5, TimeUnit.SECONDS).orElseThrow();
+            ExecutorService transactionExecutor =
+                    pulsar.getTransactionExecutorProvider().getExecutor(topic.getTransactionBuffer());
+            // Ensure the recovery continuation is registered before completing its future.
+            transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> deleteFuture = topic.delete();
+            verify(schemaRegistryService, timeout(5_000)).deleteSchemaStorage(parsedTopicName.getSchemaName());
+            assertThat(topic.isClosingOrDeleting()).isTrue();
+
+            recoveryFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
+            // Let replay run while deletion is pending, regardless of which executor dispatches it.
+            transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            pulsar.getTransactionSnapshotRecoverExecutorProvider().chooseThread(parsedTopicName.getNamespace())
+                    .submit(() -> { }).get(5, TimeUnit.SECONDS);
+
+            schemaDeleteFuture.completeExceptionally(new IllegalStateException("schema deletion failed"));
+            assertThatThrownBy(() -> deleteFuture.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(IllegalStateException.class);
+            assertThat(topic.isClosingOrDeleting()).isFalse();
+            topic.getTransactionBuffer().checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS);
+        } finally {
+            schemaDeleteFuture.completeExceptionally(new IllegalStateException("test finished"));
+            doCallRealMethod().when(pulsar).getSchemaRegistryService();
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
     }
 
     /**

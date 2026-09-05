@@ -25,20 +25,23 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -71,7 +74,7 @@ public class TopicTransactionBufferCloseTest {
             });
 
             context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
-            context.awaitExecutorIdle();
+            context.awaitExecutorsIdle();
 
             verify(context.topic, never()).close(true);
             assertTrue(context.transactionBuffer.getTransactionBufferFuture().isCompletedExceptionally());
@@ -87,7 +90,7 @@ public class TopicTransactionBufferCloseTest {
 
             context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
             recoveryFuture.allowContinuationRegistration();
-            context.awaitExecutorIdle();
+            context.awaitExecutorsIdle();
 
             verify(context.managedLedger, never()).newNonDurableCursor(any(), anyString());
             assertTrue(context.transactionBuffer.getTransactionBufferFuture().isCompletedExceptionally());
@@ -103,9 +106,14 @@ public class TopicTransactionBufferCloseTest {
         CountDownLatch releaseBlocker = new CountDownLatch(1);
         try (TestContext context = new TestContext(recoveryFuture, PositionFactory.EARLIEST)) {
             try {
-                context.awaitExecutorIdle();
-                context.executor.clearSubmittedTask();
-                context.executor.execute(() -> {
+                context.awaitExecutorsIdle();
+                AtomicReference<Future<?>> submittedTask = new AtomicReference<>();
+                doAnswer(invocation -> {
+                    Future<?> task = (Future<?>) invocation.callRealMethod();
+                    submittedTask.set(task);
+                    return task;
+                }).when(context.recoveryExecutor).submit(any(Runnable.class));
+                context.recoveryExecutor.execute(() -> {
                     blockerStarted.countDown();
                     try {
                         releaseBlocker.await();
@@ -116,7 +124,7 @@ public class TopicTransactionBufferCloseTest {
                 assertTrue(blockerStarted.await(5, TimeUnit.SECONDS));
 
                 recoveryFuture.complete(PositionFactory.EARLIEST);
-                Future<?> replayTask = context.executor.submittedTask();
+                Future<?> replayTask = submittedTask.get();
                 assertNotNull(replayTask);
 
                 context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
@@ -132,7 +140,7 @@ public class TopicTransactionBufferCloseTest {
     public void testLateRecoveryReadIsReleasedAfterClose() throws Exception {
         Position startPosition = PositionFactory.create(1, 0);
         Position lastPosition = PositionFactory.create(1, 3);
-        CompletableFuture<Position> recoveryFuture = CompletableFuture.completedFuture(startPosition);
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
         CountDownLatch readStarted = new CountDownLatch(1);
         AtomicReference<AsyncCallbacks.ReadEntriesCallback> readCallback = new AtomicReference<>();
         try (TestContext context = new TestContext(recoveryFuture, lastPosition)) {
@@ -143,9 +151,12 @@ public class TopicTransactionBufferCloseTest {
                 return null;
             }).when(context.managedCursor).asyncReadEntries(anyInt(), any(), anyLong(), any());
 
+            recoveryFuture.complete(startPosition);
             assertTrue(readStarted.await(5, TimeUnit.SECONDS));
+            // Live transaction work must still run while the recovery read is outstanding.
+            context.transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
             context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
-            context.awaitExecutorIdle();
+            context.awaitExecutorsIdle();
 
             Entry lateEntry = mock(Entry.class);
             readCallback.get().readEntriesComplete(List.of(lateEntry), null);
@@ -156,7 +167,9 @@ public class TopicTransactionBufferCloseTest {
     }
 
     private static final class TestContext implements AutoCloseable {
-        private final TrackingExecutor executor = new TrackingExecutor();
+        private final ExecutorService transactionExecutor = Executors.newSingleThreadExecutor();
+        private final ListeningScheduledExecutorService recoveryExecutor =
+                spy(MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor()));
         private final AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
         private final PersistentTopic topic = mock(PersistentTopic.class);
         private final ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
@@ -168,6 +181,7 @@ public class TopicTransactionBufferCloseTest {
             PulsarService pulsar = mock(PulsarService.class);
             ServiceConfiguration configuration = mock(ServiceConfiguration.class);
             ExecutorProvider executorProvider = mock(ExecutorProvider.class);
+            OrderedScheduler recoveryScheduler = mock(OrderedScheduler.class);
 
             when(topic.getName()).thenReturn("persistent://public/default/test-close-during-recovery");
             when(topic.getBrokerService()).thenReturn(brokerService);
@@ -175,7 +189,9 @@ public class TopicTransactionBufferCloseTest {
             when(brokerService.getPulsar()).thenReturn(pulsar);
             when(pulsar.getConfiguration()).thenReturn(configuration);
             when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
-            when(executorProvider.getExecutor(any(Object.class))).thenReturn(executor);
+            when(executorProvider.getExecutor(any(Object.class))).thenReturn(transactionExecutor);
+            when(pulsar.getTransactionSnapshotRecoverExecutorProvider()).thenReturn(recoveryScheduler);
+            when(recoveryScheduler.chooseThread(any(Object.class))).thenReturn(recoveryExecutor);
             when(managedLedger.getLastConfirmedEntry()).thenReturn(lastConfirmedEntry);
             when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
             when(managedLedger.newNonDurableCursor(any(), anyString())).thenReturn(managedCursor);
@@ -185,42 +201,22 @@ public class TopicTransactionBufferCloseTest {
             transactionBuffer = new TopicTransactionBuffer(topic, processor, AbortedTxnProcessor.SnapshotType.Single);
         }
 
-        private void awaitExecutorIdle() throws Exception {
-            executor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+        private void awaitExecutorsIdle() throws Exception {
+            transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            recoveryExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         }
 
         @Override
         public void close() throws Exception {
             transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
-            executor.shutdownNow();
-            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+            transactionExecutor.shutdownNow();
+            recoveryExecutor.shutdownNow();
+            assertTrue(transactionExecutor.awaitTermination(5, TimeUnit.SECONDS));
+            assertTrue(recoveryExecutor.awaitTermination(5, TimeUnit.SECONDS));
         }
     }
 
-    private static final class TrackingExecutor extends ThreadPoolExecutor {
-        private final AtomicReference<Future<?>> submittedTask = new AtomicReference<>();
-
-        private TrackingExecutor() {
-            super(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-        }
-
-        @Override
-        public Future<?> submit(Runnable task) {
-            Future<?> future = super.submit(task);
-            submittedTask.set(future);
-            return future;
-        }
-
-        private Future<?> submittedTask() {
-            return submittedTask.get();
-        }
-
-        private void clearSubmittedTask() {
-            submittedTask.set(null);
-        }
-    }
-
-    /** Blocks both continuation APIs so tests can deterministically control the registration race. */
+    /** Blocks continuation registration so tests can deterministically control the registration race. */
     private static final class ContinuationBlockingRecoveryFuture extends CompletableFuture<Position> {
         private final CountDownLatch registrationStarted = new CountDownLatch(1);
         private final CountDownLatch allowRegistration = new CountDownLatch(1);
@@ -229,12 +225,6 @@ public class TopicTransactionBufferCloseTest {
         public CompletableFuture<Void> thenAccept(Consumer<? super Position> action) {
             awaitRegistration();
             return super.thenAccept(action);
-        }
-
-        @Override
-        public CompletableFuture<Void> thenAcceptAsync(Consumer<? super Position> action, Executor executor) {
-            awaitRegistration();
-            return super.thenAcceptAsync(action, executor);
         }
 
         private void awaitRegistration() {

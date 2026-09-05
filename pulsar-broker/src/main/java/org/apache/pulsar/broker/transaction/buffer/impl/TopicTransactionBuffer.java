@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +53,7 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSna
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -108,7 +108,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
-    private final ExecutorService transactionExecutor;
     private final MaxReadPositionCallBack maxReadPositionCallBack;
     private Future<?> recoveryReplayTask;
     /** if the first snapshot is in progress, it will pending following publishing tasks. **/
@@ -147,15 +146,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
         this.snapshotAbortedTxnProcessor = snapshotAbortedTxnProcessor;
         this.snapshotType = snapshotType;
-        this.transactionExecutor = topic.getBrokerService().getPulsar()
-                .getTransactionExecutorProvider().getExecutor(this);
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.recover();
     }
 
     private void recover() {
         recoverTime.setRecoverStartTime(System.currentTimeMillis());
-        transactionExecutor.execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
+        this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
+                .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
                         synchronized (TopicTransactionBuffer.this) {
@@ -253,7 +251,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (checkIfClosed()) {
             return;
         }
-        recoveryReplayTask = transactionExecutor.submit(replay);
+        // Replay polls for ledger reads, so it must stay off the live transaction executor.
+        recoveryReplayTask = topic.getBrokerService().getPulsar().getTransactionSnapshotRecoverExecutorProvider()
+                .chooseThread(TopicName.get(topic.getName()).getNamespace()).submit(replay);
     }
 
     @Override
@@ -880,7 +880,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         .log("TransactionBuffer of topic can not change state to Initializing");
                 return;
             }
-            // Keep replay on the transaction executor while retaining a task handle that close can cancel.
             abortedTxnProcessor.recoverFromSnapshot().thenAccept(this::submitReplay)
                     .exceptionally(this::handleRecoveryFailure);
         }
@@ -907,7 +906,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
 
         private boolean shouldStopRecovery() {
-            return topicTransactionBuffer.checkIfClosed() || topic.isClosingOrDeleting();
+            // Topic deletion can be rolled back; only buffer closure is irreversible.
+            return topicTransactionBuffer.checkIfClosed();
         }
 
         private void replayTransactionBuffer(Position recoveredPosition) {
