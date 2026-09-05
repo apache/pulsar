@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -1784,6 +1785,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
         return close(true, closeWithoutWaitingClientDisconnect);
+    }
+
+    /**
+     * Executes an action while holding the read side of the topic close/delete lock.
+     * Topic close and delete acquire the write side before setting {@link #isClosingOrDeleting}, so they cannot start
+     * between the state check and the action.
+     *
+     * @return true if the action ran, or false if close/delete had already started
+     */
+    public boolean runWithTopicCloseReadLock(Callable<Void> action) throws Exception {
+        lock.readLock().lock();
+        try {
+            if (isClosingOrDeleting) {
+                return false;
+            }
+            action.call();
+            return true;
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private enum CloseTypes {
