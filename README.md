@@ -172,7 +172,7 @@ for the Gradle build infrastructure and how to change build files.
 
     | Pulsar Version   |                                   JDK Version                                    |
     |------------------|:--------------------------------------------------------------------------------:|
-    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) or [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) |
+    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any), [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) or [JDK 26](https://adoptium.net/en-GB/temurin/releases?version=26&os=any&arch=any) |
     | 4.0+             | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) |
     | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
     | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
