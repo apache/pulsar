@@ -87,6 +87,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
@@ -1085,12 +1086,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
+        // Capture the topic futures for this bundle once, before unloading starts, and reuse the same snapshot
+        // both to close the topics below and to clean up afterward, so the cleanup is identity-safe: a stale
+        // cleanup call must only remove what this snapshot observed, never a newer ownership generation's topic
+        // installed for the same bundle in the meantime.
+        //
+        // A straggler topic loaded into BrokerService's topic cache for this bundle *after* the snapshot is
+        // taken is deliberately left alone: neither closed below nor evicted by the cleanup. The alternative —
+        // force-evicting whatever is in the cache at cleanup time regardless of identity — could yank a topic
+        // that was never closed, letting a second, independent instance for the same name be created on the
+        // next load. A straggler surviving the unload does not need this unload to fix it: new connections
+        // converge through the normal lookup path once ownership has actually moved, and BookKeeper's ledger
+        // fencing (see ManagedLedgerImpl#addEntryFailedDueToConcurrentlyModified) is what prevents it from
+        // silently double-writing if a new owner's ManagedLedger instance does start writing the same topic.
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures =
+                pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
                         disconnectClients,
                         true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
-                        TimeUnit.MILLISECONDS)
+                        TimeUnit.MILLISECONDS,
+                        topicFutures)
                 .thenApply(numUnloadedTopics -> {
                     unloadedTopics.setValue(numUnloadedTopics);
                     return numUnloadedTopics;
@@ -1098,7 +1115,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .whenComplete((__, ex) -> {
                     if (disconnectClients) {
                         // clean up topics that failed to unload from the broker ownership cache
-                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
                     }
                     pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
@@ -1108,7 +1125,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)
