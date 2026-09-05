@@ -64,6 +64,8 @@ import org.apache.pulsar.tls.TlsPurpose;
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
+    public static final long DEFAULT_MEMORY_LIMIT_BYTES = 64 * 1024 * 1024;
+
     @Schema(
             name = "serviceUrl",
             requiredMode = Schema.RequiredMode.REQUIRED,
@@ -454,7 +456,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             description = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer "
                     + "throughput."
     )
-    private long memoryLimitBytes = 64 * 1024 * 1024;
+    private long memoryLimitBytes = DEFAULT_MEMORY_LIMIT_BYTES;
 
     @Schema(
             name = "proxyServiceUrl",

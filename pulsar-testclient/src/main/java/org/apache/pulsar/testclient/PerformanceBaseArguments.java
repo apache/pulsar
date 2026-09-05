@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.client.impl.conf.ClientConfigurationData.DEFAULT_MEMORY_LIMIT_BYTES;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import picocli.CommandLine.Option;
@@ -111,8 +112,9 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     public String deprecatedAuthPluginClassName;
 
     @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
-    public long memoryLimit;
+            + "(eg: 32M, 64M). Use 0 to disable the limit. Default: 64M",
+            converter = ByteUnitToLongConverter.class)
+    public long memoryLimit = DEFAULT_MEMORY_LIMIT_BYTES;
     public PerformanceBaseArguments(String cmdName) {
         super(cmdName);
     }
