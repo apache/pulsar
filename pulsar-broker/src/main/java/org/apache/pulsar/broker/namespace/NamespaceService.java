@@ -85,6 +85,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
+import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -973,7 +974,7 @@ public class NamespaceService implements AutoCloseable {
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, splitAlgorithm);
 
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
@@ -1123,16 +1124,16 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<Long>> getSplitBoundary(
             NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, nsBundleSplitAlgorithm);
         return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
                                                    List<Long> boundaries,
-                                                   ServiceConfiguration config) {
+                                                   ServiceConfiguration config,
+                                                   NamespaceBundleSplitAlgorithm splitAlgorithm) {
         BundleSplitOption bundleSplitOption;
-        if (config.getDefaultNamespaceBundleSplitAlgorithm()
-                .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
+        if (splitAlgorithm instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm) {
             Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
             bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(this, bundle, boundaries,
                     topicStatsMap,
