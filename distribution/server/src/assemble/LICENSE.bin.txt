@@ -339,11 +339,17 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_tracer_otel_agent-0.16.0.jar
  * Prometheus exporter
     - io.prometheus-prometheus-metrics-config-1.8.0.jar
+    - io.prometheus-prometheus-metrics-core-1.8.0.jar
     - io.prometheus-prometheus-metrics-exporter-common-1.8.0.jar
     - io.prometheus-prometheus-metrics-exporter-httpserver-1.8.0.jar
     - io.prometheus-prometheus-metrics-exposition-formats-no-protobuf-1.8.0.jar
     - io.prometheus-prometheus-metrics-exposition-textformats-1.8.0.jar
+    - io.prometheus-prometheus-metrics-instrumentation-jvm-1.8.0.jar
     - io.prometheus-prometheus-metrics-model-1.8.0.jar
+    - io.prometheus-prometheus-metrics-tracer-common-1.8.0.jar
+    - io.prometheus-prometheus-metrics-tracer-initializer-1.8.0.jar
+    - io.prometheus-prometheus-metrics-tracer-otel-1.8.0.jar
+    - io.prometheus-prometheus-metrics-tracer-otel-agent-1.8.0.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-3.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
@@ -376,7 +382,6 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.http-http-server-4.18.0.jar
     - org.apache.bookkeeper.http-vertx-http-server-4.18.0.jar
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.18.0.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.18.0.jar
     - org.apache.distributedlog-distributedlog-common-4.18.0.jar
     - org.apache.distributedlog-distributedlog-core-4.18.0-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.18.0.jar

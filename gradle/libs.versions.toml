@@ -108,8 +108,12 @@ aircompressor = "2.0.3"
 completable-futures = "0.3.6"
 re2j = "1.8"
 # Metrics / Observability
+# Legacy Prometheus simpleclient (client_java 0.x). Still required by BookKeeper's and ZooKeeper's
+# stats providers and by Pulsar's own broker/proxy/functions metrics, which have not been migrated yet.
 prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
+# Prometheus Java client 1.x (the successor to simpleclient)
+prometheus-client-java = "1.8.0"
 dropwizardmetrics = "4.2.39"
 hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
@@ -332,6 +336,11 @@ simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
 simpleclient-log4j2 = { module = "io.prometheus:simpleclient_log4j2", version.ref = "prometheus" }
 prometheus-jmx-collector = { module = "io.prometheus.jmx:collector", version.ref = "prometheus-jmx" }
+# Prometheus Java client 1.x
+prometheus-metrics-core = { module = "io.prometheus:prometheus-metrics-core", version.ref = "prometheus-client-java" }
+prometheus-metrics-model = { module = "io.prometheus:prometheus-metrics-model", version.ref = "prometheus-client-java" }
+prometheus-metrics-instrumentation-jvm = { module = "io.prometheus:prometheus-metrics-instrumentation-jvm", version.ref = "prometheus-client-java" }
+prometheus-metrics-exposition-textformats = { module = "io.prometheus:prometheus-metrics-exposition-textformats", version.ref = "prometheus-client-java" }
 # OpenTelemetry
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-bom-alpha = { module = "io.opentelemetry:opentelemetry-bom-alpha", version.ref = "opentelemetry-alpha" }
