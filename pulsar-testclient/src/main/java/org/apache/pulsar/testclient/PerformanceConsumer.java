@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -90,26 +91,27 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
         Stream
     }
 
-    private static final LongAdder messagesReceived = new LongAdder();
-    private static final LongAdder bytesReceived = new LongAdder();
+    private final LongAdder messagesReceived = new LongAdder();
+    private final LongAdder bytesReceived = new LongAdder();
 
-    private static final LongAdder totalMessagesReceived = new LongAdder();
-    private static final LongAdder totalBytesReceived = new LongAdder();
+    private final LongAdder totalMessagesReceived = new LongAdder();
+    private final LongAdder totalBytesReceived = new LongAdder();
 
-    private static final LongAdder totalNumTxnOpenFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
+    private final LongAdder totalNumTxnOpenFail = new LongAdder();
+    private final LongAdder totalNumTxnOpenSuccess = new LongAdder();
 
-    private static final LongAdder totalMessageAck = new LongAdder();
-    private static final LongAdder totalMessageAckFailed = new LongAdder();
-    private static final LongAdder messageAck = new LongAdder();
+    private final LongAdder totalMessageAck = new LongAdder();
+    private final LongAdder totalMessageAckFailed = new LongAdder();
+    private final LongAdder messageAck = new LongAdder();
 
-    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
-    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
+    private final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private final LongAdder numTxnOpSuccess = new LongAdder();
 
-    private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
-    private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
-    private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
+    private static final long MAX_LATENCY_MILLIS = TimeUnit.DAYS.toMillis(10);
+    private final Recorder recorder = new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
             + "one consumer is allowed when subscriptionType is Exclusive",
@@ -247,21 +249,6 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     }
     @Override
     public void run() throws Exception {
-        // Reset static counters to avoid stale state from previous runs in the same JVM
-        messagesReceived.reset();
-        bytesReceived.reset();
-        totalMessagesReceived.reset();
-        totalBytesReceived.reset();
-        totalNumTxnOpenFail.reset();
-        totalNumTxnOpenSuccess.reset();
-        totalMessageAck.reset();
-        totalMessageAckFailed.reset();
-        messageAck.reset();
-        totalEndTxnOpFailNum.reset();
-        totalEndTxnOpSuccessNum.reset();
-        numTxnOpSuccess.reset();
-        recorder.reset();
-        cumulativeRecorder.reset();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -515,8 +502,8 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
 
             long latencyMillis = System.currentTimeMillis() - msg.publishTime().toEpochMilli();
             if (latencyMillis >= 0) {
-                if (latencyMillis >= MAX_LATENCY) {
-                    latencyMillis = MAX_LATENCY;
+                if (latencyMillis >= MAX_LATENCY_MILLIS) {
+                    latencyMillis = MAX_LATENCY_MILLIS;
                 }
                 recorder.recordValue(latencyMillis);
                 cumulativeRecorder.recordValue(latencyMillis);
@@ -749,7 +736,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 totalMessagesReceived.sum(), rate, throughput, rateAck, totalnumMessageAckFailed);
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.infof("Aggregated latency stats --- Latency: mean: %.3f ms"
