@@ -2463,10 +2463,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                         mdEntry.newPosition, null);
 
                 // Remove from the individual deleted messages all the entries before the new mark delete
-                // point.
+                // point. When several mark-delete requests where flushed together (callbackGroup), apply
+                // the in-memory state mutation of EVERY request in the group, not just the last one.
+                // Otherwise a cursor reset that was queued before a later ack would have its
+                // alignAcknowledgeStatusAfterPersisted silently dropped while the reset still reports
+                // success, leaving the cursor un-moved (see issue #26304).
                 lock.writeLock().lock();
                 try {
-                    mdEntry.alignAcknowledgeStatus();
+                    if (mdEntry.callbackGroup != null) {
+                        for (MarkDeleteEntry e : mdEntry.callbackGroup) {
+                            e.alignAcknowledgeStatus();
+                        }
+                    } else {
+                        mdEntry.alignAcknowledgeStatus();
+                    }
                 } finally {
                     lock.writeLock().unlock();
                 }
