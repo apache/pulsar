@@ -581,6 +581,10 @@ message CommandMessage {
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
     optional uint64 consumer_epoch = 5;
+
+    // Number of permits the broker deducted from the consumer for this command. For a batch message with
+    // batch-index acknowledgments, this excludes the indexes that were already acknowledged.
+    optional uint32 message_permits = 6;
 }
 
 message CommandAck {

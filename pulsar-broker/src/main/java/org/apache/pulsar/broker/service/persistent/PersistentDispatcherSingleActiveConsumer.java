@@ -250,7 +250,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                     redeliveryTracker, epoch)
-            .addListener(future -> {
+            .getSendFuture().addListener(future -> {
                 if (future.isSuccess()) {
                     acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
                             sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
