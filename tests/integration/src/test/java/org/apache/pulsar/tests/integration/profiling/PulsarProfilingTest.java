@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.ManualTestUtil;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -69,8 +70,15 @@ public class PulsarProfilingTest extends PulsarTestSuite {
     // echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
     // More info about -XX:+UseTransparentHugePages at
     // https://shipilev.net/jvm/anatomy-quarks/2-transparent-huge-pages/
-    private static final String DEFAULT_PULSAR_MEM = "-Xms512m -Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
+    private static final String DEFAULT_PULSAR_MEM = "-Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
+    private static final String PERF_PULSAR_MEM =
+            "-XX:+UseTransparentHugePages -XX:+AlwaysPreTouch -XX:+HeapDumpOnOutOfMemoryError "
+                    + "-XX:HeapDumpPath=/testoutput/%HEAP_DUMP_NAME%";
+    private static final String PRODUCE_MEM_LIMIT = "200M";
+    private static final String CONSUME_MEM_LIMIT = "200M";
     private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
+    // test v5 scalable topics
+    private static final TopicDomain TOPIC_DOMAIN = TopicDomain.topic;
 
     // A container that runs pulsar-perf, arguments are currently hard-coded since this is an example
     static class PulsarPerfContainer extends GenericContainer<PulsarPerfContainer> {
@@ -80,14 +88,16 @@ public class PulsarProfilingTest extends PulsarTestSuite {
         public PulsarPerfContainer(File testOutputDir,
                                    String clusterName,
                                    String brokerHostname,
-                                   String hostname) {
+                                   String hostname,
+                                   String memArgs) {
             super(PulsarContainer.DEFAULT_IMAGE_NAME);
             this.brokerHostname = brokerHostname;
             withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(hostname);
                 createContainerCmd.withName(clusterName + "-" + hostname);
             });
-            withEnv("PULSAR_MEM", DEFAULT_PULSAR_MEM + " -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/testoutput");
+            String heapDumpName = hostname + "-oom-" + System.currentTimeMillis() + ".hprof";
+            withEnv("PULSAR_MEM", PERF_PULSAR_MEM.replace("%HEAP_DUMP_NAME%", heapDumpName) + " " + memArgs);
             withEnv("PULSAR_GC", "-XX:+UseZGC -XX:+ZGenerational");
             setCommand("sleep 1000000");
             withFileSystemBind(testOutputDir.getAbsolutePath(), "/testoutput", BindMode.READ_WRITE);
@@ -100,7 +110,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-st Shared "
                             + "-q 50000 "
-                            + "-m " + numberOfMessages + " -ml 400M "
+                            + "-m " + numberOfMessages + " -ml " + CONSUME_MEM_LIMIT + " "
                             + "--histogram-file=/testoutput/consume.histogram.$(date +%s).hdr "
                             + "2>&1 | tee /testoutput/consume.$(date +%s).txt");
         }
@@ -113,8 +123,9 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                             + "-au http://" + brokerHostname + ":8080 "
                             + "-r " + Integer.MAX_VALUE + " "
                             + "-s 128 -db "
+                            // maxOutstanding is ignored for Pulsar 5.x pulsar-perf
                             + "-o 20000 "
-                            + "-m " + numberOfMessages + " -ml 400M "
+                            + "-m " + numberOfMessages + " -ml " + PRODUCE_MEM_LIMIT + " "
                             + "--histogram-file=/testoutput/produce.histogram.$(date +%s).hdr "
                             + "2>&1 | tee /testoutput/produce.$(date +%s).txt");
         }
@@ -283,9 +294,9 @@ public class PulsarProfilingTest extends PulsarTestSuite {
 
         // Create pulsar-perf containers
         String brokerHostname = clusterName + "-pulsar-broker-0";
-        perfProduce = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-produce");
-        perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume");
-        printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats");
+        perfProduce = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-produce", "-Xmx2g");
+        perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume", "-Xmx1g");
+        printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats", "-Xmx1g");
         specBuilder.externalServices(Map.of(
                 "pulsar-produce", perfProduce,
                 "pulsar-consume", perfConsume,
@@ -297,7 +308,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
 
     @Test(timeOut = 600_000)
     public void runPulsarPerf() throws Exception {
-        String topicName = generateTopicName("profiletest", true);
+        String topicName = generateTopicName("profiletest", TOPIC_DOMAIN);
         CompletableFuture<Long> consumeFuture = perfConsume.consume(topicName);
         Thread.sleep(1000);
         CompletableFuture<Long> produceFuture = perfProduce.produce(topicName);
