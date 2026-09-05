@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -68,26 +69,30 @@ import picocli.CommandLine.Option;
 @Command(name = "transaction", description = "Test pulsar transaction performance.")
 public class PerformanceTransaction extends PerformanceBaseArguments{
 
-    private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
-    private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
+    private final LongAdder totalNumEndTxnOpFailed = new LongAdder();
+    private final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
+    private final LongAdder numTxnOpSuccess = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
-    private static final LongAdder numMessagesAckFailed = new LongAdder();
-    private static final LongAdder numMessagesAckSuccess = new LongAdder();
-    private static final LongAdder numMessagesSendFailed = new LongAdder();
-    private static final LongAdder numMessagesSendSuccess = new LongAdder();
+    private final LongAdder numMessagesAckFailed = new LongAdder();
+    private final LongAdder numMessagesAckSuccess = new LongAdder();
+    private final LongAdder numMessagesSendFailed = new LongAdder();
+    private final LongAdder numMessagesSendSuccess = new LongAdder();
 
-    private static final Recorder messageAckRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static final Recorder messageAckCumulativeRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    // Send and ack latencies are recorded in microseconds. Anything slower than this means the
+    // benchmark is broken rather than slow, so values are clamped to keep HdrHistogram in range.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static final Recorder messageSendRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static final Recorder messageSendRCumulativeRecorder =
-            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private final Recorder messageAckRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder messageAckCumulativeRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+
+    private final Recorder messageSendRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder messageSendRCumulativeRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
             true)
@@ -309,8 +314,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     if (!this.isDisableTransaction) {
                                         consumer.acknowledgeAsync(message.getMessageId(), transaction)
                                                 .thenRun(() -> {
-                                                    long latencyMicros = NANOSECONDS.toMicros(
-                                                            System.nanoTime() - receiveTime);
+                                                    long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                            System.nanoTime() - receiveTime), MAX_LATENCY_MICROS);
                                                     messageAckRecorder.recordValue(latencyMicros);
                                                     messageAckCumulativeRecorder.recordValue(latencyMicros);
                                                     numMessagesAckSuccess.increment();
@@ -327,8 +332,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 });
                                     } else {
                                         consumer.acknowledgeAsync(message).thenRun(() -> {
-                                            long latencyMicros = NANOSECONDS.toMicros(
-                                                    System.nanoTime() - receiveTime);
+                                            long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                    System.nanoTime() - receiveTime), MAX_LATENCY_MICROS);
                                             messageAckRecorder.recordValue(latencyMicros);
                                             messageAckCumulativeRecorder.recordValue(latencyMicros);
                                             numMessagesAckSuccess.increment();
@@ -354,8 +359,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                 if (!this.isDisableTransaction) {
                                     producer.newMessage(transaction).value(payloadBytes)
                                             .sendAsync().thenRun(() -> {
-                                                long latencyMicros = NANOSECONDS.toMicros(
-                                                        System.nanoTime() - sendTime);
+                                                long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                        System.nanoTime() - sendTime), MAX_LATENCY_MICROS);
                                                 messageSendRecorder.recordValue(latencyMicros);
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
@@ -377,8 +382,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                 } else {
                                     producer.newMessage().value(payloadBytes)
                                             .sendAsync().thenRun(() -> {
-                                                long latencyMicros = NANOSECONDS.toMicros(
-                                                        System.nanoTime() - sendTime);
+                                                long latencyMicros = Math.min(NANOSECONDS.toMicros(
+                                                        System.nanoTime() - sendTime), MAX_LATENCY_MICROS);
                                                 messageSendRecorder.recordValue(latencyMicros);
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
@@ -534,7 +539,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     }
 
 
-    private static void printTxnAggregatedThroughput(long start) {
+    private void printTxnAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         long numTransactionEndFailed = totalNumEndTxnOpFailed.sum();
         long numTransactionEndSuccess = totalNumEndTxnOpSuccess.sum();
@@ -566,7 +571,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         long total = totalNumEndTxnOpFailed.sum() + totalNumEndTxnOpSuccess.sum();
         double rate = total / elapsed;
@@ -586,7 +591,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                 numMessageSendSuccess);
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportAckHistogram = messageAckCumulativeRecorder.getIntervalHistogram();
         Histogram reportSendHistogram = messageSendRCumulativeRecorder.getIntervalHistogram();
         log.info(

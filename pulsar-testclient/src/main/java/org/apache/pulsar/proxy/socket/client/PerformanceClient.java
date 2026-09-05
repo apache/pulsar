@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileInputStream;
@@ -44,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
+import org.HdrHistogram.Recorder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -68,10 +70,13 @@ import picocli.CommandLine.Parameters;
 @Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
 public class PerformanceClient extends CmdBase {
 
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
+
+    private final Recorder recorder =
+            new Recorder(SimpleTestProducerSocket.MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
     private static IMessageFormatter messageFormatter = null;
 
     @Option(names = { "-cf", "--conf-file" }, description = "Configuration file")
@@ -261,7 +266,7 @@ public class PerformanceClient extends CmdBase {
                 }
             }
 
-            SimpleTestProducerSocket produceSocket = new SimpleTestProducerSocket();
+            SimpleTestProducerSocket produceSocket = new SimpleTestProducerSocket(recorder);
 
             try {
                 produceClient.start();
@@ -369,7 +374,7 @@ public class PerformanceClient extends CmdBase {
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
-            reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram(reportHistogram);
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
                     "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms "
@@ -440,7 +445,7 @@ public class PerformanceClient extends CmdBase {
 
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
@@ -451,8 +456,8 @@ public class PerformanceClient extends CmdBase {
                 TOTALFORMAT.format(throughput));
     }
 
-    private static void printAggregatedStats() {
-        Histogram reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram();
+    private void printAggregatedStats() {
+        Histogram reportHistogram = recorder.getIntervalHistogram();
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
