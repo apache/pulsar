@@ -38,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -301,9 +300,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         lastMetadataSessionEvent = e;
     }
 
+    @VisibleForTesting
+    boolean isLeader() {
+        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
+    }
+
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
                 Thread.currentThread().getContextClassLoader());
+    }
+
+    @VisibleForTesting
+    void setLoadSheddingStrategy(LoadSheddingStrategy loadSheddingStrategy) {
+        this.loadSheddingStrategy = loadSheddingStrategy;
+    }
+
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
     }
 
     /**
@@ -635,6 +649,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public synchronized void doLoadShedding() {
+        if (!isLeader()) {
+            log.debug().log("Skipping load shedding because this broker is not the leader");
+            return;
+        }
         if (!LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
             return;
         }
@@ -651,23 +669,27 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
-        bundlesToUnload.asMap().forEach((broker, bundles) -> {
-            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
-            bundles.forEach(bundle -> {
+        for (Map.Entry<String, Collection<String>> entry : bundlesToUnload.asMap().entrySet()) {
+            String broker = entry.getKey();
+            boolean unloadBundleForBroker = false;
+            for (String bundle : entry.getValue()) {
+                if (!isLeader()) {
+                    return;
+                }
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
                 if (sheddingExcludedNamespaces.contains(namespaceName)) {
                     log.debug().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("namespace", namespaceName)
                             .log("Skipping load shedding for namespace");
-                    return;
+                    continue;
                 }
                 if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
-                    return;
+                    continue;
                 }
 
                 if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                    return;
+                    continue;
                 }
                 NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
                 Optional<String> destBroker = this.selectBroker(bundleToUnload);
@@ -675,35 +697,43 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("bundle", bundle).attr("broker", broker)
                             .log("No broker available to unload bundle from broker");
-                    return;
+                    continue;
                 }
                 if (destBroker.get().equals(broker)) {
                     log.warn().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("broker", destBroker.get()).attr("bundle", bundle)
                             .log("The destination broker is the same as the current owner broker for bundle");
-                    return;
+                    continue;
                 }
 
-                log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                        .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
-                        .log("Unloading bundle from source broker to dest broker");
                 try {
-                    pulsar.getAdminClient().namespaces()
-                            .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
+                    if (!isLeader()) {
+                        return;
+                    }
+                    log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                            .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
+                            .log("Unloading bundle from source broker to dest broker");
+                    unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                     loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
                     unloadBundleCount++;
-                    unloadBundleForBroker.set(true);
+                    unloadBundleForBroker = true;
                 } catch (PulsarServerException | PulsarAdminException e) {
                     log.warn().attr("bundle", bundle).attr("broker", broker).exception(e)
                             .log("Error when trying to perform load shedding on for broker");
                 }
-            });
-            if (unloadBundleForBroker.get()) {
+            }
+            if (unloadBundleForBroker) {
                 unloadBrokerCount++;
             }
-        });
+        }
 
         updateBundleUnloadingMetrics();
+    }
+
+    @VisibleForTesting
+    void unloadNamespaceBundle(String namespaceName, String bundleRange, String destinationBroker)
+            throws PulsarServerException, PulsarAdminException {
+        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange, destinationBroker);
     }
 
     /**
@@ -1204,20 +1234,34 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
+        if (!isLeader()) {
+            log.debug().log("Skipping bundle data write because this broker is not the leader");
+            return;
+        }
         updateBundleData();
+        if (!isLeader()) {
+            return;
+        }
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // use synchronized to protect bundleArr.
         synchronized (bundleArr) {
             int updateBundleCount = selectTopKBundle();
-            bundleArr.stream().limit(updateBundleCount).forEach(entry -> futures.add(
-                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
-                            entry.getKey(), (BundleData) entry.getValue())));
+            for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
+                if (!isLeader()) {
+                    break;
+                }
+                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
+                        entry.getKey(), (BundleData) entry.getValue()));
+            }
         }
 
         // Write the time average broker data to metadata store.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+            if (!isLeader()) {
+                break;
+            }
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
             futures.add(pulsarResources.getLoadBalanceResources()
