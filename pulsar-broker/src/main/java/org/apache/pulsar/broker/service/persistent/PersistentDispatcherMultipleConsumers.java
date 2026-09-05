@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -258,9 +259,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits");
                 if (notifyAddedToReplay.booleanValue()) {
@@ -300,27 +304,45 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        Runnable flowTask = () -> internalConsumerFlow(consumer, additionalNumberOfMessages);
+        try {
+            dispatchMessagesThread.execute(flowTask);
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow. Never wait for the dispatcher
+            // monitor on the connection EventLoop, including while the broker is shutting down.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", dispatchMessagesThread.isShutdown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
     }
 
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+    private void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        boolean connected;
+        int updatedTotalAvailablePermits = 0;
+        synchronized (this) {
+            consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+            connected = containsConsumerInstance(consumer);
+            if (connected) {
+                totalAvailablePermits += additionalNumberOfMessages;
+                updatedTotalAvailablePermits = totalAvailablePermits;
+            }
+        }
+
+        if (!connected) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
             return;
         }
 
-        totalAvailablePermits += additionalNumberOfMessages;
-
         log.debug()
                 .attr("consumer", consumer)
-                .attr("totalAvailablePermits", totalAvailablePermits)
+                .attr("totalAvailablePermits", updatedTotalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("Trigger new read after receiving flow control message");
-        readMoreEntriesAsync();
+        readMoreEntries();
     }
 
     /**
