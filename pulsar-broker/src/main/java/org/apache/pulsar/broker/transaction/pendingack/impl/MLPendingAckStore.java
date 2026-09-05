@@ -434,23 +434,54 @@ public class MLPendingAckStore implements PendingAckStore {
                         entry.release();
                         clearUselessLogData();
                     } else {
+                        // Covers a read that was issued but whose callback never arrives: no failure is
+                        // ever delivered, so readEntriesFailed cannot notice the close. A cursor closed
+                        // between two reads takes a different path -- that read fails synchronously in
+                        // ManagedCursorImpl#asyncReadEntriesWithSkip, which clears isReadable and ends
+                        // the loop through the existing read failure handling.
+                        if (cursor.isClosed()) {
+                            stopReplay();
+                            pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                                    .CursorAlreadyClosedException("MLPendingAckStore cursor was closed "
+                                    + "while replaying."));
+                            log.warn("MLPendingAckStore cursor was closed while replaying, close replay thread");
+                            return;
+                        }
                         try {
                             Thread.sleep(1);
                         } catch (InterruptedException e) {
-                            if (Thread.interrupted()) {
-                                log.error()
-                                        .exception(e)
-                                        .log("Transaction pending replay thread interrupt!");
-                            }
+                            // Restore the interrupt flag and stop. The replay is incomplete, so it must not
+                            // be reported as successful: replayFailed() lets PendingAckHandleImpl decide
+                            // whether to retry instead of leaving the handle Ready with partial state.
+                            Thread.currentThread().interrupt();
+                            stopReplay();
+                            pendingAckReplyCallBack.replayFailed(e);
+                            log.warn()
+                                    .exception(e)
+                                    .log("Transaction pending ack replay thread was interrupted");
+                            return;
                         }
                     }
                 }
             } catch (Exception e) {
+                stopReplay();
                 pendingAckReplyCallBack.replayFailed(e);
                 log.error().exception(e).log("Pending ack recover fail");
                 return;
             }
+            stopReplay();
             pendingAckReplyCallBack.replayComplete();
+        }
+
+        /**
+         * Ends the replay. Entries that were read but never processed are released, and any read that is
+         * still in flight will release its entries itself instead of queueing them, so nothing is left
+         * holding a buffer once the replay thread is gone. Called on every exit from {@link #run()}.
+         */
+        private void stopReplay() {
+            for (Entry entry : fillEntryQueueCallback.stopAndDrain()) {
+                entry.release();
+            }
         }
     }
 
@@ -478,6 +509,13 @@ public class MLPendingAckStore implements PendingAckStore {
         private volatile boolean isReadable = true;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
         private static final int NUMBER_OF_PER_READ_ENTRY = 100;
+        /**
+         * Guards {@link #stopped} against {@link #readEntriesComplete}. A read can still be in flight when
+         * the replay ends, and its completion runs on a managed ledger thread, so handing ownership of the
+         * entries over has to be atomic with respect to enqueuing them.
+         */
+        private final Object stopLock = new Object();
+        private boolean stopped;
 
         boolean fillQueue() {
             if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
@@ -485,6 +523,25 @@ public class MLPendingAckStore implements PendingAckStore {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(NUMBER_OF_PER_READ_ENTRY, this);
+                } else if (entryQueue.size() == 0) {
+                    // Nothing left to read and everything read so far has been processed: the replay is
+                    // done. The loop condition in PendingAckReplay cannot detect this on its own because
+                    // it compares lastConfirmedEntry -- a snapshot taken when this store was created --
+                    // against currentLoadPosition, which starts at the cursor's mark-delete position,
+                    // while whether anything can still be read is decided by the cursor's read position.
+                    // Those two can disagree permanently, e.g. when the ledger holding the mark-delete
+                    // position was trimmed and the cursor was recovered onto a later ledger. Entries
+                    // below the mark-delete position have already been applied, so completing here is
+                    // correct. TopicTransactionBuffer's equivalent loop was fixed the same way in
+                    // https://github.com/apache/pulsar/pull/13739
+                    log.debug()
+                            .attr("lastConfirmedEntry", lastConfirmedEntry)
+                            .attr("currentLoadPosition", currentLoadPosition)
+                            .attr("markDeletePosition", cursor.getMarkDeletedPosition())
+                            .attr("readPosition", cursor.getReadPosition())
+                            .log("Pending ack replay stopped before reaching the last confirmed entry "
+                                    + "because the cursor has nothing left to read");
+                    isReadable = false;
                 }
             }
             return isReadable;
@@ -492,17 +549,47 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesComplete(List<Entry> entries, Object ctx) {
-            entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
-                private int i = 0;
-                @Override
-                public Entry get() {
-                    Entry entry = entries.get(i);
-                    i++;
-                    return entry;
+            List<Entry> entriesToRelease = null;
+            synchronized (stopLock) {
+                if (stopped) {
+                    // The replay already finished, so nothing will ever consume these.
+                    entriesToRelease = entries;
+                } else {
+                    int filled = entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
+                        private int i = 0;
+                        @Override
+                        public Entry get() {
+                            Entry entry = entries.get(i);
+                            i++;
+                            return entry;
+                        }
+                    }, entries.size());
+                    if (filled < entries.size()) {
+                        entriesToRelease = entries.subList(filled, entries.size());
+                    }
                 }
-            }, entries.size());
-
+            }
+            // Released outside the lock: releasing an entry can run a deallocation callback.
+            if (entriesToRelease != null) {
+                entriesToRelease.forEach(Entry::release);
+            }
             outstandingReadsRequests.decrementAndGet();
+        }
+
+        /**
+         * Stops accepting entries and returns everything still queued, so that the replay thread can
+         * release them. Must only be called by the replay thread, which is the queue's single consumer.
+         */
+        List<Entry> stopAndDrain() {
+            List<Entry> drained = new ArrayList<>();
+            synchronized (stopLock) {
+                stopped = true;
+                Entry entry;
+                while ((entry = entryQueue.poll()) != null) {
+                    drained.add(entry);
+                }
+            }
+            return drained;
         }
 
         @Override
