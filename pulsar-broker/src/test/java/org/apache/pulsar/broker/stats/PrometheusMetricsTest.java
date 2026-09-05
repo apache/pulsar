@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -1248,7 +1249,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         metrics.entries().forEach(e -> {
             System.out.println(e.getKey() + ": " + e.getValue());
         });
-
         // Sort by topic, then by consumer_id presence (subscription-level first, then consumer-level)
         Comparator<Metric> byTopicAndConsumer = Comparator
                 .comparing((Metric m) -> m.tags.getOrDefault("topic", ""))
@@ -1261,20 +1261,24 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
+        assertNull(cm.get(0).tags.get("consumer_address"));
 
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
         assertEquals(cm.get(1).tags.get("consumer_id"), "0");
+        assertNotNull(cm.get(1).tags.get("consumer_address"));
 
         assertEquals(cm.get(2).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(2).tags.get("subscription"), "test");
+        assertNull(cm.get(2).tags.get("consumer_address"));
 
         assertEquals(cm.get(3).tags.get("namespace"), "my-property/my-ns");
         assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/my-ns/my-topic2");
         assertEquals(cm.get(3).tags.get("subscription"), "test");
         assertEquals(cm.get(3).tags.get("consumer_id"), "1");
+        assertNotNull(cm.get(3).tags.get("consumer_address"));
 
         cm = new ArrayList<>(metrics.get("pulsar_out_messages_total"));
         assertEquals(cm.size(), 4);
