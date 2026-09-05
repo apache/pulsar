@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -67,13 +68,18 @@ import picocli.CommandLine.Option;
 @CustomLog
 public class ManagedLedgerWriter extends CmdBase{
 
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    // Latencies are recorded in microseconds. A managed-ledger write slower than this means the
+    // benchmark is broken rather than slow, so values are clamped instead of widening the range.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
+    private final Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
 
     @Option(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
@@ -251,7 +257,8 @@ public class ManagedLedgerWriter extends CmdBase{
                             totalMessagesSent.increment();
                             totalBytesSent.add(payloadData.length);
 
-                            long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
+                            long latencyMicros = Math.min(
+                                    NANOSECONDS.toMicros(System.nanoTime() - sendTime), MAX_LATENCY_MICROS);
                             recorder.recordValue(latencyMicros);
                             cumulativeRecorder.recordValue(latencyMicros);
 
@@ -399,7 +406,7 @@ public class ManagedLedgerWriter extends CmdBase{
         return map;
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
@@ -410,7 +417,7 @@ public class ManagedLedgerWriter extends CmdBase{
                 .log("Aggregated throughput stats --- records sent --- msg/s --- Mbit/s");
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info()
