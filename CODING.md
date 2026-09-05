@@ -82,8 +82,9 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   return firstAsync(arg).thenCompose(v -> secondAsync(v));
   ```
 - **Converting a synchronous-throwing method to a failed future is not mechanical** — some callers rely
-  on the throw happening *before* the async work starts, so evaluate each call site. Use a shared
-  `checkArgumentAsync` helper (in `FutureUtil`) to validate without duplicating try/catch.
+  on the throw happening *before* the async work starts, so evaluate each call site. Use shared
+  `FutureUtil` helpers, such as `supplySafely` for invoking a `Supplier<CompletableFuture<T>>`,
+  instead of duplicating try/catch or null-future handling.
 
 - **Limit concurrency and handle backpressure.** Firing many async operations at once can overwhelm the
   system. Options:
