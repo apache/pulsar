@@ -757,8 +757,15 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("There is currently no support windowing in python");
         }
 
-        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
-            throw new IllegalArgumentException("Message retries not yet supported in python");
+        // The Python runtime honours FunctionDetails.retryDetails, so message retries and a dead letter
+        // topic are no longer refused outright. Zero is still refused: it asks for no redelivery at all
+        // before the dead letter topic, and the Python client cannot express that -- ConsumerDeadLetterPolicy
+        // requires a maxRedeliverCount of at least 1. Accepting it would create a function whose dead letter
+        // topic never receives anything, which is the silently ineffective configuration this support was
+        // added to remove. A negative value leaves retries unset, as it does on the Java path.
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() == 0) {
+            throw new IllegalArgumentException("maxMessageRetries must be at least 1 in python; the Python "
+                    + "client cannot express a redelivery count of 0");
         }
     }
 

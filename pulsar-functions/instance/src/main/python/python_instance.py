@@ -140,90 +140,7 @@ class PythonInstance(object):
     self.state_context = self.setup_state()
 
     # Setup consumers and input deserializers
-    mode = pulsar._pulsar.ConsumerType.Shared
-    if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
-      mode = pulsar._pulsar.ConsumerType.Failover
-
-    if self.instance_config.function_details.retainOrdering or \
-      self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
-      mode = pulsar._pulsar.ConsumerType.Failover
-    elif self.instance_config.function_details.retainKeyOrdering:
-      mode = pulsar._pulsar.ConsumerType.KeyShared
-
-    nack_args = self.get_negative_ack_args()
-
-    position = pulsar._pulsar.InitialPosition.Latest
-    if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
-      position = pulsar._pulsar.InitialPosition.Earliest
-
-    subscription_name = self.instance_config.function_details.source.subscriptionName
-
-    if not (subscription_name and subscription_name.strip()):
-      subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
-                          str(self.instance_config.function_details.namespace) + "/" + \
-                          str(self.instance_config.function_details.name)
-
-    properties = util.get_properties(util.getFullyQualifiedFunctionName(
-                        self.instance_config.function_details.tenant,
-                        self.instance_config.function_details.namespace,
-                        self.instance_config.function_details.name),
-                        self.instance_config.instance_id)
-
-    for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
-      if not serde:
-        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
-      else:
-        serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
-      self.input_serdes[topic] = serde_kclass()
-      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
-
-      self.consumers[topic] = self.pulsar_client.subscribe(
-        str(topic), subscription_name,
-        consumer_type=mode,
-        message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
-        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
-        initial_position=position,
-        properties=properties,
-        **nack_args
-      )
-
-    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
-      if not consumer_conf.serdeClassName:
-        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
-      else:
-        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
-      self.input_serdes[topic] = serde_kclass()
-
-      self.input_schema[topic] = self.get_schema(consumer_conf.schemaType,
-                                                 self.instance_config.function_details.source.typeClassName,
-                                                 consumer_conf.schemaProperties)
-      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
-
-      crypto_key_reader = self.get_crypto_reader(consumer_conf.cryptoSpec)
-
-      consumer_args = {
-        "consumer_type": mode,
-        "schema": self.input_schema[topic],
-        "message_listener": partial(self.message_listener, self.input_serdes[topic], self.input_schema[topic]),
-        "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
-        "initial_position": position,
-        "properties": properties,
-        "crypto_key_reader": crypto_key_reader
-      }
-      consumer_args.update(nack_args)
-      if consumer_conf.HasField("receiverQueueSize"):
-        consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
-
-      if consumer_conf.isRegexPattern:
-        self.consumers[topic] = self.pulsar_client.subscribe(
-          re.compile(str(topic)), subscription_name,
-          **consumer_args
-        )
-      else:
-        self.consumers[topic] = self.pulsar_client.subscribe(
-          str(topic), subscription_name,
-          **consumer_args
-        )
+    self.setup_consumers()
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
@@ -582,6 +499,103 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+  def setup_consumers(self):
+    """Subscribe to every input topic and build the matching input deserializers.
+
+    Kept separate from run() so the consumer configuration can be exercised the same way
+    setup_producer() is: the two subscribe() call sites below - the topicsToSerDeClassName path
+    and the inputSpecs path, which also covers the regex variant - must stay in step with each
+    other, and only a test that reaches the client can show that they do.
+    """
+    mode = pulsar._pulsar.ConsumerType.Shared
+    if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
+      mode = pulsar._pulsar.ConsumerType.Failover
+
+    if self.instance_config.function_details.retainOrdering or \
+      self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
+      mode = pulsar._pulsar.ConsumerType.Failover
+    elif self.instance_config.function_details.retainKeyOrdering:
+      mode = pulsar._pulsar.ConsumerType.KeyShared
+
+    nack_args = self.get_negative_ack_args()
+
+    position = pulsar._pulsar.InitialPosition.Latest
+    if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
+      position = pulsar._pulsar.InitialPosition.Earliest
+
+    dead_letter_policy = self.get_dead_letter_policy()
+
+    subscription_name = self.instance_config.function_details.source.subscriptionName
+
+    if not (subscription_name and subscription_name.strip()):
+      subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
+                          str(self.instance_config.function_details.namespace) + "/" + \
+                          str(self.instance_config.function_details.name)
+
+    properties = util.get_properties(util.getFullyQualifiedFunctionName(
+                        self.instance_config.function_details.tenant,
+                        self.instance_config.function_details.namespace,
+                        self.instance_config.function_details.name),
+                        self.instance_config.instance_id)
+
+    for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
+      if not serde:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
+      self.input_serdes[topic] = serde_kclass()
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
+      self.consumers[topic] = self.pulsar_client.subscribe(
+        str(topic), subscription_name,
+        consumer_type=mode,
+        message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+        initial_position=position,
+        properties=properties,
+        dead_letter_policy=dead_letter_policy,
+        **nack_args
+      )
+
+    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
+      if not consumer_conf.serdeClassName:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
+      self.input_serdes[topic] = serde_kclass()
+
+      self.input_schema[topic] = self.get_schema(consumer_conf.schemaType,
+                                                 self.instance_config.function_details.source.typeClassName,
+                                                 consumer_conf.schemaProperties)
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
+      crypto_key_reader = self.get_crypto_reader(consumer_conf.cryptoSpec)
+
+      consumer_args = {
+        "consumer_type": mode,
+        "schema": self.input_schema[topic],
+        "message_listener": partial(self.message_listener, self.input_serdes[topic], self.input_schema[topic]),
+        "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
+        "initial_position": position,
+        "properties": properties,
+        "crypto_key_reader": crypto_key_reader,
+        "dead_letter_policy": dead_letter_policy
+      }
+      consumer_args.update(nack_args)
+      if consumer_conf.HasField("receiverQueueSize"):
+        consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
+
+      if consumer_conf.isRegexPattern:
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          re.compile(str(topic)), subscription_name,
+          **consumer_args
+        )
+      else:
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          str(topic), subscription_name,
+          **consumer_args
+        )
+
   def get_negative_ack_args(self):
     """Build the negative-ack redelivery delay argument for Client.subscribe().
 
@@ -601,6 +615,31 @@ class PythonInstance(object):
       return {}
 
     return {"negative_ack_redelivery_delay_ms": delay_ms}
+
+  def get_dead_letter_policy(self):
+    """Build the consumer dead letter policy from FunctionDetails.retryDetails.
+
+    Mirrors the Java runtime (JavaInstanceRunnable + PulsarSource): the policy is only considered
+    when retryDetails is present, and the deadLetterTopic is forwarded as configured. An unset one
+    reads as "" from the proto, and the client treats an empty topic as unset - it derives
+    "<topic>-<subscription>-DLQ" from the topic and subscription instead.
+
+    The configured value is passed through unchanged. Java forwards it the same way - PulsarSource
+    builds the policy for any maxMessageRetries >= 0 and ConsumerBuilderImpl.deadLetterPolicy then
+    rejects a redelivery count below 1 - so an unusable value fails the instance here too rather
+    than starting with retries quietly disabled. Whether a subscription type can act on the policy
+    is left to the client, as it is for Java.
+
+    Returns None when no policy should be attached.
+    """
+    if not self.instance_config.function_details.HasField("retryDetails"):
+      return None
+
+    retry_details = self.instance_config.function_details.retryDetails
+
+    return pulsar.ConsumerDeadLetterPolicy(
+      max_redeliver_count=retry_details.maxMessageRetries,
+      dead_letter_topic=retry_details.deadLetterTopic)
 
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
