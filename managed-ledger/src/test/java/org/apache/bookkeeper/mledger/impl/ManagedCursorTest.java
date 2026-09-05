@@ -5488,6 +5488,134 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i <= 100; i++) {
+            positions.add(ledger.addEntry(new byte[]{1}));
+        }
+        cursor.delete(Set.of(positions.get(1), positions.get(100)));
+
+        List<Entry> entries = new ArrayList<>();
+        for (int i = 40; i < 50; i++) {
+            Position position = positions.get(i);
+            Entry entry = mock(Entry.class);
+            when(entry.getPosition()).thenReturn(position);
+            when(entry.getLedgerId()).thenReturn(position.getLedgerId());
+            when(entry.getEntryId()).thenReturn(position.getEntryId());
+            entries.add(entry);
+        }
+
+        Range<Position> entriesRange = Range.closed(entries.get(0).getPosition(),
+                entries.get(entries.size() - 1).getPosition());
+        assertThat(entriesRange.isConnected(cursor.getIndividuallyDeletedMessagesSet().span())).isTrue();
+        for (Entry entry : entries) {
+            assertThat(cursor.getIndividuallyDeletedMessagesSet()
+                    .contains(entry.getLedgerId(), entry.getEntryId())).isFalse();
+        }
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(entries);
+
+        assertThat(filteredEntries).isSameAs(entries);
+        for (Entry entry : entries) {
+            verify(entry, never()).release();
+        }
+    }
+
+    @Test
+    public void testFilterReadEntriesFallsBackForCrossLedgerBatch() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesFallsBackForCrossLedgerBatch");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        // Production read paths currently return ordered batches from a single ledger, so this cross-ledger batch
+        // is not expected in normal operation. If one is ever passed in, the conservative fallback must inspect
+        // every entry, remove and release the acknowledged entry, and retain the unacknowledged entries.
+        Position firstPosition = PositionFactory.create(1, 0);
+        Position deletedPosition = PositionFactory.create(2, 0);
+        Position lastPosition = PositionFactory.create(2, 1);
+        cursor.lock.writeLock().lock();
+        try {
+            cursor.getIndividuallyDeletedMessagesSet().addOpenClosed(
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId() - 1,
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId());
+        } finally {
+            cursor.lock.writeLock().unlock();
+        }
+
+        Entry firstEntry = mock(Entry.class);
+        when(firstEntry.getPosition()).thenReturn(firstPosition);
+        when(firstEntry.getLedgerId()).thenReturn(firstPosition.getLedgerId());
+        when(firstEntry.getEntryId()).thenReturn(firstPosition.getEntryId());
+        Entry deletedEntry = mock(Entry.class);
+        when(deletedEntry.getPosition()).thenReturn(deletedPosition);
+        when(deletedEntry.getLedgerId()).thenReturn(deletedPosition.getLedgerId());
+        when(deletedEntry.getEntryId()).thenReturn(deletedPosition.getEntryId());
+        Entry lastEntry = mock(Entry.class);
+        when(lastEntry.getPosition()).thenReturn(lastPosition);
+        when(lastEntry.getLedgerId()).thenReturn(lastPosition.getLedgerId());
+        when(lastEntry.getEntryId()).thenReturn(lastPosition.getEntryId());
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(List.of(firstEntry, deletedEntry, lastEntry));
+
+        assertThat(filteredEntries).containsExactly(firstEntry, lastEntry);
+        verify(firstEntry, never()).release();
+        verify(deletedEntry).release();
+        verify(lastEntry, never()).release();
+    }
+
+    @Test
+    public void testFilterReadEntriesFallsBackForDescendingBatch() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesFallsBackForDescendingBatch");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        // Production read paths currently return ordered batches, so this descending batch is not expected in
+        // normal operation. If one is ever passed in, the conservative fallback must inspect every entry, remove
+        // and release the acknowledged entry, and retain the unacknowledged entries.
+        Position firstPosition = PositionFactory.create(1, 10);
+        Position deletedPosition = PositionFactory.create(1, 5);
+        Position lastPosition = PositionFactory.create(1, 1);
+        cursor.lock.writeLock().lock();
+        try {
+            cursor.getIndividuallyDeletedMessagesSet().addOpenClosed(
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId() - 1,
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId());
+        } finally {
+            cursor.lock.writeLock().unlock();
+        }
+
+        Entry firstEntry = mock(Entry.class);
+        when(firstEntry.getPosition()).thenReturn(firstPosition);
+        when(firstEntry.getLedgerId()).thenReturn(firstPosition.getLedgerId());
+        when(firstEntry.getEntryId()).thenReturn(firstPosition.getEntryId());
+        Entry deletedEntry = mock(Entry.class);
+        when(deletedEntry.getPosition()).thenReturn(deletedPosition);
+        when(deletedEntry.getLedgerId()).thenReturn(deletedPosition.getLedgerId());
+        when(deletedEntry.getEntryId()).thenReturn(deletedPosition.getEntryId());
+        Entry lastEntry = mock(Entry.class);
+        when(lastEntry.getPosition()).thenReturn(lastPosition);
+        when(lastEntry.getLedgerId()).thenReturn(lastPosition.getLedgerId());
+        when(lastEntry.getEntryId()).thenReturn(lastPosition.getEntryId());
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(List.of(firstEntry, deletedEntry, lastEntry));
+
+        assertThat(filteredEntries).containsExactly(firstEntry, lastEntry);
+        verify(firstEntry, never()).release();
+        verify(deletedEntry).release();
+        verify(lastEntry, never()).release();
+    }
+
+    @Test
     public void testReadEntriesWithSkipDeletedEntries() throws Exception {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries");
