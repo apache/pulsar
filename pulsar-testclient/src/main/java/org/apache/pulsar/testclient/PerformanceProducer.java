@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Range;
@@ -80,22 +81,28 @@ import picocli.CommandLine.TypeConversionException;
  */
 @Command(name = "produce", description = "Test pulsar producer performance.")
 public class PerformanceProducer extends PerformanceTopicListArguments{
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder messagesFailed = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder messagesFailed = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
 
-    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
 
-    private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    // Publish latencies are recorded in microseconds. A send slower than this means the benchmark is
+    // broken rather than slow, so values are clamped to keep HdrHistogram in range.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
+    private final Recorder recorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+
+    private final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
 
@@ -650,17 +657,13 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
                         long now = System.nanoTime();
                         if (now > warmupEndTime) {
-                            long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
+                            long latencyMicros =
+                                    Math.min(NANOSECONDS.toMicros(now - sendTime), MAX_LATENCY_MICROS);
                             recorder.recordValue(latencyMicros);
                             cumulativeRecorder.recordValue(latencyMicros);
                         }
                     }).exceptionally(ex -> {
-                        // Ignore the exception of recorder since a very large latencyMicros will lead
-                        // ArrayIndexOutOfBoundsException in AbstractHistogram
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        if (cause instanceof ArrayIndexOutOfBoundsException) {
-                            return null;
-                        }
                         // Ignore the exception when the producer is closed
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
                             return null;
@@ -785,7 +788,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             TOTALFORMAT.format(throughput));
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(

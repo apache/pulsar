@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -49,16 +50,19 @@ import picocli.CommandLine.Option;
 
 @Command(name = "read", description = "Test pulsar reader performance.")
 public class PerformanceReader extends PerformanceTopicListArguments {
-    private static final LongAdder messagesReceived = new LongAdder();
-    private static final LongAdder bytesReceived = new LongAdder();
+    private final LongAdder messagesReceived = new LongAdder();
+    private final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
-    private static final LongAdder totalMessagesReceived = new LongAdder();
-    private static final LongAdder totalBytesReceived = new LongAdder();
+    private final LongAdder totalMessagesReceived = new LongAdder();
+    private final LongAdder totalBytesReceived = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final long MAX_LATENCY_MILLIS = TimeUnit.DAYS.toMillis(10);
+
+    private final Recorder recorder = new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MILLIS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
     @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
     public double rate = 0;
@@ -126,8 +130,10 @@ public class PerformanceReader extends PerformanceTopicListArguments {
 
             long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
             if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
+                // Reading a backlog older than the histogram range must not blow up the read loop.
+                long clampedLatencyMillis = Math.min(latencyMillis, MAX_LATENCY_MILLIS);
+                recorder.recordValue(clampedLatencyMillis);
+                cumulativeRecorder.recordValue(clampedLatencyMillis);
             }
         };
 
@@ -216,7 +222,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
         PerfClientUtils.closeClient(pulsarClient);
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
@@ -227,7 +233,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
                 dec.format(throughput));
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
