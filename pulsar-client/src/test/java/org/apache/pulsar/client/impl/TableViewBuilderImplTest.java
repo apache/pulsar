@@ -22,12 +22,14 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
@@ -146,5 +148,26 @@ public class TableViewBuilderImplTest {
     @SuppressWarnings("unchecked")
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsEmptyMap() throws PulsarClientException {
         tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader(new HashMap<String, String>()).create();
+    }
+
+    @Test
+    public void testCreateMapped() throws PulsarClientException {
+        TableView<String> tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
+            .createMapped(Message::getKey);
+
+        assertNotNull(tableView);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testCreateMappedWhenMapperIsNull() throws PulsarClientException {
+        tableViewBuilderImpl.topic(TOPIC_NAME).createMapped(null);
+    }
+
+    @Test
+    public void testCreateMappedAsyncWhenMapperIsNull() {
+        CompletableFuture<TableView<Object>> future =
+            tableViewBuilderImpl.topic(TOPIC_NAME).createMappedAsync(null);
+
+        assertTrue(future.isCompletedExceptionally());
     }
 }
