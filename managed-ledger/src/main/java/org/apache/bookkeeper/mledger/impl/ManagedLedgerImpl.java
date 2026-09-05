@@ -1535,7 +1535,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         log.info("Terminating managed ledger");
+        State previousState = state;
         state = State.Terminated;
+        clearPendingAddEntriesAfterTerminate(previousState,
+                new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
 
         LedgerHandle lh = currentLedger;
         log.debug().attr("ledgerId", lh.getId()).log("Closing current writing ledger");
@@ -1718,7 +1721,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx) {
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        log.debug().attr("rc", rc).attr("ledgerId", lh != null ? lh.getId() : -1).log("createComplete");
+
+        // The create callback carries a future used by the timeout checker. Complete it before any terminal-state
+        // return; otherwise a late callback after terminate/close can leave the timeout task and create-op metric
+        // unbalanced. A true return means this callback is stale because the future was already completed, and the
+        // helper has already deleted the late-created ledger if needed.
+        if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+            return;
+        }
+
+        mbean.endDataLedgerCreateOp();
+        State state = STATE_UPDATER.get(this);
+        if (state == State.Terminated) {
+            if (lh != null) {
+                log.warn().attr("rc", rc)
+                        .attr("ledgerId", lh != null ? lh.getId() : -1)
+                        .attr("state", state)
+                        .log("Ledger create completed after the managed ledger is terminated,"
+                                + " so close and delete this ledger handle");
+                closeAndDeleteCreatedLedger(lh);
+            }
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        } else if (state == State.Closed) {
             if (lh != null) {
                 log.warn().attr("rc", rc)
                         .attr("ledgerId", lh != null ? lh.getId() : -1)
@@ -1728,14 +1754,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             return;
         }
-
-        log.debug().attr("rc", rc).attr("ledgerId", lh != null ? lh.getId() : -1).log("createComplete");
-
-        if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
-            return;
-        }
-
-        mbean.endDataLedgerCreateOp();
         if (rc != BKException.Code.OK) {
             log.error().attr("rc", rc).attr("message", BKException.getMessage(rc)).log("Error creating ledger");
             ManagedLedgerException status = createManagedLedgerException(rc);
@@ -1761,8 +1779,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     synchronized (ManagedLedgerImpl.this) {
                         try {
                             State state = STATE_UPDATER.get(ManagedLedgerImpl.this);
-                            if (state == State.Closed || state.isFenced()) {
-                                log.debug().log("skip ledger update after create complete ledger is closed or fenced");
+                            if (state == State.Closed || state == State.Terminated || state.isFenced()) {
+                                log.debug().attr("state", state)
+                                        .log("skip ledger update after create complete ledger is not writable");
+                                // TODO: if this path is hit after the new ledger was already written into metadata,
+                                // delete the unused ledger together with removing it from the metadata.
                                 lh.closeAsync().exceptionally(e -> {
                                     if (e != null) {
                                         log.error()
@@ -1772,6 +1793,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     }
                                     return null;
                                 });
+                                if (state == State.Terminated) {
+                                    clearPendingAddEntries(new ManagedLedgerTerminatedException(
+                                            "Managed ledger was already terminated"));
+                                }
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
                                 ledgers.put(lh.getId(), newLedger);
@@ -1849,6 +1874,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
 
+    private void closeAndDeleteCreatedLedger(LedgerHandle lh) {
+        long ledgerId = lh.getId();
+        lh.closeAsync().whenComplete((ignore, closeException) -> {
+            if (closeException != null) {
+                log.warn().attr("ledgerId", ledgerId)
+                        .attr("error", closeException.getMessage())
+                        .log("Failed to close late-created ledger before deletion");
+            }
+            asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES).exceptionally(deleteException -> {
+                log.warn().attr("ledgerId", ledgerId)
+                        .attr("error", deleteException.getMessage())
+                        .log("Failed to delete late-created ledger");
+                return null;
+            });
+        });
+    }
+
     @VisibleForTesting
     void createNewOpAddEntryForNewLedger() {
         // Avoid use same OpAddEntry between different ledger handle
@@ -1873,6 +1915,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected synchronized void updateLedgersIdsComplete(@Nullable LedgerHandle originalCurrentLedger) {
+        State state = STATE_UPDATER.get(this);
+        if (state == State.Terminated) {
+            log.debug().attr("state", state)
+                    .attr("pendingAddEntries", pendingAddEntries.size())
+                    .log("Skip completing ledger switch because managed ledger is terminated");
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        }
         STATE_UPDATER.set(this, State.LedgerOpened);
         // Delete original "currentLedger" if it has been removed from "ledgers".
         if (originalCurrentLedger != null && !ledgers.containsKey(originalCurrentLedger.getId())){
@@ -2014,7 +2064,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     boolean isNeededCreateNewLedgerAfterCloseLedger() {
         final State state = STATE_UPDATER.get(this);
-        if (state != State.CreatingLedger && state != State.LedgerOpened) {
+        if (state != State.CreatingLedger && state != State.LedgerOpened && state != State.Terminated) {
             return true;
         }
         return false;
@@ -2095,6 +2145,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry op;
         while ((op = pendingAddEntries.poll()) != null) {
             op.failed(e);
+        }
+    }
+
+    synchronized boolean failAddIfTerminated(OpAddEntry op) {
+        if (STATE_UPDATER.get(this) != State.Terminated) {
+            return false;
+        }
+
+        // This is only for a failed add callback that arrives after terminate has taken ownership of the ledger.
+        // terminate closes the current ledger at the current BK LAC; any outstanding add drained by
+        // LedgerHandle.close() is outside the terminated position. If this callback falls through to the normal
+        // write-failure path, ledgerClosed() will return in Terminated state without completing this add, leaving the
+        // client callback hanging. Fail it explicitly instead.
+        pendingAddEntries.remove(op);
+        op.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+        return true;
+    }
+
+    synchronized void clearPendingAddEntriesAfterTerminate(State previousState, ManagedLedgerException e) {
+        // In these states, there is no current-ledger write path left. Every pending op is waiting for a future ledger
+        // or a replay onto that future ledger, which terminate must not create.
+        if (previousState == State.CreatingLedger || previousState == State.ClosedLedger
+                || previousState == State.WriteFailed) {
+            clearPendingAddEntries(e);
+            return;
+        }
+
+        // In LedgerOpened/ClosingLedger, this queue can also contain writes already sent to the current ledger.
+        // Those writes are decided by the BK callback path: they either complete before close advances LAC, or
+        // LedgerHandle.close() drains them and OpAddEntry.handleAddFailure completes them as terminated. Only fail
+        // entries that have not been initiated yet, since they are only waiting for a future ledger.
+        for (OpAddEntry op : pendingAddEntries) {
+            if (op.getState() == OpAddEntry.State.OPEN && pendingAddEntries.remove(op)) {
+                op.failed(e);
+            }
         }
     }
 
@@ -4744,8 +4829,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * check if ledger-op task is already completed by timeout-task. If completed then delete the created ledger
-     * @return
+     * Complete the ledger-create future used by the timeout checker.
+     *
+     * @return true when this callback is stale because another callback or the timeout task already completed the
+     *         future. In that case the caller must stop processing this callback. If a ledger was created by the stale
+     *         callback, this method schedules it for deletion.
      */
     @SuppressWarnings("unchecked")
     protected boolean checkAndCompleteLedgerOpTask(int rc, LedgerHandle lh, Object ctx) {
