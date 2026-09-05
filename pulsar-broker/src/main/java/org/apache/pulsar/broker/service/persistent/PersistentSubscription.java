@@ -1002,67 +1002,89 @@ public class PersistentSubscription extends AbstractSubscription {
             log.info()
                     .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
 
-            CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
-            if (topic.getTopicCompactionService() == null) {
-                forceReset.complete(false);
-            } else {
-                topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
-                    Position resetTo = finalPosition;
-                    if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
-                            lastCompactedPosition.getEntryId()) <= 0) {
-                        forceReset.complete(true);
-                    } else {
-                        forceReset.complete(false);
-                    }
-                }).exceptionally(ex -> {
-                    forceReset.completeExceptionally(ex);
-                    return null;
-                });
+            CompletableFuture<Void> clearDelayedMessagesFuture;
+            try {
+                clearDelayedMessagesFuture = dispatcher != null
+                        ? dispatcher.clearDelayedMessages()
+                        : CompletableFuture.completedFuture(null);
+            } catch (Throwable t) {
+                clearDelayedMessagesFuture = FutureUtil.failedFuture(t);
             }
 
-            forceReset.thenAccept(forceResetValue -> {
-                cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
-                    @Override
-                    public void resetComplete(Object ctx) {
-                        log.debug()
-                                .attr("finalPosition", finalPosition)
-                                .log("Successfully reset subscription to position");
-                        if (dispatcher != null) {
-                            dispatcher.cursorIsReset();
-                            dispatcher.afterAckMessages(null, finalPosition);
-                        }
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        inProgressResetCursorFuture = null;
-                        future.complete(null);
-                    }
+            clearDelayedMessagesFuture.whenComplete((__, clearEx) -> {
+                if (clearEx != null) {
+                    log.error()
+                            .exception(clearEx)
+                            .log("Error while clearing delayed messages during cursor reset");
+                    IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                    inProgressResetCursorFuture = null;
+                    future.completeExceptionally(new BrokerServiceException(clearEx));
+                    return;
+                }
 
-                    @Override
-                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error()
-                                .attr("finalPosition", finalPosition)
-                                .exception(exception)
-                                .log("Failed to reset subscription to position");
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        inProgressResetCursorFuture = null;
-                        // todo - retry on InvalidCursorPositionException
-                        // or should we just ask user to retry one more time?
-                        if (exception instanceof InvalidCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                        } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
+                if (topic.getTopicCompactionService() == null) {
+                    forceReset.complete(false);
+                } else {
+                    topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
+                        Position resetTo = finalPosition;
+                        if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
+                                lastCompactedPosition.getEntryId()) <= 0) {
+                            forceReset.complete(true);
                         } else {
-                            future.completeExceptionally(new BrokerServiceException(exception));
+                            forceReset.complete(false);
                         }
-                    }
+                    }).exceptionally(ex -> {
+                        forceReset.completeExceptionally(ex);
+                        return null;
+                    });
+                }
+
+                forceReset.thenAccept(forceResetValue -> {
+                    cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
+                        @Override
+                        public void resetComplete(Object ctx) {
+                            log.debug()
+                                    .attr("finalPosition", finalPosition)
+                                    .log("Successfully reset subscription to position");
+                            if (dispatcher != null) {
+                                dispatcher.cursorIsReset();
+                                dispatcher.afterAckMessages(null, finalPosition);
+                            }
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                            inProgressResetCursorFuture = null;
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error()
+                                    .attr("finalPosition", finalPosition)
+                                    .exception(exception)
+                                    .log("Failed to reset subscription to position");
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                            inProgressResetCursorFuture = null;
+                            // todo - retry on InvalidCursorPositionException
+                            // or should we just ask user to retry one more time?
+                            if (exception instanceof InvalidCursorPositionException) {
+                                future.completeExceptionally(
+                                        new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                            } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                                future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                            } else {
+                                future.completeExceptionally(new BrokerServiceException(exception));
+                            }
+                        }
+                    });
+                }).exceptionally((e) -> {
+                    log.error()
+                            .exception(e)
+                            .log("Error while resetting cursor");
+                    IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                    inProgressResetCursorFuture = null;
+                    future.completeExceptionally(new BrokerServiceException(e));
+                    return null;
                 });
-            }).exceptionally((e) -> {
-                log.error()
-                        .exception(e)
-                        .log("Error while resetting cursor");
-                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                inProgressResetCursorFuture = null;
-                future.completeExceptionally(new BrokerServiceException(e));
-                return null;
             });
         });
         return future;
