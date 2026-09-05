@@ -25,6 +25,7 @@ import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +40,8 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerReplayTask;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -102,6 +103,9 @@ public class MessageDeduplication {
         }
     }
 
+    @VisibleForTesting
+    record ReplSourcePosition(long ledgerId, long entryId) {
+    }
 
     private volatile Status status;
     private CompletableFuture<Void> statusChangeFuture = CompletableFuture.completedFuture(null);
@@ -115,6 +119,12 @@ public class MessageDeduplication {
     // after the messages are persisted
     @VisibleForTesting
     final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
+
+    @VisibleForTesting
+    final Map<String, ReplSourcePosition> highestReplPositionPushed = new ConcurrentHashMap<>();
+
+    @VisibleForTesting
+    final Map<String, ReplSourcePosition> highestReplPositionPersisted = new ConcurrentHashMap<>();
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -133,6 +143,8 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
+    private static final String REPL_LEDGER_ID_SUFFIX = "_LID";
+    private static final String REPL_ENTRY_ID_SUFFIX = "_EID";
 
     private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
 
@@ -204,6 +216,8 @@ public class MessageDeduplication {
                                 managedCursor = null;
                                 highestSequencedPushed.clear();
                                 highestSequencedPersisted.clear();
+                                highestReplPositionPushed.clear();
+                                highestReplPositionPersisted.clear();
                                 future.complete(null);
                                 log.info("Disabled deduplication");
                             }
@@ -216,6 +230,8 @@ public class MessageDeduplication {
                                     managedCursor = null;
                                     highestSequencedPushed.clear();
                                     highestSequencedPersisted.clear();
+                                    highestReplPositionPushed.clear();
+                                    highestReplPositionPersisted.clear();
                                     future.complete(null);
                                 } else {
                                     log.warn()
@@ -262,12 +278,41 @@ public class MessageDeduplication {
         snapshotCounter = 0;
         highestSequencedPushed.clear();
         highestSequencedPersisted.clear();
+        highestReplPositionPushed.clear();
+        highestReplPositionPersisted.clear();
         inactiveProducers.clear();
         // Load the sequence ids from the snapshot in the cursor properties
+        Map<String, Long> replLedgerIds = new HashMap<>();
+        Map<String, Long> replEntryIds = new HashMap<>();
         managedCursor.getProperties().forEach((k, v) -> {
-            producerRemoved(k);
+            // Geo-replication V2 keys are source-position watermarks, not producer lifecycle state.
+            if (isReplSequenceKey(k)) {
+                String baseProducerName = getBaseProducerName(k);
+                if (k.endsWith(REPL_LEDGER_ID_SUFFIX)) {
+                    replLedgerIds.put(baseProducerName, v);
+                } else {
+                    replEntryIds.put(baseProducerName, v);
+                }
+                return;
+            }
             highestSequencedPushed.put(k, v);
             highestSequencedPersisted.put(k, v);
+            producerRemoved(k);
+        });
+        replLedgerIds.forEach((producerName, ledgerId) -> {
+            Long entryId = replEntryIds.get(producerName);
+            if (entryId != null) {
+                ReplSourcePosition position = new ReplSourcePosition(ledgerId, entryId);
+                highestReplPositionPushed.put(producerName, position);
+                highestReplPositionPersisted.put(producerName, position);
+            } else {
+                logIncompleteReplSourcePositionSnapshot(producerName, ledgerId, null);
+            }
+        });
+        replEntryIds.forEach((producerName, entryId) -> {
+            if (!replLedgerIds.containsKey(producerName)) {
+                logIncompleteReplSourcePositionSnapshot(producerName, null, entryId);
+            }
         });
         // Replay all the entries and apply all the sequence ids updates
         log.info()
@@ -275,11 +320,12 @@ public class MessageDeduplication {
                 .log("Replaying entries for deduplication");
         return replayTask.replay(cursor, (__, buffer) -> {
             final var metadata = Commands.parseMessageMetadata(buffer);
-            final var producerName = metadata.getProducerName();
-            final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
-            highestSequencedPushed.put(producerName, sequenceId);
-            highestSequencedPersisted.put(producerName, sequenceId);
-            producerRemoved(producerName);
+            if (metadata.hasMarkerType() || getReplProducerName(metadata) == null) {
+                recoverProducerSequenceIdFromMetadata(metadata);
+            } else {
+                // Rebuild replication watermarks from entries written after the last dedup snapshot.
+                recoverReplWatermarkFromMetadata(metadata);
+            }
         }).thenCompose(optPosition -> {
             if (optPosition.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
@@ -311,7 +357,7 @@ public class MessageDeduplication {
             return MessageDupStatus.NotDup;
         }
         if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
-            if (!publishContext.supportsReplDedupByLidAndEid()){
+            if (!publishContext.supportsReplDedupByLidAndEid()) {
                 return isDuplicateReplV1(publishContext, headersAndPayload);
             } else {
                 return isDuplicateReplV2(publishContext, headersAndPayload);
@@ -356,104 +402,163 @@ public class MessageDeduplication {
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.readerIndex(readerIndex);
 
-            List<KeyValue> kvPairList = md.getPropertiesList();
-            for (KeyValue kvPair : kvPairList) {
-                if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
-                    if (!kvPair.getValue().contains(":")) {
-                        log.warn()
-                                .attr("producerName", publishContext.getProducerName())
-                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
-                                .attr("value", kvPair.getValue())
-                                .log("Unexpected");
-                        break;
-                    }
-                    String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
-                    if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
-                            || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
-                        log.warn()
-                                .attr("producerName", publishContext.getProducerName())
-                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
-                                .attr("value", kvPair.getValue())
-                                .log("Unexpected");
-                        break;
-                    }
-                    long[] positionPair = new long[]{Long.valueOf(ledgerIdAndEntryId[0]).longValue(),
-                            Long.valueOf(ledgerIdAndEntryId[1]).longValue()};
-                    publishContext.setProperty(MSG_PROP_REPL_SOURCE_POSITION, positionPair);
-                    break;
-                }
+            long[] position = getReplSourcePosition(md, publishContext.getProducerName());
+            if (position != null) {
+                publishContext.setProperty(MSG_PROP_REPL_SOURCE_POSITION, position);
             }
         }
     }
 
-    public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
+    private long[] getReplSourcePosition(MessageMetadata md, String producerName) {
+        List<KeyValue> kvPairList = md.getPropertiesList();
+        for (KeyValue kvPair : kvPairList) {
+            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
+                String[] ledgerIdAndEntryId = kvPair.getValue().split(":", -1);
+                if (ledgerIdAndEntryId.length != 2) {
+                    logUnexpectedReplSourcePosition(producerName, kvPair.getValue());
+                    return null;
+                }
+                try {
+                    long ledgerId = Long.parseLong(ledgerIdAndEntryId[0]);
+                    long entryId = Long.parseLong(ledgerIdAndEntryId[1]);
+                    if (ledgerId >= 0 && entryId >= 0) {
+                        return new long[]{ledgerId, entryId};
+                    }
+                } catch (NumberFormatException e) {
+                    logUnexpectedReplSourcePosition(producerName, kvPair.getValue());
+                    return null;
+                }
+                logUnexpectedReplSourcePosition(producerName, kvPair.getValue());
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private long[] getReplSourcePosition(PublishContext publishContext) {
         Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
-        if (positionPairObj == null || !(positionPairObj instanceof long[])) {
-            log.error()
-                    .attr("producerName", publishContext.getProducerName())
-                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
-                    .attr("sequenceId", publishContext.getSequenceId())
-                    .attr("propKey", MSG_PROP_REPL_SOURCE_POSITION)
-                    .log("Message cannot determine whether it is duplicated due to the acquired message "
-                            + "props being invalid, prop not in expected format");
+        if (!(positionPairObj instanceof long[]) || ((long[]) positionPairObj).length < 2) {
+            return null;
+        }
+        return (long[]) positionPairObj;
+    }
+
+    private void logInvalidReplSourcePosition(PublishContext publishContext, String message) {
+        log.error()
+                .attr("producerName", publishContext.getProducerName())
+                .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
+                .attr("sequenceId", publishContext.getSequenceId())
+                .attr("propKey", MSG_PROP_REPL_SOURCE_POSITION)
+                .log(message);
+    }
+
+    private void recoverReplWatermark(String producerName, long ledgerId, long entryId) {
+        ReplSourcePosition replSourcePosition = new ReplSourcePosition(ledgerId, entryId);
+        highestReplPositionPushed.put(producerName, replSourcePosition);
+        highestReplPositionPersisted.put(producerName, replSourcePosition);
+    }
+
+    private void recordReplWatermarkPersisted(String producerName, long ledgerId, long entryId) {
+        highestReplPositionPersisted.put(producerName, new ReplSourcePosition(ledgerId, entryId));
+    }
+
+    private boolean isReplPositionAtOrBefore(long ledgerId, long entryId, ReplSourcePosition watermark) {
+        return ledgerId < watermark.ledgerId()
+                || (ledgerId == watermark.ledgerId() && entryId <= watermark.entryId());
+    }
+
+    private void logUnexpectedReplSourcePosition(String producerName, String value) {
+        log.warn()
+                .attr("producerName", producerName)
+                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                .attr("value", value)
+                .log("Unexpected");
+    }
+
+    private void logIncompleteReplSourcePositionSnapshot(String producerName, Long ledgerId, Long entryId) {
+        log.error()
+                .attr("producerName", producerName)
+                .attr("ledgerId", ledgerId)
+                .attr("entryId", entryId)
+                .log("Incomplete geo-replication deduplication snapshot");
+    }
+
+    private void recoverProducerSequenceIdFromMetadata(MessageMetadata md) {
+        final var producerName = md.getProducerName();
+        final var sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
+        highestSequencedPushed.put(producerName, sequenceId);
+        highestSequencedPersisted.put(producerName, sequenceId);
+        producerRemoved(producerName);
+    }
+
+    @VisibleForTesting
+    void recoverReplWatermarkFromMetadata(MessageMetadata md) {
+        if (md.hasMarkerType()) {
+            return;
+        }
+        String replProducerName = getReplProducerName(md);
+        if (replProducerName != null) {
+            long[] replSourcePosition = getReplSourcePosition(md, replProducerName);
+            if (replSourcePosition != null) {
+                recoverReplWatermark(replProducerName, replSourcePosition[0], replSourcePosition[1]);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    String getReplProducerName(MessageMetadata md) {
+        final var shadowSourceTopic = topic.getShadowSourceTopic();
+        if (md.hasReplicatedFrom() && shadowSourceTopic.isPresent()) {
+            return ShadowReplicator.getShadowProducerName(replicatorPrefix,
+                    shadowSourceTopic.get().toString(), topic.getName());
+        }
+        if (md.hasReplicatedFrom()) {
+            return AbstractReplicator.getReplicatorName(replicatorPrefix, md.getReplicatedFrom())
+                    + AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER
+                    + pulsar.getConfiguration().getClusterName();
+        }
+        if (Producer.isRemoteOrShadow(md.getProducerName(), replicatorPrefix)) {
+            return md.getProducerName();
+        }
+        return null;
+    }
+
+    public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
+        long[] replSourcePosition = getReplSourcePosition(publishContext);
+        if (replSourcePosition == null) {
+            logInvalidReplSourcePosition(publishContext, "Message cannot determine whether it is duplicated due to "
+                    + "the acquired message props being invalid, prop not in expected format");
             return MessageDupStatus.Unknown;
         }
 
-        long[] positionPair = (long[]) positionPairObj;
-        long replSequenceLId = positionPair[0];
-        long replSequenceEId = positionPair[1];
-
-        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
-        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
-        synchronized (highestSequencedPushed) {
-            Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
-            Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
-            if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null
-                && (replSequenceLId < lastSequenceLIdPushed.longValue()
-                        || (replSequenceLId == lastSequenceLIdPushed.longValue()
-                        && replSequenceEId <= lastSequenceEIdPushed.longValue()))) {
-                log.debug()
-                        .attr("producerName", publishContext.getProducerName())
-                        .attr("replSequenceLId", replSequenceLId)
-                        .attr("replSequenceEId", replSequenceEId)
-                        .attr("lastSequenceLIdPushed", lastSequenceLIdPushed)
-                        .attr("lastSequenceEIdPushed", lastSequenceEIdPushed)
-                        .log("Message identified as duplicated");
-
-                // Also need to check sequence ids that has been persisted.
-                // If current message's seq id is smaller or equals to the
-                // "lastSequenceLIdPersisted:lastSequenceEIdPersisted" than its definitely a dup
-                // If current message's seq id is between "lastSequenceLIdPushed:lastSequenceEIdPushed" and
-                // "lastSequenceLIdPersisted:lastSequenceEIdPersisted", then we cannot be sure whether the message
-                // is a dup or not we should return an error to the producer for the latter case so that it can retry
-                // at a future time
-                Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
-                Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
-                log.debug()
-                        .attr("producerName", publishContext.getProducerName())
-                        .attr("replSequenceLId", replSequenceLId)
-                        .attr("replSequenceEId", replSequenceEId)
-                        .attr("lastSequenceLIdPersisted", lastSequenceLIdPersisted)
-                        .attr("lastSequenceEIdPersisted", lastSequenceEIdPersisted)
-                        .log("Message identified as duplicated producer=. publishing:, latest" + "persisted");
-                if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null
-                    && (replSequenceLId < lastSequenceLIdPersisted.longValue()
-                        || (replSequenceLId == lastSequenceLIdPersisted.longValue()
-                            && replSequenceEId <= lastSequenceEIdPersisted))) {
-                    return MessageDupStatus.Dup;
-                } else {
-                    return MessageDupStatus.Unknown;
-                }
+        long replSequenceLId = replSourcePosition[0];
+        long replSequenceEId = replSourcePosition[1];
+        String producerName = publishContext.getProducerName();
+        ReplSourcePosition lastPushed;
+        ReplSourcePosition lastPersisted = null;
+        MessageDupStatus status;
+        synchronized (highestReplPositionPushed) {
+            lastPushed = highestReplPositionPushed.get(producerName);
+            if (lastPushed != null && isReplPositionAtOrBefore(replSequenceLId, replSequenceEId, lastPushed)) {
+                lastPersisted = highestReplPositionPersisted.get(producerName);
+                status = lastPersisted != null
+                        && isReplPositionAtOrBefore(replSequenceLId, replSequenceEId, lastPersisted)
+                        ? MessageDupStatus.Dup : MessageDupStatus.Unknown;
+            } else {
+                status = MessageDupStatus.NotDup;
+                highestReplPositionPushed.put(producerName,
+                        new ReplSourcePosition(replSequenceLId, replSequenceEId));
             }
-            highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
-            highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
         }
         log.debug()
-                .attr("producerName", publishContext.getProducerName())
+                .attr("producerName", producerName)
                 .attr("replSequenceLId", replSequenceLId)
                 .attr("replSequenceEId", replSequenceEId)
-                .log("Message identified as non-duplicated producer=. publishing");
-        return MessageDupStatus.NotDup;
+                .attr("lastPushed", lastPushed)
+                .attr("lastPersisted", lastPersisted)
+                .attr("dupStatus", status)
+                .log("Checked replicated message deduplication status");
+        return status;
     }
 
     public MessageDupStatus isDuplicateNormal(PublishContext publishContext, ByteBuf headersAndPayload,
@@ -529,26 +634,14 @@ public class MessageDeduplication {
     }
 
     public void recordMessagePersistedRepl(PublishContext publishContext, Position position) {
-        Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
-        if (positionPairObj == null || !(positionPairObj instanceof long[])) {
-            log.error()
-                    .attr("producerName", publishContext.getProducerName())
-                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
-                    .attr("sequenceId", publishContext.getSequenceId())
-                    .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
-                    .log("Can not persist highest sequence-id due to the acquired messages"
-                            + "props are invalid. producer=. supportsReplDedupByLidAndEid:, sequence-id,"
-                            + "prop-: not in expected format");
+        long[] replSourcePosition = getReplSourcePosition(publishContext);
+        if (replSourcePosition == null) {
+            logInvalidReplSourcePosition(publishContext, "Can not persist highest sequence-id due to the acquired "
+                    + "message props being invalid, prop not in expected format");
             recordMessagePersistedNormal(publishContext, position);
             return;
         }
-        long[] positionPair = (long[]) positionPairObj;
-        long replSequenceLId = positionPair[0];
-        long replSequenceEId = positionPair[1];
-        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
-        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
-        highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
-        highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
+        recordReplWatermarkPersisted(publishContext.getProducerName(), replSourcePosition[0], replSourcePosition[1]);
         increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
     }
 
@@ -590,6 +683,8 @@ public class MessageDeduplication {
         for (String producer : highestSequencedPersisted.keySet()) {
             highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
         }
+        highestReplPositionPushed.clear();
+        highestReplPositionPushed.putAll(highestReplPositionPersisted);
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
@@ -603,11 +698,22 @@ public class MessageDeduplication {
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
-        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
-                snapshot.put(producerName, sequenceId);
-            }
+        highestReplPositionPersisted.forEach((producerName, replSourcePosition) -> {
+            snapshot.put(producerName + REPL_LEDGER_ID_SUFFIX, replSourcePosition.ledgerId());
+            snapshot.put(producerName + REPL_ENTRY_ID_SUFFIX, replSourcePosition.entryId());
         });
+        int normalProducerCount = 0;
+        for (Map.Entry<String, Long> entry : highestSequencedPersisted.entrySet()) {
+            String producerName = entry.getKey();
+            if (isReplSequenceKey(producerName)) {
+                continue;
+            }
+            if (normalProducerCount >= maxNumberOfProducers) {
+                break;
+            }
+            snapshot.put(producerName, entry.getValue());
+            normalProducerCount++;
+        }
 
         final var cursor = managedCursor;
         if (cursor == null) {
@@ -655,7 +761,7 @@ public class MessageDeduplication {
         }
 
         // Producer is no-longer active
-        inactiveProducers.put(producerName, System.currentTimeMillis());
+        inactiveProducers.put(getBaseProducerName(producerName), System.currentTimeMillis());
     }
 
     /**
@@ -681,18 +787,41 @@ public class MessageDeduplication {
             long lastActiveTimestamp = entry.getValue();
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
-                log.info()
-                        .attr("producerName", producerName)
-                        .log("Purging dedup information for producer");
                 mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                if (Producer.isRemoteOrShadow(producerName, replicatorPrefix)) {
+                    // Keep the geo-replication watermark; the source can replay this producer after failover.
+                    log.info()
+                            .attr("producerName", producerName)
+                            .log("Keeping geo-replication deduplication state for inactive producer");
+                } else {
+                    log.info()
+                            .attr("producerName", producerName)
+                            .log("Purging dedup information for producer");
+                    highestSequencedPushed.remove(producerName);
+                    highestSequencedPersisted.remove(producerName);
+                    hasInactive = true;
+                }
             }
         }
         if (hasInactive && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
+    }
+
+    private String getBaseProducerName(String producerName) {
+        if (Producer.isRemoteOrShadow(producerName, replicatorPrefix)) {
+            if (producerName.endsWith(REPL_LEDGER_ID_SUFFIX)) {
+                return producerName.substring(0, producerName.length() - REPL_LEDGER_ID_SUFFIX.length());
+            } else if (producerName.endsWith(REPL_ENTRY_ID_SUFFIX)) {
+                return producerName.substring(0, producerName.length() - REPL_ENTRY_ID_SUFFIX.length());
+            }
+        }
+        return producerName;
+    }
+
+    private boolean isReplSequenceKey(String producerName) {
+        return Producer.isRemoteOrShadow(producerName, replicatorPrefix)
+                && (producerName.endsWith(REPL_LEDGER_ID_SUFFIX) || producerName.endsWith(REPL_ENTRY_ID_SUFFIX));
     }
 
     public long getLastPublishedSequenceId(String producerName) {
@@ -725,6 +854,11 @@ public class MessageDeduplication {
     @VisibleForTesting
     ManagedCursor getManagedCursor() {
         return managedCursor;
+    }
+
+    @VisibleForTesting
+    void setManagedCursor(ManagedCursor managedCursor) {
+        this.managedCursor = managedCursor;
     }
 
     @VisibleForTesting

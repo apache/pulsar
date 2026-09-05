@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -270,6 +271,123 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         admin2.topics().setReplicationClusters(topicName, Arrays.asList(cluster2));
         admin1.topics().unload(topicName);
         admin2.topics().unload(topicName);
+    }
+
+    @Test
+    public void testGeoReplDedupAfterTargetUnloadBeforeSnapshot() throws Exception {
+        // Drop send receipts so the source replication cursor cannot advance while target messages are persisted.
+        AtomicBoolean stuckSendReceipt = new AtomicBoolean(true);
+        Runnable cleanInjection = injectReplicatorClientCnx((conf, eventLoopGroup) -> new ClientCnx(
+                InstrumentProvider.NOOP, conf, eventLoopGroup) {
+            @Override
+            protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                if (!stuckSendReceipt.get()) {
+                    super.handleSendReceipt(sendReceipt);
+                }
+            }
+        });
+
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final String subscription = "s1";
+        Producer<Integer> producer = null;
+        Consumer<Integer> consumer = null;
+        try {
+            admin1.topics().createNonPartitionedTopic(topicName);
+            admin2.topics().createNonPartitionedTopic(topicName);
+            admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
+
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+            Awaitility.await().untilAsserted(() -> {
+                MessageDeduplication messageDeduplication2 = persistentTopic2.getMessageDeduplication();
+                assertEquals(String.valueOf(messageDeduplication2.getStatus()), "Enabled");
+            });
+
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+            waitReplicatorStarted(topicName);
+
+            producer = client1.newProducer(Schema.INT32).topic(topicName).create();
+            int messageCount = 4;
+            for (int i = 0; i < messageCount; i++) {
+                producer.send(i);
+            }
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertEquals(admin2.topics().getStats(topicName).getMsgInCounter(), messageCount);
+            });
+
+            AtomicReference<ClientCnx> replicatorClientCnx = new AtomicReference<>();
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                PersistentTopic currentSourceTopic =
+                        (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+                GeoPersistentReplicator currentReplicator =
+                        (GeoPersistentReplicator) currentSourceTopic.getReplicators().get(cluster2);
+                assertNotNull(currentReplicator);
+                assertNotNull(currentReplicator.producer);
+                ClientCnx clientCnx = currentReplicator.producer.getClientCnx();
+                assertNotNull(clientCnx);
+                replicatorClientCnx.set(clientCnx);
+            });
+
+            // Reload target before a dedup snapshot has to cover the latest replicated source positions.
+            admin2.topics().unload(topicName);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                Optional<Topic> targetTopicOptional = pulsar2.getBrokerService().getTopic(topicName, false).join();
+                assertTrue(targetTopicOptional.isPresent());
+                PersistentTopic currentTargetTopic = (PersistentTopic) targetTopicOptional.get();
+                MessageDeduplication messageDeduplication = currentTargetTopic.getMessageDeduplication();
+                assertEquals(String.valueOf(messageDeduplication.getStatus()), "Enabled");
+            });
+
+            // Reconnect the source replicator. It replays from the old replication cursor and target must deduplicate.
+            stuckSendReceipt.set(false);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                PersistentTopic currentSourceTopic =
+                        (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+                GeoPersistentReplicator currentReplicator =
+                        (GeoPersistentReplicator) currentSourceTopic.getReplicators().get(cluster2);
+                assertNotNull(currentReplicator);
+                assertNotNull(currentReplicator.producer);
+                ClientCnx clientCnx = currentReplicator.producer.getClientCnx();
+                assertNotNull(clientCnx);
+                replicatorClientCnx.set(clientCnx);
+            });
+            replicatorClientCnx.get().ctx().channel().close();
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                PersistentTopic currentSourceTopic =
+                        (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+                GeoPersistentReplicator currentReplicator =
+                        (GeoPersistentReplicator) currentSourceTopic.getReplicators().get(cluster2);
+                assertNotNull(currentReplicator);
+                assertEquals(currentReplicator.getCursor().getNumberOfEntriesInBacklog(true), 0);
+            });
+
+            consumer = client2.newConsumer(Schema.INT32).topic(topicName).subscriptionName(subscription).subscribe();
+            List<Integer> received = new ArrayList<>();
+            while (true) {
+                Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
+                if (msg == null) {
+                    break;
+                }
+                received.add(msg.getValue());
+            }
+            assertEquals(received, Arrays.asList(0, 1, 2, 3));
+        } finally {
+            if (consumer != null) {
+                consumer.close();
+            }
+            if (producer != null) {
+                producer.close();
+            }
+            cleanInjection.run();
+            cleanupTopics(nonReplicatedNamespace, () -> {
+                admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+                admin1.topics().delete(topicName, true);
+                admin2.topics().delete(topicName, true);
+            });
+        }
     }
 
     @DataProvider(name = "deduplicationArgs")
