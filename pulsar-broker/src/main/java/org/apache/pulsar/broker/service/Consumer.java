@@ -31,7 +31,6 @@ import io.opentelemetry.api.common.Attributes;
 import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +71,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.LongArrayAckSets;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -389,7 +388,7 @@ public class Consumer {
                     long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     int remainingUnacked;
                     if (ackSet != null) {
-                        remainingUnacked = BitSet.valueOf(ackSet).cardinality();
+                        remainingUnacked = LongArrayAckSets.cardinality(ackSet);
                         unackedMessages -= (batchSize - remainingUnacked);
                     } else {
                         remainingUnacked = batchSize;
@@ -804,23 +803,15 @@ public class Consumer {
         }
         long[] cursorAckSet = getCursorAckSet(position);
         if (cursorAckSet == null) {
-            return batchSize - BitSet.valueOf(ackSets).cardinality();
+            return batchSize - LongArrayAckSets.cardinality(ackSets);
         }
-        BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-        int lastCardinality = cursorBitSet.cardinality();
-        BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
-        cursorBitSet.and(givenBitSet);
-        givenBitSet.recycle();
-        int currentCardinality = cursorBitSet.cardinality();
-        cursorBitSet.recycle();
+        int lastCardinality = LongArrayAckSets.cardinality(cursorAckSet);
+        int currentCardinality = LongArrayAckSets.cardinalityOfIntersection(cursorAckSet, ackSets);
         return lastCardinality - currentCardinality;
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
-        BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
-        long ackedCount = batchSize - bitset.cardinality();
-        bitset.recycle();
-        return ackedCount;
+        return batchSize - LongArrayAckSets.cardinality(ackSets);
     }
 
     private void checkAckValidationError(CommandAck ack, Position position) {
