@@ -59,10 +59,15 @@ class ReadEntryTimeoutTracker implements AutoCloseable {
         // per read. Expired callbacks are handed back to the owning ledger's executor, so this shared
         // scan does not serialize completion callbacks across unrelated ledgers.
         int entriesToProcess = timeoutQueueSize.get();
+        int timeoutCount = 0;
+        long maxOverdueNanos = 0;
+        String sampleLedgerName = null;
+        long sampleLedgerId = -1;
+        long sampleEntryId = -1;
         for (int i = 0; i < entriesToProcess; i++) {
             ManagedLedgerImpl.ReadEntryCallbackWrapper callback = timeoutQueue.poll();
             if (callback == null) {
-                return;
+                break;
             }
             timeoutQueueSize.decrementAndGet();
             if (callback.isCompleted()) {
@@ -73,13 +78,24 @@ class ReadEntryTimeoutTracker implements AutoCloseable {
                 continue;
             }
             if (callback.triggerReadTimeout(createManagedLedgerException(BKException.Code.TimeoutException))) {
-                log.warn()
-                        .attr("ledgerName", callback.managedLedgerName)
-                        .attr("ledgerId", callback.ledgerId)
-                        .attr("entryId", callback.entryId)
-                        .attr("overdueNanos", now - callback.timeoutAtNanos)
-                        .log("Read entry timeout");
+                timeoutCount++;
+                long overdueNanos = now - callback.timeoutAtNanos;
+                maxOverdueNanos = Math.max(maxOverdueNanos, overdueNanos);
+                if (sampleLedgerName == null) {
+                    sampleLedgerName = callback.managedLedgerName;
+                    sampleLedgerId = callback.ledgerId;
+                    sampleEntryId = callback.entryId;
+                }
             }
+        }
+        if (timeoutCount > 0) {
+            log.warn()
+                    .attr("timeoutCount", timeoutCount)
+                    .attr("sampleLedgerName", sampleLedgerName)
+                    .attr("sampleLedgerId", sampleLedgerId)
+                    .attr("sampleEntryId", sampleEntryId)
+                    .attr("maxOverdueNanos", maxOverdueNanos)
+                    .log("Read entry timeouts");
         }
     }
 
