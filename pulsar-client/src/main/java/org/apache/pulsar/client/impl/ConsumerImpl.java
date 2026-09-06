@@ -2325,9 +2325,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdAdv messageId) {
+        // The map is always keyed by the entry-level message id, while messageId may still carry a batch index
+        final MessageIdAdv deadLetterMessagesKey = MessageIdAdvUtils.discardBatch(messageId);
         List<MessageImpl<T>> deadLetterMessages = null;
         if (possibleSendToDeadLetterTopicMessages != null) {
-            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(MessageIdAdvUtils.discardBatch(messageId));
+            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(deadLetterMessagesKey);
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (deadLetterMessages != null) {
@@ -2348,7 +2350,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         copyMessageEventTime(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
-                                    possibleSendToDeadLetterTopicMessages.remove(messageId);
+                                    possibleSendToDeadLetterTopicMessages.remove(deadLetterMessagesKey);
                                     acknowledgeAsync(messageId).whenComplete((v, ex) -> {
                                         if (ex != null) {
                                             log.warn(
