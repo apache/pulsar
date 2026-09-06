@@ -91,7 +91,8 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
-        clusterResources().listAsync()
+        validateBothSuperuserAndClusterOperation(null, ClusterOperation.LIST_CLUSTERS)
+                .thenCompose(__ -> clusterResources().listAsync())
                 .thenApply(HashSet::new)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {

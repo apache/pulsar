@@ -257,7 +257,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("unchecked")
     public void clusters() throws Exception {
         assertEquals(asyncRequests(ctx -> clusters.getClusters(ctx)), new HashSet<>());
-        verify(clusters, never()).validateSuperUserAccessAsync();
+        verify(clusters, times(1)).validateSuperUserAccessAsync();
 
         asyncRequests(ctx -> clusters.createCluster(ctx,
                 "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
@@ -458,7 +458,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(24)).validateSuperUserAccessAsync();
+        verify(clusters, times(28)).validateSuperUserAccessAsync();
     }
 
     @Test
