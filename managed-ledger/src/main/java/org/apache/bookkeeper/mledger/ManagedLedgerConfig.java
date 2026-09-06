@@ -100,11 +100,13 @@ public class ManagedLedgerConfig {
 
     /**
      * Max size in bytes for per-batch read request. A non-positive value disables batch reads.
-     * Batch read may return fewer entries if total size exceeds this limit.
+     * Reads needing more data are split into multiple batch read requests.
+     * The BookKeeper client clamps this value to its netty max frame size.
+     * Defaults to 25 MB (5 * DEFAULT_MAX_MESSAGE_SIZE).
      */
     @Getter
     @Setter
-    private int batchReadMaxSizeBytes = DEFAULT_MAX_MESSAGE_SIZE;
+    private int batchReadMaxSizeBytes = 5 * DEFAULT_MAX_MESSAGE_SIZE;
 
     /**
      * Returns whether batch read is enabled for this managed ledger.

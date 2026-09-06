@@ -2696,8 +2696,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Enable batch read API when reading entries from bookkeeper. "
                     + "Batch read allows reading multiple entries in a single RPC call, "
-                    + "reducing network overhead for sequential reads.")
+                    + "reducing network overhead for sequential reads. "
+                    + "Batch read requires the v2 wire protocol (bookkeeperUseV2WireProtocol), "
+                    + "it is only used for non-striped ledgers where managedLedgerEnsembleSize "
+                    + "equals managedLedgerWriteQuorumSize (not the default 3/2 ensemble settings), "
+                    + "and all the bookies must support the batch read API: reads from bookies "
+                    + "without batch read support fail instead of falling back to regular reads.")
     private boolean managedLedgerBatchReadEnabled = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Max size in bytes of a single BookKeeper batch read request, used when "
+                    + "managedLedgerBatchReadEnabled is enabled. Reads needing more data are split "
+                    + "into multiple batch read requests. A non-positive value disables batch reads. "
+                    + "The BookKeeper client clamps this value to its netty max frame size "
+                    + "(maxMessageSize plus frame padding), so values above that have no effect "
+                    + "unless maxMessageSize is also increased. "
+                    + "The default value is 25 MB (5 * DEFAULT_MAX_MESSAGE_SIZE).")
+    private int managedLedgerBatchReadMaxSizeInBytes = 5 * Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
