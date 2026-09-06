@@ -80,7 +80,7 @@ public class ConsumerSessionTest {
             int end = start + 0x3FFF;
             segments.add(new ConsumerAssignment.AssignedSegment(
                     id, HashRange.of(start, end),
-                    "persistent://tenant/ns/my-scalable-seg-" + id));
+                    "persistent://tenant/ns/my-scalable-seg-" + id, List.of()));
         }
         return new ConsumerAssignment(epoch, segments);
     }
@@ -285,6 +285,27 @@ public class ConsumerSessionTest {
         assertEquals(proto.getSegmentAt(1).getHashStart(), 0x4000);
         assertEquals(proto.getSegmentAt(2).getSegmentId(), 5L);
         assertEquals(proto.getSegmentAt(2).getHashStart(), 0x8000);
+        // Whole-segment (single-active) assignments carry no entry-bucket ranges.
+        assertEquals(proto.getSegmentAt(0).getBucketRangesCount(), 0);
+    }
+
+    @Test
+    public void testToProtoCarriesEntryBucketRanges() {
+        // PIP-486: a consumer that owns a subset of a segment's entry-buckets declares those bucket
+        // hash-ranges; toProto must serialize each as an IntRange (start/end), in order.
+        ConsumerAssignment assignment = new ConsumerAssignment(7L, List.of(
+                new ConsumerAssignment.AssignedSegment(2L, HashRange.of(0x0000, 0xFFFF),
+                        "persistent://tenant/ns/my-scalable-seg-2",
+                        List.of(HashRange.of(0x0000, 0x7FFF), HashRange.of(0x8000, 0xFFFF)))));
+
+        ScalableConsumerAssignment proto = ConsumerSession.toProto(assignment);
+
+        assertEquals(proto.getSegmentsCount(), 1);
+        assertEquals(proto.getSegmentAt(0).getBucketRangesCount(), 2);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(0).getStart(), 0x0000);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(0).getEnd(), 0x7FFF);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(1).getStart(), 0x8000);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(1).getEnd(), 0xFFFF);
     }
 
     @Test

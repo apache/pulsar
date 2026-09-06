@@ -33,12 +33,15 @@ val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val audienceAnnotationsVersion: String = libs.versions.audience.annotations.get()
 
 // Configuration for collecting runtime dependencies
-val distLib by configurations.creating {
+val distLib = configurations.create("distLib") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
-    // Inherit version constraints from the root project's version catalog
-    extendsFrom(configurations["implementation"])
+    // Inherit the enforced version-alignment platform so bundled dependency versions match the
+    // version catalog (the platform lives on the non-published `internalPlatform` bucket from
+    // pulsar.java-conventions; `implementation` no longer carries it). Keeps the distribution's
+    // resolved versions aligned with what checkBinaryLicense expects.
+    extendsFrom(configurations["implementation"], configurations["internalPlatform"])
     // Global exclusions
     exclude(group = "org.projectlombok", module = "lombok")
     // Exclude test frameworks that leak through transitive deps
@@ -68,17 +71,20 @@ val distLib by configurations.creating {
     exclude(group = "com.google.android", module = "annotations")
     // Annotation libraries not needed at runtime
     exclude(group = "org.codehaus.mojo", module = "animal-sniffer-annotations")
+    // The full fastutil jar (~25MB) is replaced by :pulsar-broker-fastutil-minimized below,
+    // which ships only the fastutil classes actually used on the server (and client) side.
+    exclude(group = "it.unimi.dsi", module = "fastutil")
 }
 
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val runtimeAllShadowJar by configurations.creating {
+val runtimeAllShadowJar = configurations.create("runtimeAllShadowJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
-val apiExamplesJar by configurations.creating {
+val apiExamplesJar = configurations.create("apiExamplesJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
@@ -88,6 +94,9 @@ dependencies {
     // Version constraints from the enforced platform (inherited via implementation,
     // which distLib extends) ensure consistent versions without manual resolutionStrategy.
     distLib(project(":pulsar-broker"))
+    // Minimized fastutil (replaces the full fastutil jar excluded from distLib above): only the
+    // fastutil classes reachable from the broker and the bundled pulsar-client-original.
+    distLib(project(":pulsar-broker-fastutil-minimized"))
     distLib(project(":pulsar-metadata"))
     distLib(project(":pulsar-docs-tools"))
     distLib(project(":pulsar-proxy"))
@@ -125,7 +134,6 @@ dependencies {
     distLib(libs.dropwizardmetrics.jvm)
 
     // Other
-    distLib(libs.jline2)
     distLib(libs.snappy.java)
     distLib(libs.jackson.dataformat.yaml)
     distLib(libs.bcpkix.jdk18on)
@@ -142,8 +150,9 @@ dependencies {
     distLib(libs.vertx.core)
     distLib(libs.vertx.web)
 
-    // Bouncy Castle
-    distLib(project(":bouncy-castle:bouncy-castle-bc"))
+    // Bouncy Castle (non-FIPS JCA provider for client-side message crypto + TLS)
+    distLib(libs.bcprov.jdk18on)
+    distLib(libs.bcpkix.jdk18on)
 
     // BookKeeper native JARs (these modules publish .nar artifacts by default;
     // we exclude .nar files below and add the .jar variants explicitly)
@@ -182,7 +191,7 @@ dependencies {
 val pulsarVersion = project.version.toString()
 val rootDir = rootProject.projectDir
 
-val serverDistTar by tasks.registering(Tar::class) {
+val serverDistTar = tasks.register<Tar>("serverDistTar") {
     archiveBaseName.set("apache-pulsar")
     archiveVersion.set(pulsarVersion)
     archiveClassifier.set("bin")
@@ -263,11 +272,7 @@ val serverDistTar by tasks.registering(Tar::class) {
                     "${id.group}-${id.module}-${id.version}${classifier}.${ext}"
                 }
                 is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
-                    var mappedName = file.nameWithoutExtension
-                    // For bouncy-castle-bc, add -pkg classifier
-                    if (mappedName.startsWith("bouncy-castle-bc-")) {
-                        mappedName = mappedName + "-pkg"
-                    }
+                    val mappedName = file.nameWithoutExtension
                     "org.apache.pulsar-${mappedName}.${ext}"
                 }
                 else -> file.name
@@ -323,7 +328,7 @@ val serverDistTar by tasks.registering(Tar::class) {
 }
 
 // Consumable configuration exposing the server distribution tarball
-val serverDistElements by configurations.creating {
+val serverDistElements = configurations.create("serverDistElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {
@@ -341,7 +346,7 @@ binaryLicenseCheck {
 
 // Export the runtime classpath to a file for bin/ scripts to use
 // when running Pulsar from a development build (without lib/ directory)
-val exportClasspath by tasks.registering {
+val exportClasspath = tasks.register("exportClasspath") {
     val outputFile = layout.buildDirectory.file("classpath.txt")
     outputs.file(outputFile)
     doLast {

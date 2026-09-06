@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -35,6 +38,7 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class LeaderElectionTest extends BaseMetadataStoreTest {
@@ -283,5 +287,156 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(les, LeaderElectionState.Following);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
         assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void readsDoNotObserveEmptyLeaderDuringReElection(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {
+        });
+
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+
+        // Externally delete the leader node: the instance re-elects itself. An authoritative read
+        // issued during the churn either returns the last settled value or waits for the
+        // re-election to settle — it never observes an empty leader.
+        store.delete(path, Optional.empty()).join();
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(le.getState(), LeaderElectionState.Leading);
+            assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+        });
+    }
+
+    @Test(dataProvider = "zkImpls", timeOut = 30000)
+    public void followerReadsResolveToTheNewLeaderAfterHandoff(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup
+        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+
+        @Cleanup
+        LeaderElection<String> le1 = cs1.getLeaderElection(String.class, path, __ -> {
+        });
+        @Cleanup
+        LeaderElection<String> le2 = cs2.getLeaderElection(String.class, path, __ -> {
+        });
+
+        assertEquals(le1.elect("test-1").join(), LeaderElectionState.Leading);
+        assertEquals(le2.elect("test-2").join(), LeaderElectionState.Following);
+        assertEquals(le2.getLeaderValue().join(), Optional.of("test-1"));
+
+        // The leader hands off: le2 re-elects itself. Authoritative reads during the handoff
+        // return one of the settled leader values and converge to the new leader, but never
+        // observe an empty leader.
+        le1.close();
+        List<Optional<String>> observed = new CopyOnWriteArrayList<>();
+        Awaitility.await().untilAsserted(() -> {
+            Optional<String> leader = le2.getLeaderValue().join();
+            observed.add(leader);
+            assertEquals(leader, Optional.of("test-2"));
+        });
+        assertThat(observed)
+                .as("authoritative reads during the leadership handoff")
+                .doesNotContain(Optional.empty());
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void closedLeaderReportsEmptyLeader(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {
+        });
+
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
+
+        // Closing the leader releases the leadership; reads on the closed instance must report an
+        // empty leader without waiting (recovery paths key off the "no leader" condition).
+        le.close();
+        assertEquals(le.getLeaderValue().join(), Optional.empty());
+        assertEquals(le.getLeaderValueIfPresent(), Optional.empty());
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void electAfterCloseRunsANewElection(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {
+        });
+
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+        le.close();
+
+        // Re-electing on a closed instance reopens it (the broker's LeaderElectionService is
+        // close()d and start()ed again to force a leadership change).
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+        assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
+        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void observerReadsLeaderValueFromStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+        @Cleanup
+        CoordinationService observerCs = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {
+        });
+        // The observer never calls elect(): there is no local election cycle to wait for, so the
+        // authoritative read goes directly to the metadata store, while the snapshot stays empty.
+        @Cleanup
+        LeaderElection<String> observer = observerCs.getLeaderElection(String.class, path, __ -> {
+        });
+
+        assertEquals(observer.getLeaderValue().join(), Optional.empty());
+
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+        assertEquals(observer.getLeaderValue().join(), Optional.of("test-1"));
+        assertEquals(observer.getLeaderValueIfPresent(), Optional.empty());
     }
 }

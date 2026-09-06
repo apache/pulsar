@@ -44,15 +44,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "authParams")
     public String authParams;
 
-    @Option(names = { "--ssl-factory-plugin" }, description = "Pulsar SSL Factory plugin class name",
-            descriptionKey = "sslFactoryPlugin")
-    public String sslfactoryPlugin;
-
-    @Option(names = { "--ssl-factory-plugin-params" },
-            description = "Pulsar SSL Factory Plugin parameters in the format: "
-                    + "\"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "sslFactoryPluginParams")
-    public String sslFactoryPluginParams;
-
     @Option(names = {
             "--trust-cert-file" }, description = "Path for the trusted TLS certificate file",
             descriptionKey = "tlsTrustCertsFilePath")
@@ -67,6 +58,19 @@ public abstract class PerformanceBaseArguments extends CmdBase{
             "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification",
             descriptionKey = "tlsEnableHostnameVerification")
     public Boolean tlsHostnameVerificationEnable = null;
+
+    @Option(names = {
+            "--jsse-provider" }, description = "PIP-478: JSSE (SSLContext) java.security.Provider name, e.g. "
+            + "BCJSSE for FIPS. Also readable from client.conf.",
+            descriptionKey = "jsseProvider")
+    public String jsseProvider = null;
+
+    @Option(names = {
+            "--jca-provider" }, description = "PIP-478: JCA (material) java.security.Provider name for the "
+            + "KeyStore/CertificateFactory/KeyFactory engines that parse the TLS material, e.g. BCFIPS for "
+            + "FIPS alongside --jsse-provider=BCJSSE. Also readable from client.conf.",
+            descriptionKey = "jcaProvider")
+    public String jcaProvider = null;
 
     @Option(names = { "-c",
             "--max-connections" }, description = "Max number of TCP connections to a single broker")

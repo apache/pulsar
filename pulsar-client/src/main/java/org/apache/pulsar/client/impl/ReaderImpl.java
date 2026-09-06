@@ -65,7 +65,7 @@ public class ReaderImpl<T> implements Reader<T> {
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
             subscription = readerConfiguration.getSubscriptionName();
         } else {
-            subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+            subscription = "reader-" + DigestUtils.sha256Hex(UUID.randomUUID().toString()).substring(0, 10);
             if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
                 subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
             }

@@ -172,7 +172,7 @@ for the Gradle build infrastructure and how to change build files.
 
     | Pulsar Version   |                                   JDK Version                                    |
     |------------------|:--------------------------------------------------------------------------------:|
-    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) or [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) |
+    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any), [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) or [JDK 26](https://adoptium.net/en-GB/temurin/releases?version=26&os=any&arch=any) |
     | 4.0+             | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) |
     | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
     | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
@@ -195,6 +195,8 @@ There is also a guide for [setting up the tooling for building Pulsar](https://p
 ./gradlew assemble                                                       # compile and assemble
 ./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest" # run a single test
 bin/pulsar standalone                                                    # run a standalone service
+./gradlew quickCheck                                                     # license headers + checkstyle, no compile
+./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
 
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR

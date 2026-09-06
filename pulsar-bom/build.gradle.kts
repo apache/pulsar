@@ -37,6 +37,10 @@ dependencies {
         api(project(":pulsar-client-api"))
         api(project(":pulsar-client-admin-api"))
 
+        // Focused SPI modules (PIP-478): TLS factory SPI + HTTP client SPI
+        api(project(":pulsar-tls-factory-api"))
+        api(project(":pulsar-http-client-api"))
+
         // Shaded clients (the published artifacts users depend on)
         api(project(":pulsar-client-shaded"))
         api(project(":pulsar-client-admin-shaded"))
@@ -91,10 +95,6 @@ dependencies {
         api(project(":pulsar-functions:pulsar-functions-proto"))
         api(project(":pulsar-functions:pulsar-functions-secrets"))
         api(project(":pulsar-functions:pulsar-functions-utils"))
-
-        // Bouncy Castle
-        api(project(":bouncy-castle:bouncy-castle-bc"))
-        api(project(":bouncy-castle:bcfips"))
 
         // Athenz auth
         api(project(":pulsar-client-auth-athenz"))

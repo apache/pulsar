@@ -24,5 +24,5 @@ plugins {
 dependencies {
     implementation(libs.slog)
     api(project(":pulsar-client-api"))
-    implementation(libs.jackson.annotations)
+    api(libs.jackson.annotations)
 }

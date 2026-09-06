@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.PrimitiveIterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -32,8 +32,8 @@ import lombok.ToString;
 import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
-import org.apache.pulsar.common.util.collections.Int2ObjectOpenHashMap;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
 /**
  * A thread-safe map to store draining hashes in the consumer.
@@ -142,7 +142,7 @@ public class DrainingHashesTracker {
     }
 
     private class ConsumerDrainingHashesStats {
-        private final RoaringBitmap drainingHashes = new RoaringBitmap();
+        private final LongBitmap drainingHashes = LongBitmaps.create();
         private long drainingHashesClearedTotal;
         private final ReentrantReadWriteLock statsLock = new ReentrantReadWriteLock();
 
@@ -166,12 +166,8 @@ public class DrainingHashesTracker {
                         .attr("hash", hash)
                         .attr("empty", empty)
                         .attr("drainingHashesClearedTotal", drainingHashesClearedTotal)
-                        .attr("cardinality", () -> drainingHashes.getCardinality())
+                        .attr("cardinality", () -> drainingHashes.cardinality())
                         .log("Cleared hash in stats");
-                if (empty) {
-                    // reduce memory usage by trimming the bitmap when the RoaringBitmap instance is empty
-                    drainingHashes.trim();
-                }
                 return empty;
             } finally {
                 statsLock.writeLock().unlock();
@@ -181,11 +177,10 @@ public class DrainingHashesTracker {
         public void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
             statsLock.readLock().lock();
             try {
-                int drainingHashesUnackedMessages = 0;
                 List<DrainingHash> drainingHashesStats = new ArrayList<>();
-                PrimitiveIterator.OfInt hashIterator = drainingHashes.stream().iterator();
-                while (hashIterator.hasNext()) {
-                    int hash = hashIterator.nextInt();
+                int[] drainingHashesUnackedMessages = {0};
+                drainingHashes.forEachLong(hashLong -> {
+                    int hash = (int) hashLong;
                     DrainingHashEntry entry = getEntry(hash);
                     if (entry == null) {
                         // Not-found entries are expected as a benign race between the draining-hash
@@ -197,7 +192,7 @@ public class DrainingHashesTracker {
                                 .attr("hash", hash)
                                 .attr("consumer", consumer)
                                 .log("Draining hash not found in the tracker for consumer");
-                        continue;
+                        return;
                     }
                     int unackedMessages = entry.getRefCount();
                     DrainingHashImpl drainingHash = new DrainingHashImpl();
@@ -205,11 +200,11 @@ public class DrainingHashesTracker {
                     drainingHash.unackMsgs = unackedMessages;
                     drainingHash.blockedAttempts = entry.getBlockedCount();
                     drainingHashesStats.add(drainingHash);
-                    drainingHashesUnackedMessages += unackedMessages;
-                }
+                    drainingHashesUnackedMessages[0] += unackedMessages;
+                });
                 consumerStats.drainingHashesCount = drainingHashesStats.size();
                 consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
-                consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
+                consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages[0];
                 consumerStats.drainingHashes = drainingHashesStats;
             } finally {
                 statsLock.readLock().unlock();

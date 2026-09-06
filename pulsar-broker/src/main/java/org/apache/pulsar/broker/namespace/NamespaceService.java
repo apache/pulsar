@@ -59,7 +59,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -436,10 +435,27 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    // The two maps keep authoritative and non-authoritative lookups separate. The key contains every
+    // remaining option that affects the lookup result or its side effects.
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesAuthoritative = new ConcurrentHashMap<>();
-    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+    private final Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>>
             findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
+
+    /**
+     * Key for coalescing lookup requests handled by this lookup path.
+     *
+     * <p>Lookup properties are intentionally excluded because this lookup path does not consume them.
+     */
+    private record LookupRequestKey(NamespaceBundle bundle, boolean readOnly, boolean loadTopicsInBundle,
+                                    String advertisedListenerName, String webServiceAdvertisedListenerName) {
+        private static LookupRequestKey from(NamespaceBundle bundle, LookupOptions options) {
+            return new LookupRequestKey(bundle, options.isReadOnly(), options.isLoadTopicsInBundle(),
+                    options.hasAdvertisedListenerName() ? options.getAdvertisedListenerName() : null,
+                    options.hasWebServiceAdvertisedListenerName()
+                            ? options.getWebServiceAdvertisedListenerName() : null);
+        }
+    }
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -454,18 +470,19 @@ public class NamespaceService implements AutoCloseable {
                 .attr("bundle", bundle)
                 .attr("options", options)
                 .log("findBrokerServiceUrl");
-        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        Map<LookupRequestKey, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {
             targetMap = findingBundlesNotAuthoritative;
         }
+        LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(bundle, (k) -> {
+        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
-            ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+            getOwnershipCache().getOwnerAsync(bundle).thenAccept(nsData -> {
                 if (nsData.isEmpty()) {
                     // No one owns this bundle
 
@@ -494,7 +511,7 @@ public class NamespaceService implements AutoCloseable {
             });
 
             future.whenComplete((r, t) -> pulsar.getExecutor().execute(
-                () -> targetMap.remove(bundle)
+                () -> targetMap.remove(lookupRequestKey, future)
             ));
 
             return future;
@@ -561,7 +578,6 @@ public class NamespaceService implements AutoCloseable {
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
-        String candidateBroker;
         LeaderElectionService les = pulsar.getLeaderElectionService();
         if (les == null) {
             log.warn()
@@ -572,71 +588,102 @@ public class NamespaceService implements AutoCloseable {
             return;
         }
 
+        selectCandidateBroker(bundle, options, les)
+                .thenAcceptAsync(selection -> {
+                    if (selection.isEmpty()) {
+                        log.warn()
+                                .attr("namespaceBundle", bundle)
+                                .log("Load manager didn't return any available broker. Returning empty result to"
+                                        + " lookup. NamespaceBundle");
+                        lookupFuture.complete(Optional.empty());
+                        return;
+                    }
+                    acquireOwnershipOrRedirect(bundle, options, selection.get(), lookupFuture);
+                }, pulsar.getExecutor())
+                .exceptionally(e -> {
+                    log.warn()
+                            .attr("acquire", bundle)
+                            .exception(e)
+                            .log("Error when searching for candidate broker to acquire");
+                    lookupFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                    return null;
+                });
+    }
+
+    /** The broker selected for a bundle assignment, and whether the redirect to it is authoritative. */
+    private record CandidateBrokerSelection(String candidateBroker, boolean authoritativeRedirect) { }
+
+    private CompletableFuture<Optional<CandidateBrokerSelection>> selectCandidateBroker(
+            NamespaceBundle bundle, LookupOptions options, LeaderElectionService les) {
         boolean authoritativeRedirect = les.isLeader();
 
-        try {
-            // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
-                    CompletableFuture.completedFuture(isBrokerActive(cb)))
-                    .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-
-            if (candidateBroker == null) {
-                Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
-
-                if (options.isAuthoritative()) {
-                    // leader broker already assigned the current broker as owner
-                    candidateBroker = pulsar.getBrokerId();
-                } else {
+        // check if this is Heartbeat or SLAMonitor namespace
+        return getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
+                CompletableFuture.completedFuture(isBrokerActive(cb)))
+                .thenComposeAsync(heartbeatOrSlaBroker -> {
+                    if (heartbeatOrSlaBroker != null) {
+                        return completedSelection(heartbeatOrSlaBroker, authoritativeRedirect);
+                    }
+                    if (options.isAuthoritative()) {
+                        // leader broker already assigned the current broker as owner
+                        return completedSelection(pulsar.getBrokerId(), authoritativeRedirect);
+                    }
                     LoadManager loadManager = this.loadManager.get();
-                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
-                    if (!makeLoadManagerDecisionOnThisBroker) {
-                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                    if (!loadManager.isCentralized() || les.isLeader()) {
+                        return selectLeastLoadedBroker(bundle);
+                    }
+                    // The load manager decision belongs to the leader: read the leader
+                    // authoritatively (waits for an in-progress election to settle) instead of
+                    // acting on a possibly-empty snapshot during a leadership handoff.
+                    return les.readCurrentLeader().thenComposeAsync(currentLeader -> {
                         boolean leaderBrokerActive = currentLeader.isPresent()
                                 && isBrokerActive(currentLeader.get().getBrokerId());
-                        if (!leaderBrokerActive) {
-                            makeLoadManagerDecisionOnThisBroker = true;
-                            if (currentLeader.isEmpty()) {
-                                log.warn()
-                                        .attr("namespaceBundle", bundle)
-                                        .log("Leader broker info unavailable."
-                                                + " Using decentralized load"
-                                                + " manager decisions");
-                            } else {
-                                log.warn()
-                                        .attr("broker", currentLeader.get())
-                                        .attr("namespaceBundle", bundle)
-                                        .log("The current leader broker isn't active. Handling load manager"
-                                                + " decisions in a decentralized way. NamespaceBundle");
-                            }
+                        if (leaderBrokerActive) {
+                            // forward to leader broker to make assignment
+                            return completedSelection(currentLeader.get().getBrokerId(), authoritativeRedirect);
                         }
-                    }
-                    if (makeLoadManagerDecisionOnThisBroker) {
-                        Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
-                        if (availableBroker.isEmpty()) {
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        if (currentLeader.isEmpty()) {
                             log.warn()
                                     .attr("namespaceBundle", bundle)
-                                    .log("Load manager didn't return any available broker. Returning empty result to"
-                                            + " lookup. NamespaceBundle");
-                            lookupFuture.complete(Optional.empty());
-                            return;
+                                    .log("Leader broker info unavailable."
+                                            + " Using decentralized load"
+                                            + " manager decisions");
+                        } else {
+                            log.warn()
+                                    .attr("broker", currentLeader.get())
+                                    .attr("namespaceBundle", bundle)
+                                    .log("The current leader broker isn't active. Handling load manager"
+                                            + " decisions in a decentralized way. NamespaceBundle");
                         }
-                        candidateBroker = availableBroker.get();
-                        authoritativeRedirect = true;
-                    } else {
-                        // forward to leader broker to make assignment
-                        candidateBroker = currentLeader.get().getBrokerId();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn()
-                    .attr("acquire", bundle)
-                    .exception(e)
-                    .log("Error when searching for candidate broker to acquire");
-            lookupFuture.completeExceptionally(e);
-            return;
-        }
+                        return selectLeastLoadedBroker(bundle);
+                    }, pulsar.getExecutor());
+                }, pulsar.getExecutor());
+    }
 
+    private static CompletableFuture<Optional<CandidateBrokerSelection>> completedSelection(
+            String candidateBroker, boolean authoritativeRedirect) {
+        return CompletableFuture.completedFuture(
+                Optional.of(new CandidateBrokerSelection(candidateBroker, authoritativeRedirect)));
+    }
+
+    // The decentralized decision is authoritative: this broker picked the owner itself.
+    private CompletableFuture<Optional<CandidateBrokerSelection>> selectLeastLoadedBroker(NamespaceBundle bundle) {
+        Optional<String> availableBroker;
+        try {
+            availableBroker = getLeastLoadedFromLoadManager(bundle);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return CompletableFuture.completedFuture(
+                availableBroker.map(broker -> new CandidateBrokerSelection(broker, true)));
+    }
+
+    private void acquireOwnershipOrRedirect(NamespaceBundle bundle, LookupOptions options,
+                                            CandidateBrokerSelection selection,
+                                            CompletableFuture<Optional<LookupResult>> lookupFuture) {
+        final String candidateBroker = selection.candidateBroker();
+        final boolean authoritativeRedirect = selection.authoritativeRedirect();
         try {
             Objects.requireNonNull(candidateBroker);
 
@@ -1680,6 +1727,19 @@ public class NamespaceService implements AutoCloseable {
                 .thenApply(GetTopicsResult::getTopics);
     }
 
+    /**
+     * The peer-cluster lookup client used to list a peer cluster's non-persistent topics. Only the service URL
+     * comes from the cluster entry: the TLS configuration is broker-level throughout — the material from the
+     * broker's own {@code brokerClient*} settings here, and the {@code PulsarTlsFactory} from the broker-level
+     * {@code brokerClientTlsFactoryClassName} via {@link PulsarService#createClientImpl}, since nothing sets
+     * {@code tlsFactoryClassName} on this configuration. So {@code ClusterData.brokerClientTls*} does not reach
+     * this leg — as in 4.x, where it read the broker-level {@code brokerClientSslFactoryPlugin} rather than the
+     * per-cluster one. The two legs the per-cluster fields do drive (replication and the cross-cluster admin)
+     * build their configuration from {@code ClusterData} in {@code BrokerService}.
+     *
+     * @param cluster the peer cluster to reach
+     * @return the shared client for that cluster
+     */
     @SuppressWarnings("deprecation")
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
         PulsarClientImpl client = namespaceClients.get(cluster);
@@ -1714,9 +1774,24 @@ public class NamespaceService implements AutoCloseable {
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled())
-                        .sslFactoryPlugin(pulsar.getConfiguration().getBrokerClientSslFactoryPlugin())
-                        .sslFactoryPluginParams(pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams());
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
+                    // PIP-478: this peer-cluster lookup client is an outbound leg like the others, so it
+                    // carries the same three broker-client provider pins. Only the engine axis has a builder
+                    // setter; the other two are written onto the underlying configuration, as
+                    // BrokerService.configTlsSettings does. Set only when configured, so the brokerClient_*
+                    // loadConf escape hatch applied above is not clobbered.
+                    ServiceConfiguration brokerConf = pulsar.getConfiguration();
+                    if (isNotBlank(brokerConf.getBrokerClientSslProvider())) {
+                        clientBuilder.sslProvider(brokerConf.getBrokerClientSslProvider());
+                    }
+                    ClientConfigurationData peerConf =
+                            ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+                    if (isNotBlank(brokerConf.getBrokerClientJsseProvider())) {
+                        peerConf.setJsseProvider(brokerConf.getBrokerClientJsseProvider());
+                    }
+                    if (isNotBlank(brokerConf.getBrokerClientJcaProvider())) {
+                        peerConf.setJcaProvider(brokerConf.getBrokerClientJcaProvider());
+                    }
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

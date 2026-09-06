@@ -46,6 +46,14 @@ public class MetadataStoreTopicPoliciesTest extends TopicPoliciesTest {
 
     @Test(enabled = false)
     @Override
+    public void testNonPersistentTopicAppliesTopicPolicyOnLoad() throws Exception {
+        // This test is specific to SystemTopicBasedTopicPoliciesService (casts the service and uses
+        // getPoliciesCacheInit). The non-persistent load-path behavior itself is backend-agnostic and is
+        // covered against the default SystemTopicBasedTopicPoliciesService in TopicPoliciesTest.
+    }
+
+    @Test(enabled = false)
+    @Override
     public void testSystemTopicShouldBeCompacted() throws Exception {
         // Relies on __change_events system topic, which does not exist with MetadataStoreTopicPoliciesService.
     }

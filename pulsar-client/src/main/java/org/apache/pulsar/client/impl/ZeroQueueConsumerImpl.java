@@ -197,7 +197,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
 

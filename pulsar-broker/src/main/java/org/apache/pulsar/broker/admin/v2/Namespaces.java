@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -871,6 +872,102 @@ public class Namespaces extends NamespacesBase {
                             .attr("namespace", namespaceName)
                             .exception(ex)
                             .log("Failed to remove autoTopicCreation status on namespace");
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/scalableTopicAutoScalePolicy")
+    @Operation(summary = "Get the scalable-topic auto split/merge policy override for a namespace")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "The scalable-topic auto split/merge policy override for the namespace",
+                    content = @Content(schema = @Schema(implementation = AutoScalePolicyOverride.class))),
+            @ApiResponse(responseCode = "204", description = "No override is set on this namespace"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant or namespace doesn't exist")})
+    public void getScalableTopicAutoScalePolicy(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetScalableTopicAutoScalePolicyAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(ex)
+                            .log("Failed to get scalableTopicAutoScalePolicy for namespace");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/scalableTopicAutoScalePolicy")
+    @Operation(summary = "Override the broker's scalable-topic auto split/merge settings for a namespace")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(responseCode = "412",
+                    description = "The resolved auto split/merge policy violates an invariant")})
+    public void setScalableTopicAutoScalePolicy(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @RequestBody(description = "Auto split/merge policy override", required = true)
+                    AutoScalePolicyOverride override) {
+        validateNamespaceName(tenant, namespace);
+        internalSetScalableTopicAutoScalePolicyAsync(override)
+                .thenAccept(__ -> {
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .log("Successfully set scalableTopicAutoScalePolicy on namespace");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(ex)
+                            .log("Failed to set scalableTopicAutoScalePolicy on namespace");
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/scalableTopicAutoScalePolicy")
+    @Operation(summary = "Remove the scalable-topic auto split/merge policy override from a namespace")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant or cluster or namespace doesn't exist") })
+    public void removeScalableTopicAutoScalePolicy(@Suspended final AsyncResponse asyncResponse,
+                                                   @PathParam("tenant") String tenant,
+                                                   @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetScalableTopicAutoScalePolicyAsync(null)
+                .thenAccept(__ -> {
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .log("Successfully removed scalableTopicAutoScalePolicy on namespace");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(ex)
+                            .log("Failed to remove scalableTopicAutoScalePolicy on namespace");
                     if (ex instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
                     } else {

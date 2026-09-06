@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.serializeWithSize;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import static org.apache.pulsar.common.util.SafeCollectionUtils.longArrayToList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
@@ -135,7 +136,6 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -144,6 +144,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private static final Logger LOG = Logger.get(ConsumerImpl.class);
     protected final Logger log;
 
+    private static final long[] EMPTY_ACK_SET = new long[0];
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     final long consumerId;
@@ -942,7 +943,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
                     // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
+                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
@@ -1044,6 +1045,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.warn().attr("errorType", t.getClass().getName())
                 .exceptionMessage(t)
                 .log("Closed consumer because of unrecoverable error");
+        // If the unrecoverable error occurs before the initial subscribe completes, fail the subscribe
+        // future as well; otherwise callers waiting on it (e.g. RawReader.create() / subscribeAsync())
+        // would hang forever. This is a no-op when the subscribe future has already completed.
+        subscribeFuture.completeExceptionally(t);
         closeAsync().whenComplete((__, ex) -> {
             if (ex == null) {
                 fail(t);
@@ -1424,11 +1429,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
-        List<Long> ackSet = Collections.emptyList();
+        long[] ackSet = EMPTY_ACK_SET;
         if (cmdMessage.getAckSetsCount() > 0) {
-            ackSet = new ArrayList<>(cmdMessage.getAckSetsCount());
+            ackSet = new long[cmdMessage.getAckSetsCount()];
             for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
-                ackSet.add(cmdMessage.getAckSetAt(i));
+                ackSet[i] = cmdMessage.getAckSetAt(i);
             }
         }
         int redeliveryCount = cmdMessage.getRedeliveryCount();
@@ -1494,7 +1499,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getPayloadProcessor() != null) {
             // uncompressedPayload is released in this method so we don't need to call release() again
             processPayloadByProcessor(brokerEntryMetadata, msgMetadata,
-                    uncompressedPayload, msgId, schema, redeliveryCount, ackSet, consumerEpoch);
+                    uncompressedPayload, msgId, schema, redeliveryCount, longArrayToList(ackSet), consumerEpoch);
             return;
         }
 
@@ -1777,7 +1782,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -1792,8 +1797,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         BitSet ackSetInMessageId = BatchMessageIdImpl.newAckSet(batchSize);
         BitSetRecyclable ackBitSet = null;
-        if (ackSet != null && ackSet.size() > 0) {
-            ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+        if (ackSet != null && ackSet.length > 0) {
+            ackBitSet = BitSetRecyclable.valueOf(ackSet);
+            ackSetInMessageId.and(BitSet.valueOf(ackSet));
         }
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -2700,7 +2706,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final ByteBuf seek;
         if (msgId.getFirstChunkMessageId() != null) {
             seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
-                    firstChunkMsgId.getEntryId(), new long[0]);
+                    firstChunkMsgId.getEntryId(), EMPTY_ACK_SET);
         } else {
             final long[] ackSetArr;
             if (MessageIdAdvUtils.isBatch(msgId)) {
@@ -2710,7 +2716,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ackSetArr = ackSet.toLongArray();
                 ackSet.recycle();
             } else {
-                ackSetArr = new long[0];
+                ackSetArr = EMPTY_ACK_SET;
             }
             seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
         }
@@ -2734,6 +2740,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
+            if (startMessageId == null) {
+                internalGetLastMessageIdAsync().thenAccept(response -> {
+                    lastMessageIdInBroker = response.lastMessageId;
+                    completehasMessageAvailableWithValue(booleanFuture,
+                            hasMoreMessagesThanMarkDeletePosition(response, false, false));
+                }).exceptionally(e -> {
+                    log.error().exception(e)
+                            .log("Failed getLastMessageId command");
+                    booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                    return null;
+                });
+                return booleanFuture;
+            }
+
             // If the last seek is called with timestamp, startMessageId cannot represent the position to start, so we
             // have to get the mark-delete position from the GetLastMessageId response to compare as well.
             // if we are starting from latest, we should seek to the actual last message first.
@@ -2749,34 +2769,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 future.thenAccept(response -> {
-                    MessageIdAdv lastMessageId = (MessageIdAdv) response.lastMessageId;
-                    MessageIdAdv markDeletePosition = (MessageIdAdv) response.markDeletePosition;
-
-                    if (markDeletePosition != null && !(markDeletePosition.getEntryId() < 0
-                            && markDeletePosition.getLedgerId() > lastMessageId.getLedgerId())) {
-                        // we only care about comparing ledger ids and entry ids as mark delete position doesn't have
-                        // other ids such as batch index
-                        int result = ComparisonChain.start()
-                                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
-                                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
-                                .result();
-                        if (lastMessageId.getEntryId() < 0) {
-                            completehasMessageAvailableWithValue(booleanFuture, false);
-                        } else if (hasSoughtByTimestamp) {
-                            completehasMessageAvailableWithValue(booleanFuture, result < 0);
-                        } else {
-                            completehasMessageAvailableWithValue(booleanFuture,
-                                    resetIncludeHead ? result <= 0 : result < 0);
-                        }
-                    } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
-                        completehasMessageAvailableWithValue(booleanFuture, false);
-                    } else {
-                        completehasMessageAvailableWithValue(booleanFuture, resetIncludeHead);
-                    }
+                    completehasMessageAvailableWithValue(booleanFuture,
+                            hasMoreMessagesThanMarkDeletePosition(response,
+                                    !hasSoughtByTimestamp && resetIncludeHead, resetIncludeHead));
                 }).exceptionally(ex -> {
                     log.error().exception(ex)
                             .log("Failed getLastMessageId command");
-                    booleanFuture.completeExceptionally(ex.getCause());
+                    booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                     return null;
                 });
 
@@ -2793,8 +2792,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 completehasMessageAvailableWithValue(booleanFuture,
                         hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead));
             }).exceptionally(e -> {
-                log.error("Failed getLastMessageId command");
-                booleanFuture.completeExceptionally(e.getCause());
+                log.error().exception(e)
+                        .log("Failed getLastMessageId command");
+                booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
             });
 
@@ -2810,8 +2810,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 completehasMessageAvailableWithValue(booleanFuture,
                         hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false));
             }).exceptionally(e -> {
-                log.error("Failed getLastMessageId command");
-                booleanFuture.completeExceptionally(e.getCause());
+                log.error().exception(e)
+                        .log("Failed getLastMessageId command");
+                booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
             });
         }
@@ -2833,6 +2834,28 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         return !inclusive && lastMessageIdInBroker.compareTo(messageId) > 0
                 && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() != -1;
+    }
+
+    private boolean hasMoreMessagesThanMarkDeletePosition(GetLastMessageIdResponse response, boolean inclusive,
+                                                          boolean includeHeadWhenMarkDeleteIsAfterLastMessage) {
+        MessageIdAdv lastMessageId = (MessageIdAdv) response.lastMessageId;
+        if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
+            return false;
+        }
+
+        MessageIdAdv markDeletePosition = (MessageIdAdv) response.markDeletePosition;
+        if (markDeletePosition == null || (markDeletePosition.getEntryId() < 0
+                && markDeletePosition.getLedgerId() > lastMessageId.getLedgerId())) {
+            return includeHeadWhenMarkDeleteIsAfterLastMessage;
+        }
+
+        // We only care about comparing ledger ids and entry ids as mark delete position doesn't have
+        // other ids such as batch index.
+        int result = ComparisonChain.start()
+                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
+                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
+                .result();
+        return inclusive ? result <= 0 : result < 0;
     }
 
     private static final class GetLastMessageIdResponse {

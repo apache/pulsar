@@ -334,7 +334,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
         Map<String, byte[]> metadata =
                 LedgerMetadataUtils.buildMetadataForCompactedLedger(
                         phaseOneResult.topic, phaseOneResult.lastId.toByteArray());
-        return createLedger(bk, metadata)
+        return createLedger(bk, metadata, phaseOneResult.topic)
                 .thenCompose((ledger) -> {
                     log.info()
                             .attr("topic", phaseOneResult.topic)

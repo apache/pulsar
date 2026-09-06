@@ -67,6 +67,10 @@ public interface Subscription extends MessageExpirer {
 
     long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
 
+    default boolean hasBacklog(boolean getPreciseBacklog) {
+        return getNumberOfEntriesInBacklog(getPreciseBacklog) > 0;
+    }
+
     default long getNumberOfEntriesDelayed() {
         return 0;
     }

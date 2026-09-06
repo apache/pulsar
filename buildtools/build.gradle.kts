@@ -27,7 +27,7 @@ dependencies {
     implementation(libs.ant)
     implementation(libs.guava)
     implementation(libs.guice)
-    implementation(libs.testng) {
+    api(libs.testng) {
         exclude(group = "org.slf4j")
     }
     implementation(libs.log4j.api)

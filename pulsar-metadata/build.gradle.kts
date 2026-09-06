@@ -23,13 +23,13 @@ plugins {
 
 dependencies {
     api(project(":pulsar-common"))
-    implementation(libs.bookkeeper.server)
+    api(libs.bookkeeper.server)
     implementation(libs.zookeeper) {
         exclude(group = "org.slf4j")
     }
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.oxia.client)
-    implementation(libs.slog)
+    api(libs.slog)
     implementation(libs.caffeine)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.caffeine)

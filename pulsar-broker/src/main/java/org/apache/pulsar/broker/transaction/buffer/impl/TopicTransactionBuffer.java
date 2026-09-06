@@ -155,7 +155,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void recoverComplete() {
                         synchronized (TopicTransactionBuffer.this) {
                             if (ongoingTxns.isEmpty()) {
-                                maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                                updateMaxReadPositionAfterRecovery();
                             }
                             if (!changeToReadyState()) {
                                 log.error("Transaction buffer recover fail");
@@ -175,7 +175,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void noNeedToRecover() {
                         synchronized (TopicTransactionBuffer.this) {
-                            maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                            updateMaxReadPositionAfterRecovery();
                             if (!changeToNoSnapshotState()) {
                                 log.error().log("Transaction buffer recover fail");
                             } else {
@@ -644,6 +644,23 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    /**
+     * Advance the max read position to the last confirmed entry when recovery finishes. While the transaction
+     * buffer is recovering, {@link #syncMaxReadPositionForNormalPublish(Position, boolean)} ignores publishes, so
+     * messages published during recovery would otherwise never trigger the maxReadPositionMovedForward callback.
+     * {@link PersistentTopic} uses that callback to maintain lastMaxReadPositionMovedForwardTimestamp, which
+     * ReplicatedSubscriptionsController relies on to detect new data when deciding whether to start a snapshot.
+     * Must be called while synchronized on this transaction buffer.
+     */
+    private void updateMaxReadPositionAfterRecovery() {
+        Position preMaxReadPosition = this.maxReadPosition;
+        this.maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+        if (this.maxReadPosition != null
+                && (preMaxReadPosition == null || preMaxReadPosition.compareTo(this.maxReadPosition) < 0)) {
+            this.maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
+        }
+    }
+
     @Override
     public CompletableFuture<Void> purgeTxns(List<Long> dataLedgers) {
         return null;
@@ -659,7 +676,20 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (checkIfClosedAndCleared()) {
             return CompletableFuture.completedFuture(null);
         }
-        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot().thenCompose(__ -> closeAsync())
+        // Removing the aborted txn snapshot is best-effort. It writes a tombstone to the
+        // __transaction_buffer_snapshot system topic of this namespace, which can fail permanently, for
+        // instance when the snapshot topic itself is gone or its producer has been closed. The topic must
+        // stay deletable in that case: callers such as PersistentTopic#checkReplication treat a failed
+        // deletion as retriable and would otherwise retry it forever. Failing here would also skip
+        // closeAsync() and leak the snapshot writer reference.
+        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot()
+            .exceptionally(ex -> {
+                log.warn().exception(ex)
+                        .log("Failed to delete the aborted transaction snapshot, closing the transaction "
+                                + "buffer anyway. A stale snapshot entry may be left behind.");
+                return null;
+            })
+            .thenCompose(__ -> closeAsync())
             .thenAccept(__ -> {
                 changeToClosedAndClearedState();
             });
@@ -683,6 +713,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public synchronized boolean isTxnAborted(TxnID txnID, Position readPosition) {
         return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
+    }
+
+    @Override
+    public synchronized boolean isTxnOngoing(TxnID txnID) {
+        return ongoingTxns.containsKey(txnID);
     }
 
     /**

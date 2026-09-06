@@ -27,12 +27,14 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.protobuf.Any;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -41,8 +43,11 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -537,6 +542,64 @@ public class JavaInstanceRunnableTest {
                     Assert.assertFalse(fnThread.isAlive());
                     Assert.assertFalse((boolean) getPrivateField(javaInstanceRunnable, "isInitialized"));
                 });
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testReadInputLogsAndRethrowsOnValueDecodeFailure() throws Exception {
+        SchemaSerializationException decodeError = new SchemaSerializationException("boom");
+
+        // Case 1: full message coordinates present -> the original decode exception is rethrown unchanged.
+        Record<?> record = mock(Record.class);
+        when(record.getValue()).thenThrow(decodeError);
+        when(record.getTopicName()).thenReturn(Optional.of("persistent://t/n/topic-partition-0"));
+        when(record.getKey()).thenReturn(Optional.of("eyJpZCI6NjU2MzY0Nn0="));
+        Message<?> message = mock(Message.class);
+        when(message.getMessageId()).thenReturn(new MessageIdImpl(232155494L, 7641L, 0));
+        when(message.getSchemaVersion()).thenReturn(new byte[]{0, 0, 0, 0, 0, 0, 0, 1});
+        when(record.getMessage()).thenReturn((Optional) Optional.of(message));
+
+        JavaInstanceRunnable runnable = createRunnable((String) null);
+        setPrivateSource(runnable, record);
+        InvocationTargetException ite =
+                Assert.expectThrows(InvocationTargetException.class, () -> invokeReadInput(runnable));
+        Assert.assertSame(ite.getCause(), decodeError);
+
+        // Case 2: missing coordinates (empty message, no topic/key) must not NPE and still rethrows.
+        Record<?> record2 = mock(Record.class);
+        when(record2.getValue()).thenThrow(decodeError);
+        when(record2.getTopicName()).thenReturn(Optional.empty());
+        when(record2.getKey()).thenReturn(Optional.empty());
+        when(record2.getMessage()).thenReturn(Optional.empty());
+
+        JavaInstanceRunnable runnable2 = createRunnable((String) null);
+        setPrivateSource(runnable2, record2);
+        InvocationTargetException ite2 =
+                Assert.expectThrows(InvocationTargetException.class, () -> invokeReadInput(runnable2));
+        Assert.assertSame(ite2.getCause(), decodeError);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void setPrivateSource(JavaInstanceRunnable runnable, Record<?> record) throws Exception {
+        Source<?> source = mock(Source.class);
+        when(source.read()).thenReturn((Record) record);
+        Field field = JavaInstanceRunnable.class.getDeclaredField("source");
+        field.setAccessible(true);
+        field.set(runnable, source);
+        field.setAccessible(false);
+    }
+
+    private void invokeReadInput(JavaInstanceRunnable runnable) throws Exception {
+        Method method = JavaInstanceRunnable.class.getDeclaredMethod("readInput");
+        method.setAccessible(true);
+        // readInput()'s finally block resets the context classloader; preserve and restore the
+        // test thread's classloader so it is not left null for subsequent tests.
+        ClassLoader original = Thread.currentThread().getContextClassLoader();
+        try {
+            method.invoke(runnable);
+        } finally {
+            Thread.currentThread().setContextClassLoader(original);
+        }
     }
 
     @AfterClass

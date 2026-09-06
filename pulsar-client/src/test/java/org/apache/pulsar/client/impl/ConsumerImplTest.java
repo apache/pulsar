@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
@@ -31,6 +32,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -38,17 +43,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -340,5 +350,52 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.scaleReceiverQueueHint.get(),
                 "Hint must reflect the post-enqueue state (pipeline had >=1 message); "
                         + "a concurrent drain of the just-enqueued message must not clear it.");
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testGetMessageAtSyncsAckSetInMessageIdWithBrokerAckSet() {
+        // Regression test for MessagePayloadContextImpl#getMessageAt: the BatchMessageIdImpl handed
+        // back to the caller carries a shared ackSetInMessageId bitset that must be seeded from the
+        // broker-reported ackSet, not a fresh "all unacked" bitset. Otherwise indices the broker
+        // already knows are acked would be reported as still-outstanding in the returned MessageId,
+        // which is the same root cause that let acked batch messages leak into the DLQ (see
+        // ConsumerImpl#receiveIndividualMessagesFromBatch and its ackSetInMessageId.and(...) fix).
+        final int batchSize = 3;
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setProducerName("test-producer")
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(batchSize);
+
+        // Broker reports index 0 as already acked (bit cleared); indices 1 and 2 are still
+        // outstanding (bits set). This mirrors the ackSet the broker attaches on redelivery.
+        BitSet brokerAckSet = new BitSet(batchSize);
+        brokerAckSet.set(1);
+        brokerAckSet.set(2);
+        List<Long> ackSet = Arrays.stream(brokerAckSet.toLongArray()).boxed().collect(Collectors.toList());
+
+        MessageIdImpl messageId = new MessageIdImpl(1L, 2L, -1);
+        MessagePayloadContextImpl context = MessagePayloadContextImpl.get(
+                null, messageMetadata, messageId, consumer, 0, ackSet, DEFAULT_CONSUMER_EPOCH);
+        MessagePayload payload0 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{0}));
+        MessagePayload payload1 = MessagePayloadImpl.create(Unpooled.wrappedBuffer(new byte[]{1}));
+        try {
+            // Index 0 is already acked per the broker, so it must not be redelivered to the app.
+            Assert.assertNull(context.getMessageAt(0, batchSize, payload0, false, Schema.BYTES));
+
+            Message<byte[]> message1 = context.getMessageAt(1, batchSize, payload1, false, Schema.BYTES);
+            Assert.assertNotNull(message1);
+
+            BitSet ackSetInMessageId = ((MessageIdAdv) message1.getMessageId()).getAckSet();
+            Assert.assertFalse(ackSetInMessageId.get(0),
+                    "index 0 was already acked by the broker, so the returned MessageId's ackSet "
+                            + "must reflect it as acked, not fall back to the default all-unacked state");
+            Assert.assertTrue(ackSetInMessageId.get(1), "index 1 is still outstanding");
+            Assert.assertTrue(ackSetInMessageId.get(2), "index 2 is still outstanding");
+        } finally {
+            payload0.release();
+            payload1.release();
+            context.recycle();
+        }
     }
 }

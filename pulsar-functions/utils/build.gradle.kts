@@ -25,7 +25,7 @@ dependencies {
     implementation(libs.slog)
     api(project(":pulsar-common"))
     api(project(":pulsar-functions:pulsar-functions-api"))
-    implementation(project(":pulsar-functions:pulsar-functions-proto"))
+    api(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-config-validation"))
     implementation(libs.commons.lang3)
@@ -34,7 +34,7 @@ dependencies {
     implementation(project(":pulsar-client-original"))
     implementation(libs.protobuf.java)
     implementation(libs.protobuf.java.util)
-    implementation(libs.byte.buddy)
+    api(libs.byte.buddy)
     implementation(libs.zt.zip)
     implementation(libs.guava)
 

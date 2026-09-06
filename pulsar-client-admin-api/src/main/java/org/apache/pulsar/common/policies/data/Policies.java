@@ -61,6 +61,8 @@ public class Policies {
     public AutoTopicCreationOverride autoTopicCreationOverride = null;
     // If set, it will override the broker settings for allowing auto subscription creation
     public AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = null;
+    // If set, it will override the broker's scalable-topic auto split/merge settings (PIP-483)
+    public AutoScalePolicyOverride scalableTopicAutoScalePolicy = null;
     public Map<String, PublishRate> publishMaxMessageRate = new HashMap<>();
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -158,7 +160,7 @@ public class Policies {
                 backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
-                autoSubscriptionCreationOverride, persistence,
+                autoSubscriptionCreationOverride, scalableTopicAutoScalePolicy, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies, inactive_topic_policies,
@@ -198,6 +200,7 @@ public class Policies {
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
                     && Objects.equals(autoSubscriptionCreationOverride, other.autoSubscriptionCreationOverride)
+                    && Objects.equals(scalableTopicAutoScalePolicy, other.scalableTopicAutoScalePolicy)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,

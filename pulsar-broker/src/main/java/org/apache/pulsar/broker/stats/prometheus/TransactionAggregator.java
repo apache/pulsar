@@ -65,10 +65,15 @@ public class TransactionAggregator {
                                     if (!isEventSystemTopic(TopicName.get(subscription.getTopic().getName()))
                                             && subscription instanceof PersistentSubscription
                                             && ((PersistentSubscription) subscription).checkIfPendingAckStoreInit()) {
+                                        // Use getNow() rather than get() so a not-yet-resolved managed
+                                        // ledger cannot block (and exhaust) the metrics thread pool; the
+                                        // stats are simply skipped for this scrape and picked up later.
                                         ManagedLedger managedLedger = ((PersistentSubscription) subscription)
-                                                .getPendingAckManageLedger().get();
-                                        generateManageLedgerStats(managedLedger,
-                                                stream, cluster, namespace, name, subscription.getName());
+                                                .getPendingAckManageLedger().getNow(null);
+                                        if (managedLedger != null) {
+                                            generateManageLedgerStats(managedLedger,
+                                                    stream, cluster, namespace, name, subscription.getName());
+                                        }
                                     }
                                 } catch (Exception e) {
                                     log.warn()

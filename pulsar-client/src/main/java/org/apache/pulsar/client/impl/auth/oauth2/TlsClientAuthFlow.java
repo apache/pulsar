@@ -62,9 +62,10 @@ class TlsClientAuthFlow extends FlowBase {
     @Builder
     public TlsClientAuthFlow(URL issuerUrl, String clientId, String certFile, String keyFile, String audience,
                              String scope, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
-                             String wellKnownMetadataPath, Duration autoCertRefreshDuration) {
+                             String wellKnownMetadataPath, Duration autoCertRefreshDuration,
+                             String jsseProvider, String jcaProvider) {
         super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, certFile, keyFile, autoCertRefreshDuration,
-                wellKnownMetadataPath);
+                wellKnownMetadataPath, jsseProvider, jcaProvider);
         this.clientId = StringUtils.defaultIfBlank(clientId, DEFAULT_CLIENT_ID);
         this.audience = audience;
         this.scope = scope;
@@ -91,6 +92,9 @@ class TlsClientAuthFlow extends FlowBase {
         String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
         String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
         Duration autoCertRefreshDuration = parseParameterDuration(params, CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION);
+        // PIP-478: as in ClientCredentialsFlow — explicit pins win, and are the only source standalone.
+        String jsseProvider = params.get(CONFIG_PARAM_JSSE_PROVIDER);
+        String jcaProvider = params.get(CONFIG_PARAM_JCA_PROVIDER);
 
         return TlsClientAuthFlow.builder()
                 .issuerUrl(issuerUrl)
@@ -104,6 +108,8 @@ class TlsClientAuthFlow extends FlowBase {
                 .trustCertsFilePath(trustCertsFilePath)
                 .wellKnownMetadataPath(wellKnownMetadataPath)
                 .autoCertRefreshDuration(autoCertRefreshDuration)
+                .jsseProvider(jsseProvider)
+                .jcaProvider(jcaProvider)
                 .build();
     }
 

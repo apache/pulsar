@@ -26,7 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
-import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrlAsync;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.naming.Constants.WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE;
@@ -142,6 +142,7 @@ import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages
 import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribe;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -516,15 +517,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!scalableConsumerRegistrations.isEmpty()) {
             var scalableTopicService = service.getScalableTopicService();
             if (scalableTopicService != null) {
-                scalableConsumerRegistrations.values().forEach(ref -> {
-                    try {
-                        scalableTopicService.onConsumerDisconnect(
-                                ref.topicName(), ref.subscription(), ref.consumerName());
-                    } catch (Exception e) {
-                        log.warn().attr("consumerName", ref.consumerName()).exceptionMessage(e)
-                                .log("Error notifying scalable controller of consumer disconnect");
-                    }
-                });
+                scalableConsumerRegistrations.values().forEach(ref ->
+                        // Chained on the registration outcome: a registration still in flight
+                        // when the connection dies creates its session only afterwards, and
+                        // the disconnect report must not race ahead of it (it would no-op on
+                        // a not-yet-existing session and never arm the grace timer).
+                        ref.registration().whenComplete((__, ___) -> {
+                            try {
+                                scalableTopicService.onConsumerDisconnect(
+                                        ref.topicName(), ref.subscription(), ref.consumerName());
+                            } catch (Exception e) {
+                                log.warn().attr("consumerName", ref.consumerName())
+                                        .exceptionMessage(e)
+                                        .log("Error notifying scalable controller of consumer "
+                                                + "disconnect");
+                            }
+                        }));
             }
             scalableConsumerRegistrations.clear();
         }
@@ -781,6 +789,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final long sessionId = commandScalableTopicLookup.getSessionId();
         final String topicStr = commandScalableTopicLookup.getTopic();
+        // Capture now: the command object is recycled once this handler returns, before the
+        // async authorization continuation that builds the session runs.
+        final boolean createIfMissing = commandScalableTopicLookup.isCreateIfMissing();
 
         log.debug().attr("topic", topicStr).attr("sessionId", sessionId)
                 .log("Received ScalableTopicLookup");
@@ -836,7 +847,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     // Create a DagWatchSession that will send the initial layout and watch for changes
                     var session = new DagWatchSession(
-                            sessionId, topicName, this, resources, service);
+                            sessionId, topicName, this, resources, service, createIfMissing);
                     dagWatchSessions.put(sessionId, session);
 
                     session.start()
@@ -1090,7 +1101,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private record ScalableConsumerRegistrationRef(
             TopicName topicName,
             String subscription,
-            String consumerName) {}
+            String consumerName,
+            CompletableFuture<?> registration) {}
 
     @Override
     protected void handleCommandScalableTopicSubscribe(
@@ -1145,24 +1157,32 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg);
                         return;
                     }
-                    scalableTopicService.registerConsumer(topicName, subscription, consumerName,
-                                    consumerId, consumerType, this)
-                            .whenCompleteAsync((assignment, ex) -> {
-                                if (ex != null) {
-                                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                                    log.warn().attr("topic", topicName).attr("subscription", subscription)
-                                            .attr("consumerName", consumerName).exception(cause)
-                                            .log("ScalableTopicSubscribe failed");
-                                    getCommandSender().sendScalableTopicSubscribeError(requestId,
-                                            ServerError.UnknownError, cause.getMessage());
-                                    return;
-                                }
-                                // Record the registration so we can call onConsumerDisconnect on channelInactive.
-                                scalableConsumerRegistrations.put(consumerId,
-                                        new ScalableConsumerRegistrationRef(topicName, subscription, consumerName));
-                                getCommandSender().sendScalableTopicSubscribeResponse(requestId,
-                                        ConsumerSession.toProto(assignment));
-                            }, ctx.executor());
+                    // Record the registration BEFORE it resolves, carrying its future: an
+                    // unsubscribe (or the channelInactive sweep) arriving mid-registration
+                    // chains behind it instead of silently missing it. The client's subscribe
+                    // can time out while the broker-side registration is still in flight, so
+                    // this ordering must not depend on how long the client was able to wait.
+                    var registration = scalableTopicService.registerConsumer(topicName,
+                            subscription, consumerName, consumerId, consumerType, this);
+                    var ref = new ScalableConsumerRegistrationRef(
+                            topicName, subscription, consumerName, registration);
+                    scalableConsumerRegistrations.put(consumerId, ref);
+                    registration.whenCompleteAsync((assignment, ex) -> {
+                        if (ex != null) {
+                            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                            log.warn().attr("topic", topicName).attr("subscription", subscription)
+                                    .attr("consumerName", consumerName).exception(cause)
+                                    .log("ScalableTopicSubscribe failed");
+                            // Nothing was registered: drop the ref so unsubscribes and the
+                            // disconnect sweep have nothing to report for it.
+                            scalableConsumerRegistrations.remove(consumerId, ref);
+                            getCommandSender().sendScalableTopicSubscribeError(requestId,
+                                    ServerError.UnknownError, cause.getMessage());
+                            return;
+                        }
+                        getCommandSender().sendScalableTopicSubscribeResponse(requestId,
+                                ConsumerSession.toProto(assignment));
+                    }, ctx.executor());
                 })
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-subscribe", getPrincipal(),
@@ -1172,6 +1192,49 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             "Exception occurred while trying to authorize ScalableTopicSubscribe");
                     return null;
                 });
+    }
+
+    @Override
+    protected void handleCommandScalableTopicUnsubscribe(
+            CommandScalableTopicUnsubscribe commandScalableTopicUnsubscribe) {
+        checkArgument(state == State.Connected);
+        final long requestId = commandScalableTopicUnsubscribe.getRequestId();
+        final long consumerId = commandScalableTopicUnsubscribe.getConsumerId();
+
+        // The lookup is scoped to this connection's own registrations, so a client can only
+        // unregister sessions it created here — no further authorization is needed.
+        ScalableConsumerRegistrationRef ref = scalableConsumerRegistrations.get(consumerId);
+        var scalableTopicService = service.getScalableTopicService();
+        if (ref == null || scalableTopicService == null) {
+            // Unknown or already swept by a disconnect: idempotent success.
+            getCommandSender().sendSuccessResponse(requestId);
+            return;
+        }
+        log.debug().attr("topic", ref.topicName()).attr("subscription", ref.subscription())
+                .attr("consumerName", ref.consumerName()).attr("requestId", requestId)
+                .log("Received ScalableTopicUnsubscribe");
+        // Ordered behind the (possibly still in-flight) registration; a failed registration
+        // has nothing to unregister and the idempotent unregister below tolerates that.
+        ref.registration().handle((__, ___) -> (Void) null)
+                .thenCompose(__ -> scalableTopicService.unregisterConsumer(
+                        ref.topicName(), ref.subscription(), ref.consumerName(), consumerId))
+                .whenCompleteAsync((__, ex) -> {
+                    if (ex != null) {
+                        // Keep the ref: the channelInactive sweep can still report the
+                        // disconnect, so the grace-period fallback stays alive for a
+                        // registration the explicit unregister failed to delete.
+                        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                        log.warn().attr("consumerName", ref.consumerName()).exceptionMessage(cause)
+                                .log("ScalableTopicUnsubscribe failed");
+                        getCommandSender().sendErrorResponse(requestId, ServerError.UnknownError,
+                                cause.getMessage());
+                        return;
+                    }
+                    // Removed only on success; a channelInactive racing the unregister just
+                    // re-reports an already-removed session, which the coordinator ignores.
+                    scalableConsumerRegistrations.remove(consumerId, ref);
+                    getCommandSender().sendSuccessResponse(requestId);
+                }, ctx.executor());
     }
 
     @Override
@@ -1230,10 +1293,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 topicExistsInfo.recycle();
                             }).exceptionally(ex -> {
                                 lookupSemaphore.release();
-                                log.error()
-                                        .attr("topic", topicName)
-                                        .exception(ex)
-                                        .log("Failed to get partition metadata");
+                                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                                if (actEx instanceof WebApplicationException restException
+                                        && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+                                    log.warn()
+                                            .attr("topic", topicName)
+                                            .exceptionMessage(actEx)
+                                            .log("Failed to get partition metadata for nonexistent resource");
+                                } else {
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .exception(ex)
+                                            .log("Failed to get partition metadata");
+                                }
                                 writeAndFlush(
                                         Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                                                 "Failed to get partition metadata",
@@ -2011,8 +2083,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         }
                                     });
                         })
-                        .thenAcceptAsync(consumer -> {
-                            if (consumer.checkAndApplyTopicMigration()) {
+                        .thenComposeAsync(consumer -> consumer.checkAndApplyTopicMigrationAsync()
+                                .thenAcceptAsync(migrated -> {
+                            if (migrated) {
                                 log.info()
                                         .attr("consumerId", consumerId)
                                         .attr("subscription", subscriptionName)
@@ -2053,7 +2126,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 consumers.remove(consumerId, consumerFuture);
                             }
 
-                        }, ctx.executor())
+                        }, ctx.executor()), ctx.executor())
                         .exceptionallyAsync(exception -> {
                             if (exception.getCause() instanceof ConsumerBusyException) {
                                 log.debug()
@@ -2063,28 +2136,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .log("Failed to create consumer because exclusive consumer "
                                                 + "is already connected");
                             } else if (exception.getCause() instanceof BrokerServiceException.TopicMigratedException) {
-                                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(),
-                                        topicName.toString());
-                                if (clusterURL.isPresent()) {
-                                    log.info()
-                                            .attr("topic", topicName)
-                                            .attr("consumerId", consumerId)
-                                            .attr("subscription", subscriptionName)
-                                            .exceptionMessage(exception.getCause())
-                                            .log("Redirect migrated consumer");
-                                    boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Consumer, consumerId,
-                                            clusterURL.get().getBrokerServiceUrl(),
-                                            clusterURL.get().getBrokerServiceUrlTls());
-                                    if (!msgSent) {
-                                        log.info()
-                                                .attr("topic", topicName)
-                                                .attr("consumerId", consumerId)
-                                                .log("Consumer client doesn't support topic migration handling");
-                                    }
-                                    consumers.remove(consumerId, consumerFuture);
-                                    closeConsumer(consumerId, Optional.empty());
-                                    return null;
-                                }
+                                getMigratedClusterUrlAsync(service.getPulsar(), topicName.toString())
+                                        .exceptionally(e -> Optional.empty())
+                                        .thenAcceptAsync(clusterURL -> redirectOrFailMigratedConsumer(requestId,
+                                                consumerId, subscriptionName, topicName, consumerFuture, exception,
+                                                clusterURL), ctx.executor());
+                                return null;
                             } else if (exception.getCause() instanceof BrokerServiceException) {
                                 log.warn()
                                         .attr("topic", topicName)
@@ -2129,6 +2186,116 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         }, ctx.executor());
+    }
+
+    private void redirectOrFailMigratedConsumer(long requestId, long consumerId, String subscriptionName,
+            TopicName topicName, CompletableFuture<Consumer> consumerFuture, Throwable exception,
+            Optional<ClusterUrl> clusterURL) {
+        if (clusterURL.isPresent()) {
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("consumerId", consumerId)
+                    .attr("subscription", subscriptionName)
+                    .exceptionMessage(exception.getCause())
+                    .log("Redirect migrated consumer");
+            boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Consumer, consumerId,
+                    clusterURL.get().getBrokerServiceUrl(),
+                    clusterURL.get().getBrokerServiceUrlTls());
+            if (!msgSent) {
+                log.info()
+                        .attr("topic", topicName)
+                        .attr("consumerId", consumerId)
+                        .log("Consumer client doesn't support topic migration handling");
+            }
+            consumers.remove(consumerId, consumerFuture);
+            closeConsumer(consumerId, Optional.empty());
+        } else {
+            // If client timed out, the future would have been completed by subsequent close.
+            // Send error back to client, only if not completed already.
+            if (consumerFuture.completeExceptionally(exception)) {
+                commandSender.sendErrorResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                        exception.getCause().getMessage());
+            }
+            consumers.remove(consumerId, consumerFuture);
+        }
+    }
+
+    private void redirectOrFailMigratedProducer(long requestId, long producerId, String producerName,
+            TopicName topicName, CompletableFuture<Producer> producerFuture, Throwable exception,
+            Optional<ClusterUrl> clusterURL) {
+        if (clusterURL.isPresent()) {
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("producerId", producerId)
+                    .attr("producerName", producerName)
+                    .exceptionMessage(exception.getCause())
+                    .log("redirect migrated producer to topic: " + "producerId=, producerName");
+            boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
+                    clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
+            if (!msgSent) {
+                log.info()
+                        .attr("topic", topicName)
+                        .attr("producerId", producerId)
+                        .log("client doesn't support topic migration handling");
+            }
+            producers.remove(producerId, producerFuture);
+            closeProducer(producerId, -1L, Optional.empty());
+        } else {
+            log.error()
+                    .attr("topic", topicName)
+                    .attr("producerId", producerId)
+                    .exception(exception)
+                    .log("Failed to create topic, producerId");
+            if (producerFuture.completeExceptionally(exception)) {
+                commandSender.sendErrorResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                        exception.getCause().getMessage());
+            }
+            producers.remove(producerId, producerFuture);
+        }
+    }
+
+    private void redirectOrFailMigratedProducerInQueue(long requestId, long producerId, String producerName,
+            TopicName topicName, Topic topic, Producer producer, CompletableFuture<Producer> producerFuture,
+            Throwable ex, Optional<ClusterUrl> clusterURL) {
+        if (clusterURL.isPresent() && topic.shouldProducerMigrate()) {
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("producerId", producerId)
+                    .attr("producerName", producerName)
+                    .exceptionMessage(ex.getCause())
+                    .log("redirect migrated producer to topic: " + "producerId=, producerName");
+            boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
+                    clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
+            if (!msgSent) {
+                log.info()
+                        .attr("topic", topic)
+                        .attr("producerId", producerId)
+                        .log("client doesn't support topic migration handling");
+            }
+            closeProducer(producer);
+        } else {
+            if (clusterURL.isPresent()) {
+                log.info()
+                        .attr("topic", topicName)
+                        .attr("producerId", producerId)
+                        .attr("producerName", producerName)
+                        .exceptionMessage(ex.getCause())
+                        .log("Topic is migrated but replication backlog exist: " + "producerId =, producerName");
+            } else {
+                log.warn()
+                        .attr("topic", topicName)
+                        .attr("producerId", producerId)
+                        .exceptionMessage(ex.getCause())
+                        .log("failed producer because migration url not configured topic: producerId");
+            }
+            producer.closeNow(true);
+            if (producerFuture.completeExceptionally(ex)) {
+                commandSender.sendErrorResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            }
+        }
     }
 
     private SchemaData getSchema(Schema protocolSchema) {
@@ -2390,26 +2557,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     producers.remove(producerId, producerFuture);
                     return null;
                 } else if (cause instanceof BrokerServiceException.TopicMigratedException) {
-                    Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(), topicName.toString());
-                    if (clusterURL.isPresent()) {
-                        log.info()
-                                .attr("topic", topicName)
-                                .attr("producerId", producerId)
-                                .attr("producerName", producerName)
-                                .exceptionMessage(cause)
-                                .log("redirect migrated producer to topic: " + "producerId=, producerName");
-                        boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
-                                clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
-                        if (!msgSent) {
-                            log.info()
-                                    .attr("topic", topicName)
-                                    .attr("producerId", producerId)
-                                    .log("client doesn't support topic migration handling");
-                        }
-                        producers.remove(producerId, producerFuture);
-                        closeProducer(producerId, -1L, Optional.empty());
-                        return null;
-                    }
+                    getMigratedClusterUrlAsync(service.getPulsar(), topicName.toString())
+                            .exceptionally(e -> Optional.empty())
+                            .thenAcceptAsync(clusterURL -> redirectOrFailMigratedProducer(requestId, producerId,
+                                    producerName, topicName, producerFuture, exception, clusterURL), ctx.executor());
+                    return null;
                 }
 
                 // Do not print stack traces for expected exceptions
@@ -2506,41 +2658,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producers.remove(producerId, producerFuture);
         }, ctx.executor()).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
-                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(), topic.getName());
-                if (clusterURL.isPresent()) {
-                    if (!topic.shouldProducerMigrate()) {
-                        log.info()
-                                .attr("topic", topicName)
-                                .attr("producerId", producerId)
-                                .attr("producerName", producerName)
-                                .exceptionMessage(ex.getCause())
-                                .log("Topic is migrated but replication backlog exist: "
-                                        + "producerId =, producerName");
-                    } else {
-                        log.info()
-                                .attr("topic", topicName)
-                                .attr("producerId", producerId)
-                                .attr("producerName", producerName)
-                                .exceptionMessage(ex.getCause())
-                                .log("redirect migrated producer to topic: " + "producerId=, producerName");
-                        boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
-                                clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
-                        if (!msgSent) {
-                            log.info()
-                                    .attr("topic", topic)
-                                    .attr("producerId", producerId)
-                                    .log("client doesn't support topic migration handling");
-                        }
-                        closeProducer(producer);
-                        return null;
-                    }
-                } else {
-                    log.warn()
-                            .attr("topic", topicName)
-                            .attr("producerId", producerId)
-                            .exceptionMessage(ex.getCause())
-                            .log("failed producer because migration url not configured topic: producerId");
-                }
+                getMigratedClusterUrlAsync(service.getPulsar(), topic.getName())
+                        .exceptionally(e -> Optional.empty())
+                        .thenAcceptAsync(clusterURL -> redirectOrFailMigratedProducerInQueue(requestId, producerId,
+                                producerName, topicName, topic, producer, producerFuture, ex, clusterURL),
+                                ctx.executor());
+                return null;
             } else if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
                 log.debug()
                         .attr("topic", topicName)
@@ -3111,13 +3234,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }, null);
 
             CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-                MessageMetadata metadata = entry.getMessageMetadata();
-                if (metadata == null) {
-                    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                try {
+                    MessageMetadata metadata = entry.getMessageMetadata();
+                    if (metadata == null) {
+                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    }
+                    int batchSize = metadata.getNumMessagesInBatch();
+                    return metadata.hasNumMessagesInBatch() ? batchSize : -1;
+                } finally {
+                    entry.release();
                 }
-                int batchSize = metadata.getNumMessagesInBatch();
-                entry.release();
-                return metadata.hasNumMessagesInBatch() ? batchSize : -1;
             });
 
             batchSizeFuture.whenComplete((batchSize, e) -> {

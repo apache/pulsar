@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.HdrHistogram.Histogram;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -52,6 +56,36 @@ public class PerfClientUtilsTest {
         @Override
         public void close() throws IOException {
         }
+    }
+
+    @Test
+    public void hostnameVerificationAloneDoesNotEnableTls() {
+        // conf/client.conf ships tlsEnableHostnameVerification=true since 5.0 (PIP-478), and picocli
+        // resolves it through descriptionKey, so every pulsar-perf invocation in a distribution sees
+        // TRUE here. Treating that as intent wires a TlsPolicy, which flips useTls on the V5 builder and
+        // makes the client attempt a TLS handshake against a plaintext pulsar:// endpoint.
+        final PerformanceBaseArguments plaintext = new PerformanceArgumentsTestDefault("");
+        plaintext.serviceURL = "pulsar://my-pulsar:6650";
+        plaintext.tlsTrustCertsFilePath = "";
+        plaintext.tlsHostnameVerificationEnable = true;
+        Assert.assertFalse(PerfClientUtils.wantsTls(plaintext));
+
+        // The genuine signals still enable it.
+        final PerformanceBaseArguments byUrl = new PerformanceArgumentsTestDefault("");
+        byUrl.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        byUrl.tlsTrustCertsFilePath = "";
+        Assert.assertTrue(PerfClientUtils.wantsTls(byUrl));
+
+        final PerformanceBaseArguments byTrustPath = new PerformanceArgumentsTestDefault("");
+        byTrustPath.serviceURL = "pulsar://my-pulsar:6650";
+        byTrustPath.tlsTrustCertsFilePath = "/tls/ca.pem";
+        Assert.assertTrue(PerfClientUtils.wantsTls(byTrustPath));
+
+        final PerformanceBaseArguments byAllowInsecure = new PerformanceArgumentsTestDefault("");
+        byAllowInsecure.serviceURL = "pulsar://my-pulsar:6650";
+        byAllowInsecure.tlsTrustCertsFilePath = "";
+        byAllowInsecure.tlsAllowInsecureConnection = true;
+        Assert.assertTrue(PerfClientUtils.wantsTls(byAllowInsecure));
     }
 
     @Test
@@ -94,6 +128,37 @@ public class PerfClientUtilsTest {
         Assert.assertNull(conf.getProxyProtocol());
         Assert.assertEquals(conf.getMemoryLimitBytes(), 10240L);
 
+    }
+
+    /**
+     * PIP-478: the admin leg must be pinned on the same two axes as the binary leg, otherwise the HTTPS admin
+     * calls parse the broker certificate through the JVM provider search order while the data connection is
+     * pinned — a FIPS-shaped run on the very tool whose flags exist to validate a pinned cluster.
+     */
+    @Test
+    public void adminBuilderCarriesBothProviderAxes() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        args.jsseProvider = "BCJSSE";
+        args.jcaProvider = "BCFIPS";
+
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) PerfClientUtils
+                .createAdminBuilderFromArguments(args, "https://my-pulsar:8443");
+
+        assertThat(builder.getConf().getJsseProvider()).isEqualTo("BCJSSE");
+        assertThat(builder.getConf().getJcaProvider()).isEqualTo("BCFIPS");
+    }
+
+    @Test
+    public void adminBuilderProviderAxesAreUnsetByDefault() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) PerfClientUtils
+                .createAdminBuilderFromArguments(args, "https://my-pulsar:8443");
+
+        assertThat(builder.getConf().getJsseProvider()).isNull();
+        assertThat(builder.getConf().getJcaProvider()).isNull();
     }
 
     @Test
@@ -165,6 +230,26 @@ public class PerfClientUtilsTest {
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);
+        }
+    }
+
+    /**
+     * The perf clients hold their latency recorders in static fields, so every subcommand allocates them on
+     * startup rather than only the one being run. HdrHistogram grows the counts array by roughly 10x per
+     * significant digit, and at 5 digits these same ranges cost 11-22 MB each. Pin the bound so raising the
+     * precision again fails here instead of silently costing hundreds of megabytes.
+     */
+    @Test
+    public void latencyHistogramsStaySmallAtTheConfiguredPrecision() {
+        long[] rangesUsedByPerfClients = {
+                TimeUnit.HOURS.toMicros(1), // publish / ack / managed-ledger write latency, in microseconds
+                TimeUnit.DAYS.toMillis(10), // end-to-end consume / read latency, in milliseconds
+        };
+        for (long range : rangesUsedByPerfClients) {
+            Histogram histogram = new Histogram(range, PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+            assertThat(histogram.getEstimatedFootprintInBytes())
+                    .as("histogram footprint for range %d", range)
+                    .isLessThan(512 * 1024);
         }
     }
 }

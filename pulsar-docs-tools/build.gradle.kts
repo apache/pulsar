@@ -22,9 +22,9 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.commons.lang3)
+    api(libs.commons.lang3)
     implementation(libs.guava)
     implementation(libs.slog)
     implementation(libs.swagger.annotations)
-    implementation(libs.picocli)
+    api(libs.picocli)
 }

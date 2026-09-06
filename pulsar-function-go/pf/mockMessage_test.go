@@ -48,6 +48,10 @@ func (m *MockMessage) Payload() []byte {
 	return m.payload
 }
 
+func (m *MockMessage) IsNullValue() bool {
+	return m.payload == nil
+}
+
 func (m *MockMessage) ID() pulsar.MessageID {
 	return m.messageID
 }

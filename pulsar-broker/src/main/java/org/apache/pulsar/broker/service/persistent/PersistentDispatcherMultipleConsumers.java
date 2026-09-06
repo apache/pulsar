@@ -94,7 +94,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected final MessageRedeliveryController redeliveryMessages;
     protected final RedeliveryTracker redeliveryTracker;
 
-    private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
+    private volatile Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
@@ -616,11 +616,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             this.delayedDeliveryTracker = Optional.empty();
         }
 
-        delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
+        CompletableFuture<Void> closeTrackerFuture = delayedDeliveryTracker
+                .map(DelayedDeliveryTracker::closeAsync)
+                .orElseGet(() -> CompletableFuture.completedFuture(null));
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectConsumers
-                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
+        return closeTrackerFuture.thenCompose(__ -> disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null));
     }
 
     @Override
@@ -702,7 +704,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .attr("consumerCount", consumerList.size())
                 .log("Distributing messages to consumers");
 
-        long totalBytesSize = entries.stream().mapToLong(Entry::getLength).sum();
+        long totalBytesSize = getTotalBytesSize(entries);
         updatePendingBytesToDispatch(totalBytesSize);
 
         // dispatch messages to a separate thread, but still in order for this subscription
@@ -1008,7 +1010,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // Set the wait time to -1 to avoid rescheduling the read.
             waitTimeMillis = -1;
         } else if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+            if (!cursor.hasBacklog(false)) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
@@ -1372,13 +1374,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-
-    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+    protected boolean shouldPauseDeliveryForDelayTracker() {
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
@@ -1451,7 +1452,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
         if (isAtleastOneConsumerAvailable() && !havePendingReplayRead && !havePendingRead
-                && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+                && cursor.hasBacklog(false)) {
             log.warn("Dispatcher is stuck and unblocking by issuing reads");
             readMoreEntriesAsync();
             return true;
@@ -1464,20 +1465,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-    public synchronized long getDelayedTrackerMemoryUsage() {
+    public long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
-        if (delayedDeliveryTracker.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
-            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
-        }
-
-        return Collections.emptyMap();
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+        return delayedDeliveryTracker
+                .filter(BucketDelayedDeliveryTracker.class::isInstance)
+                .map(tracker -> ((BucketDelayedDeliveryTracker) tracker).genTopicMetricMap())
+                .orElse(Collections.emptyMap());
     }
 
     @Override

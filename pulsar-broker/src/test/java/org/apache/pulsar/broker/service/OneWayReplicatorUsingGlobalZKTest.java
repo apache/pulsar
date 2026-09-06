@@ -54,6 +54,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -821,6 +823,82 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         });
         admin1.topics().delete(tp, false);
         admin2.topics().delete(tp, false);
+    }
+
+    @Test(enabled = false)
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        super.testDisconnectAndReconnectReplicator(binaryWayRepl, hasLocalProducerRegistered, localProducerHasTraffic,
+                hasRemoteProducerTraffic, hasRemoteProducerRegistered);
+    }
+
+    @Test
+    public void testTopicGCDoesNotDisconnectReplicatorWhenRemoteProducerIsActive() throws Exception {
+        int replicationInactiveThresholdSeconds = pulsar1.getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(3600);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();
+
+        try {
+            producer1.send("msg-1");
+            waitReplicatorStarted(topic, pulsar1);
+            waitReplicatorStarted(topic, pulsar2);
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(topic, false)
+                    .join().get();
+
+            // Set inactive policies.
+            InactiveTopicPolicies  inactiveTopicPolicies = new InactiveTopicPolicies();
+            inactiveTopicPolicies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+            inactiveTopicPolicies.setMaxInactiveDurationSeconds(10);
+            inactiveTopicPolicies.setDeleteWhileInactive(true);
+            admin2.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
+
+            // Ensure policies were set successfully.
+            Awaitility.await().untilAsserted(() -> {
+                assertFalse(persistentTopic2.getProducers().values().stream()
+                        .anyMatch(producer -> !producer.isRemote()));
+                assertTrue(persistentTopic2.getSubscriptions().isEmpty());
+                assertTrue(persistentTopic2.getInactiveTopicPolicies().isDeleteWhileInactive());
+                assertEquals(persistentTopic2.getInactiveTopicPolicies().getMaxInactiveDurationSeconds(), 10);
+
+                Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+                assertNotNull(replicator);
+                assertTrue(replicator.isConnected());
+                assertEquals(replicator.getNumberOfEntriesInBacklog(), 0);
+            });
+
+            // Trigger GC.
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+            Thread.sleep(15 * 1000);
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+
+            // Verify: the replication is not disconnected due to Topic GC.
+            Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+            assertNotNull(replicator);
+            assertTrue(replicator.isConnected());
+
+            // Verify: the replication still works.
+            producer1.send("msg-2");
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin2.topics().getStats(topic).getReplication().get(cluster1).getReplicationBacklog(), 0);
+            });
+
+        } finally {
+            pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(replicationInactiveThresholdSeconds);
+            producer1.close();
+            admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1));
+            admin2.topics().setReplicationClusters(topic, Arrays.asList(cluster2));
+            waitReplicatorStopped(topic, pulsar1, pulsar2, false);
+            waitReplicatorStopped(topic, pulsar2, pulsar1, false);
+            admin1.topics().delete(topic, false);
+            admin2.topics().delete(topic, false);
+        }
     }
 
     @Test

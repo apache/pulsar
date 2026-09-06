@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.instance;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import java.security.Security;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.Builder;
@@ -38,7 +37,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.utils.CryptoUtils;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * This class is responsible for creating ProducerBuilders with the appropriate configurations to
@@ -161,11 +159,6 @@ public class ProducerBuilderFactory {
         }
 
         CryptoConfig cryptoConfig = producerConfig.getCryptoConfig();
-
-        // add provider only if it's not in the JVM
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
 
         final String[] encryptionKeys = cryptoConfig.getEncryptionKeys();
         Crypto.CryptoBuilder bldr = Crypto.builder()
