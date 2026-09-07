@@ -557,11 +557,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             removeTxnAndUpdateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
-                            handleLowWaterMark(txnID, lowWaterMark);
                         }
                         updateLastDispatchablePosition(null);
                         txnAbortedCounter.increment();
                         completableFuture.complete(null);
+                        // Complete first so the low-water-mark abort continuation releases its permit before
+                        // we scan for the next transaction. Completion must remain outside the buffer monitor.
+                        synchronized (TopicTransactionBuffer.this) {
+                            handleLowWaterMark(txnID, lowWaterMark);
+                        }
                     }
 
                     @Override
