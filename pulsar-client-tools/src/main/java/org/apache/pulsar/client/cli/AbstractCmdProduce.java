@@ -405,6 +405,10 @@ public abstract class AbstractCmdProduce extends AbstractCmd {
         }
 
         public CompletableFuture<Void> send(int index, byte[] content) throws Exception {
+            // Publish the future before the frame goes out: onMessage() runs on Jetty's read
+            // thread and can see the ack before sendText() returns. Assigning afterwards would
+            // overwrite the future that ack completed and leave the caller waiting the full
+            // timeout.
             this.result = new CompletableFuture<>();
             this.session.sendText(getTestJsonPayload(index, content), Callback.NOOP);
             return result;
@@ -430,7 +434,7 @@ public abstract class AbstractCmdProduce extends AbstractCmd {
         }
 
         @OnWebSocketOpen
-        public void onConnect(Session session) throws InterruptedException {
+        public void onConnect(Session session) {
             log.info().attr("session", session).log("Got connect");
             this.session = session;
             this.connected.complete(null);
@@ -438,8 +442,12 @@ public abstract class AbstractCmdProduce extends AbstractCmd {
 
         @OnWebSocketMessage
         public synchronized void onMessage(String msg) throws JsonParseException {
-            log.info().attr("msg", msg).log("ack= ");
-            this.result.complete(null);
+            log.info().attr("ack", msg).log("Received ack");
+            // A text frame can arrive outside a pending send — before the first send() or after
+            // close() — in which case there is no future to complete and the frame is ignored.
+            if (this.result != null) {
+                this.result.complete(null);
+            }
         }
 
         public Session getSession() {
@@ -447,6 +455,8 @@ public abstract class AbstractCmdProduce extends AbstractCmd {
         }
 
         public void close() {
+            // onClose() nulls the session, so a close after the proxy already closed the
+            // connection would otherwise NPE.
             if (session != null) {
                 session.close();
             }

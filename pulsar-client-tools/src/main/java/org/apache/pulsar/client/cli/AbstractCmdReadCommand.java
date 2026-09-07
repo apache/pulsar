@@ -92,9 +92,6 @@ public abstract class AbstractCmdReadCommand extends AbstractCmdConsume {
         super();
     }
 
-    /** The {@code -m/--start-message-id} argument, whose accepted forms differ per client. */
-    protected abstract String startMessageId();
-
     /**
      * Read over the binary protocol with this command's client generation.
      *

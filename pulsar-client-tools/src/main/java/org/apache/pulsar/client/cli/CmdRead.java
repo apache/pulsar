@@ -71,11 +71,6 @@ public class CmdRead extends AbstractCmdReadCommand {
     }
 
     @Override
-    protected String startMessageId() {
-        return startMessageId;
-    }
-
-    @Override
     protected String webSocketStartMessageId() {
         // Only 'latest' / 'earliest' are accepted (validated in validateArguments()).
         return startMessageId;

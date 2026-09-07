@@ -185,12 +185,20 @@ public class CmdProduceV4 extends AbstractCmdProduce {
         }
     }
 
-    /** The parsed Avro definition behind an {@code avro:} schema, or null for any other type. */
+    /**
+     * The parsed Avro definition behind an {@code avro:} schema, or null for any other type. An
+     * Avro schema that exposes no native definition is an error rather than a fallback: without it
+     * the JSON text would be shipped verbatim as the payload under an Avro schema.
+     */
     private static org.apache.avro.Schema nativeAvroSchemaOrNull(Schema<?> schema) {
         if (schema.getSchemaInfo().getType() != SchemaType.AVRO) {
             return null;
         }
-        return (org.apache.avro.Schema) schema.getNativeSchema().orElse(null);
+        return (org.apache.avro.Schema) schema.getNativeSchema()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No native Avro definition available for schema '"
+                                + schema.getSchemaInfo().getName()
+                                + "', so the message cannot be encoded from JSON"));
     }
 
     static Schema<?> buildSchema(String keySchema, String schema, String keyValueEncodingType) {

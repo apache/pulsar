@@ -83,11 +83,6 @@ public class CmdReadV4 extends AbstractCmdReadCommand {
     }
 
     @Override
-    protected String startMessageId() {
-        return startMessageId;
-    }
-
-    @Override
     protected void validateArguments() {
         // Fail fast on a malformed id rather than at reader creation.
         parseMessageId(startMessageId);

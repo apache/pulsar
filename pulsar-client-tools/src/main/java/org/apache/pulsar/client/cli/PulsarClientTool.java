@@ -253,12 +253,19 @@ public class PulsarClientTool implements CommandHook {
         if (isNotBlank(this.rootParams.listenerName)) {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
+        // Both are applied unconditionally on purpose. rootParams is itself populated from these
+        // same properties (each option declares the client.conf key as its descriptionKey, and the
+        // commander's default-value provider is a PropertiesDefaultProvider over them), so this
+        // rewrites the value loadConf already applied, or applies the CLI override. serviceUrl is
+        // additionally load-bearing: loadConf only reads the `serviceUrl` key, while client.conf
+        // supplies `brokerServiceUrl` / `webServiceUrl`.
         clientBuilder.serviceUrl(rootParams.serviceURL);
         clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath);
+        // A missing proxy protocol is already rejected by updateConfig(), the preRun() hook that
+        // creates this supplier, and again by ClientBuilderImpl.proxyServiceUrl(). The blank check
+        // stays because that same re-check rejects a null protocol: without a proxy configured at
+        // all, calling through would throw rather than leave the proxy unset.
         if (isNotBlank(rootParams.proxyServiceURL)) {
-            if (rootParams.proxyProtocol == null) {
-                throw new IllegalArgumentException("proxy-protocol must be provided with proxy-url");
-            }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
         return clientBuilder;

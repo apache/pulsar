@@ -21,9 +21,12 @@ package org.apache.pulsar.client.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -228,10 +231,10 @@ public class CmdV4CommandsTest {
                 .hasMessageContaining("start timestamp should be positive");
     }
 
-    private static java.util.Set<String> optionNames(CommandLine commander, String subcommand) {
-        java.util.Set<String> names = new java.util.TreeSet<>();
+    private static Set<String> optionNames(CommandLine commander, String subcommand) {
+        Set<String> names = new TreeSet<>();
         commander.getSubcommands().get(subcommand).getCommandSpec().options()
-                .forEach(option -> names.addAll(java.util.Arrays.asList(option.names())));
+                .forEach(option -> names.addAll(Arrays.asList(option.names())));
         return names;
     }
 }
