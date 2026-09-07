@@ -511,6 +511,12 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
     private void acknowledgeAndRecord(ConsumerT consumer, MessageT message, TxnT transaction) {
         long receiveTime = System.nanoTime();
+        // Capture the worker so an interrupt targets it rather than whichever thread happens to run
+        // the callback. The V5 ack future is already complete when it is returned, so the callbacks
+        // below do run on this thread, but the v4 one completes on a client-internal thread — as do
+        // the send and end-transaction futures on both clients, which capture it for the same
+        // reason.
+        final Thread workerThread = Thread.currentThread();
         acknowledgeAsync(consumer, message, transaction)
                 .thenRun(() -> {
                     long latencyMicros = Math.min(NANOSECONDS.toMicros(
@@ -521,7 +527,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 })
                 .exceptionally(exception -> {
                     if (PerfClientUtils.hasInterruptedException(exception)) {
-                        Thread.currentThread().interrupt();
+                        workerThread.interrupt();
                         return null;
                     }
                     log.error()
@@ -534,6 +540,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
     private CompletableFuture<?> sendAndRecord(ProducerT producer, byte[] payloadBytes, TxnT transaction) {
         long sendTime = System.nanoTime();
+        final Thread workerThread = Thread.currentThread();
         return sendMessage(producer, payloadBytes, transaction).whenComplete((id, ex) -> {
             if (ex == null) {
                 long latencyMicros = Math.min(NANOSECONDS.toMicros(
@@ -543,7 +550,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 numMessagesSendSuccess.increment();
             } else {
                 if (PerfClientUtils.hasInterruptedException(ex)) {
-                    Thread.currentThread().interrupt();
+                    workerThread.interrupt();
                     return;
                 }
                 // Ignore the exception when the producer is closed
@@ -561,13 +568,14 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
     /** End the transaction according to {@code -abort}, counting the outcome. */
     private void endTransaction(TxnT transaction) {
         final boolean abort = this.isAbortTransaction;
+        final Thread workerThread = Thread.currentThread();
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
         endFuture.thenRun(() -> {
             numTxnOpSuccess.increment();
             totalNumEndTxnOpSuccess.increment();
         }).exceptionally(exception -> {
             if (PerfClientUtils.hasInterruptedException(exception)) {
-                Thread.currentThread().interrupt();
+                workerThread.interrupt();
                 return null;
             }
             log.error()

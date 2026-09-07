@@ -85,8 +85,9 @@ public class PerformanceProducerV4
         }
 
         if (this.isEnableTransaction) {
-            // A send timeout and a transaction are mutually exclusive on the v4 client: a timed-out
-            // send would be retried outside the transaction it was issued under.
+            // The v4 client has allowed a send timeout inside a transaction since #16519, but a
+            // timeout still fails the send on its own schedule and takes the transaction with it.
+            // Disable it so the transaction timeout is the only deadline.
             producerBuilder.sendTimeout(0, TimeUnit.SECONDS);
         }
 

@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.collect.Sets;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -166,12 +169,17 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         new CommandLine(plain).parseArgs(topic);
         plain.sendMessage(producer, "plain".getBytes(), null, null, plain.nextDeliverAfterSeconds()).get();
 
+        // Arrival order is publish order here: the subscription is Exclusive, and
+        // PersistentDispatcherSingleActiveConsumer does not override trackDelayedDelivery, so a
+        // delivery time never routes the message through the delayed-delivery tracker.
         MessageImpl<byte[]> first = (MessageImpl<byte[]>) consumer.receive(30, TimeUnit.SECONDS);
         MessageImpl<byte[]> second = (MessageImpl<byte[]>) consumer.receive(30, TimeUnit.SECONDS);
 
+        assertThat(new String(first.getData(), StandardCharsets.UTF_8)).isEqualTo("delayed");
         assertThat(first.getDeliverAtTime())
                 .as("a zero delay drawn from --delay-range must still mark the message")
                 .isPositive();
+        assertThat(new String(second.getData(), StandardCharsets.UTF_8)).isEqualTo("plain");
         assertThat(second.getDeliverAtTime())
                 .as("a message sent without --delay/--delay-range must carry no delivery time")
                 .isZero();
@@ -209,10 +217,12 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         stop(thread);
 
         // Every consumed message was acknowledged except the one that tripped --num-messages: the
-        // run ends there without acking it, exactly as `consume` does.
-        assertThat(admin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog())
-                .as("consume-v4 must acknowledge what it consumed")
-                .isLessThanOrEqualTo(1);
+        // run ends there without acking it, exactly as `consume` does. The exit latch is released
+        // before the client is closed, and acks are grouped on a delay, so wait for the flush.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(admin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog())
+                        .as("consume-v4 must acknowledge what it consumed")
+                        .isLessThanOrEqualTo(1));
     }
 
     @Test(timeOut = 120000)

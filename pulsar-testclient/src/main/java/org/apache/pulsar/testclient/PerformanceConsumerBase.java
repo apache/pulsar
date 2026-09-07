@@ -225,6 +225,14 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
                                                                    String subscription);
 
     /**
+     * The consumer kind reported on the per-topic "Adding consumers" line. The v4 client subscribes
+     * by {@code --subscription-type}; V5 picks a consumer API instead and overrides this.
+     */
+    protected Object consumerTypeForLog() {
+        return this.subscriptionType;
+    }
+
+    /**
      * Open a new transaction, honouring {@code --txn-timeout}. Used for every rollover, which has
      * its own retry loop and counts each failure, so this must surface a failed open rather than
      * retrying internally.
@@ -348,6 +356,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             log.info()
                     .attr("adding", this.numConsumers)
                     .attr("topic", topicName)
+                    .attr("consumerType", consumerTypeForLog())
                     .log("Adding consumers per subscription on topic");
 
             for (int j = 0; j < this.numSubscriptions; j++) {

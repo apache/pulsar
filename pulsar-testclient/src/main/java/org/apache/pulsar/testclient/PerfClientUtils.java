@@ -57,9 +57,9 @@ public class PerfClientUtils {
      *
      * <p>HdrHistogram sizes a fixed-range histogram's counts array proportionally to
      * {@code 2^ceil(log2(2 * 10^digits))}, so every extra digit multiplies the allocation by
-     * roughly 10. At 5 digits (HdrHistogram's maximum) a single {@code Recorder} over the
-     * ranges used here costs 11-22 MB, and since these recorders are static fields the JVM
-     * pays for every perf subcommand, not just the one being run.
+     * roughly 10. At 5 digits (HdrHistogram's maximum) a single {@code Recorder} over the ranges
+     * used here costs 14-16 MB, and a command holds several of them (a live and a cumulative
+     * recorder per measured latency), so the running subcommand pays a multiple of that.
      *
      * <p>3 digits bounds the error of a reported percentile at 0.1%. That is far below the
      * run-to-run variance of a benchmark, and finer than the reports resolve anyway: the

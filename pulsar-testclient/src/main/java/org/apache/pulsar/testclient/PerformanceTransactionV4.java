@@ -72,7 +72,9 @@ public class PerformanceTransactionV4 extends PerformanceTransactionBase<PulsarC
     @Override
     protected CompletableFuture<Producer<byte[]>> createProducerAsync(PulsarClient client, String topic) {
         return client.newProducer(Schema.BYTES)
-                // A send timeout and a transaction are mutually exclusive on the v4 client.
+                // The v4 client has allowed a send timeout inside a transaction since #16519, but a
+                // timeout still fails the send on its own schedule and takes the transaction with
+                // it. Disable it so --txn-timeout is the only deadline.
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic)
                 .createAsync();

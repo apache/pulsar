@@ -84,6 +84,11 @@ public class PerformanceConsumer
     }
 
     @Override
+    protected Object consumerTypeForLog() {
+        return this.scalableConsumerType;
+    }
+
+    @Override
     protected void prepareRun() {
         log.info().attr("consumerType", this.scalableConsumerType).log("Using V5 scalable-topic consumer API");
         if (this.subscriptionType == SubscriptionType.Exclusive
