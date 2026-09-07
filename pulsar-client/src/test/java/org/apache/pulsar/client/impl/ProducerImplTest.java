@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -25,12 +26,20 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.TreeSet;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -192,5 +201,102 @@ public class ProducerImplTest {
             assertEquals(memoryLimitController.currentUsage(), 0,
                     "The memory reserved for the message must be released exactly once in state " + state);
         }
+    }
+
+    private ProducerConfigurationData encryptedProducerConf() {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setEncryptionKeys(new TreeSet<>(Collections.singleton("key")));
+        conf.setCryptoKeyReader(mock(CryptoKeyReader.class));
+        return conf;
+    }
+
+    /**
+     * When encryption fails in any way, the partially built encrypted buffer must be released instead of
+     * leaking; the source payload stays with the caller (the batch container decides its fate).
+     */
+    @Test
+    public void testEncryptMessageReleasesPartialBufferOnFailure() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        FieldUtils.writeField(producer, "conf", encryptedProducerConf(), true);
+
+        ByteBuf partial = Unpooled.buffer(64);
+        Mockito.doReturn(partial).when(producer).allocateEncryptedBuffer(Mockito.anyInt());
+        MessageCrypto<?, ?> msgCrypto = Mockito.mock(MessageCrypto.class);
+        Mockito.when(msgCrypto.getMaxOutputSize(Mockito.anyInt())).thenReturn(64);
+        Mockito.doThrow(new RuntimeException("mocked encryption failure"))
+                .when(msgCrypto).encrypt(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                        Mockito.any());
+        FieldUtils.writeField(producer, "msgCrypto", msgCrypto, true);
+
+        ByteBuf source = Unpooled.buffer(8);
+        assertThatThrownBy(() -> producer.encryptMessage(new MessageMetadata(), source))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("mocked encryption failure");
+        assertEquals(partial.refCnt(), 0, "the partially built encrypted buffer must not leak");
+        assertEquals(source.refCnt(), 1, "the source payload stays with the caller");
+        source.release();
+    }
+
+    /** The SEND crypto-failure action returns the unencrypted source; the partial buffer must not leak. */
+    @Test
+    public void testEncryptMessageCryptoFailureActionSendReleasesPartialBuffer() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        // Mock instances skip field initializers: provide the logger the SEND fallback branch uses.
+        FieldUtils.writeField(producer, "log",
+                Mockito.mock(io.github.merlimat.slog.Logger.class, Mockito.RETURNS_DEEP_STUBS), true);
+        ProducerConfigurationData conf = encryptedProducerConf();
+        conf.setCryptoFailureAction(ProducerCryptoFailureAction.SEND);
+        FieldUtils.writeField(producer, "conf", conf, true);
+
+        ByteBuf partial = Unpooled.buffer(64);
+        Mockito.doReturn(partial).when(producer).allocateEncryptedBuffer(Mockito.anyInt());
+        MessageCrypto<?, ?> msgCrypto = Mockito.mock(MessageCrypto.class);
+        Mockito.when(msgCrypto.getMaxOutputSize(Mockito.anyInt())).thenReturn(64);
+        Mockito.doThrow(new PulsarClientException("mocked encryption failure"))
+                .when(msgCrypto).encrypt(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                        Mockito.any());
+        FieldUtils.writeField(producer, "msgCrypto", msgCrypto, true);
+
+        ByteBuf source = Unpooled.buffer(8);
+        assertSame(producer.encryptMessage(new MessageMetadata(), source), source);
+        assertEquals(partial.refCnt(), 0, "the partially built encrypted buffer must not leak");
+        source.release();
+    }
+
+    /** A failed command serialization must release the payload instead of orphaning it. */
+    @Test
+    public void testSendMessageFailureReleasesPayload() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doThrow(new RuntimeException("mocked serialization failure"))
+                .when(producer)
+                .sendMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt(), Mockito.any(),
+                        Mockito.any(), Mockito.any());
+
+        ByteBuf payload = Unpooled.buffer(8);
+        assertThatThrownBy(() -> producer.sendMessageOrReleasePayload(
+                1, 1, 1, null, new MessageMetadata(), payload))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("mocked serialization failure");
+        assertEquals(payload.refCnt(), 0, "the payload must be released on a failed serialization");
+    }
+
+    /**
+     * An op whose command is deferred until the schema is registered holds its payload; when the op is
+     * failed before the command was built (send timeout, producer close), recycle() must release it.
+     */
+    @Test
+    public void testPendingSchemaOpPayloadReleasedOnFailure() {
+        ByteBuf payload = Unpooled.buffer(8);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
+                Mockito.mock(LatencyHistogram.class),
+                Mockito.mock(MessageImpl.class),
+                null,
+                1L,
+                Mockito.mock(SendCallback.class));
+        op.pendingPayload = payload;
+
+        op.recycle();
+
+        assertEquals(payload.refCnt(), 0, "the deferred payload must be released when the op is recycled");
     }
 }

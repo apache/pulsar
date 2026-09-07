@@ -840,11 +840,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
-                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
-                        encryptedPayload);
+                ByteBufPair cmd = sendMessageOrReleasePayload(producerId, sequenceId, numMessages, messageId,
+                        msgMetadata, encryptedPayload);
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, null, sequenceId, callback);
+                // Hold on to the payload until rePopulate() builds the command; if the op is failed before
+                // that happens, recycle() releases it instead of orphaning the buffer.
+                op.pendingPayload = encryptedPayload;
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
                     if (msgMetadata.hasChunkId()) {
@@ -853,8 +856,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         // It's safe to do that because there is only 1 thread to manipulate this message metadata
                         finalMsgMetadata.setChunkId(chunkId);
                     }
-                    op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
-                            encryptedPayload);
+                    // Clear the field before the call: a failed serialization releases the payload inside
+                    // sendMessageOrReleasePayload, a successful one hands it to the command.
+                    op.pendingPayload = null;
+                    op.cmd = sendMessageOrReleasePayload(producerId, sequenceId, numMessages, messageId,
+                            finalMsgMetadata, encryptedPayload);
                 };
             }
             op.setNumMessagesInBatch(numMessages);
@@ -990,9 +996,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return compressedPayload;
         }
 
+        // Nulled out on a successful hand-off: the finally-block releases the encrypted buffer whenever it was
+        // not returned to the caller (a crypto failure of any kind, or a failure while building it).
+        ByteBuf encryptedPayload = null;
         try {
             int maxSize = msgCrypto.getMaxOutputSize(compressedPayload.readableBytes());
-            ByteBuf encryptedPayload = PulsarByteBufAllocator.DEFAULT.buffer(maxSize);
+            encryptedPayload = allocateEncryptedBuffer(maxSize);
             ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
 
             ((MessageCrypto) msgCrypto).encrypt(conf.getEncryptionKeys(), conf.getCryptoKeyReader(),
@@ -1000,7 +1009,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             encryptedPayload.writerIndex(targetBuffer.remaining());
             compressedPayload.release();
-            return encryptedPayload;
+            ByteBuf result = encryptedPayload;
+            encryptedPayload = null;
+            return result;
         } catch (PulsarClientException e) {
             // Unless config is set to explicitly publish un-encrypted message upon failure, fail the request
             if (conf.getCryptoFailureAction() == ProducerCryptoFailureAction.SEND) {
@@ -1010,6 +1021,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return compressedPayload;
             }
             throw e;
+        } finally {
+            ReferenceCountUtil.safeRelease(encryptedPayload);
+        }
+    }
+
+    ByteBuf allocateEncryptedBuffer(int maxSize) {
+        return PulsarByteBufAllocator.DEFAULT.buffer(maxSize);
+    }
+
+    /**
+     * Builds the send command and, when the serialization fails, releases the payload instead of orphaning
+     * it. For chunked messages this also returns the slice's claim on the shared payload buffer.
+     */
+    ByteBufPair sendMessageOrReleasePayload(long producerId, long sequenceId, int numMessages,
+                                            MessageId messageId, MessageMetadata msgMetadata, ByteBuf payload) {
+        try {
+            return sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(payload);
+            throw t;
         }
     }
 
@@ -1613,6 +1644,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
+        ByteBuf pendingPayload;
         SendCallback callback;
         Runnable rePopulate;
         ChunkedMessageCtx chunkedMessageCtx;
@@ -1633,6 +1665,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             msg = null;
             msgs = null;
             cmd = null;
+            pendingPayload = null;
             callback = null;
             rePopulate = null;
             sequenceId = -1L;
@@ -1759,6 +1792,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         void recycle() {
             ReferenceCountUtil.safeRelease(chunkedMessageCtx);
+            ReferenceCountUtil.safeRelease(pendingPayload);
             initialize();
             recyclerHandle.recycle(this);
         }
