@@ -499,6 +499,7 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+
   def setup_consumers(self):
     """Subscribe to every input topic and build the matching input deserializers.
 

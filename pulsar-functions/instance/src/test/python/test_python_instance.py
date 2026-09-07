@@ -408,9 +408,11 @@ class TestConsumerSubscribeArgs(unittest.TestCase):
   """
 
   def _subscribe_kwargs(self, max_message_retries=None, dead_letter_topic=None,
-                        via_input_specs=False, regex=False):
+                        via_input_specs=False, regex=False, configure=None):
     function_details = Function_pb2.FunctionDetails()
     function_details.sink.topic = "test_sink_topic"
+    if configure is not None:
+      configure(function_details)
     if max_message_retries is not None:
       function_details.retryDetails.maxMessageRetries = max_message_retries
     if dead_letter_topic is not None:
@@ -458,6 +460,43 @@ class TestConsumerSubscribeArgs(unittest.TestCase):
                                     via_input_specs=True, regex=True)
 
     self.assertEqual(3, kwargs["dead_letter_policy"].max_redeliver_count)
+
+  def test_policy_reaches_subscribe_for_a_non_shared_consumer_type(self):
+    # setup_consumers() derives the consumer type two lines above the policy, so this is where a
+    # subscription-type gate would go now that get_dead_letter_policy() no longer sees one - and
+    # TestDeadLetterPolicy's own tests cannot see it there.
+    #
+    # Every other FunctionDetails in this class leaves retainOrdering, retainKeyOrdering,
+    # processingGuarantees and source.subscriptionType at their proto defaults, so mode is always
+    # Shared - precisely the value such a gate would let through. Each case below drives mode to
+    # something else: retainOrdering, EFFECTIVELY_ONCE and a FAILOVER subscriptionType select
+    # Failover, retainKeyOrdering selects KeyShared. Covering both non-default modes pins the
+    # intent against any gate shape, not just one that happens to spare KeyShared.
+    def retain_ordering(details):
+      details.retainOrdering = True
+
+    def effectively_once(details):
+      details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE")
+
+    def failover_subscription(details):
+      details.source.subscriptionType = Function_pb2.SubscriptionType.Value("FAILOVER")
+
+    def retain_key_ordering(details):
+      details.retainKeyOrdering = True
+
+    for label, configure in (("retainOrdering", retain_ordering),
+                             ("EFFECTIVELY_ONCE", effectively_once),
+                             ("FAILOVER subscriptionType", failover_subscription),
+                             ("retainKeyOrdering", retain_key_ordering)):
+      with self.subTest(selects_consumer_type_via=label):
+        kwargs = self._subscribe_kwargs(max_message_retries=3,
+                                        dead_letter_topic="persistent://public/default/my-dlq",
+                                        configure=configure)
+
+        policy = kwargs["dead_letter_policy"]
+        self.assertIsNotNone(policy)
+        self.assertEqual(3, policy.max_redeliver_count)
+        self.assertEqual("persistent://public/default/my-dlq", policy.dead_letter_topic)
 
   def test_keyword_is_passed_as_none_without_retry_details(self):
     # The keyword is always passed, so the runtime requires pulsar-client-python 3.3.0 or newer -
