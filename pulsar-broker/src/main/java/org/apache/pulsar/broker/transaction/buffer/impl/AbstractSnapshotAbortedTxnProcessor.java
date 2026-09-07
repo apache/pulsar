@@ -54,7 +54,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Position> recoverFromSnapshot() {
+    public final CompletableFuture<Position> recoverFromSnapshot() {
         CompletableFuture<Position> newRecoveryFuture;
         CompletableFuture<Void> newRecoveryWorkFinishedFuture;
         RejectedExecutionException submissionFailure = null;
@@ -140,7 +140,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
+    public final CompletableFuture<Void> closeAsync() {
         State previousState;
         CompletableFuture<Position> currentRecoveryFuture;
         CompletableFuture<Void> currentRecoveryWorkFinishedFuture;

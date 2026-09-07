@@ -205,11 +205,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                             TxnID txnID = new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
                             Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                            boolean isTxnMarker = Markers.isTxnMarker(msgMetadata);
                             synchronized (TopicTransactionBuffer.this) {
                                 if (checkIfClosed()) {
                                     return;
                                 }
-                                if (Markers.isTxnMarker(msgMetadata)) {
+                                if (isTxnMarker) {
                                     if (Markers.isTxnAbortMarker(msgMetadata)) {
                                         snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
                                     }
@@ -217,6 +218,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 } else {
                                     handleTransactionMessage(txnID, position);
                                 }
+                            }
+                            if (isTxnMarker) {
+                                updateLastDispatchablePosition(null);
                             }
                         }
                     }
@@ -469,7 +473,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    // ThreadSafe
+    // Acquires the topic monitor: never call while holding the buffer monitor, since topic close takes both.
     private void updateLastDispatchablePosition(Position position) {
         topic.updateLastDispatchablePosition(position);
     }
@@ -499,6 +503,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
                         }
+                        updateLastDispatchablePosition(null);
                         txnCommittedCounter.increment();
                         completableFuture.complete(null);
                     }
@@ -547,10 +552,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             removeTxnAndUpdateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
-                            txnAbortedCounter.increment();
-                            completableFuture.complete(null);
                             handleLowWaterMark(txnID, lowWaterMark);
                         }
+                        updateLastDispatchablePosition(null);
+                        txnAbortedCounter.increment();
+                        completableFuture.complete(null);
                     }
 
                     @Override
@@ -646,8 +652,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             updateMaxReadPosition(topic.getManagedLedger().getLastConfirmedEntry(), false);
         }
-        // Update the last dispatchable position to null if there is a TXN finished.
-        updateLastDispatchablePosition(null);
     }
 
     /**
