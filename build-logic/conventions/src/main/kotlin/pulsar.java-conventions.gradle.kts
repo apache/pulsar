@@ -193,7 +193,7 @@ dependencies {
     "testImplementation"(catalog.findLibrary("awaitility").get())
     "testImplementation"(catalog.findLibrary("system-lambda").get())
     "testImplementation"(catalog.findLibrary("slf4j-api").get())
-    // log4j-jul is needed at test runtime to support the JUL bridge JVM argument above
+    // log4j-jul is needed at test runtime to support the JUL bridge JVM argument below
     "testRuntimeOnly"(catalog.findLibrary("log4j-jul").get())
 }
 
@@ -261,7 +261,7 @@ tasks.withType<Test>().configureEach {
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
         // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
-        // (Jersey, gRPC, Guava, etc.) are routed to Log4j2 instead of stdout
+        // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
         "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager",
         // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
         // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
