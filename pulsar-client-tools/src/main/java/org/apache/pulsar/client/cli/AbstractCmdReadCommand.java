@@ -1,0 +1,227 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.cli;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.RateLimiter;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.common.naming.TopicName;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+
+/**
+ * Client-agnostic part of the {@code pulsar-client read} command: the CLI options, the argument
+ * validation and the WebSocket reading path (which speaks HTTP and has no client generation of its
+ * own). {@link CmdRead} binds it to the V5 client's {@code CheckpointConsumer} and
+ * {@link CmdReadV4} to the v4 {@code Reader}.
+ */
+public abstract class AbstractCmdReadCommand extends AbstractCmdConsume {
+
+    protected static final String START_EARLIEST = "earliest";
+    protected static final String START_LATEST = "latest";
+
+    @Parameters(description = "TopicName", arity = "1")
+    protected String topic;
+
+    @Option(names = { "-n",
+            "--num-messages" }, description = "Number of messages to read, 0 means to read forever.")
+    protected int numMessagesToRead = 1;
+
+    @Option(names = { "--hex" }, description = "Display binary messages in hex.")
+    protected boolean displayHex = false;
+
+    @Option(names = { "--hide-content" }, description = "Do not write the message to console.")
+    protected boolean hideContent = false;
+
+    @Option(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
+            + "value 0 means to read messages as fast as possible.")
+    protected double readRate = 0;
+
+    @Option(names = { "-q", "--queue-size" }, description = "Reader receiver queue size.")
+    protected int receiverQueueSize = 0;
+
+    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    protected int maxPendingChunkedMessage = 0;
+
+    @Option(names = { "-ac",
+            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+    protected boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    @Option(names = { "-ekv",
+            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
+            + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
+    protected String encKeyValue;
+
+    @Option(names = { "-st", "--schema-type" },
+            description = "Set a schema type on the reader, it can be 'bytes' or 'auto_consume'")
+    protected String schemaType = "bytes";
+
+    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
+    protected boolean poolMessages = true;
+
+    @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
+    protected boolean printMetadata = false;
+
+    public AbstractCmdReadCommand() {
+        super();
+    }
+
+    /** The {@code -m/--start-message-id} argument, whose accepted forms differ per client. */
+    protected abstract String startMessageId();
+
+    /**
+     * Read over the binary protocol with this command's client generation.
+     *
+     * @return 0 for success, &lt; 0 otherwise
+     */
+    protected abstract int read(String topic);
+
+    /** Additional argument validation for this command's client generation. */
+    protected void validateArguments() {
+    }
+
+    /** The {@code messageId} query parameter of the WebSocket reader URI. */
+    protected abstract String webSocketStartMessageId();
+
+    /**
+     * Run the read command.
+     *
+     * @return 0 for success, &lt; 0 otherwise
+     */
+    public int run() throws IOException {
+        if (this.numMessagesToRead < 0) {
+            throw (new IllegalArgumentException("Number of messages should be zero or positive."));
+        }
+        validateArguments();
+
+        if (this.serviceURL.startsWith("ws")) {
+            return readFromWebSocket(topic);
+        } else {
+            return read(topic);
+        }
+    }
+
+    @VisibleForTesting
+    public String getWebSocketReadUri(String topic) {
+        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
+                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+
+        TopicName topicName = TopicName.get(topic);
+        String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                topicName.getNamespacePortion(), topicName.getLocalName());
+
+        return String.format("%s/ws/v2/reader/%s?messageId=%s", serviceURLWithoutTrailingSlash, wsTopic,
+                webSocketStartMessageId());
+    }
+
+    @SuppressWarnings("deprecation")
+    private int readFromWebSocket(String topic) {
+        int numMessagesRead = 0;
+        int returnCode = 0;
+
+        URI readerUri = URI.create(getWebSocketReadUri(topic));
+
+        HttpClient httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
+        WebSocketClient readClient = new WebSocketClient(httpClient);
+        ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readerUri);
+        try {
+            if (authentication != null) {
+                authentication.start();
+                AuthenticationDataProvider authData = authentication.getAuthData(readerUri.getHost());
+                if (authData.hasDataForHttp()) {
+                    for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
+                        readRequest.setHeader(kv.getKey(), kv.getValue());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Authentication plugin error: " + e.getMessage());
+            return -1;
+        }
+        CompletableFuture<Void> connected = new CompletableFuture<>();
+        ConsumerSocket readerSocket = new ConsumerSocket(connected);
+        try {
+            readClient.start();
+        } catch (Exception e) {
+            LOG.error("Failed to start websocket-client", e);
+            return -1;
+        }
+
+        try {
+            LOG.info("Trying to create websocket session..{}", readerUri);
+            readClient.connect(readerSocket, readRequest);
+            connected.get();
+        } catch (Exception e) {
+            LOG.error("Failed to create web-socket session", e);
+            return -1;
+        }
+
+        try {
+            RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
+            while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
+                if (limiter != null) {
+                    limiter.acquire();
+                }
+                String msg = readerSocket.receive(5, TimeUnit.SECONDS);
+                if (msg == null) {
+                    LOG.debug("No message to read after waiting for 5 seconds.");
+                } else {
+                    try {
+                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        System.out.println(output); // print decode
+                    } catch (Exception e) {
+                        System.out.println(msg);
+                    }
+                    numMessagesRead += 1;
+                }
+            }
+            readerSocket.awaitClose(2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            LOG.error("Error while reading messages");
+            LOG.error(e.getMessage(), e);
+            returnCode = -1;
+        } finally {
+            LOG.info("{} messages successfully read", numMessagesRead);
+        }
+
+        try {
+            readClient.stop();
+        } catch (Exception e) {
+            LOG.error("Failed to stop websocket-client", e);
+        }
+        try {
+            httpClient.stop();
+        } catch (Exception e) {
+            LOG.error("Failed to stop http-client", e);
+        }
+
+        return returnCode;
+    }
+}

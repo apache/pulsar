@@ -33,7 +33,7 @@ public class TestCmdConsume {
     public void setUp() throws Exception {
         cmdConsume = new CmdConsume();
         cmdConsume.updateConfig(null, null, "ws://localhost:8080/");
-        Field subscriptionNameField = CmdConsume.class.getDeclaredField("subscriptionName");
+        Field subscriptionNameField = AbstractCmdConsumeCommand.class.getDeclaredField("subscriptionName");
         subscriptionNameField.setAccessible(true);
         subscriptionNameField.set(cmdConsume, "my-sub");
     }

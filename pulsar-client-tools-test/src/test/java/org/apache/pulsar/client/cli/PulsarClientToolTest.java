@@ -167,7 +167,63 @@ public class PulsarClientToolTest extends BrokerTestBase {
         // The V5-based pulsar-client has no non-durable subscription mode: --subscription-mode
         // NonDurable falls back to a durable subscription (with a warning). So unlike the v4
         // client, the subscription is NOT removed when the consumer disconnects — it persists.
+        // testNonDurableSubscribeWithV4Client covers the v4 behaviour.
         assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+    }
+
+    /**
+     * The v4 counterpart of {@link #testNonDurableSubscribe()}: {@code consume-v4} really creates a
+     * non-durable subscription, so it disappears once the consumer disconnects. This is the
+     * behaviour the V5-based {@code consume} cannot express.
+     */
+    @Test(timeOut = 60000)
+    public void testNonDurableSubscribeWithV4Client() throws Exception {
+
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("non-durable-v4");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        int numberOfMessages = 10;
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"consume-v4", "-t", "Exclusive", "-s", "sub-name", "-n",
+                        Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getSubscriptions(topicName).size() == 1;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+
+        assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+        String[] args = {"produce-v4", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages),
+                "-r", "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+        Assert.assertFalse(future.isCompletedExceptionally());
+        future.get();
+
+        Awaitility.await()
+                .ignoreExceptions()
+                .atMost(Duration.ofMillis(20000))
+                .until(() -> admin.topics().getSubscriptions(topicName).isEmpty());
     }
 
     @Test(timeOut = 60000)
@@ -517,9 +573,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
     }
 
-    // KeyValue schema production is not yet supported by the V5-based pulsar-client (CmdProduce
-    // rejects --key-value-encoding-type with a clear message); deferred to a follow-up.
-    @Test(enabled = false)
+    // KeyValue schema production has no V5 equivalent (`produce` rejects --key-value-encoding-type
+    // with a clear message), so it is exercised through the v4-client command.
+    @Test
     public void testProduceKeyValueSchemaInlineValue() throws Exception {
 
         Properties properties = initializeToolProperties();
@@ -539,7 +595,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
+                String[] args = {"produce-v4",
                         "-kvet", "inline",
                         "-ks", String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
                         "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(
@@ -569,9 +625,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         };
     }
 
-    // KeyValue schema production is not yet supported by the V5-based pulsar-client (CmdProduce
-    // rejects --key-value-encoding-type with a clear message); deferred to a follow-up.
-    @Test(dataProvider = "keyValueKeySchema", enabled = false)
+    // As above: KeyValue schema production is exercised through the v4-client command.
+    @Test(dataProvider = "keyValueKeySchema")
     public void testProduceKeyValueSchemaFileValue(String schema) throws Exception {
 
         Properties properties = initializeToolProperties();
@@ -604,7 +659,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
+                String[] args = {"produce-v4",
                         "-k", "partitioning-key",
                         "-kvet", "inline",
                         "-ks", String.format("%s:%s", schema, keySchema.getSchemaInfo().getSchemaDefinition()),
