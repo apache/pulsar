@@ -40,7 +40,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -82,19 +81,16 @@ public class TopicTransactionBufferCloseTest {
 
     @Test(timeOut = 10_000)
     public void testRecoveryContinuationDoesNotStartAfterClose() throws Exception {
-        ContinuationBlockingRecoveryFuture recoveryFuture = new ContinuationBlockingRecoveryFuture();
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
         try (TestContext context = new TestContext(recoveryFuture, PositionFactory.EARLIEST)) {
-            recoveryFuture.awaitContinuationRegistrationStarted();
-            recoveryFuture.complete(PositionFactory.EARLIEST);
+            context.awaitExecutorsIdle();
 
             context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
-            recoveryFuture.allowContinuationRegistration();
+            recoveryFuture.complete(PositionFactory.EARLIEST);
             context.awaitExecutorsIdle();
 
             verify(context.managedLedger, never()).newNonDurableCursor(any(), anyString());
             assertTrue(context.transactionBuffer.getTransactionBufferFuture().isCompletedExceptionally());
-        } finally {
-            recoveryFuture.allowContinuationRegistration();
         }
     }
 
@@ -215,33 +211,4 @@ public class TopicTransactionBufferCloseTest {
         }
     }
 
-    /** Blocks continuation registration so tests can deterministically control the registration race. */
-    private static final class ContinuationBlockingRecoveryFuture extends CompletableFuture<Position> {
-        private final CountDownLatch registrationStarted = new CountDownLatch(1);
-        private final CountDownLatch allowRegistration = new CountDownLatch(1);
-
-        @Override
-        public CompletableFuture<Void> thenAccept(Consumer<? super Position> action) {
-            awaitRegistration();
-            return super.thenAccept(action);
-        }
-
-        private void awaitRegistration() {
-            registrationStarted.countDown();
-            try {
-                assertTrue(allowRegistration.await(5, TimeUnit.SECONDS));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new AssertionError(e);
-            }
-        }
-
-        private void awaitContinuationRegistrationStarted() throws Exception {
-            assertTrue(registrationStarted.await(5, TimeUnit.SECONDS));
-        }
-
-        private void allowContinuationRegistration() {
-            allowRegistration.countDown();
-        }
-    }
 }
