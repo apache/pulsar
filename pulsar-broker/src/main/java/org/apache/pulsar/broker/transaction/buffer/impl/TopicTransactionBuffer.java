@@ -94,6 +94,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
+    // Complete outside the buffer monitor: inline continuations may acquire the topic monitor.
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
 
     /**
@@ -156,6 +157,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
+                        BrokerServiceException recoveryFailure = null;
                         synchronized (TopicTransactionBuffer.this) {
                             if (checkIfClosed()) {
                                 return;
@@ -165,16 +167,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             }
                             if (!changeToReadyState()) {
                                 log.error("Transaction buffer recover fail");
-                                getTransactionBufferFuture().completeExceptionally
-                                        (new BrokerServiceException.ServiceUnitNotReadyException(
-                                                "Transaction buffer recover failed to change the status to Ready,"
-                                                        + "current state is: " + getState()));
+                                recoveryFailure = new BrokerServiceException.ServiceUnitNotReadyException(
+                                        "Transaction buffer recover failed to change the status to Ready,"
+                                                + "current state is: " + getState());
                             } else {
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                                getTransactionBufferFuture().complete(null);
                                 recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
+                        }
+                        if (recoveryFailure != null) {
+                            getTransactionBufferFuture().completeExceptionally(recoveryFailure);
+                        } else {
+                            getTransactionBufferFuture().complete(null);
                         }
                     }
 
@@ -187,11 +192,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             updateMaxReadPositionAfterRecovery();
                             if (!changeToNoSnapshotState()) {
                                 log.error().log("Transaction buffer recover fail");
-                            } else {
-                                getTransactionBufferFuture().complete(null);
-                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
+                                return;
                             }
+                            recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         }
+                        getTransactionBufferFuture().complete(null);
                     }
                     @Override
                     public void handleTxnEntry(Entry entry) {

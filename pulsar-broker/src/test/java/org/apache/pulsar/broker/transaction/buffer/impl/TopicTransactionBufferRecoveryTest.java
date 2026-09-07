@@ -82,6 +82,39 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "snapshotExists", timeOut = 30_000)
+    public void testRecoveryNotifiesLastPositionQueryOutsideBufferLock(boolean snapshotExists) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-last-position");
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+        when(processor.recoverFromSnapshot()).thenReturn(recoveryFuture);
+        when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(topic -> new TopicTransactionBuffer(
+                (PersistentTopic) topic, processor, AbortedTxnProcessor.SnapshotType.Single));
+        try {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, true).get(5, TimeUnit.SECONDS).orElseThrow();
+            Position lastConfirmedEntry = topic.getManagedLedger().getLastConfirmedEntry();
+            assertThat(lastConfirmedEntry.getEntryId()).isEqualTo(-1);
+
+            // GetLastMessageId registers this continuation; an empty ledger's lookup can take the topic lock inline.
+            CompletableFuture<Position> lastPositionFuture = topic.checkIfTransactionBufferRecoverCompletely()
+                    .thenCompose(__ -> {
+                        assertThat(Thread.holdsLock(topic.getTransactionBuffer()))
+                                .as("recovery callbacks must run outside the buffer monitor")
+                                .isFalse();
+                        return topic.getLastDispatchablePosition();
+                    });
+
+            recoveryFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
+            assertThat(lastPositionFuture.get(5, TimeUnit.SECONDS)).isEqualTo(lastConfirmedEntry);
+        } finally {
+            recoveryFuture.complete(null);
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    @Test(dataProvider = "snapshotExists", timeOut = 30_000)
     public void testRecoveryCompletesAfterDeletionFails(boolean snapshotExists) throws Exception {
         String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-delete-failure");
         TopicName parsedTopicName = TopicName.get(topicName);
