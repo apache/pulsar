@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -434,6 +435,76 @@ public class BatchMessageContainerImplTest {
 
         batchMessageContainer.clear();
         messages.forEach(ReferenceCountUtil::safeRelease);
+    }
+
+    /**
+     * In multi-batch mode, a later sub-batch can fail to build after an earlier one already produced its
+     * operation. The already-built operations never reach the send queue, so their commands must be released
+     * by the container — otherwise every failed flush leaks command buffers, and repeated retries grow the
+     * direct memory usage.
+     */
+    @Test(dataProvider = "compressionTypes")
+    public void testMultiBatchesPartialBuildFailureReleasesBuiltOps(CompressionType compressionType)
+            throws Exception {
+        ProducerImpl<?> producer = createTestProducer(compressionType);
+        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        List<ByteBufPair> builtPairs = new ArrayList<>();
+        AtomicInteger sendCalls = new AtomicInteger();
+        when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
+            if (sendCalls.incrementAndGet() == 2) {
+                throw new RuntimeException("mocked second sub-batch failure");
+            }
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = PulsarByteBufAllocator.DEFAULT.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            ByteBufPair pair = ByteBufPair.get(header, payload);
+            builtPairs.add(pair);
+            return pair;
+        });
+
+        BatchMessageKeyBasedContainer container = new BatchMessageKeyBasedContainer();
+        container.setProducer(producer);
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        try {
+            for (int i = 0; i < 4; i++) {
+                MessageMetadata messageMetadata = new MessageMetadata();
+                messageMetadata.setSequenceId(i);
+                messageMetadata.setProducerName("producer");
+                messageMetadata.setPublishTime(System.currentTimeMillis());
+                messageMetadata.setPartitionKey(i < 2 ? "a" : "b");
+                ByteBuffer payload = ByteBuffer.wrap(("payload-" + i).getBytes(StandardCharsets.UTF_8));
+                MessageImpl<?> message = MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+                messages.add(message);
+                container.add(message, null);
+            }
+
+            // Sub-batch "a" builds its operation, sub-batch "b" fails: the built command must not leak.
+            assertThatThrownBy(container::createOpSendMsgs)
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("mocked second");
+            assertEquals(builtPairs.size(), 1);
+            assertEquals(builtPairs.get(0).getFirst().refCnt(), 0);
+            if (compressionType != CompressionType.NONE) {
+                // Compression handed the payload over to the command, so it must be released as well.
+                assertEquals(builtPairs.get(0).getSecond().refCnt(), 0);
+            } else {
+                // Without compression the container still owns the payload buffer and reuses it on retry.
+                assertEquals(builtPairs.get(0).getSecond().refCnt(), 1);
+            }
+
+            // All messages stay in their sub-batches and the retry produces a complete batch again.
+            assertEquals(container.getNumMessagesInBatch(), 4);
+            container.resetPayloadAfterFailedPublishing();
+            List<ProducerImpl.OpSendMsg> ops = container.createOpSendMsgs();
+            assertEquals(ops.size(), 2);
+            ops.forEach(op -> op.cmd.release());
+            assertEquals(builtPairs.get(1).refCnt(), 0);
+            assertEquals(builtPairs.get(2).refCnt(), 0);
+            container.clear();
+        } finally {
+            messages.forEach(ReferenceCountUtil::safeRelease);
+        }
     }
 
     private ProducerImpl<?> createTestProducer(CompressionType compressionType) throws Exception {
