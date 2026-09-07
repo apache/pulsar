@@ -119,10 +119,10 @@ public class Consumer {
     private volatile int messagePermits = 0;
     /**
      * Guards the Flow-side compound update of {@link #messagePermits} and
-     * {@link #pendingDispatcherFlowPermits}. A Flow command increases the consumer permits before the corresponding
-     * task runs on the dispatcher's message thread. Consumer removal can happen while that task is queued or waiting
-     * for the dispatcher monitor, so both values must be observed consistently when calculating how many permits are
-     * already included in the dispatcher total.
+     * {@link #pendingDispatcherFlowPermits}. A Flow command increases the consumer permits before the dispatcher
+     * processes the corresponding update asynchronously. Consumer removal can happen between those two operations,
+     * so both values must be observed consistently when calculating how many permits are already included in the
+     * dispatcher total.
      *
      * <p>The dispatcher callback is invoked only after this lock is released. This avoids holding the lock while
      * calling into the subscription and preserves the lock order used by dispatcher flow processing and removal.
@@ -1002,8 +1002,8 @@ public class Consumer {
      * are excluded because those permits have not been added to the dispatcher total and must not be subtracted from
      * it during removal.
      *
-     * <p>This accounting is enabled for persistent Shared and Key_Shared dispatchers. It requires every dispatcher
-     * Flow task to call {@link #completePendingDispatcherFlow(int)} before applying or ignoring it. For these
+     * <p>This accounting is enabled for persistent Shared and Key_Shared dispatchers. It relies on every dispatcher
+     * Flow task calling {@link #completePendingDispatcherFlow(int)} before applying or ignoring the update. For these
      * dispatchers, when observed under the dispatcher monitor, the total available permits equal the sum of this
      * balance over all connected consumers.
      *

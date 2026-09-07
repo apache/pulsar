@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -304,45 +305,37 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        Runnable flowTask = () -> internalConsumerFlow(consumer, additionalNumberOfMessages);
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
         try {
-            dispatchMessagesThread.execute(flowTask);
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
         } catch (RejectedExecutionException e) {
-            // Leave the permits pending so removal excludes this unapplied Flow. Never wait for the dispatcher
-            // monitor on the connection EventLoop, including while the broker is shutting down.
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
             log.debug()
                     .attr("consumer", consumer)
-                    .attr("executorShutdown", dispatchMessagesThread.isShutdown())
+                    .attr("executorShutdown", flowExecutor.isShuttingDown())
                     .exception(e)
                     .log("Unable to schedule flow control update");
         }
     }
 
-    private void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        boolean connected;
-        int updatedTotalAvailablePermits = 0;
-        synchronized (this) {
-            consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
-            connected = containsConsumerInstance(consumer);
-            if (connected) {
-                totalAvailablePermits += additionalNumberOfMessages;
-                updatedTotalAvailablePermits = totalAvailablePermits;
-            }
-        }
-
-        if (!connected) {
+    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
             return;
         }
 
+        totalAvailablePermits += additionalNumberOfMessages;
+
         log.debug()
                 .attr("consumer", consumer)
-                .attr("totalAvailablePermits", updatedTotalAvailablePermits)
+                .attr("totalAvailablePermits", totalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("Trigger new read after receiving flow control message");
-        readMoreEntries();
+        readMoreEntriesAsync();
     }
 
     /**
