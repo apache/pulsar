@@ -93,10 +93,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl extends AbstractSnapshotAbort
         final var pulsar = topic.getBrokerService().getPulsar();
         final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
                 .getTableView(executor).readLatest(topic.getName());
-        if (isClosed()) {
-            return null;
-        }
-        if (snapshot == null) {
+        if (isClosed() || snapshot == null) {
             return null;
         }
         handleSnapshot(snapshot);

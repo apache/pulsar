@@ -63,10 +63,9 @@ public class TopicTransactionBufferCloseTest {
 
     @Test(timeOut = 10_000)
     public void testCloseInducedRecoveryFailureDoesNotCloseTopicAgain() throws Exception {
-        ContinuationBlockingRecoveryFuture recoveryFuture = new ContinuationBlockingRecoveryFuture();
-        recoveryFuture.allowContinuationRegistration();
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
         try (TestContext context = new TestContext(recoveryFuture, PositionFactory.EARLIEST)) {
-            recoveryFuture.awaitContinuationRegistrationStarted();
+            context.awaitExecutorsIdle();
             when(context.processor.closeAsync()).thenAnswer(__ -> {
                 recoveryFuture.completeExceptionally(
                         new BrokerServiceException.ServiceUnitNotReadyException("processor closed"));

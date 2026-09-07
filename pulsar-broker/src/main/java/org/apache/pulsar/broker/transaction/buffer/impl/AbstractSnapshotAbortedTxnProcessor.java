@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Coordinates snapshot recovery and resource closure so resources remain available until processor-owned recovery
@@ -33,16 +34,15 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcessor {
 
     private enum State {
-        OPEN,
+        IDLE,
         RECOVERY_QUEUED,
         RECOVERY_RUNNING,
-        RECOVERY_FINISHED,
         CLOSED
     }
 
     private final ScheduledExecutorService recoveryExecutor;
 
-    private volatile State state = State.OPEN;
+    private volatile State state = State.IDLE;
     private Future<?> recoveryTask;
     private CompletableFuture<Position> recoveryFuture = CompletableFuture.completedFuture(null);
     // Completes before the recovery result, so close waits only for processor-owned work.
@@ -75,7 +75,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
                 this.recoveryTask = recoveryExecutor.submit(
                         () -> runRecovery(newRecoveryFuture, newRecoveryWorkFinishedFuture));
             } catch (RejectedExecutionException e) {
-                this.state = State.RECOVERY_FINISHED;
+                this.state = State.IDLE;
                 submissionFailure = e;
             }
         }
@@ -91,25 +91,17 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
                              CompletableFuture<Void> recoveryWorkFinished) {
         Position recoveredPosition = null;
         Throwable recoveryFailure = null;
-        boolean closeWon = false;
-        try {
-            if (!tryStartRecovery()) {
-                closeWon = true;
-            } else {
+        boolean recoveryFinished = false;
+        if (tryStartRecovery()) {
+            try {
                 recoveredPosition = doRecoverFromSnapshot(recoveryExecutor);
-                if (!tryMarkRecoveryFinished()) {
-                    closeWon = true;
-                }
-            }
-        } catch (Throwable throwable) {
-            if (tryMarkRecoveryFinished()) {
+            } catch (Throwable throwable) {
                 recoveryFailure = throwable;
-            } else {
-                closeWon = true;
             }
+            recoveryFinished = tryMarkRecoveryFinished();
         }
         recoveryWorkFinished.complete(null);
-        if (closeWon) {
+        if (!recoveryFinished) {
             failRecoveryAfterClose(recoveryResult);
         } else if (recoveryFailure == null) {
             recoveryResult.complete(recoveredPosition);
@@ -143,7 +135,7 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
         if (this.state != State.RECOVERY_RUNNING) {
             return false;
         }
-        this.state = State.RECOVERY_FINISHED;
+        this.state = State.IDLE;
         return true;
     }
 
@@ -164,14 +156,8 @@ abstract class AbstractSnapshotAbortedTxnProcessor implements AbortedTxnProcesso
                 this.recoveryTask.cancel(false);
             }
         }
-        currentRecoveryWorkFinishedFuture.thenCompose(v -> closeResources())
-                .whenComplete((v, throwable) -> {
-                    if (throwable != null) {
-                        closeFuture.completeExceptionally(throwable);
-                    } else {
-                        closeFuture.complete(null);
-                    }
-                });
+        FutureUtil.completeAfter(closeFuture,
+                currentRecoveryWorkFinishedFuture.thenCompose(v -> closeResources()));
         if (previousState == State.RECOVERY_QUEUED) {
             failRecoveryAfterClose(currentRecoveryFuture);
         }

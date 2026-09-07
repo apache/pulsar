@@ -1023,7 +1023,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private volatile boolean isReadable = true;
 
-        private volatile boolean stopped;
+        private boolean stopped;
 
         private static final int NUMBER_OF_PER_READ_ENTRY = 100;
 
@@ -1034,9 +1034,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             this.recover = recover;
         }
         boolean fillQueue() {
-            if (stopped) {
-                return false;
-            }
             if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
                     && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
@@ -1057,7 +1054,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (stopped) {
                 // An asynchronous read can complete after replay has stopped and no longer has a consumer.
                 entries.forEach(Entry::release);
-                outstandingReadsRequests.decrementAndGet();
                 return;
             }
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
@@ -1075,7 +1071,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private synchronized void stopAndReleasePendingEntries() {
             stopped = true;
-            isReadable = false;
             Entry entry;
             while ((entry = entryQueue.poll()) != null) {
                 entry.release();
@@ -1085,7 +1080,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         @Override
         public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (stopped) {
-                outstandingReadsRequests.decrementAndGet();
                 return;
             }
             if (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
