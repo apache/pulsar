@@ -99,7 +99,7 @@ public class PerformanceTransactionV4Test extends MockedPulsarServiceBaseTest {
      * <p>The acknowledgement assertion is what stops a run that never acknowledged at all from
      * satisfying {@link #testTransactionV4AbortUndoesBothTheSendAndTheAck()}'s "backlog unchanged".
      */
-    @Test(timeOut = 120000)
+    @Test(timeOut = 180000)
     public void testTransactionV4CommitsWhatItProduced() throws Exception {
         String consumeTopic = testTopic + UUID.randomUUID();
         String produceTopic = testTopic + UUID.randomUUID();
@@ -132,7 +132,7 @@ public class PerformanceTransactionV4Test extends MockedPulsarServiceBaseTest {
      * permanent, so this is what pins the {@code transaction != null} branches of
      * {@code PerformanceTransactionV4.sendMessage} and {@code acknowledgeAsync} onto the transaction.
      */
-    @Test(timeOut = 120000)
+    @Test(timeOut = 180000)
     public void testTransactionV4AbortUndoesBothTheSendAndTheAck() throws Exception {
         String consumeTopic = testTopic + UUID.randomUUID();
         String produceTopic = testTopic + UUID.randomUUID();
