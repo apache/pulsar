@@ -20,6 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,11 +44,18 @@ public class PulsarPerfTestTool {
         commandMap = new HashMap<>();
     }
 
-    private String[] initCommander(String[] args) throws Exception {
+    @VisibleForTesting
+    String[] initCommander(String[] args) throws Exception {
         commandMap.put("produce", PerformanceProducer.class);
         commandMap.put("consume", PerformanceConsumer.class);
         commandMap.put("transaction", PerformanceTransaction.class);
         commandMap.put("read", PerformanceReader.class);
+        // The same benchmarks driven by the v4 (pulsar-client-original) client, for measuring the v4
+        // client and non-scalable topics without the V5 SDK in the path.
+        commandMap.put("produce-v4", PerformanceProducerV4.class);
+        commandMap.put("consume-v4", PerformanceConsumerV4.class);
+        commandMap.put("transaction-v4", PerformanceTransactionV4.class);
+        commandMap.put("read-v4", PerformanceReaderV4.class);
         commandMap.put("monitor-brokers", BrokerMonitor.class);
         commandMap.put("websocket-producer", PerformanceClient.class);
         commandMap.put("managed-ledger", ManagedLedgerWriter.class);

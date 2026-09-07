@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -128,6 +129,22 @@ public class PerfClientUtils {
 
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
+        }
+
+        // PIP-478: pin the same two provider axes the V5 builder and the admin builder pin, so that
+        // `pulsar-perf produce-v4 --jsse-provider/--jca-provider` really runs on those providers
+        // rather than silently falling back to the JVM provider search order. ClientBuilder has no
+        // fluent setter for either, so this mirrors createAdminBuilderFromArguments and writes them
+        // onto the underlying configuration.
+        if (clientBuilder instanceof ClientBuilderImpl clientBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData conf = clientBuilderImpl.getClientConfigurationData();
+            if (isNotBlank(arguments.jsseProvider)) {
+                conf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                conf.setJcaProvider(arguments.jcaProvider);
+            }
         }
         return clientBuilder;
     }
