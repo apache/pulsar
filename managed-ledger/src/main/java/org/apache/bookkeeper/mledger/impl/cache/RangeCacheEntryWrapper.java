@@ -65,6 +65,9 @@ class RangeCacheEntryWrapper {
             entryWrapper.key = key;
             entryWrapper.value = value;
             entryWrapper.size = size;
+            // When the value already carries parsed message metadata, there's no need to lazily initialize it
+            // under the write lock on the first read
+            entryWrapper.messageMetadataInitialized = value.getMessageMetadata() != null;
             // Set the timestamp to the current time in nanoseconds
             // This is used for time-based eviction of entries
             entryWrapper.timestampNanos = System.nanoTime();

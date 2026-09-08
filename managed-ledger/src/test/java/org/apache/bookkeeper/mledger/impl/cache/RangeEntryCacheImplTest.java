@@ -27,7 +27,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +47,8 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -92,6 +96,27 @@ public class RangeEntryCacheImplTest {
         lh = mock(ReadHandle.class);
         when(lh.getId()).thenReturn(1L);
         expectedReadCount = () -> 1;
+    }
+
+    @Test
+    public void testInsertParsesMessageMetadata() {
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(7)
+                .setPublishTime(123456789L);
+        ByteBuf headersAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.copiedBuffer("payload", StandardCharsets.UTF_8));
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+        assertThat(entry.getMessageMetadata()).isNull();
+
+        assertThat(rangeEntryCache.insert(entry)).isTrue();
+
+        // the metadata is parsed once at insert time instead of lazily on the first cache read
+        assertThat(entry.getMessageMetadata()).isNotNull();
+        assertThat(entry.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(entry.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        entry.release();
     }
 
     @Test
