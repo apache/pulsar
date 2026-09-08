@@ -30,6 +30,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -140,7 +141,10 @@ public class EntryCacheDisabled implements EntryCache {
 
     private void readEntries(ReadHandle lh, long firstEntry, long lastEntry,
                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenApplyAsync(
+        ManagedLedgerConfig config = ml.getConfig();
+        boolean isBatchReadEnabled = config.isBatchReadEnabled();
+        int batchReadMaxBytes = config.getBatchReadMaxSizeBytes();
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, isBatchReadEnabled, batchReadMaxBytes).thenApplyAsync(
                 ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;

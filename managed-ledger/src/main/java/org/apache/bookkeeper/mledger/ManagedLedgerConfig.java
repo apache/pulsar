@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_MAX_MESSAGE_SIZE;
 import io.github.merlimat.slog.Logger;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -88,6 +89,37 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByExpectedReadCount = true;
+
+    /**
+     * Enable batch read API when reading entries from bookkeeper.
+     * Batch read allows reading multiple entries in a single RPC call, reducing network overhead.
+     * Note: Batch read is only effective when ensembleSize equals writeQuorumSize (non-striped ledgers).
+     */
+    @Setter
+    private boolean batchReadEnabled = false;
+
+    /**
+     * Max size in bytes for per-batch read request. A non-positive value disables batch reads.
+     * Reads needing more data are split into multiple batch read requests.
+     * The BookKeeper client clamps this value to its netty max frame size.
+     * Defaults to 25 MB (5 * DEFAULT_MAX_MESSAGE_SIZE).
+     */
+    @Getter
+    @Setter
+    private int batchReadMaxSizeBytes = 5 * DEFAULT_MAX_MESSAGE_SIZE;
+
+    /**
+     * Returns whether batch read is enabled for this managed ledger.
+     * Batch read is only enabled when both conditions are met:
+     * 1. batchReadEnabled is set to true
+     * 2. ensembleSize equals writeQuorumSize (non-striped ledger)
+     *
+     * @return true if batch read should be used
+     */
+    public boolean isBatchReadEnabled() {
+        return ensembleSize == writeQuorumSize && batchReadEnabled;
+    }
+
     @Getter
     private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
