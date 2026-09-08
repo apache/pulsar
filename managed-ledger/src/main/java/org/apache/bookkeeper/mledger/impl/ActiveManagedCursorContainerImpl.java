@@ -65,6 +65,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
     // number of nodes in the double-linked list
     int trackedNodeCount = 0;
+    private int meaninglessPendingUpdateCount = 0;
     private final long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private volatile long cursorRemovedTimestampMillis;
     private volatile int cursorCount;
@@ -258,10 +259,19 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 if (node.position != null) {
                     pendingRemovedCursors.put(name, node);
                     node.pendingRemove = true;
+                } else {
+                    // The cursor was triggered an inactivation before the pending updates are flushed, then the pending
+                    // update item is meaningless.
+                    meaninglessPendingUpdateCount++;
                 }
                 node.pendingPosition = null;
                 cursorRemovedTimestampMillis = System.currentTimeMillis();
                 cursorCount--;
+                // Clear meaningless pending update, which avoids OOM.
+                if (meaninglessPendingUpdateCount >= 10) {
+                    processPendingPositions();
+                    meaninglessPendingUpdateCount = 0;
+                }
                 return true;
             } else {
                 return false;
@@ -754,6 +764,16 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             return node.numberOfCursorsAtSamePositionOrBefore.intValue();
         } finally {
             rwLock.unlockWrite(stamp);
+        }
+    }
+
+    @VisibleForTesting
+    int getPendingPositionUpdatesCount() {
+        long stamp = rwLock.readLock();
+        try {
+            return pendingPositionUpdates.size();
+        } finally {
+            rwLock.unlockRead(stamp);
         }
     }
 

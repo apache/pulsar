@@ -168,6 +168,24 @@ import org.testng.annotations.Test;
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     private static final Charset Encoding = StandardCharsets.UTF_8;
 
+    @Test
+    public void testRemovedCursorsAwaitingFirstPositionUpdateRemainInPendingQueue() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("pending-position-updates", config);
+
+        for (int index = 0; index < 50; index++) {
+            String cursorName = "cursor" + index;
+            ManagedCursor cursor = ledger.openCursor(cursorName);
+            ledger.deleteCursor(cursorName);
+        }
+
+        ActiveManagedCursorContainerImpl activeCursors =
+                (ActiveManagedCursorContainerImpl) ledger.getActiveCursors();
+        assertTrue(activeCursors.getPendingPositionUpdatesCount() < 10);
+    }
+
     @DataProvider(name = "checkOwnershipFlag")
     public Object[][] checkOwnershipFlagProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
