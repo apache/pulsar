@@ -125,7 +125,11 @@ public class RangeEntryCacheImplTest {
         assertThat(rangeEntryCache.insert(entry)).isTrue();
         entry.release();
 
-        // the metadata is parsed once at insert time instead of lazily on the first cache read
+        // the metadata is parsed once at insert time instead of lazily on the first cache read. This has to be
+        // asserted before reading the entry back, because reading it would itself trigger the lazy path
+        assertThat(rangeEntryCache.getEntries().isMessageMetadataInitialized(PositionFactory.create(1, 50)))
+                .isTrue();
+
         ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
         assertThat(cached).isNotNull();
         assertThat(cached.getMessageMetadata()).isNotNull();

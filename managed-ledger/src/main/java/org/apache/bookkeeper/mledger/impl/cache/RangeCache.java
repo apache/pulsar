@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.IllegalReferenceCountException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -119,6 +120,17 @@ class RangeCache {
      */
     public ReferenceCountedEntry get(Position key) {
         return getValueFromWrapper(key, entries.get(key));
+    }
+
+    /**
+     * Returns whether the entry stored under the key already carried parsed message metadata when it was put in
+     * the cache, so that reads don't have to initialize it lazily. Unlike {@link #get(Position)} this doesn't
+     * trigger that lazy initialization, which is what makes it usable to tell the two apart.
+     */
+    @VisibleForTesting
+    boolean isMessageMetadataInitialized(Position key) {
+        RangeCacheEntryWrapper wrapper = entries.get(key);
+        return wrapper != null && wrapper.messageMetadataInitialized;
     }
 
     private ReferenceCountedEntry getValueFromWrapper(Position key, RangeCacheEntryWrapper valueWrapper) {
