@@ -27,7 +27,7 @@ tasks.named("compileTestJava") { enabled = false }
 tasks.named("jar") { enabled = false }
 val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val bookkeeperVersion: String = libs.versions.bookkeeper.get()
-val distLib by configurations.creating {
+val distLib = configurations.create("distLib") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
@@ -76,7 +76,7 @@ dependencies {
 }
 val pulsarVersion = project.version.toString()
 val rootDir = rootProject.projectDir
-val shellDistTar by tasks.registering(Tar::class) {
+val shellDistTar = tasks.register<Tar>("shellDistTar") {
     val baseDir = "apache-pulsar-shell-${pulsarVersion}"
     val renameMap = distLib.incoming.artifacts.resolvedArtifacts.map { artifacts ->
         artifacts.associate { result ->
@@ -147,7 +147,7 @@ val shellDistTar by tasks.registering(Tar::class) {
         }
     }
 }
-val shellDistZip by tasks.registering(Zip::class) {
+val shellDistZip = tasks.register<Zip>("shellDistZip") {
     val baseDir = "apache-pulsar-shell-${pulsarVersion}"
     val renameMap = distLib.incoming.artifacts.resolvedArtifacts.map { artifacts ->
         artifacts.associate { result ->
@@ -223,7 +223,7 @@ binaryLicenseCheck {
 
 // Export the runtime classpath to a file for bin/ scripts to use
 // when running Pulsar CLI tools from a development build
-val exportClasspath by tasks.registering {
+val exportClasspath = tasks.register("exportClasspath") {
     val outputFile = layout.buildDirectory.file("classpath.txt")
     outputs.file(outputFile)
     doLast {

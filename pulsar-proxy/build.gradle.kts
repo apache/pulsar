@@ -27,6 +27,11 @@ dependencies {
     api(project(":pulsar-broker-common"))
     api(project(":pulsar-client-original"))
     api(project(":pulsar-common"))
+    // PIP-478: the proxy's server classes use the TLS factory SPI directly. ProxyService.getLookupClientTlsFactory()
+    // returns PulsarTlsFactory but is consumed only within this module (ProxyConnection), and the proxy is an
+    // application module (packaged into the distribution / referenced by the BOM, not compiled against), so
+    // `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
     implementation(project(":pulsar-opentelemetry"))
     api(project(":pulsar-docs-tools"))
     api(project(":pulsar-websocket"))
@@ -38,9 +43,6 @@ dependencies {
     implementation(libs.jetty.ee10.servlets)
     implementation(libs.jetty.ee10.proxy)
     implementation(libs.jetty.ee10.websocket.jetty.server)
-    // ee8 + javax.servlet retained for the legacy AdditionalServlet javax.servlet path (PIP-472)
-    api(libs.jetty.ee8.servlet)
-    implementation(libs.javax.servlet.api)
     implementation(libs.jersey.server)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.container.servlet)
@@ -82,6 +84,11 @@ dependencies {
     testImplementation(libs.jetty.websocket.jetty.client)
     testImplementation(libs.jjwt.api)
     testImplementation(libs.jjwt.impl)
+    // Tests register AdditionalServlet plugins written against the legacy javax.servlet API
+    testImplementation(libs.javax.servlet.api)
     testImplementation(libs.okhttp3)
     testImplementation(libs.testcontainers)
+    // PIP-478: assert the proxy's TLS factory emits pulsar.tls.reload through the wired OpenTelemetry root.
+    testImplementation(libs.opentelemetry.sdk)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }

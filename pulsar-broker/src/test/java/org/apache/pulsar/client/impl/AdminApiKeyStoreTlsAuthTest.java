@@ -27,6 +27,10 @@ import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +39,9 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import javax.crypto.SecretKey;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -50,7 +56,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -139,7 +144,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
             .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
+        SSLContext sslCtx = createJdkClientSslContext(
                 KEYSTORE_TYPE,
                 PROXY_KEYSTORE_FILE_PATH,
                 PROXY_KEYSTORE_PW,
@@ -151,6 +156,30 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         Client client = clientBuilder.build();
 
         return client.target(brokerUrlTls.toString());
+    }
+
+    // PIP-478 stage 4c: builds the Jersey test client's mutual-TLS SSLContext straight from the JDK KeyStore /
+    // SSLContext APIs (replacing the removed KeyStoreSSLContext.createClientSslContext helper).
+    private static SSLContext createJdkClientSslContext(String keyStoreType, String keyStorePath,
+            String keyStorePassword, String trustStoreType, String trustStorePath, String trustStorePassword)
+            throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+        try (InputStream in = Files.newInputStream(Paths.get(keyStorePath))) {
+            keyStore.load(in, keyStorePassword.toCharArray());
+        }
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(keyStore, keyStorePassword.toCharArray());
+
+        KeyStore trustStore = KeyStore.getInstance(trustStoreType);
+        try (InputStream in = Files.newInputStream(Paths.get(trustStorePath))) {
+            trustStore.load(in, trustStorePassword.toCharArray());
+        }
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(trustStore);
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        return sslContext;
     }
 
     PulsarAdmin buildAdminClient() throws Exception {
