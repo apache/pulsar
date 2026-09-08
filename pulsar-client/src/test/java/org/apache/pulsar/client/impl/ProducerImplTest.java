@@ -280,6 +280,36 @@ public class ProducerImplTest {
         assertEquals(payload.refCnt(), 0, "the payload must be released on a failed serialization");
     }
 
+    /** A failing compression stage must release the source payload the codec left with the caller. */
+    @Test
+    public void testApplyCompressionFailureReleasesSource() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doThrow(new RuntimeException("mocked compression failure"))
+                .when(producer)
+                .applyCompression(Mockito.any());
+
+        ByteBuf source = Unpooled.buffer(8);
+        assertThatThrownBy(() -> producer.applyCompressionOrReleaseSource(source))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("mocked compression failure");
+        assertEquals(source.refCnt(), 0, "the source payload must be released on a failed compression");
+    }
+
+    /** A failing encryption stage must release the source payload encryptMessage() left with the caller. */
+    @Test
+    public void testEncryptMessageFailureReleasesSource() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doThrow(new PulsarClientException("mocked encryption failure"))
+                .when(producer)
+                .encryptMessage(Mockito.any(), Mockito.any());
+
+        ByteBuf source = Unpooled.buffer(8);
+        assertThatThrownBy(() -> producer.encryptMessageOrReleaseSource(new MessageMetadata(), source))
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("mocked encryption failure");
+        assertEquals(source.refCnt(), 0, "the source payload must be released on a failed encryption");
+    }
+
     /**
      * An op whose command is deferred until the schema is registered holds its payload; when the op is
      * failed before the command was built (send timeout, producer close), recycle() must release it.

@@ -585,7 +585,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // If a message has a delayed delivery time, we'll always send it individually
         if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
             if (payload.readableBytes() > conf.getCompressMinMsgBodySize()) {
-                compressedPayload = applyCompression(payload);
+                compressedPayload = applyCompressionOrReleaseSource(payload);
                 compressed = true;
 
                 // validate msg-size (For batching this will be check at the batch completion size)
@@ -829,9 +829,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // in this case compression has not been applied by the caller
             // but we have to compress the payload if compression is configured
             if (!compressed && chunkPayload.readableBytes() > conf.getCompressMinMsgBodySize()) {
-                chunkPayload = applyCompression(chunkPayload);
+                chunkPayload = applyCompressionOrReleaseSource(chunkPayload);
             }
-            ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
+            ByteBuf encryptedPayload = encryptMessageOrReleaseSource(msgMetadata, chunkPayload);
 
             // When publishing during replication, we need to set the correct number of message in batch
             // This is only used in tracking the publish rate stats
@@ -1040,6 +1040,36 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, payload);
         } catch (Throwable t) {
             ReferenceCountUtil.safeRelease(payload);
+            throw t;
+        }
+    }
+
+    /**
+     * Applies compression and, when the codec fails, releases the source payload instead of orphaning it:
+     * applyCompression() releases its input only after the codec succeeds. For chunked messages this also
+     * returns the slice's claim on the shared payload buffer.
+     */
+    ByteBuf applyCompressionOrReleaseSource(ByteBuf source) {
+        try {
+            return applyCompression(source);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(source);
+            throw t;
+        }
+    }
+
+    /**
+     * Applies encryption and, when the crypto fails, releases the source payload instead of orphaning it:
+     * encryptMessage() leaves the source with the caller on failure (its internal partial output buffer is
+     * released inside). For chunked messages this also returns the slice's claim on the shared payload
+     * buffer.
+     */
+    ByteBuf encryptMessageOrReleaseSource(MessageMetadata msgMetadata, ByteBuf source)
+            throws PulsarClientException {
+        try {
+            return encryptMessage(msgMetadata, source);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(source);
             throw t;
         }
     }
