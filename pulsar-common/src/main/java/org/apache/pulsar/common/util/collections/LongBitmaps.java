@@ -70,8 +70,6 @@ public final class LongBitmaps {
      * @return a new LongBitmap containing the deserialized values
      */
     public static LongBitmap deserializeFromLongArray(long[] data) {
-        LongBitmap bitmap = create();
-        bitmap.deserializeFromLongArray(data);
-        return bitmap;
+        return ConcurrentRoaringBitmap.fromLongArray(data);
     }
 }
