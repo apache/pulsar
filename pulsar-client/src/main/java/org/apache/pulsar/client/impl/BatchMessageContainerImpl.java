@@ -273,15 +273,17 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     /**
      * Releases the command of an operation that was built from this container but never reached the send queue:
      * in multi-batch mode a later sub-batch can fail to build after this one already produced its operation.
-     * The serialized header is always solely owned by the command; the payload is only released when its
-     * ownership left the container, otherwise the container keeps the buffer and
+     * The payload claim is shared with the container when its ownership never left (no compression or
+     * encryption): take it out of the pair before releasing, so the container keeps the buffer and
      * {@link #resetPayloadAfterFailedPublishing()} reuses it when the messages are retried.
      */
     void releaseOrphanedOpCmd(ProducerImpl.OpSendMsg op) {
-        op.cmd.getFirst().release();
-        if (!batchPayloadOwned) {
-            op.cmd.getSecond().release();
+        if (batchPayloadOwned) {
+            // Extract the container's payload claim from the pair before releasing it.
+            op.cmd.getSecond().retain();
         }
+        op.cmd.release();
+        op.recycle();
     }
 
     void updateMaxBatchSize(int uncompressedSize) {

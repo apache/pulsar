@@ -449,6 +449,9 @@ public class BatchMessageContainerImplTest {
         ProducerImpl<?> producer = createTestProducer(compressionType);
         when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
         List<ByteBufPair> builtPairs = new ArrayList<>();
+        // The pair clears its component references when released, so track the buffers at build time.
+        List<ByteBuf> builtHeaders = new ArrayList<>();
+        List<ByteBuf> builtPayloads = new ArrayList<>();
         AtomicInteger sendCalls = new AtomicInteger();
         when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
             if (sendCalls.incrementAndGet() == 2) {
@@ -460,6 +463,8 @@ public class BatchMessageContainerImplTest {
             header.writeInt(0);
             ByteBufPair pair = ByteBufPair.get(header, payload);
             builtPairs.add(pair);
+            builtHeaders.add(header);
+            builtPayloads.add(payload);
             return pair;
         });
 
@@ -484,13 +489,16 @@ public class BatchMessageContainerImplTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("mocked second");
             assertEquals(builtPairs.size(), 1);
-            assertEquals(builtPairs.get(0).getFirst().refCnt(), 0);
+            // The pair itself is released (returned to its recycler) and the op recycled, not just the
+            // components freed.
+            assertEquals(builtPairs.get(0).refCnt(), 0);
+            assertEquals(builtHeaders.get(0).refCnt(), 0);
             if (compressionType != CompressionType.NONE) {
                 // Compression handed the payload over to the command, so it must be released as well.
-                assertEquals(builtPairs.get(0).getSecond().refCnt(), 0);
+                assertEquals(builtPayloads.get(0).refCnt(), 0);
             } else {
                 // Without compression the container still owns the payload buffer and reuses it on retry.
-                assertEquals(builtPairs.get(0).getSecond().refCnt(), 1);
+                assertEquals(builtPayloads.get(0).refCnt(), 1);
             }
 
             // All messages stay in their sub-batches and the retry produces a complete batch again.
