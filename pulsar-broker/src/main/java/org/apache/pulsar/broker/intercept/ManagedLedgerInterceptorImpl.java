@@ -31,6 +31,7 @@ import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final String INDEX = "index";
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    private final AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
+    private final @Nullable AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
@@ -113,6 +114,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     @Override
     public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LastEntryHandle lh) {
+        if (appendIndexMetadataInterceptor == null) {
+            // there's no index generator to recover when the AppendIndexMetadataInterceptor isn't configured,
+            // so reading the last entry would be pointless
+            return CompletableFuture.completedFuture(null);
+        }
         return lh.readLastEntryAsync().thenAccept(lastEntryOptional -> {
             if (lastEntryOptional.isPresent()) {
                 Entry lastEntry = lastEntryOptional.get();
