@@ -845,23 +845,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, null, sequenceId, callback);
-                // Hold on to the payload until rePopulate() builds the command; if the op is failed before
+                // Hold on to the payload until the deferred command is built; if the op is failed before
                 // that happens, recycle() releases it instead of orphaning the buffer.
                 op.pendingPayload = encryptedPayload;
                 final MessageMetadata finalMsgMetadata = msgMetadata;
-                op.rePopulate = () -> {
-                    if (msgMetadata.hasChunkId()) {
-                        // The message metadata is shared between all chunks in a large message
-                        // We need to reset the chunk id for each call of this method
-                        // It's safe to do that because there is only 1 thread to manipulate this message metadata
-                        finalMsgMetadata.setChunkId(chunkId);
-                    }
-                    // Clear the field before the call: a failed serialization releases the payload inside
-                    // sendMessageOrReleasePayload, a successful one hands it to the command.
-                    op.pendingPayload = null;
-                    op.cmd = sendMessageOrReleasePayload(producerId, sequenceId, numMessages, messageId,
-                            finalMsgMetadata, encryptedPayload);
-                };
+                op.rePopulate = () -> buildDeferredCommand(op, finalMsgMetadata, producerId, sequenceId,
+                        numMessages, messageId, chunkId);
             }
             op.setNumMessagesInBatch(numMessages);
             op.setBatchSizeByte(encryptedPayload.readableBytes());
@@ -1072,6 +1061,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             ReferenceCountUtil.safeRelease(source);
             throw t;
         }
+    }
+
+    /**
+     * Builds the command of an op whose serialization was deferred until the schema registration completed.
+     * The deferred payload stays owned by the op ({@code pendingPayload}) until the command is built: a
+     * failed construction must not release it, because the op remains pending and the next resend rebuilds
+     * from the same buffer; {@code recycle()} releases it when the op is failed instead.
+     */
+    void buildDeferredCommand(OpSendMsg op, MessageMetadata msgMetadata, long producerId, long sequenceId,
+                              int numMessages, MessageId messageId, int chunkId) {
+        if (msgMetadata.hasChunkId()) {
+            // The message metadata is shared between all chunks in a large message. We need to reset the
+            // chunk id for each call of this method. It's safe to do that because there is only 1 thread
+            // to manipulate this message metadata.
+            msgMetadata.setChunkId(chunkId);
+        }
+        op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, op.pendingPayload);
+        // The payload's ownership moved into the command.
+        op.pendingPayload = null;
     }
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
