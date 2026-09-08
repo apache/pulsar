@@ -123,6 +123,11 @@ public class RangeEntryCacheImpl implements EntryCache {
         return ml.getConfig();
     }
 
+    @VisibleForTesting
+    RangeCache getEntries() {
+        return entries;
+    }
+
     @Override
     public String getName() {
         return ml.getName();
@@ -151,16 +156,19 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
-        // Parse the message metadata once at insert time so that cache reads don't have to do it lazily while
-        // holding the RangeCacheEntryWrapper write lock
-        if (entry instanceof EntryImpl entryImpl) {
-            entryImpl.initializeMessageMetadataIfNeeded(ml.getName());
-        }
-
         Position position = entry.getPosition();
+        // A MessageMetadata instance keeps a reference to the buffer it was parsed from and decodes its string and
+        // bytes fields from it lazily, so it may only be shared with the cached entry when that entry keeps the
+        // same buffer alive. When the payload is copied into a cache owned buffer, the source buffer is released
+        // while the cached entry is still in the cache, so the metadata has to be parsed from the copy instead.
         ReferenceCountedEntry cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
-                            entry.getMessageMetadata());
+                            copyEntries ? null : entry.getMessageMetadata());
+        // Parse the message metadata once at insert time so that cache reads don't have to do it lazily while
+        // holding the RangeCacheEntryWrapper write lock
+        if (cacheEntry instanceof EntryImpl cacheEntryImpl) {
+            cacheEntryImpl.initializeMessageMetadataIfNeeded(ml.getName());
+        }
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);

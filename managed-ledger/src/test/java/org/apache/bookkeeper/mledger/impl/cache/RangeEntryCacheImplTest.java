@@ -43,6 +43,8 @@ import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -54,20 +56,23 @@ import org.testng.annotations.Test;
 
 public class RangeEntryCacheImplTest {
     private RangeEntryCacheImpl rangeEntryCache;
+    private RangeEntryCacheManagerImpl mockEntryCacheManager;
+    private ManagedLedgerImpl mockManagedLedger;
+    private RangeCacheRemovalQueue mockRangeCacheRemovalQueue;
     private PendingReadsManager pendingReadsManager;
     private ReadHandle lh;
     private IntSupplier expectedReadCount;
 
     @BeforeMethod
     public void setup() {
-        RangeEntryCacheManagerImpl mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
+        mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
         ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
         when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
-        ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        mockManagedLedger = mock(ManagedLedgerImpl.class);
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
-        RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
+        mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
         when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
         InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
         when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
@@ -90,33 +95,89 @@ public class RangeEntryCacheImplTest {
             callback.readEntriesComplete(entries, ctx);
             return null;
         }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), any(), any(), any());
-        rangeEntryCache =
-                new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false, mockRangeCacheRemovalQueue,
-                        EntryLengthFunction.DEFAULT, pendingReadsManager);
+        rangeEntryCache = createRangeEntryCache(false);
         lh = mock(ReadHandle.class);
         when(lh.getId()).thenReturn(1L);
         expectedReadCount = () -> 1;
     }
 
-    @Test
-    public void testInsertParsesMessageMetadata() {
+    private RangeEntryCacheImpl createRangeEntryCache(boolean copyEntries) {
+        return new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, copyEntries,
+                mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, pendingReadsManager);
+    }
+
+    private static ByteBuf serializeMessage(String producerName) {
         MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("producer")
+                .setProducerName(producerName)
                 .setSequenceId(7)
                 .setPublishTime(123456789L);
-        ByteBuf headersAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+        return Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
                 Unpooled.copiedBuffer("payload", StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void testInsertParsesMessageMetadata() {
+        ByteBuf headersAndPayload = serializeMessage("producer");
         EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
         headersAndPayload.release();
         assertThat(entry.getMessageMetadata()).isNull();
 
         assertThat(rangeEntryCache.insert(entry)).isTrue();
+        entry.release();
 
         // the metadata is parsed once at insert time instead of lazily on the first cache read
-        assertThat(entry.getMessageMetadata()).isNotNull();
-        assertThat(entry.getMessageMetadata().getProducerName()).isEqualTo("producer");
-        assertThat(entry.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isNotNull();
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        cached.release();
+    }
+
+    @Test
+    public void testInsertReusesTheMessageMetadataTheEntryAlreadyCarries() {
+        ByteBuf headersAndPayload = serializeMessage("in-buffer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+        // deliberately disagrees with the buffer, so that a silent re-parse cannot pass this test
+        MessageMetadata suppliedByTheCaller = new MessageMetadata()
+                .setProducerName("from-publish-path")
+                .setSequenceId(7)
+                .setPublishTime(123456789L);
+        entry.setMessageMetadata(suppliedByTheCaller);
+
+        assertThat(rangeEntryCache.insert(entry)).isTrue();
         entry.release();
+
+        // the cached entry reuses the instance instead of parsing the same bytes a second time
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isSameAs(suppliedByTheCaller);
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("from-publish-path");
+        cached.release();
+    }
+
+    @Test
+    public void testCachedEntryMetadataStaysReadableWhenEntriesAreCopied() {
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+
+        assertThat(copyingCache.insert(entry)).isTrue();
+        // the source entry, and with it the buffer the metadata was parsed from, is released right after the
+        // insert, exactly as OpAddEntry does on the write path
+        entry.release();
+        assertThat(headersAndPayload.refCnt()).isZero();
+
+        ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        // MessageMetadata decodes its string and bytes fields lazily from the buffer it was parsed from, so the
+        // cached entry must not share metadata that was parsed from the now released source buffer
+        assertThat(cached.getMessageMetadata()).isNotNull();
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        cached.release();
     }
 
     @Test
