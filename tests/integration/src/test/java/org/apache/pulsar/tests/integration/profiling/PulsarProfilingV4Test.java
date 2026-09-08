@@ -23,31 +23,31 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.Test;
 
 /**
- * Profiles the broker while pulsar-perf drives a v5 scalable topic with the v5 client.
+ * Profiles the broker while pulsar-perf drives a classic v4 topic with the v4 client.
  *
- * This is the variant that {@code ./gradlew :tests:integration:profilingIntegrationTest} runs by
- * default. See {@link AbstractPulsarProfilingTest} for how to run it and where the recordings land,
- * and {@link PulsarProfilingV4Test} for the v4 counterpart.
+ * Run it with {@code ./gradlew :tests:integration:profilingIntegrationTest --tests
+ * "*PulsarProfilingV4Test"}. It is the pre-v5 baseline for {@link PulsarProfilingTest}: same
+ * cluster, same load parameters, only the client generation and the topic domain differ. See
+ * {@link AbstractPulsarProfilingTest} for the rest.
  */
-public class PulsarProfilingTest extends AbstractPulsarProfilingTest {
+public class PulsarProfilingV4Test extends AbstractPulsarProfilingTest {
 
     @Override
     protected TopicDomain getTopicDomain() {
-        return TopicDomain.topic;
+        return TopicDomain.persistent;
     }
 
     @Override
     protected String getPerfCommandSuffix() {
-        return "";
+        return "-v4";
     }
 
     @Override
     protected List<TopicStatsEndpoint> getTopicStatsEndpoints(String topicName) {
-        // Scalable topics have their own admin resource: aggregated stats (including per-segment and
-        // per-subscription counts) are under /admin/v2/scalable, not /admin/v2/topic, and there is no
-        // internalStats equivalent, so the managed-ledger internals of the backing segments are not
-        // collected. Broker metrics are collected either way.
-        return List.of(new TopicStatsEndpoint("stats", adminV2Path("scalable", topicName) + "/stats"));
+        String basePath = adminV2Path("persistent", topicName);
+        return List.of(
+                new TopicStatsEndpoint("stats", basePath + "/stats"),
+                new TopicStatsEndpoint("internal_stats", basePath + "/internalStats"));
     }
 
     @Test(timeOut = 600_000)

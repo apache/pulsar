@@ -207,6 +207,31 @@ container, and runs
 [`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
 against it with retries off. That test drives `pulsar-perf` against a single broker.
 
+There are two variants of it, sharing everything but the client generation and the topic domain
+through
+[`AbstractPulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/AbstractPulsarProfilingTest.java).
+`PulsarProfilingTest` — the one the task runs by default — drives a v5 scalable (`topic://`) topic
+with the `produce` / `consume` commands, and
+[`PulsarProfilingV4Test`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingV4Test.java)
+drives a classic `persistent://` topic with `produce-v4` / `consume-v4`. The pairing is not a free
+choice: the v4 client rejects the `topic://` domain outright, so it is the v4 client that goes with
+the classic topic. To profile that baseline instead:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
+```
+
+Both variants write into `tests/integration/build/pulsar-profiling`. The v4 run's `pulsar-perf`
+output, latency histograms, topic stats and metrics scrapes are suffixed `-v4` so the two runs can be
+told apart; the `.jfr` recordings instead carry the container name, which embeds the test class name.
+The runs are not otherwise like-for-like: scalable topics split their segments under load
+(`scalableTopicAutoScaleEnabled` defaults to true), so the v5 run profiles a topology that reshapes
+itself while the v4 run's stays fixed.
+
+A run sends a fixed 20 million messages, a bit over a minute of load at the throughput the containers
+sustain, and has to be done inside three minutes. Both `pulsar-perf` commands must then have exited
+zero, so a run that stalls or dies fails the test rather than passing as a finished profile.
+
 **Any other integration test can be profiled without being modified**, by pointing the task at it and
 naming the cluster components to attach the profiler to:
 
