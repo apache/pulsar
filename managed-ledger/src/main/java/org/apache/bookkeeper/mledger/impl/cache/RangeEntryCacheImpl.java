@@ -164,9 +164,10 @@ public class RangeEntryCacheImpl implements EntryCache {
         EntryImpl cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
                             copyEntries ? null : entry.getMessageMetadata());
-        // Parse the message metadata once at insert time so that cache reads don't have to do it lazily while
-        // holding the RangeCacheEntryWrapper write lock
-        cacheEntry.initializeMessageMetadataIfNeeded(ml.getName());
+        if (ml.getConfig().isPulsarMessageEntries()) {
+            // Parse the message metadata once at insert time so that cache reads don't have to do it lazily
+            cacheEntry.initializeMessageMetadataIfNeeded(ml.getName());
+        }
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
@@ -560,7 +561,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
-                                    entry.initializeMessageMetadataIfNeeded(ml.getName());
+                                    if (ml.getConfig().isPulsarMessageEntries()) {
+                                        entry.initializeMessageMetadataIfNeeded(ml.getName());
+                                    }
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {

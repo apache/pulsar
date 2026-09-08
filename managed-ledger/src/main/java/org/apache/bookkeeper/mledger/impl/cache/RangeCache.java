@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.IllegalReferenceCountException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,22 +47,12 @@ class RangeCache {
     private final ConcurrentNavigableMap<Position, RangeCacheEntryWrapper> entries;
     private final RangeCacheRemovalQueue removalQueue;
     private final AtomicLong size; // Total size of values stored in cache
-    private final String managedLedgerName;
 
     /**
      * Construct a new RangeCache.
      */
     public RangeCache(RangeCacheRemovalQueue removalQueue) {
-        this(removalQueue, null);
-    }
-
-    /**
-     * Construct a new RangeCache.
-     * @param managedLedgerName the name of the managed ledger this cache belongs to
-     */
-    public RangeCache(RangeCacheRemovalQueue removalQueue, String managedLedgerName) {
         this.removalQueue = removalQueue;
-        this.managedLedgerName = managedLedgerName;
         this.entries = new ConcurrentSkipListMap<>();
         this.size = new AtomicLong(0);
     }
@@ -122,22 +111,11 @@ class RangeCache {
         return getValueFromWrapper(key, entries.get(key));
     }
 
-    /**
-     * Returns whether the entry stored under the key already carried parsed message metadata when it was put in
-     * the cache, so that reads don't have to initialize it lazily. Unlike {@link #get(Position)} this doesn't
-     * trigger that lazy initialization, which is what makes it usable to tell the two apart.
-     */
-    @VisibleForTesting
-    boolean isMessageMetadataInitialized(Position key) {
-        RangeCacheEntryWrapper wrapper = entries.get(key);
-        return wrapper != null && wrapper.messageMetadataInitialized;
-    }
-
     private ReferenceCountedEntry getValueFromWrapper(Position key, RangeCacheEntryWrapper valueWrapper) {
         if (valueWrapper == null) {
             return null;
         } else {
-            ReferenceCountedEntry value = valueWrapper.getValue(key, managedLedgerName);
+            ReferenceCountedEntry value = valueWrapper.getValue(key);
             return getRetainedValueMatchingKey(key, value);
         }
     }
@@ -147,7 +125,7 @@ class RangeCache {
      */
     private ReferenceCountedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
         ReferenceCountedEntry valueMatchingEntry =
-                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry, managedLedgerName);
+                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
     }
 
