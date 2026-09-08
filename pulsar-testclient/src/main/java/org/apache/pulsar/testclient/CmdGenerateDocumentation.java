@@ -49,6 +49,10 @@ public class CmdGenerateDocumentation extends CmdBase{
         cmdClassMap.put("consume", PerformanceConsumer.class);
         cmdClassMap.put("transaction", PerformanceTransaction.class);
         cmdClassMap.put("read", PerformanceReader.class);
+        cmdClassMap.put("produce-v4", PerformanceProducerV4.class);
+        cmdClassMap.put("consume-v4", PerformanceConsumerV4.class);
+        cmdClassMap.put("transaction-v4", PerformanceTransactionV4.class);
+        cmdClassMap.put("read-v4", PerformanceReaderV4.class);
         cmdClassMap.put("monitor-brokers", BrokerMonitor.class);
         cmdClassMap.put("websocket-producer", PerformanceClient.class);
         cmdClassMap.put("managed-ledger", ManagedLedgerWriter.class);
