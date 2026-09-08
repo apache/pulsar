@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -179,6 +180,67 @@ public class RangeEntryCacheImplTest {
         // MessageMetadata decodes its string and bytes fields lazily from the buffer it was parsed from, so the
         // cached entry must not share metadata that was parsed from the now released source buffer
         assertThat(cached.getMessageMetadata()).isNotNull();
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        cached.release();
+    }
+
+    @Test
+    public void testReadFromStorageDoesNotShareSourceMetadataWithTheCopiedCacheEntry() {
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
+        // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        LedgerEntryImpl ledgerEntry =
+                LedgerEntryImpl.create(1L, 0L, headersAndPayload.readableBytes(), headersAndPayload);
+        LedgerEntries ledgerEntries = mock(LedgerEntries.class);
+        when(ledgerEntries.iterator()).thenReturn(List.<LedgerEntry>of(ledgerEntry).iterator());
+        when(lh.readAsync(0L, 0L)).thenReturn(CompletableFuture.completedFuture(ledgerEntries));
+
+        CompletableFuture<List<Entry>> future = copyingCache.readFromStorage(lh, 0L, 0L, expectedReadCount);
+        assertThat(future).isCompleted();
+        List<Entry> readEntries = future.getNow(null);
+        assertThat(readEntries).hasSize(1);
+        Entry sourceEntry = readEntries.get(0);
+
+        // unlike the write path, the read path parses the metadata of the entry it returns before inserting it,
+        // so this is the case where insert receives an entry that already carries a MessageMetadata. Only the
+        // eagerly decoded sequenceId is read from it here, since reading a string field would decode it from
+        // the buffer and keep the decoded value, hiding the very problem this test is about
+        MessageMetadata sourceMetadata = sourceEntry.getMessageMetadata();
+        assertThat(sourceMetadata).isNotNull();
+        assertThat(sourceMetadata.getSequenceId()).isEqualTo(7);
+
+        // the metadata of the cached entry is parsed at insert time and not lazily under the write lock of the
+        // first cache read. This has to be asserted before reading the entry back, because reading it would
+        // itself trigger the lazy path
+        assertThat(copyingCache.getEntries().isMessageMetadataInitialized(PositionFactory.create(1, 0))).isTrue();
+
+        ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 0));
+        assertThat(cached).isNotNull();
+        // the cached entry is backed by a copy of the payload, so it must not share the metadata that was parsed
+        // from the source buffer
+        assertThat(cached.getMessageMetadata()).isNotNull().isNotSameAs(sourceMetadata);
+
+        // overwrite the source payload while it is still referenced, the way the pooled buffer behind it gets
+        // overwritten once it has been recycled. This turns a leftover dependency on the source buffer into a
+        // wrong value rather than into a read that only fails when the released memory happens to be reused
+        headersAndPayload.setZero(headersAndPayload.readerIndex(), headersAndPayload.readableBytes());
+        // metadata parsed from the source buffer does decode the overwritten bytes, which keeps the assertions
+        // below from turning vacuous should MessageMetadata ever stop decoding these fields lazily
+        assertThat(sourceMetadata.getProducerName()).isNotEqualTo("producer");
+
+        // the read path releases the entries it returned once dispatch is done, while the cached copy stays
+        sourceEntry.release();
+        // readFromStorage closes the LedgerEntries, but that is a mock here, so the reference the read result
+        // holds is dropped explicitly instead
+        ledgerEntry.close();
+        assertThat(headersAndPayload.refCnt()).isZero();
+
+        // MessageMetadata decodes its string and bytes fields lazily from the buffer it was parsed from, so the
+        // cached entry stays readable only because its metadata was parsed from the buffer the cache owns
         assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
         assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
         cached.release();
