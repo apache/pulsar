@@ -151,6 +151,12 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
+        // Parse the message metadata once at insert time so that cache reads don't have to do it lazily while
+        // holding the RangeCacheEntryWrapper write lock
+        if (entry instanceof EntryImpl entryImpl) {
+            entryImpl.initializeMessageMetadataIfNeeded(ml.getName());
+        }
+
         Position position = entry.getPosition();
         ReferenceCountedEntry cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
