@@ -36,6 +36,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -176,6 +178,7 @@ public class MessagePayloadProcessorTest extends SharedPulsarBaseTest {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(100)
                 .messagePayloadProcessor(new CustomBatchPayloadProcessor())
                 .subscribe();
 
@@ -196,5 +199,8 @@ public class MessagePayloadProcessorTest extends SharedPulsarBaseTest {
             Assert.assertEquals(message.getValue(), messagePrefix + i);
             consumer.acknowledge(message.getMessageId());
         }
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), numMessages));
     }
 }

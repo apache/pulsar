@@ -19,11 +19,37 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import java.util.BitSet;
+import java.util.SplittableRandom;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.annotations.Test;
 
 public class EntryBatchIndexesAcksTest {
+
+    private static final long RANDOM_SEED = 0x491B0A7EL;
+
+    @Test
+    void shouldCalculateUnackedIndexesForEachEntry() {
+        BitSetRecyclable bitSet = BitSetRecyclable.create();
+        bitSet.set(1);
+        bitSet.set(4);
+        bitSet.set(8);
+        EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(2);
+        try {
+            acks.setIndexesAcks(0, Pair.of(10, bitSet.toLongArray()));
+
+            assertEquals(acks.getUnackedIndexCount(0, 10), 3);
+            assertEquals(acks.getUnackedIndexCount(1, 7), 7);
+
+            bitSet.set(63);
+            acks.setIndexesAcks(0, Pair.of(10, bitSet.toLongArray()));
+            assertEquals(acks.getUnackedIndexCount(0, 10), 3);
+        } finally {
+            acks.recycle();
+            bitSet.recycle();
+        }
+    }
 
     @Test
     void shouldResetStateBeforeReusing() {
@@ -48,6 +74,32 @@ public class EntryBatchIndexesAcksTest {
 
         // then there should be no previous state and totalAckedIndexCount should be 0
         assertEquals(acks.getTotalAckedIndexCount(), 0);
+    }
+
+    @Test
+    void shouldMatchBoundedBitSetCardinalityForRandomAckSets() {
+        SplittableRandom random = new SplittableRandom(RANDOM_SEED);
+        EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(2);
+        try {
+            for (int testCase = 0; testCase < 10_000; testCase++) {
+                int batchSize = random.nextInt(1, 1025);
+                int requiredWords = (batchSize + Long.SIZE - 1) / Long.SIZE;
+                long[] ackSet = new long[requiredWords + random.nextInt(3)];
+                for (int i = 0; i < ackSet.length; i++) {
+                    ackSet[i] = random.nextLong();
+                }
+
+                BitSet expected = BitSet.valueOf(ackSet);
+                expected.clear(batchSize, Math.max(batchSize, expected.length()));
+                acks.setIndexesAcks(0, Pair.of(batchSize, ackSet));
+
+                assertEquals(acks.getUnackedIndexCount(0, batchSize), expected.cardinality(),
+                        "seed=" + RANDOM_SEED + ", case=" + testCase + ", batchSize=" + batchSize);
+                assertEquals(acks.getUnackedIndexCount(1, batchSize), batchSize);
+            }
+        } finally {
+            acks.recycle();
+        }
     }
 
 }

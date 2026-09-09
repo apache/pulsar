@@ -50,6 +50,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     private SingleMessageMetadata singleMessageMetadata;
     private MessageIdImpl messageId;
     private ConsumerImpl<?> consumer;
+    private ConsumerImpl.ConsumerPermitState permitState;
     private int redeliveryCount;
     private BitSet ackSetInMessageId;
     private BitSetRecyclable ackBitSet;
@@ -66,6 +67,18 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                                                 final int redeliveryCount,
                                                 final List<Long> ackSet,
                                                 final long consumerEpoch) {
+        return get(brokerEntryMetadata, messageMetadata, messageId, consumer, redeliveryCount, ackSet,
+                consumerEpoch, consumer.getPermitState());
+    }
+
+    public static MessagePayloadContextImpl get(final BrokerEntryMetadata brokerEntryMetadata,
+                                                @NonNull final MessageMetadata messageMetadata,
+                                                @NonNull final MessageIdImpl messageId,
+                                                @NonNull final ConsumerImpl<?> consumer,
+                                                final int redeliveryCount,
+                                                final List<Long> ackSet,
+                                                final long consumerEpoch,
+                                                final ConsumerImpl.ConsumerPermitState permitState) {
         final MessagePayloadContextImpl context = RECYCLER.get();
         context.consumerEpoch = consumerEpoch;
         context.brokerEntryMetadata = brokerEntryMetadata;
@@ -73,6 +86,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         context.singleMessageMetadata = new SingleMessageMetadata();
         context.messageId = messageId;
         context.consumer = consumer;
+        context.permitState = permitState;
         context.redeliveryCount = redeliveryCount;
         context.ackSetInMessageId = BatchMessageIdImpl.newAckSet(context.getNumMessages());
         boolean isAckSetNotEmpty = ackSet != null && ackSet.size() > 0;
@@ -92,6 +106,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         singleMessageMetadata = null;
         messageId = null;
         consumer = null;
+        permitState = null;
         redeliveryCount = 0;
         consumerEpoch = DEFAULT_CONSUMER_EPOCH;
         ackSetInMessageId = null;
@@ -130,7 +145,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                                        Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newSingleMessage(index,
+            MessageImpl<T> message = consumer.newSingleMessage(index,
                     numMessages,
                     brokerEntryMetadata,
                     messageMetadata,
@@ -143,7 +158,12 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                     ackSetInMessageId,
                     redeliveryCount,
                     consumerEpoch,
-                    false);
+                    false,
+                    permitState == null ? null : permitState.cnx);
+            if (message != null) {
+                message.setFlowPermitOwnership(permitState, 1);
+            }
+            return message;
         } finally {
             payloadBuffer.release();
         }
@@ -153,8 +173,11 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     public <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newMessage(messageId, brokerEntryMetadata,
-                    messageMetadata, payloadBuffer, schema, redeliveryCount, consumerEpoch);
+            MessageImpl<T> message = consumer.newMessage(messageId, brokerEntryMetadata,
+                    messageMetadata, payloadBuffer, schema, redeliveryCount, consumerEpoch, false,
+                    permitState == null ? null : permitState.cnx);
+            message.setFlowPermitOwnership(permitState, 1);
+            return message;
         } finally {
             payloadBuffer.release();
         }

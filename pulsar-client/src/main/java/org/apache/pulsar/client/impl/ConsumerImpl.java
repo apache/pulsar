@@ -35,6 +35,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
@@ -63,7 +64,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
@@ -149,13 +149,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     final long consumerId;
 
-    // Number of messages that have delivered to the application. Every once in a while, this number will be sent to the
-    // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
-    @SuppressWarnings("rawtypes")
-    private static final AtomicIntegerFieldUpdater<ConsumerImpl> AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(ConsumerImpl.class, "availablePermits");
-    @SuppressWarnings("unused")
-    private volatile int availablePermits = 0;
+    /**
+     * Permit accounting for one broker-side consumer incarnation. The identity of this object, rather than the
+     * {@link ClientCnx}, is the incarnation token because a broker can recreate a consumer on the same connection.
+     */
+    static final class ConsumerPermitState {
+        final ClientCnx cnx;
+        final AtomicInteger availablePermits = new AtomicInteger();
+        final AtomicBoolean flowTaskScheduled = new AtomicBoolean();
+        volatile boolean active = true;
+        volatile boolean flowEnabled;
+
+        ConsumerPermitState(ClientCnx cnx) {
+            this.cnx = cnx;
+        }
+    }
+
+    private final AtomicReference<ConsumerPermitState> permitState = new AtomicReference<>();
+    private final Object permitStateLock = new Object();
 
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
@@ -331,7 +342,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
-        AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
@@ -896,13 +906,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + client.getConfiguration().getOperationTimeoutMs());
 
         int currentSize;
+        final ConsumerPermitState newPermitState;
         synchronized (this) {
             currentSize = incomingMessages.size();
+            newPermitState = replacePermitState(cnx);
             setClientCnx(cnx);
-            clearReceiverQueue(true);
             if (possibleSendToDeadLetterTopicMessages != null) {
-                possibleSendToDeadLetterTopicMessages.clear();
+                clearPossibleDeadLetterMessages();
             }
+            clearReceiverQueue(true);
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
@@ -947,8 +959,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
-                    if (changeToReadyState()) {
+                    if (permitState.get() != newPermitState) {
+                        future.complete(null);
+                        return;
+                    } else if (changeToReadyState()) {
                         consumerIsReconnectedToBroker(cnx, currentSize);
+                        enablePermitState(newPermitState);
                     } else {
                         // Consumer was closed while reconnecting, close the connection to make sure the broker
                         // drops the consumer on its side
@@ -967,10 +983,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                    increaseAvailablePermits(newPermitState, getCurrentReceiverQueueSize());
                 }
                 future.complete(null);
             }).exceptionally((e) -> {
+                if (permitState.get() != newPermitState) {
+                    future.complete(null);
+                    return null;
+                }
+                deactivatePermitState(newPermitState);
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
@@ -1062,8 +1083,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
         log.info("Subscribed to topic");
-
-        AVAILABLE_PERMITS_UPDATER.set(this, 0);
     }
 
     /**
@@ -1114,14 +1133,87 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } // else: No message was received or dequeued by this consumer. Next message would still be the startMessageId
     }
 
-    /**
-     * send the flow command to have the broker start pushing messages.
-     */
-    private void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
-        if (cnx != null && numMessages > 0) {
-            log.debug().attr("addingPermits", numMessages).log("Adding additional permits");
-            cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages), cnx.ctx().voidPromise());
+    private ConsumerPermitState replacePermitState(ClientCnx cnx) {
+        ConsumerPermitState newState = new ConsumerPermitState(cnx);
+        synchronized (permitStateLock) {
+            ConsumerPermitState previousState = permitState.getAndSet(newState);
+            if (previousState != null) {
+                previousState.active = false;
+                previousState.flowEnabled = false;
+                previousState.availablePermits.set(0);
+            }
         }
+        return newState;
+    }
+
+    private void enablePermitState(ConsumerPermitState state) {
+        synchronized (permitStateLock) {
+            if (permitState.get() == state && state.active) {
+                state.flowEnabled = true;
+            }
+        }
+        scheduleFlowIfNeeded(state);
+    }
+
+    protected final void deactivatePermitState(ConsumerPermitState state) {
+        if (state == null) {
+            return;
+        }
+        synchronized (permitStateLock) {
+            state.active = false;
+            state.flowEnabled = false;
+            state.availablePermits.set(0);
+            permitState.compareAndSet(state, null);
+        }
+    }
+
+    private ConsumerPermitState getPermitState(ClientCnx cnx) {
+        ConsumerPermitState state = permitState.get();
+        return state != null && state.cnx == cnx && state.active ? state : null;
+    }
+
+    @VisibleForTesting
+    ConsumerPermitState getPermitState() {
+        return permitState.get();
+    }
+
+    private void scheduleFlowIfNeeded(ConsumerPermitState state) {
+        if (state == null || !state.active || !state.flowEnabled || paused || state.availablePermits.get() <= 0
+                || state.availablePermits.get() < getCurrentReceiverQueueSize() / 2
+                || !state.flowTaskScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        EventExecutor eventExecutor = state.cnx.ctx().executor();
+        if (eventExecutor == null) {
+            // Some test connections use a minimal mocked context. A real Netty context always has an executor.
+            state.flowTaskScheduled.set(false);
+            return;
+        }
+        eventExecutor.execute(() -> flushPermits(state));
+    }
+
+    private void flushPermits(ConsumerPermitState state) {
+        int permits = 0;
+        synchronized (permitStateLock) {
+            if (permitState.get() == state && state.active && state.flowEnabled && !paused
+                    && state.availablePermits.get() >= getCurrentReceiverQueueSize() / 2) {
+                permits = state.availablePermits.getAndSet(0);
+                if (permits > 0) {
+                    log.debug().attr("available", permits)
+                            .log("Sending permit-cmd to broker with available permits =");
+                    state.cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, permits),
+                            state.cnx.ctx().voidPromise());
+                }
+            }
+            state.flowTaskScheduled.set(false);
+        }
+        scheduleFlowIfNeeded(state);
+    }
+
+    private void closePermitSourceOnOverflow(ConsumerPermitState state) {
+        deactivatePermitState(state);
+        log.error("Closing consumer connection because the returned permit count overflowed");
+        state.cnx.channel().close();
     }
 
     @Override
@@ -1250,7 +1342,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void closeConsumerTasks() {
         unAckedMessageTracker.close();
         if (possibleSendToDeadLetterTopicMessages != null) {
-            possibleSendToDeadLetterTopicMessages.clear();
+            clearPossibleDeadLetterMessages();
         }
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
@@ -1298,6 +1390,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                   final int redeliveryCount,
                                                   final long consumerEpoch,
                                                   final boolean isEncrypted) {
+        return newSingleMessage(index, numMessages, brokerEntryMetadata, msgMetadata, singleMessageMetadata,
+                payload, messageId, schema, containMetadata, ackBitSet, ackSetInMessageId, redeliveryCount,
+                consumerEpoch, isEncrypted, cnx());
+    }
+
+    protected <V> MessageImpl<V> newSingleMessage(final int index,
+                                                  final int numMessages,
+                                                  final BrokerEntryMetadata brokerEntryMetadata,
+                                                  final MessageMetadata msgMetadata,
+                                                  final SingleMessageMetadata singleMessageMetadata,
+                                                  final ByteBuf payload,
+                                                  final MessageIdImpl messageId,
+                                                  final Schema<V> schema,
+                                                  final boolean containMetadata,
+                                                  final BitSetRecyclable ackBitSet,
+                                                  final BitSet ackSetInMessageId,
+                                                  final int redeliveryCount,
+                                                  final long consumerEpoch,
+                                                  final boolean isEncrypted,
+                                                  final ClientCnx messageCnx) {
         log.debug().attr("index", index)
                 .log("processing message num - in batch");
 
@@ -1332,11 +1444,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
             final MessageImpl<V> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                     msgMetadata, singleMessageMetadata, payloadBuffer,
-                    createEncryptionContext(msgMetadata, isEncrypted), cnx(), schema, redeliveryCount,
+                    createEncryptionContext(msgMetadata, isEncrypted), messageCnx, schema, redeliveryCount,
                     poolMessages, consumerEpoch);
             message.setBrokerEntryMetadata(brokerEntryMetadata);
             return message;
-        } catch (IOException | IllegalStateException e) {
+        } catch (IOException | RuntimeException e) {
             throw new IllegalStateException(e);
         } finally {
             if (singleMessagePayload != null) {
@@ -1364,8 +1476,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             final int redeliveryCount,
                                             final long consumerEpoch,
                                             final boolean isEncrypted) {
+        return newMessage(messageId, brokerEntryMetadata, messageMetadata, payload, schema, redeliveryCount,
+                consumerEpoch, isEncrypted, cnx());
+    }
+
+    protected <V> MessageImpl<V> newMessage(final MessageIdImpl messageId,
+                                            final BrokerEntryMetadata brokerEntryMetadata,
+                                            final MessageMetadata messageMetadata,
+                                            final ByteBuf payload,
+                                            final Schema<V> schema,
+                                            final int redeliveryCount,
+                                            final long consumerEpoch,
+                                            final boolean isEncrypted,
+                                            final ClientCnx messageCnx) {
         final MessageImpl<V> message = MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
-                createEncryptionContext(messageMetadata, isEncrypted), cnx(), schema, redeliveryCount,
+                createEncryptionContext(messageMetadata, isEncrypted), messageCnx, schema, redeliveryCount,
                 poolMessages, consumerEpoch);
         message.setBrokerEntryMetadata(brokerEntryMetadata);
         return message;
@@ -1378,18 +1503,69 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-        internalPinnedExecutor.execute(() -> {
-            if (!isValidConsumerEpoch(message)) {
-                increaseAvailablePermits(cnx());
-                return;
-            }
-            Message<T> interceptMsg = onArrival(message);
-            if (hasNextPendingReceive()) {
-                notifyPendingReceivedCallback(interceptMsg, null);
-            } else if (enqueueMessageAndCheckBatchReceive(interceptMsg) && hasPendingBatchReceive()) {
-                notifyPendingBatchReceivedCallBack();
-            }
-        });
+        try {
+            internalPinnedExecutor.execute(() -> {
+                if (message.getPermitState() != permitState.get() || !isValidConsumerEpoch(message)) {
+                    messagesPrefetchedGauge.decrement();
+                    bytesPrefetchedGauge.subtract(message.size());
+                    increaseAvailablePermits(message);
+                    message.release();
+                    return;
+                }
+                final Message<T> interceptMsg;
+                try {
+                    interceptMsg = onArrival(message);
+                } catch (Throwable t) {
+                    messagesPrefetchedGauge.decrement();
+                    bytesPrefetchedGauge.subtract(message.size());
+                    increaseAvailablePermits(message);
+                    message.release();
+                    log.error().exception(t).log("Message arrival interceptor failed");
+                    return;
+                }
+                if (hasNextPendingReceive()) {
+                    notifyPendingReceivedCallback(interceptMsg, null);
+                } else if (enqueueMessageAndCheckBatchReceive(interceptMsg) && hasPendingBatchReceive()) {
+                    notifyPendingBatchReceivedCallBack();
+                }
+            });
+        } catch (Throwable t) {
+            messagesPrefetchedGauge.decrement();
+            bytesPrefetchedGauge.subtract(message.size());
+            throw t;
+        }
+    }
+
+    private void executeNotifyCallback(final MessageImpl<T> message, MessagePermitBudget permitBudget) {
+        try {
+            int permitCost = permitBudget.claim();
+            message.setFlowPermitOwnership(permitBudget.sourceState, permitCost);
+            executeNotifyCallback(message);
+        } catch (Throwable t) {
+            permitBudget.restore(message.takeFlowPermitCost());
+            message.release();
+            throw t;
+        }
+    }
+
+    private void executeNotifyCallbackWithTransferredPermit(final MessageImpl<T> message) {
+        try {
+            executeNotifyCallback(message);
+        } catch (Throwable t) {
+            increaseAvailablePermits(message);
+            message.release();
+            throw t;
+        }
+    }
+
+    private void executeNotifyCallbackForPayloadProcessor(final MessageImpl<T> message) {
+        try {
+            executeNotifyCallback(message);
+        } catch (Throwable t) {
+            message.takeFlowPermitCost();
+            message.release();
+            throw t;
+        }
     }
 
     protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
@@ -1400,14 +1576,48 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                            final int redeliveryCount,
                                            final List<Long> ackSet,
                                            long consumerEpoch) {
+        int messagePermits = messageMetadata.hasNumMessagesInBatch()
+                ? messageMetadata.getNumMessagesInBatch() : 1;
+        processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema, redeliveryCount,
+                ackSet, consumerEpoch, messagePermits, getPermitState(cnx()));
+    }
+
+    protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+                                           final MessageMetadata messageMetadata,
+                                           final ByteBuf byteBuf,
+                                           final MessageIdImpl messageId,
+                                           final Schema<T> schema,
+                                           final int redeliveryCount,
+                                           final List<Long> ackSet,
+                                           long consumerEpoch,
+                                           int messagePermits) {
+        processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema, redeliveryCount,
+                ackSet, consumerEpoch, messagePermits, getPermitState(cnx()));
+    }
+
+    protected void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+                                           final MessageMetadata messageMetadata,
+                                           final ByteBuf byteBuf,
+                                           final MessageIdImpl messageId,
+                                           final Schema<T> schema,
+                                           final int redeliveryCount,
+                                           final List<Long> ackSet,
+                                           long consumerEpoch,
+                                           int messagePermits,
+                                           ConsumerPermitState sourceState) {
         final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf);
         final MessagePayloadContextImpl entryContext = MessagePayloadContextImpl.get(
-                brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet, consumerEpoch);
-        final AtomicInteger skippedMessages = new AtomicInteger(0);
+                brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet, consumerEpoch,
+                sourceState);
+        final AtomicInteger skippedMessages = new AtomicInteger();
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
                 if (message != null) {
-                    executeNotifyCallback((MessageImpl<T>) message);
+                    MessageImpl<T> messageImpl = (MessageImpl<T>) message;
+                    if (messageImpl.getPermitState() == null) {
+                        messageImpl.setFlowPermitOwnership(sourceState, 1);
+                    }
+                    executeNotifyCallbackForPayloadProcessor(messageImpl);
                 } else {
                     skippedMessages.incrementAndGet();
                 }
@@ -1415,20 +1625,31 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } catch (Throwable throwable) {
             log.warn().exception(throwable)
                     .log("unable to obtain message in batch");
-            discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.BatchDeSerializeError, 1);
         } finally {
             entryContext.recycle();
             payload.release(); // byteBuf.release() is called in this method
         }
 
         if (skippedMessages.get() > 0) {
-            increaseAvailablePermits(cnx(), skippedMessages.get());
+            increaseAvailablePermitsForReceivedMessage(sourceState, skippedMessages.get());
         }
 
         tryTriggerListener();
     }
 
     void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
+        ConsumerPermitState sourceState = getPermitState(cnx);
+        if (sourceState == null) {
+            return;
+        }
+        final int earlyMessagePermits;
+        try {
+            earlyMessagePermits = getEarlyMessagePermits(cmdMessage);
+        } catch (PermitProtocolException e) {
+            closeMalformedPermitCommand(sourceState, e.getMessage());
+            return;
+        }
         long[] ackSet = EMPTY_ACK_SET;
         if (cmdMessage.getAckSetsCount() > 0) {
             ackSet = new long[cmdMessage.getAckSetsCount()];
@@ -1448,7 +1669,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (!verifyChecksum(headersAndPayload, messageId)) {
             // discard message with checksum error
-            discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.ChecksumMismatch, earlyMessagePermits);
             return;
         }
 
@@ -1458,11 +1679,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(headersAndPayload);
             msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         } catch (Throwable t) {
-            discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.ChecksumMismatch, earlyMessagePermits);
             return;
         }
 
         final int numMessages = msgMetadata.getNumMessagesInBatch();
+        final int messagePermits;
+        try {
+            messagePermits = validateAndResolveMessagePermits(cmdMessage, numMessages, earlyMessagePermits);
+        } catch (PermitProtocolException e) {
+            closeMalformedPermitCommand(sourceState, e.getMessage());
+            return;
+        }
         final int numChunks = msgMetadata.hasNumChunksFromMsg() ? msgMetadata.getNumChunksFromMsg() : 0;
         final boolean isChunkedMessage = numChunks > 1;
         MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
@@ -1471,12 +1699,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.debug().attr("messageId", msgId)
                     .log("Ignoring message as it was already being acked earlier by same consumer");
 
-            increaseAvailablePermits(cnx, numMessages);
+            increaseAvailablePermitsForReceivedMessage(sourceState, messagePermits);
             return;
         }
 
         DecryptResult decryptResult = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
-                cnx);
+                sourceState);
 
         if (decryptResult.shouldDiscard()) {
             // Message was discarded or CryptoKeyReader isn't implemented
@@ -1489,7 +1717,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // uncompress decryptedPayload and release decryptedPayload-ByteBuf
         ByteBuf uncompressedPayload = (isMessageUndecryptable || isChunkedMessage) ? decryptedPayload.retain()
-                : uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx, true);
+                : uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, sourceState, true,
+                        messagePermits);
         decryptedPayload.release();
         if (uncompressedPayload == null) {
             // Message was discarded on decompression error
@@ -1499,7 +1728,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getPayloadProcessor() != null) {
             // uncompressedPayload is released in this method so we don't need to call release() again
             processPayloadByProcessor(brokerEntryMetadata, msgMetadata,
-                    uncompressedPayload, msgId, schema, redeliveryCount, longArrayToList(ackSet), consumerEpoch);
+                    uncompressedPayload, msgId, schema, redeliveryCount, longArrayToList(ackSet), consumerEpoch,
+                    messagePermits, sourceState);
             return;
         }
 
@@ -1508,7 +1738,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
             if (isChunkedMessage) {
-                uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
+                uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId,
+                        sourceState);
                 if (uncompressedPayload == null) {
                     return;
                 }
@@ -1539,32 +1770,55 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Ignoring message from before the startMessageId");
 
                 uncompressedPayload.release();
+                increaseAvailablePermitsForReceivedMessage(sourceState, 1);
                 return;
             }
 
+            MessagePermitBudget permitBudget = isMessageUndecryptable || isChunkedMessage
+                    ? null : new MessagePermitBudget(sourceState, messagePermits);
             final MessageImpl<T> message =
                     newMessage(msgId, brokerEntryMetadata, msgMetadata, uncompressedPayload,
-                            schema, redeliveryCount, consumerEpoch, isMessageUndecryptable);
+                            schema, redeliveryCount, consumerEpoch, isMessageUndecryptable, cnx);
             uncompressedPayload.release();
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
                 if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
+                    retainPossibleDeadLetterMessages((MessageIdImpl) message.getMessageId(),
                             Collections.singletonList(message));
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                         redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
-                        // The message is skipped due to reaching the max redelivery count,
-                        // so we need to increase the available permits
-                        increaseAvailablePermits(cnx);
+                        if (permitBudget != null) {
+                            permitBudget.terminate();
+                        } else {
+                            increaseAvailablePermitsForReceivedMessage(sourceState, 1);
+                        }
                         return;
                     }
+                    message.retain();
                 }
             }
-            executeNotifyCallback(message);
+            if (permitBudget != null) {
+                boolean malformed = false;
+                try {
+                    executeNotifyCallback(message, permitBudget);
+                } catch (PermitProtocolException e) {
+                    malformed = true;
+                    permitBudget.terminateWithoutCredit();
+                    closeMalformedPermitCommand(sourceState, e.getMessage());
+                } finally {
+                    if (!malformed) {
+                        permitBudget.terminate();
+                    }
+                }
+            } else {
+                message.setFlowPermitOwnership(sourceState, 1);
+                executeNotifyCallbackWithTransferredPermit(message);
+            }
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
             receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet,
-                    uncompressedPayload, messageId, cnx, consumerEpoch, isMessageUndecryptable);
+                    uncompressedPayload, messageId, sourceState, consumerEpoch, isMessageUndecryptable,
+                    messagePermits);
 
             uncompressedPayload.release();
         }
@@ -1572,10 +1826,136 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     }
 
+    @VisibleForTesting
+    static int getMessagePermits(CommandMessage cmdMessage, int batchSize) {
+        int earlyPermits = getEarlyMessagePermits(cmdMessage);
+        return validateAndResolveMessagePermits(cmdMessage, batchSize, earlyPermits);
+    }
+
+    private static int getEarlyMessagePermits(CommandMessage cmdMessage) {
+        if (cmdMessage.hasMessagePermits()) {
+            long unsignedPermits = Integer.toUnsignedLong(cmdMessage.getMessagePermits());
+            if (unsignedPermits == 0 || unsignedPermits > Integer.MAX_VALUE) {
+                throw new PermitProtocolException("message_permits is outside the supported unsigned range");
+            }
+            return (int) unsignedPermits;
+        }
+        if (cmdMessage.getAckSetsCount() == 0) {
+            return 1;
+        }
+        int permits = getAckSetCardinality(cmdMessage);
+        if (permits == 0) {
+            throw new PermitProtocolException("ack_set must contain at least one deliverable index");
+        }
+        return permits;
+    }
+
+    private static int validateAndResolveMessagePermits(CommandMessage cmdMessage, int batchSize,
+            int earlyPermits) {
+        if (batchSize <= 0) {
+            throw new PermitProtocolException("num_messages_in_batch must be positive");
+        }
+        int expectedPermits;
+        if (cmdMessage.getAckSetsCount() > 0) {
+            expectedPermits = validateAckSet(cmdMessage, batchSize);
+        } else {
+            expectedPermits = batchSize;
+        }
+        if (cmdMessage.hasMessagePermits() && earlyPermits != expectedPermits) {
+            throw new PermitProtocolException("message_permits does not match the native payload cardinality");
+        }
+        return cmdMessage.hasMessagePermits() ? earlyPermits : expectedPermits;
+    }
+
+    private static int validateAckSet(CommandMessage cmdMessage, int batchSize) {
+        int cardinality = 0;
+        for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
+            long word = cmdMessage.getAckSetAt(i);
+            long firstIndex = (long) i * Long.SIZE;
+            if (firstIndex >= batchSize) {
+                if (word != 0) {
+                    throw new PermitProtocolException("ack_set contains an index outside the native batch");
+                }
+            } else {
+                int validBits = (int) Math.min(Long.SIZE, batchSize - firstIndex);
+                if (validBits < Long.SIZE && (word >>> validBits) != 0) {
+                    throw new PermitProtocolException("ack_set contains an index outside the native batch");
+                }
+            }
+            try {
+                cardinality = Math.addExact(cardinality, Long.bitCount(word));
+            } catch (ArithmeticException e) {
+                throw new PermitProtocolException("ack_set cardinality exceeds the supported range");
+            }
+        }
+        if (cardinality == 0) {
+            throw new PermitProtocolException("ack_set must contain at least one deliverable index");
+        }
+        return cardinality;
+    }
+
+    private static int getAckSetCardinality(CommandMessage cmdMessage) {
+        int cardinality = 0;
+        for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
+            try {
+                cardinality = Math.addExact(cardinality, Long.bitCount(cmdMessage.getAckSetAt(i)));
+            } catch (ArithmeticException e) {
+                throw new PermitProtocolException("ack_set cardinality exceeds the supported range");
+            }
+        }
+        return cardinality;
+    }
+
+    private static final class PermitProtocolException extends RuntimeException {
+        private PermitProtocolException(String message) {
+            super(message);
+        }
+    }
+
+    private final class MessagePermitBudget {
+        private final ConsumerPermitState sourceState;
+        private int remainingPermits;
+        private boolean terminated;
+
+        private MessagePermitBudget(ConsumerPermitState sourceState, int messagePermits) {
+            this.sourceState = sourceState;
+            this.remainingPermits = messagePermits;
+        }
+
+        private int claim() {
+            if (terminated || remainingPermits == 0) {
+                throw new PermitProtocolException("native payload expansion exceeded message_permits");
+            }
+            remainingPermits--;
+            return 1;
+        }
+
+        private void restore(int permitCost) {
+            if (!terminated) {
+                remainingPermits = Math.addExact(remainingPermits, permitCost);
+            }
+        }
+
+        private void terminate() {
+            if (terminated) {
+                return;
+            }
+            terminated = true;
+            int permits = remainingPermits;
+            remainingPermits = 0;
+            increaseAvailablePermitsForReceivedMessage(sourceState, permits);
+        }
+
+        private void terminateWithoutCredit() {
+            terminated = true;
+            remainingPermits = 0;
+        }
+    }
+
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
-            MessageIdData messageId, ClientCnx cnx) {
+            MessageIdData messageId, ConsumerPermitState sourceState) {
         if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
-            increaseAvailablePermits(cnx);
+            increaseAvailablePermitsForReceivedMessage(sourceState, 1);
         }
         // Lazy task scheduling to expire incomplete chunk message
         if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
@@ -1713,7 +2093,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         compressedPayload.release();
         compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
-        ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, cnx, false);
+        ByteBuf uncompressedPayload =
+                uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, sourceState, false, 1);
         compressedPayload.release();
         return uncompressedPayload;
     }
@@ -1785,6 +2166,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
+        int messagePermits = ackSet == null || ackSet.length == 0
+                ? msgMetadata.getNumMessagesInBatch() : BitSet.valueOf(ackSet).cardinality();
+        receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet,
+                uncompressedPayload, messageId, getPermitState(cnx), consumerEpoch, isEncrypted, messagePermits);
+    }
+
+    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
+                                            boolean isEncrypted, int messagePermits) {
+        receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet,
+                uncompressedPayload, messageId, getPermitState(cnx), consumerEpoch, isEncrypted, messagePermits);
+    }
+
+    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ConsumerPermitState sourceState,
+                                            long consumerEpoch,
+                                            boolean isEncrypted, int messagePermits) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
@@ -1803,50 +2203,64 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
-        int skippedMessages = 0;
+        MessagePermitBudget permitBudget = new MessagePermitBudget(sourceState, messagePermits);
+        boolean malformed = false;
         try {
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
-                        ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted);
+                        ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted,
+                        sourceState == null ? null : sourceState.cnx);
                 if (message == null) {
                     // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and
                     // did not decrease the permits in the broker-side.
                     // So do not acquire more permits for this message.
                     // Why not skip this single message in the first line of for-loop block? We need call
                     // "newSingleMessage" to move "payload.readerIndex" to a correct value to get the correct data.
-                    if (!isSingleMessageAcked(ackBitSet, i)) {
-                        skippedMessages++;
-                    }
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                     // Skip the message which reaches the max redelivery count.
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
-                        skippedMessages++;
                         continue;
                     }
                 }
                 if (acknowledgmentsGroupingTracker.isDuplicate(message.getMessageId())) {
-                    skippedMessages++;
+                    if (possibleToDeadLetter == null) {
+                        message.release();
+                    }
                     continue;
                 }
-                executeNotifyCallback(message);
+                if (possibleToDeadLetter != null) {
+                    message.retain();
+                }
+                try {
+                    executeNotifyCallback(message, permitBudget);
+                } catch (PermitProtocolException e) {
+                    throw e;
+                }
             }
-            if (ackBitSet != null) {
-                ackBitSet.recycle();
-            }
+        } catch (PermitProtocolException e) {
+            malformed = true;
+            permitBudget.terminateWithoutCredit();
+            closeMalformedPermitCommand(sourceState, e.getMessage());
         } catch (IllegalStateException e) {
             log.warn().exception(e)
                     .log("unable to obtain message in batch");
-            discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.BatchDeSerializeError, 0);
+        } finally {
+            if (ackBitSet != null) {
+                ackBitSet.recycle();
+            }
+            if (!malformed) {
+                permitBudget.terminate();
+            }
         }
 
         if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
             if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                possibleSendToDeadLetterTopicMessages.put(batchMessage,
-                        possibleToDeadLetter);
+                retainPossibleDeadLetterMessages(batchMessage, possibleToDeadLetter);
                 if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                     redeliverUnacknowledgedMessages(Collections.singleton(batchMessage));
                 }
@@ -1857,9 +2271,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .attr("remainingCapacity", incomingMessages.remainingCapacity())
                 .log("enqueued messages in batch. queue size -, available queue size");
 
-        if (skippedMessages > 0) {
-            increaseAvailablePermits(cnx, skippedMessages);
-        }
     }
 
     private boolean isPriorEntryIndex(long idx) {
@@ -1883,8 +2294,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      */
     @Override
     protected synchronized void messageProcessed(Message<?> msg) {
-        ClientCnx currentCnx = cnx();
-        ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
+        ConsumerPermitState currentState = permitState.get();
+        ConsumerPermitState messageState = msg instanceof MessageImpl<?> messageImpl
+                ? messageImpl.getPermitState() : currentState;
         lastDequeuedMessageId = msg.getMessageId();
 
         messagesPrefetchedGauge.decrement();
@@ -1893,11 +2305,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         bytesPrefetchedGauge.subtract(msg.size());
         bytesReceivedCounter.add(msg.size());
 
-        if (msgCnx != currentCnx) {
+        if (messageState != currentState) {
             // The processed message did belong to the old queue that was cleared after reconnection.
         } else {
             if (listener == null && !parentConsumerHasListener) {
-                increaseAvailablePermits(currentCnx);
+                if (msg instanceof MessageImpl<?> messageImpl) {
+                    increaseAvailablePermits(messageImpl);
+                }
             }
             stats.updateNumMsgsReceived(msg);
 
@@ -1930,11 +2344,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void increaseAvailablePermits(MessageImpl<?> msg) {
-        ClientCnx currentCnx = cnx();
-        ClientCnx msgCnx = msg.getCnx();
-        if (msgCnx == currentCnx) {
-            increaseAvailablePermits(currentCnx);
+        increaseAvailablePermits(msg.getPermitState(), msg.takeFlowPermitCost());
+    }
+
+    private void increaseAvailablePermitsForReceivedMessage(ConsumerPermitState sourceState, int permits) {
+        increaseAvailablePermits(sourceState, permits);
+    }
+
+    @Override
+    protected void messageDiscarded(Message<T> message) {
+        messagesPrefetchedGauge.decrement();
+        bytesPrefetchedGauge.subtract(message.size());
+        if (message instanceof MessageImpl<?> messageImpl) {
+            increaseAvailablePermits(messageImpl);
         }
+        message.release();
     }
 
     void increaseAvailablePermits(ClientCnx currentCnx) {
@@ -1942,21 +2366,37 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
-        int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
-        while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
-            if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
-                log.debug().attr("available", available)
-                        .log("Sending permit-cmd to broker with available permits =");
-                sendFlowPermitsToBroker(currentCnx, available);
-                break;
-            } else {
-                available = AVAILABLE_PERMITS_UPDATER.get(this);
+        increaseAvailablePermits(getPermitState(currentCnx), delta);
+    }
+
+    private void increaseAvailablePermits(ConsumerPermitState state, int delta) {
+        if (state == null || delta < 0 || (delta == 0 && !state.active)) {
+            return;
+        }
+        if (delta > 0) {
+            while (state.active && permitState.get() == state) {
+                int current = state.availablePermits.get();
+                final int updated;
+                try {
+                    updated = Math.addExact(current, delta);
+                } catch (ArithmeticException e) {
+                    closePermitSourceOnOverflow(state);
+                    return;
+                }
+                if (state.availablePermits.compareAndSet(current, updated)) {
+                    if (!state.active || permitState.get() != state) {
+                        state.availablePermits.set(0);
+                        return;
+                    }
+                    break;
+                }
             }
         }
+        scheduleFlowIfNeeded(state);
     }
 
     public void increaseAvailablePermits(int delta) {
-        increaseAvailablePermits(cnx(), delta);
+        increaseAvailablePermits(permitState.get(), delta);
     }
 
     @Override
@@ -1973,14 +2413,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void pause() {
-        paused = true;
+        synchronized (permitStateLock) {
+            paused = true;
+        }
     }
 
     @Override
     public void resume() {
-        if (paused) {
-            paused = false;
-            increaseAvailablePermits(cnx(), 0);
+        ConsumerPermitState state = null;
+        synchronized (permitStateLock) {
+            if (paused) {
+                paused = false;
+                state = permitState.get();
+            }
+        }
+        if (state != null) {
+            increaseAvailablePermits(state, 0);
         }
     }
 
@@ -2033,7 +2481,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings({"unchecked", "rawtypes"})
     private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount,
                                                  MessageMetadata msgMetadata,
-                                                 ByteBuf payload, ClientCnx currentCnx) {
+                                                 ByteBuf payload, ConsumerPermitState sourceState) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return DecryptResult.success(payload.retain());
@@ -2041,7 +2489,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int batchSize = msgMetadata.getNumMessagesInBatch();
         // If KeyReader is not configured throw exception based on config param
         if (conf.getCryptoKeyReader() == null) {
-            return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, true);
+            return handleCryptoFailure(payload, messageId, sourceState, redeliveryCount, batchSize, true);
         }
 
         int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
@@ -2055,10 +2503,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         decryptedData.release();
 
-        return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, false);
+        return handleCryptoFailure(payload, messageId, sourceState, redeliveryCount, batchSize, false);
     }
 
-    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
+    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId,
+            ConsumerPermitState sourceState,
             int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
 
         if (conf.getDecryptFailListener() != null) {
@@ -2087,7 +2536,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .attr("batchIndex", messageId.getBatchIndex())
                         .log("[--] Discarding message since decryption failed " + "and config is set to discard");
             }
-            discardMessage(messageId, currentCnx, ValidationError.DecryptionError, batchSize);
+            discardMessage(messageId, sourceState, ValidationError.DecryptionError, batchSize);
             return DecryptResult.discard();
         case FAIL:
             if (cryptoReaderNotExist) {
@@ -2110,7 +2559,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx, boolean checkMaxMessageSize) {
+            ConsumerPermitState sourceState, boolean checkMaxMessageSize, int messagePermits) {
         CompressionType compressionType = msgMetadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
@@ -2120,19 +2569,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.error().attr("size", payloadSize)
                     .attr("messageId", messageId)
                     .log("Got corrupted payload message size at");
-            discardCorruptedMessage(messageId, currentCnx, ValidationError.UncompressedSizeCorruption);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.UncompressedSizeCorruption,
+                    messagePermits);
             return null;
         }
         try {
             ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
             return uncompressedPayload;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.error().attr("compressionType", compressionType)
                     .attr("messageId", messageId)
                     .exceptionMessage(e)
                     .exception(e)
                     .log("Failed to decompress message with at");
-            discardCorruptedMessage(messageId, currentCnx, ValidationError.DecompressionError);
+            discardCorruptedMessage(messageId, sourceState, ValidationError.DecompressionError, messagePermits);
             return null;
         }
     }
@@ -2154,31 +2604,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return true;
     }
 
-    private void discardCorruptedMessage(MessageIdImpl messageId, ClientCnx currentCnx,
-                                         ValidationError validationError) {
+    private void discardCorruptedMessage(MessageIdImpl messageId, ConsumerPermitState sourceState,
+                                         ValidationError validationError, int messagePermits) {
         log.error().attr("messageId", messageId)
                 .log("Discarding corrupted message");
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null,
                 AckType.Individual, validationError, Collections.emptyMap(), -1);
-        currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
-        increaseAvailablePermits(currentCnx);
+        sourceState.cnx.ctx().writeAndFlush(cmd, sourceState.cnx.ctx().voidPromise());
+        increaseAvailablePermitsForReceivedMessage(sourceState, messagePermits);
         stats.incrementNumReceiveFailed();
     }
 
-    private void discardCorruptedMessage(MessageIdData messageId, ClientCnx currentCnx,
-            ValidationError validationError) {
+    private void discardCorruptedMessage(MessageIdData messageId, ConsumerPermitState sourceState,
+            ValidationError validationError, int messagePermits) {
         log.error().attr("messageId", messageId)
                 .log("Discarding corrupted message");
-        discardMessage(messageId, currentCnx, validationError, 1);
+        discardMessage(messageId, sourceState, validationError, messagePermits);
     }
 
-    private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError,
-            int batchMessages) {
+    private void discardMessage(MessageIdData messageId, ConsumerPermitState sourceState,
+            ValidationError validationError,
+            int messagePermits) {
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null,
                 AckType.Individual, validationError, Collections.emptyMap(), -1);
-        currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
-        increaseAvailablePermits(currentCnx, batchMessages);
+        sourceState.cnx.ctx().writeAndFlush(cmd, sourceState.cnx.ctx().voidPromise());
+        increaseAvailablePermitsForReceivedMessage(sourceState, messagePermits);
         stats.incrementNumReceiveFailed();
+    }
+
+    private void closeMalformedPermitCommand(ConsumerPermitState sourceState, String reason) {
+        log.error().attr("reason", reason).log("Closing connection after receiving a malformed message command");
+        deactivatePermitState(sourceState);
+        sourceState.cnx.channel().close();
     }
 
     @Override
@@ -2201,7 +2658,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public int getAvailablePermits() {
-        return AVAILABLE_PERMITS_UPDATER.get(this);
+        ConsumerPermitState state = permitState.get();
+        return state == null ? 0 : state.availablePermits.get();
     }
 
     @Override
@@ -2234,7 +2692,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             // clear local message
-            int currentSize;
+            List<Message<T>> messagesFromQueue;
             incomingQueueLock.lock();
             try {
                 // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
@@ -2245,8 +2703,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 // clear local message
-                currentSize = incomingMessages.size();
-                clearIncomingMessages();
+                messagesFromQueue = new ArrayList<>(incomingMessages.size());
+                incomingMessages.drainTo(messagesFromQueue);
+                resetIncomingMessageSize();
                 unAckedMessageTracker.clear();
             } finally {
                 incomingQueueLock.unlock();
@@ -2256,12 +2715,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (cnx != null && isConnected(cnx)) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
-                if (currentSize > 0) {
-                    increaseAvailablePermits(cnx, currentSize);
-                }
-                log.debug().attr("send", currentSize)
+                messagesFromQueue.forEach(message -> {
+                    if (message instanceof MessageImpl<?> messageImpl) {
+                        increaseAvailablePermits(messageImpl);
+                    }
+                    message.release();
+                });
+                log.debug().attr("messages", messagesFromQueue.size())
                         .log("Redeliver unacked messages and send permits");
             } else {
+                messagesFromQueue.forEach(Message::release);
                 log.warn("Send redeliver messages command but the"
                                 + " client is reconnect or close, so don't"
                                 + " need to send redeliver command to"
@@ -2284,7 +2747,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
-            int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
+            List<Message<T>> messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
             Iterables.partition(messageIds, MAX_REDELIVER_UNACKNOWLEDGED).forEach(ids -> {
                 getRedeliveryMessageIdData(ids).thenAccept(messageIdData -> {
                     if (!messageIdData.isEmpty()) {
@@ -2293,10 +2756,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     }
                 });
             });
-            if (messagesFromQueue > 0) {
-                increaseAvailablePermits(cnx, messagesFromQueue);
-            }
-            log.debug().attr("increase", messagesFromQueue)
+            messagesFromQueue.forEach(message -> {
+                if (message instanceof MessageImpl<?> messageImpl) {
+                    increaseAvailablePermits(messageImpl);
+                }
+                message.release();
+            });
+            log.debug().attr("increase", messagesFromQueue.size())
                     .log("Redeliver unacked messages and increase permits");
             return;
         }
@@ -2350,79 +2816,87 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @SuppressWarnings("unchecked")
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdAdv messageId) {
-        List<MessageImpl<T>> deadLetterMessages = null;
-        if (possibleSendToDeadLetterTopicMessages != null) {
-            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(MessageIdAdvUtils.discardBatch(messageId));
+        if (possibleSendToDeadLetterTopicMessages == null) {
+            return CompletableFuture.completedFuture(false);
         }
-        CompletableFuture<Boolean> result = new CompletableFuture<>();
-        if (deadLetterMessages != null) {
-            List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
-            initDeadLetterProducerIfNeeded().thenAcceptAsync(producerDLQ -> {
-                for (MessageImpl<T> message : finalDeadLetterMessages) {
-                    try {
-                        String originMessageIdStr = message.getMessageId().toString();
-                        String originTopicNameStr = getOriginTopicNameStr(message);
-                        AutoProduceBytesSchema<byte[]> deadLetterMessageSchema =
+        MessageIdAdv deadLetterKey = MessageIdAdvUtils.discardBatch(messageId);
+        final List<MessageImpl<T>> deadLetterMessages;
+        synchronized (possibleSendToDeadLetterTopicMessages) {
+            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(deadLetterKey);
+            if (deadLetterMessages == null) {
+                return CompletableFuture.completedFuture(false);
+            }
+            deadLetterMessages.forEach(MessageImpl::retain);
+        }
+
+        CompletableFuture<Void> sendFuture = initDeadLetterProducerIfNeeded().thenComposeAsync(producerDLQ -> {
+            List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>(deadLetterMessages.size());
+            try {
+                for (MessageImpl<T> message : deadLetterMessages) {
+                    String originMessageIdStr = message.getMessageId().toString();
+                    String originTopicNameStr = getOriginTopicNameStr(message);
+                    AutoProduceBytesSchema<byte[]> deadLetterMessageSchema =
                             (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get());
-                        deadLetterMessageSchema.setRequireSchemaValidation(false);
-                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                                producerDLQ.newMessage(deadLetterMessageSchema)
-                                        .value(message.getData())
-                                        .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
-                        copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
-                        copyMessageEventTime(message, typedMessageBuilderNew);
-                        typedMessageBuilderNew.sendAsync()
-                                .thenAccept(messageIdInDLQ -> {
-                                    possibleSendToDeadLetterTopicMessages.remove(messageId);
-                                    acknowledgeAsync(messageId).whenComplete((v, ex) -> {
-                                        if (ex != null) {
-                                            log.warn().attr("messageId", messageId)
-                                                    .exception(ex)
-                                                    .log("Failed to acknowledge the"
-                                                            + " message of the original topic"
-                                                            + " but send to the DLQ"
-                                                            + " successfully.");
-                                            result.complete(false);
-                                        } else {
-                                            result.complete(true);
-                                        }
-                                    });
-                                }).exceptionally(ex -> {
-                                    if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
-                                        log.warn().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
-                                                .attr("messageId", messageId)
-                                                .exceptionMessage(ex)
-                                                .log("Failed to send DLQ message to"
-                                                        + " with ProducerQueueIsFullError"
-                                                        + " for message id");
-                                    } else {
-                                        log.warn().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
-                                                .attr("messageId", messageId)
-                                                .exception(ex)
-                                                .log("Failed to send DLQ message to for message id");
-                                    }
-                                    result.complete(false);
-                                    return null;
-                                });
-                    } catch (Exception e) {
-                        log.warn().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
-                                .attr("messageId", messageId)
-                                .exception(e)
-                                .log("Failed to process DLQ message to for message id");
-                        result.complete(false);
-                    }
+                    deadLetterMessageSchema.setRequireSchemaValidation(false);
+                    TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                            producerDLQ.newMessage(deadLetterMessageSchema)
+                                    .value(message.getData())
+                                    .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
+                    copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                    copyMessageEventTime(message, typedMessageBuilderNew);
+                    sendFutures.add(typedMessageBuilderNew.sendAsync());
                 }
-            }, internalPinnedExecutor).exceptionally(ex -> {
-                log.error().attr("topic", deadLetterPolicy.getDeadLetterTopic())
-                        .exception(ex)
-                        .log("Dead letter producer exception with topic");
-                result.complete(false);
-                return null;
+            } catch (Exception e) {
+                return FutureUtil.failedFuture(e);
+            }
+            return FutureUtil.waitForAll(sendFutures);
+        }, internalPinnedExecutor);
+
+        return sendFuture.thenCompose(ignored -> {
+            releasePossibleDeadLetterMessages(deadLetterKey, deadLetterMessages);
+            return acknowledgeAsync(messageId).handle((v, ex) -> {
+                if (ex != null) {
+                    log.warn().attr("messageId", messageId)
+                            .exception(ex)
+                            .log("Failed to acknowledge the message of the original topic"
+                                    + " but send to the DLQ successfully.");
+                    return false;
+                }
+                return true;
             });
-        } else {
-            result.complete(false);
+        }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
+                    .attr("messageId", messageId)
+                    .exception(cause)
+                    .log("Failed to send DLQ message for message id");
+            return false;
+        }).whenComplete((ignored, ex) -> deadLetterMessages.forEach(MessageImpl::release));
+    }
+
+    private void retainPossibleDeadLetterMessages(MessageIdAdv messageId, List<MessageImpl<T>> messages) {
+        synchronized (possibleSendToDeadLetterTopicMessages) {
+            List<MessageImpl<T>> previous = possibleSendToDeadLetterTopicMessages.put(messageId, messages);
+            if (previous != null && previous != messages) {
+                previous.forEach(MessageImpl::release);
+            }
         }
-        return result;
+    }
+
+    private void releasePossibleDeadLetterMessages(MessageIdAdv messageId, List<MessageImpl<T>> messages) {
+        synchronized (possibleSendToDeadLetterTopicMessages) {
+            if (possibleSendToDeadLetterTopicMessages.remove(messageId, messages)) {
+                messages.forEach(MessageImpl::release);
+            }
+        }
+    }
+
+    private void clearPossibleDeadLetterMessages() {
+        synchronized (possibleSendToDeadLetterTopicMessages) {
+            possibleSendToDeadLetterTopicMessages.values()
+                    .forEach(messages -> messages.forEach(MessageImpl::release));
+            possibleSendToDeadLetterTopicMessages.clear();
+        }
     }
 
     private void customizeDeadLetterProducerBuilder(DeadLetterProducerBuilderCustomizer customizer,
@@ -3008,8 +3482,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return Optional.ofNullable(encryptionCtx);
     }
 
-    private int removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
-        int messagesFromQueue = 0;
+    private List<Message<T>> removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
+        List<Message<T>> messagesFromQueue = new ArrayList<>();
         Message<T> message;
         while (true) {
             message = incomingMessages.pollIf(msg -> {
@@ -3020,8 +3494,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 break;
             }
             decreaseIncomingMessageSize(message);
-            messagesFromQueue++;
-            message.release();
+            messagesFromQueue.add(message);
         }
         return messagesFromQueue;
     }
@@ -3072,6 +3545,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
+        deactivatePermitState(getPermitState(cnx));
         this.connectionHandler.connectionClosed(cnx, initialConnectionDelayMs, hostUrl);
     }
 
@@ -3081,6 +3555,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void setClientCnx(ClientCnx clientCnx) {
         if (clientCnx != null) {
+            if (getPermitState(clientCnx) == null) {
+                replacePermitState(clientCnx);
+            }
             this.connectionHandler.setClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
             if (conf.isAckReceiptEnabled()
@@ -3096,6 +3573,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void deregisterFromClientCnx() {
+        deactivatePermitState(permitState.get());
         setClientCnx(null);
     }
 

@@ -1001,12 +1001,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     updateAutoScaleReceiverQueueHint();
                 } else {
                     INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -messageSize);
+                    messageDiscarded(message);
                 }
             }
         } finally {
             incomingQueueLock.unlock();
         }
         return hasEnoughMessagesForBatchReceive();
+    }
+
+    protected void messageDiscarded(Message<T> message) {
+        message.release();
     }
 
     protected abstract void updateAutoScaleReceiverQueueHint();
@@ -1244,17 +1249,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void callMessageListener(Message<T> msg) {
         try {
+            ConsumerImpl<T> receivedConsumer = (msg instanceof TopicMessageImpl)
+                    ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl<T>) this;
+            MessageImpl<T> innerMessage = (MessageImpl<T>) (msg instanceof TopicMessageImpl
+                    ? ((TopicMessageImpl<T>) msg).getMessage() : msg);
             State state = getState();
             if (state == State.Closing || state == State.Closed) {
                     log.debug().attr("messageId", msg.getMessageId())
                             .log("Consumer has been closed. Skipping message.");
+                receivedConsumer.increaseAvailablePermits(innerMessage);
                 msg.release();
                 return;
             }
                 log.debug().attr("messageId", msg.getMessageId())
                         .log("Calling message listener for message");
-            ConsumerImpl<T> receivedConsumer = (msg instanceof TopicMessageImpl)
-                    ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl<T>) this;
 
             // check the internal consumer state
             if (receivedConsumer != this) {
@@ -1262,6 +1270,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 if (receivedByConsumerState == State.Closing || receivedByConsumerState == State.Closed) {
                         log.debug().attr("messageId", msg.getMessageId())
                                 .log("Consumer that received the message has been closed. Skipping message.");
+                    receivedConsumer.increaseAvailablePermits(innerMessage);
                     msg.release();
                     return;
                 }
@@ -1272,11 +1281,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
 
-            MessageImpl<T> innerMessage = (MessageImpl<T>) (msg instanceof TopicMessageImpl
-                    ? ((TopicMessageImpl<T>) msg).getMessage() : msg);
             if (!receivedConsumer.isValidConsumerEpoch(innerMessage)) {
                     log.debug().attr("messageId", msg.getMessageId())
                             .log("Skipping processing message since the consumer epoch is not valid.");
+                msg.release();
                 return;
             }
 

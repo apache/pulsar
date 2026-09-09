@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -178,11 +179,12 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, false, consumer);
 
             if (consumer.getAvailablePermits() > 0 && consumer.isWritable()) {
-                consumer.sendMessages(entriesForConsumer, stickyKeysForConsumer, batchSizes,
+                SendMessageResult sendResult = consumer.sendMessages(entriesForConsumer, stickyKeysForConsumer,
+                        batchSizes,
                         null, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker(), Commands.DEFAULT_CONSUMER_EPOCH);
-                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendResult.getTotalMessagePermits());
             } else {
                 entriesForConsumer.forEach(e -> {
                     int totalMsgs = getNumberOfMessagesInBatch(e);

@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
@@ -389,17 +390,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
-                consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
+                SendMessageResult sendResult = consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker()).addListener(future -> {
+                        getRedeliveryTracker());
+                sendResult.getSendFuture().addListener(future -> {
                     if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
                         readMoreEntries();
                     }
                 });
 
-                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendResult.getTotalMessagePermits());
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             } else {

@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
+import org.apache.pulsar.broker.service.SendMessageResult;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -204,10 +205,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, consumer);
-            consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
+            SendMessageResult sendResult = consumer.sendMessages(entries, batchSizes, null,
+                    sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
 
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendResult.getTotalMessagePermits());
         } else {
             entries.forEach(entry -> {
                 int totalMsgs = getNumberOfMessagesInBatch(entry);

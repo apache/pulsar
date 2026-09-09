@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.Recycler;
-import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
 
 @SuppressWarnings("unchecked")
@@ -37,15 +36,34 @@ public class EntryBatchIndexesAcks {
         return pair == null ? null : pair.getRight();
     }
 
+    public int getUnackedIndexCount(int entryIdx, int batchSize) {
+        Pair<Integer, long[]> pair = indexesAcks[entryIdx];
+        return pair == null ? batchSize : getCardinality(pair.getRight(), batchSize);
+    }
+
     public int getTotalAckedIndexCount() {
         int count = 0;
         for (int i = 0; i < size; i++) {
             Pair<Integer, long[]> pair = indexesAcks[i];
             if (pair != null) {
-                count += pair.getLeft() - BitSet.valueOf(pair.getRight()).cardinality();
+                count += pair.getLeft() - getUnackedIndexCount(i, pair.getLeft());
             }
         }
         return count;
+    }
+
+    private static int getCardinality(long[] ackSet, int batchSize) {
+        int cardinality = 0;
+        int completeWords = Math.min(batchSize >>> 6, ackSet.length);
+        for (int i = 0; i < completeWords; i++) {
+            cardinality += Long.bitCount(ackSet[i]);
+        }
+        int remainingBits = batchSize & 63;
+        if (remainingBits > 0 && completeWords < ackSet.length) {
+            long mask = -1L >>> (Long.SIZE - remainingBits);
+            cardinality += Long.bitCount(ackSet[completeWords] & mask);
+        }
+        return cardinality;
     }
 
     public void recycle() {
