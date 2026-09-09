@@ -135,6 +135,19 @@ public class ActiveManagedCursorContainerBenchmark {
 
     @Threads(1)
     @Benchmark
+    public int tailSeekingForward(ThreadState threadState) {
+        long counter = threadState.nextCounter();
+        ManagedCursor cursor = cursors.get(cursors.size() - 1);
+        // Keep moving the fastest cursor, without joining or leaving a shared position group.
+        cursor.seek(cursor.getReadPosition().getPositionAfterEntries(1));
+        return getNumberOfCursorsAtSamePositionOrBeforeRatio > 0
+                && counter % getNumberOfCursorsAtSamePositionOrBeforeRatio == 0
+                ? container.getNumberOfCursorsAtSamePositionOrBefore(cursor)
+                : (int) cursor.getReadPosition().getEntryId();
+    }
+
+    @Threads(1)
+    @Benchmark
     public Position slowestCursorPosition01() {
         return container.getSlowestCursorPosition();
     }
