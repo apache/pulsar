@@ -97,6 +97,8 @@ public class MLTransactionLogImpl implements TransactionLog {
         if (txnLogBufferedWriterConfig.isBatchEnabled()) {
             this.managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
         }
+        // the transaction log keeps TransactionMetadataEntry records, not Pulsar messages
+        this.managedLedgerConfig.setPulsarMessageEntries(false);
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.bufferedWriterMetrics = bufferedWriterMetrics;
     }
