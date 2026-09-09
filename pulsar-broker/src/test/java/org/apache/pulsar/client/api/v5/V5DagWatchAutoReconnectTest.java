@@ -57,8 +57,9 @@ public class V5DagWatchAutoReconnectTest extends V5ClientBaseTest {
         Producer<String> producer = v5Client.newProducer(Schema.string())
                 .topic(topic)
                 .create();
+        PulsarClient consumerClient = newV5Client();
         @Cleanup
-        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+        QueueConsumer<String> consumer = consumerClient.newQueueConsumer(Schema.string())
                 .topic(topic)
                 .subscriptionName("dag-reconnect-sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
@@ -78,9 +79,6 @@ public class V5DagWatchAutoReconnectTest extends V5ClientBaseTest {
         // on the DagWatchClient, which schedules a reconnect.
         forceCloseDagWatchOnProducer(producer);
 
-        // Send a second batch immediately. Existing segments are still reachable
-        // through the per-segment v4 producers (their own connections are unaffected),
-        // so this proves the producer keeps working through the reconnect window.
         int secondN = 10;
         Set<String> secondSent = new HashSet<>();
         for (int i = 0; i < secondN; i++) {
