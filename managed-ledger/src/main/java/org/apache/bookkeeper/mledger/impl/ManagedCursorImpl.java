@@ -576,6 +576,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (info.getIndividualDeletedMessagesCount() > 0) {
                         recoverIndividualDeletedMessages(info.getIndividualDeletedMessagesList());
                     }
+                    if (getConfig().isDeletionAtBatchIndexLevelEnabled()
+                            && info.getBatchedEntryDeletionIndexInfoCount() > 0) {
+                        recoverBatchDeletedIndexes(info.getBatchedEntryDeletionIndexInfoList());
+                    }
 
                     Map<String, Long> recoveredProperties =
                             recoverProperties(info.getPropertiesCount(), info::getProperties);
