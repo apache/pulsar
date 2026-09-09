@@ -4590,6 +4590,77 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     /**
+     * Reopening a managed ledger rebuilds the last ledger's LedgerInfo from BookKeeper
+     * (the znode stat is stale while the ledger is the current writing ledger). The rebuild
+     * must only refresh entries/size/timestamp and preserve the fields already persisted in
+     * the znode -- the offload context.
+     *
+     * <p>Before the fix, the rebuild created the LedgerInfo from scratch, dropping offloadContext;
+     * the loss was then persisted by the ledger-ids rewrite in initializeBookKeeper.
+     */
+    @Test(timeOut = 20000)
+    public void testOffloadContextPreservedAfterReopen() throws Exception {
+        String name = "testOffloadContextPreservedAfterReopen";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name);
+
+        // One entry before tagging the ledger, so BK is already ahead of the znode stat.
+        ml.addEntry("entry-1".getBytes(Encoding));
+        long lastLedger = ml.ledgers.lastKey();
+
+        // Simulate a ledger that has been offloaded: inject the offload context into the
+        // in-memory info, then persist it by updating a managed-ledger property.
+        LedgerInfo.Builder infoWithOffload = LedgerInfo.newBuilder().setLedgerId(lastLedger);
+        infoWithOffload.getOffloadContextBuilder().setUidMsb(11L).setUidLsb(22L).setComplete(true);
+        ml.ledgers.put(lastLedger, infoWithOffload.build());
+        ml.setProperty("key1", "value1");
+
+        // Write more entries after the property write: BK entries/size now lead the znode stat.
+        ml.addEntry("entry-2".getBytes(Encoding));
+        ml.addEntry("entry-3".getBytes(Encoding));
+        ml.close();
+
+        // Reopen: initialize() refreshes the last ledger's stats from BookKeeper.
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(name);
+        LedgerInfo info = mlReopened.ledgers.get(lastLedger);
+        Assert.assertNotNull(info);
+
+        // entries/size reflect all the writes recorded by BookKeeper
+        Assert.assertEquals(info.getEntries(), 3L);
+        Assert.assertEquals(info.getSize(),
+                (long) "entry-1".getBytes(Encoding).length + "entry-2".getBytes(Encoding).length
+                        + "entry-3".getBytes(Encoding).length);
+
+        // offload context is preserved
+        Assert.assertTrue(info.hasOffloadContext());
+        Assert.assertEquals(info.getOffloadContext().getUidMsb(), 11L);
+        Assert.assertEquals(info.getOffloadContext().getUidLsb(), 22L);
+        Assert.assertTrue(info.getOffloadContext().getComplete());
+        mlReopened.close();
+    }
+
+    /**
+     * Regression: reopening a managed ledger whose last ledger has no offload context behaves as
+     * before -- stats are refreshed from BookKeeper and no offload context appears.
+     */
+    @Test(timeOut = 20000)
+    public void testLastLedgerStatsRefreshedAfterReopenWithoutOffloadContext() throws Exception {
+        String name = "testLastLedgerStatsRefreshedAfterReopenWithoutOffloadContext";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name);
+        ml.addEntry("entry-1".getBytes(Encoding));
+        ml.addEntry("entry-2".getBytes(Encoding));
+        long lastLedger = ml.ledgers.lastKey();
+        ml.close();
+
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(name);
+        LedgerInfo info = mlReopened.ledgers.get(lastLedger);
+        Assert.assertNotNull(info);
+        Assert.assertEquals(info.getEntries(), 2L);
+        Assert.assertEquals(info.getSize(), (long) "entry-1".getBytes(Encoding).length * 2);
+        Assert.assertFalse(info.hasOffloadContext());
+        mlReopened.close();
+    }
+
+    /**
      * Verifies that ledger trimming respects the persistent cursor position, not just the in-memory position.
      *
      * <p><b>Test Flow:</b>
