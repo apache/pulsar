@@ -25,7 +25,6 @@ import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 
 /**
  * Wrapper around the value to store in Map. This is needed to ensure that a specific instance can be removed from
@@ -48,7 +47,6 @@ class RangeCacheEntryWrapper {
     long size;
     long timestampNanos;
     int requeueCount;
-    boolean messageMetadataInitialized;
     volatile boolean accessed;
 
     private RangeCacheEntryWrapper(Recycler.Handle<RangeCacheEntryWrapper> recyclerHandle) {
@@ -65,9 +63,6 @@ class RangeCacheEntryWrapper {
             entryWrapper.key = key;
             entryWrapper.value = value;
             entryWrapper.size = size;
-            // When the value already carries parsed message metadata, there's no need to lazily initialize it
-            // under the write lock on the first read
-            entryWrapper.messageMetadataInitialized = value.getMessageMetadata() != null;
             // Set the timestamp to the current time in nanoseconds
             // This is used for time-based eviction of entries
             entryWrapper.timestampNanos = System.nanoTime();
@@ -80,13 +75,12 @@ class RangeCacheEntryWrapper {
     /**
      * Get the value associated with the key. Returns null if the key does not match the key.
      *
-     * @param key               the key to match
-     * @param managedLedgerName
+     * @param key the key to match
      * @return the value associated with the key, or null if the value has already been recycled or the key does not
      * match
      */
-    ReferenceCountedEntry getValue(Position key, String managedLedgerName) {
-        return getValueInternal(key, false, managedLedgerName);
+    ReferenceCountedEntry getValue(Position key) {
+        return getValueInternal(key, false);
     }
 
     /**
@@ -96,9 +90,8 @@ class RangeCacheEntryWrapper {
      * @return the value associated with the key, or null if the value has already been recycled or the key does not
      * exactly match the same instance
      */
-    static ReferenceCountedEntry getValueMatchingMapEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry,
-                                                          String managedLedgerName) {
-        return entry.getValue().getValueInternal(entry.getKey(), true, managedLedgerName);
+    static ReferenceCountedEntry getValueMatchingMapEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
+        return entry.getValue().getValueInternal(entry.getKey(), true);
     }
 
     /**
@@ -110,20 +103,16 @@ class RangeCacheEntryWrapper {
      *                               key as the one stored in the wrapper. This is used to avoid any races
      *                               when retrieving or removing the entries from the cache when the key and value
      *                               instances are available.
-     * @param managedLedgerName
      * @return the value associated with the key, or null if the key does not match
      */
-    private ReferenceCountedEntry getValueInternal(Position key, boolean requireSameKeyInstance,
-                                                   String managedLedgerName) {
+    private ReferenceCountedEntry getValueInternal(Position key, boolean requireSameKeyInstance) {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
         ReferenceCountedEntry localValue = this.value;
-        boolean messageMetadataInitialized = this.messageMetadataInitialized;
         if (!lock.validate(stamp)) {
             stamp = lock.readLock();
             localKey = this.key;
             localValue = this.value;
-            messageMetadataInitialized = this.messageMetadataInitialized;
             lock.unlockRead(stamp);
         }
         // check that the given key matches the key associated with the value in the entry
@@ -132,20 +121,6 @@ class RangeCacheEntryWrapper {
         // entry to match
         if (localKey != key && (requireSameKeyInstance || localKey == null || !localKey.equals(key))) {
             return null;
-        }
-        // Initialize the metadata if it's not already initialized
-        if (localValue != null && !messageMetadataInitialized) {
-            localValue = withWriteLock(wrapper -> {
-                // ensure that the key still matches
-                if (wrapper.key != key && (requireSameKeyInstance || wrapper.key == null || !wrapper.key.equals(key))) {
-                    return null;
-                }
-                if (wrapper.value instanceof EntryImpl entry && !this.messageMetadataInitialized) {
-                    entry.initializeMessageMetadataIfNeeded(managedLedgerName);
-                    this.messageMetadataInitialized = true;
-                }
-                return wrapper.value;
-            });
         }
         accessed = true;
         return localValue;
@@ -194,7 +169,6 @@ class RangeCacheEntryWrapper {
         size = 0;
         timestampNanos = 0;
         requeueCount = 0;
-        messageMetadataInitialized = false;
         accessed = false;
         recyclerHandle.recycle(this);
     }

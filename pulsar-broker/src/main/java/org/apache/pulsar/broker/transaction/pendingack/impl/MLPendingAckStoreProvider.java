@@ -155,6 +155,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                    Timer brokerClientSharedTimer,
                                                    PersistentTopic originPersistentTopic) {
         config.setCreateIfMissing(true);
+        // the pending ack store keeps PendingAckMetadataEntry records, not Pulsar messages
+        config.setPulsarMessageEntries(false);
         brokerService
                 .getManagedLedgerFactoryForTopic(topicName, config.getStorageClassName())
                 .asyncOpen(pendingAckTopicNameObject.getPersistenceNamingEncoding(),

@@ -47,22 +47,12 @@ class RangeCache {
     private final ConcurrentNavigableMap<Position, RangeCacheEntryWrapper> entries;
     private final RangeCacheRemovalQueue removalQueue;
     private final AtomicLong size; // Total size of values stored in cache
-    private final String managedLedgerName;
 
     /**
      * Construct a new RangeCache.
      */
     public RangeCache(RangeCacheRemovalQueue removalQueue) {
-        this(removalQueue, null);
-    }
-
-    /**
-     * Construct a new RangeCache.
-     * @param managedLedgerName the name of the managed ledger this cache belongs to
-     */
-    public RangeCache(RangeCacheRemovalQueue removalQueue, String managedLedgerName) {
         this.removalQueue = removalQueue;
-        this.managedLedgerName = managedLedgerName;
         this.entries = new ConcurrentSkipListMap<>();
         this.size = new AtomicLong(0);
     }
@@ -125,7 +115,7 @@ class RangeCache {
         if (valueWrapper == null) {
             return null;
         } else {
-            ReferenceCountedEntry value = valueWrapper.getValue(key, managedLedgerName);
+            ReferenceCountedEntry value = valueWrapper.getValue(key);
             return getRetainedValueMatchingKey(key, value);
         }
     }
@@ -135,7 +125,7 @@ class RangeCache {
      */
     private ReferenceCountedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
         ReferenceCountedEntry valueMatchingEntry =
-                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry, managedLedgerName);
+                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
     }
 
