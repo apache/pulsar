@@ -194,6 +194,71 @@ public class ActiveManagedCursorContainerRetentionTest {
     }
 
     @Test
+    public void testReactivatedTailLeavesSharedPositionGroup() {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        for (int i = 0; i < 6; i++) {
+            addCursor(container, "cursor" + i, POSITION);
+        }
+        container.getSlowestCursorPosition();
+        // Insert incrementally after the existing group to establish the tail independently of map iteration order.
+        addCursor(container, "tail", POSITION);
+        container.getSlowestCursorPosition();
+        for (int i = 3; i < 6; i++) {
+            container.removeCursor("cursor" + i);
+        }
+        container.getSlowestCursorPosition();
+
+        Position later = PositionFactory.create(1, 2);
+        container.updateCursor(container.get("tail"), later);
+        container.removeCursor("tail");
+        addCursor(container, "tail", later);
+        assertThat(container.getPendingPositionUpdatesCount()).isEqualTo(1);
+        for (int i = 0; i < 3; i++) {
+            assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("cursor" + i)))
+                    .as("rank of cursor%s after the reactivated tail leaves its group", i)
+                    .isEqualTo(3);
+        }
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("tail"))).isEqualTo(4);
+        container.checkOrderingAndNumberOfCursorsState();
+    }
+
+    @Test
+    public void testTailPositionGroupsRemainCorrectAfterCompaction() {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        for (int i = 0; i < 4; i++) {
+            addCursor(container, "cursor" + i, POSITION);
+        }
+        addCursor(container, "tail", PositionFactory.create(1, 3));
+        container.getSlowestCursorPosition();
+        ManagedCursor tailCursor = container.get("tail");
+        // Join and leave the preceding group, and move in both directions within a separate tail group.
+        for (int entryId : new int[] {1, 2, 3, 2, 1, 2}) {
+            container.updateCursor(tailCursor, PositionFactory.create(1, entryId));
+            for (int i = 0; i < 4; i++) {
+                assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("cursor" + i)))
+                        .as("rank of cursor%s with tail at entry %s", i, entryId)
+                        .isEqualTo(entryId == 1 ? 5 : 4);
+            }
+            assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(tailCursor)).isEqualTo(5);
+            container.checkOrderingAndNumberOfCursorsState();
+        }
+
+        container.removeCursor("cursor0");
+        for (int i = 0; i < 63; i++) {
+            addCursor(container, "temporary" + i, POSITION);
+            container.removeCursor("temporary" + i);
+        }
+        // The removal batch compacts the tracked list without flushing any position updates.
+        assertThat(container.getRetainedCursors()).hasSize(4).doesNotContainNull();
+        for (int i = 1; i < 4; i++) {
+            assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("cursor" + i)))
+                    .isEqualTo(3);
+        }
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(tailCursor)).isEqualTo(4);
+        container.checkOrderingAndNumberOfCursorsState();
+    }
+
+    @Test
     public void testSlowestPositionReadDoesNotExcludeOtherReaders() throws Exception {
         ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
         ManagedCursor cursor = mock(ManagedCursor.class);

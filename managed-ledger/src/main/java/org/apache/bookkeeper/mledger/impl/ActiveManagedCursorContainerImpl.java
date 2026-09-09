@@ -536,12 +536,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
 
             // update the position
             node.position = newPosition;
-            if (node == tail) {
-                // Node is at the tail, no need to update counters
-                return;
-            }
-
-            // update the counters
+            // Even the tail must leave or join shared counters when its position group changes.
             if (movingForward) {
                 // first decrement the counter for the old position
                 node.numberOfCursorsAtSamePositionOrBefore.decrement();
