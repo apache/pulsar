@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import picocli.CommandLine.Option;
 
 /**
@@ -106,9 +107,21 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
     public String deprecatedAuthPluginClassName;
 
+    /**
+     * Default Pulsar client memory limit for the performance tools: half of the JVM's max direct memory.
+     *
+     * <p>The performance tools do not use direct memory for anything other than Netty, so bounding the client
+     * at a fraction of what the JVM can actually allocate keeps the tool from dying with
+     * {@code OutOfDirectMemoryError} while still letting it use the memory it was given. Being proportional
+     * rather than a fixed value also avoids silently changing results for runs that were sized with a larger
+     * {@code -XX:MaxDirectMemorySize}.
+     */
+    public static final long DEFAULT_MEMORY_LIMIT_BYTES = (long) (0.5d * DirectMemoryUtils.jvmMaxDirectMemory());
+
     @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
-    public long memoryLimit;
+            + "(eg: 32M, 64M). Defaults to half of the JVM's max direct memory. Use 0 to disable the limit.",
+            converter = ByteUnitToLongConverter.class)
+    public long memoryLimit = DEFAULT_MEMORY_LIMIT_BYTES;
     public PerformanceBaseArguments(String cmdName) {
         super(cmdName);
     }
