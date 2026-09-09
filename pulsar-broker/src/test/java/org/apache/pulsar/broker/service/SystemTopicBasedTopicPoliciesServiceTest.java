@@ -899,4 +899,55 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // No policy-cache reader was created as a side effect, which is what would recurse.
         Assertions.assertThat(service.getReaderCaches()).doesNotContainKey(namespace);
     }
+
+    @Test(timeOut = 120_000)
+    public void testGetTopicPoliciesWhenBundleBounceReplacesPolicyCacheGeneration() throws Exception {
+        // getTopicPoliciesAsync awaits prepareInitPoliciesCacheAsync (which really does wait for the namespace's
+        // __change_events reader to drain), then hops threads and re-derives that guarantee from policyCacheInitMap.
+        // A namespace-bundle bounce landing inside the hop wipes the cached policies and installs a new, still-loading
+        // generation, so the re-derivation must not accept the mere presence of an init future: the read has to retry
+        // instead of serving the wiped cache of a generation nobody awaited.
+        pulsar.getTopicPoliciesService().close();
+        StaleCacheGenerationInjectingTopicPoliciesService injectingService =
+                new StaleCacheGenerationInjectingTopicPoliciesService(pulsar);
+        FieldUtils.writeField(pulsar, "topicPoliciesService", injectingService, true);
+        // Unlike the spies installed elsewhere in this class, the replacement has to receive the bundle-ownership
+        // callbacks the production service receives, so it is started as PulsarService starts the original.
+        injectingService.start(pulsar);
+
+        admin.namespaces().createNamespace(NAMESPACE5);
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE5);
+        final TopicName topicName = TopicName.get("persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID());
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+        admin.topicPolicies().setMaxConsumersPerSubscription(topicName.toString(), 1);
+
+        // The stale read is only reachable for a caller that awaited a COMPLETE generation, so let generation 1
+        // finish loading the policy before arming the bounce.
+        injectingService.awaitGenerationLoaded(namespace, topicName);
+
+        // The budget is capped so a broker that retries out of the stale read converges: every retry spends at most
+        // one bounce, and once the budget is gone the service behaves exactly like its superclass.
+        injectingService.arm(namespace, 4);
+        final Optional<TopicPolicies> policies;
+        try {
+            policies = injectingService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+                    .get(60, TimeUnit.SECONDS);
+        } finally {
+            injectingService.disarm();
+        }
+
+        Assertions.assertThat(injectingService.staleInjectionCount())
+                .describedAs("no bounce handed the read back a still-loading replacement generation, so the read never"
+                        + " ran in the window under test and the assertions below would hold vacuously")
+                .isPositive();
+        Assertions.assertThat(policies)
+                .describedAs("getTopicPoliciesAsync returned Optional.empty() for a topic that has a policy: a"
+                        + " namespace-bundle bounce replaced the namespace's policy-cache generation while the read"
+                        + " was hopping threads, and the read served the wiped cache of the new, still-loading"
+                        + " generation instead of retrying")
+                .isPresent();
+        Assertions.assertThat(policies.get().getMaxConsumersPerSubscription())
+                .describedAs("the policy returned by the read is not the one that was set on the topic")
+                .isEqualTo(1);
+    }
 }
